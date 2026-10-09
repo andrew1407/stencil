@@ -13,10 +13,10 @@ namespace stencil::support {
 
   QString paletteMidTextSheet() { return QString("color: palette(mid);"); }
 
-  QString projectsHoverPreviewSheet() {
-    return QString(
-        "QLabel{background:#1e1e1e;border:2px solid #d4a017;"
-        "border-radius:8px;padding:4px;}");
+  // browser .project-thumb-zoom: --input-bg under a frame in the theme's accent.
+  QString projectsHoverPreviewSheet(const QColor& bg, const QColor& edge) {
+    return QStringLiteral("QLabel{background:%1;border:2px solid %2;border-radius:8px;padding:4px;}")
+        .arg(bg.name(), edge.name());
   }
 
   QString dropIndicatorSheet(const QColor& highlight) {

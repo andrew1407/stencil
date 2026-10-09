@@ -8,18 +8,23 @@ public interface IStencilServerClient
 {
     string BaseUrl { get; }
 
+    // The token this client holds now and its credential's kind; a re-mint after a 401 changes both.
+    ServerHandshake Session { get; }
+
     // No token: mint one via POST /auth/token. A token the session probe refuses may be the server's
     // ADMIN token: mint a session token with it as bearer and adopt that instead.
     Task<ServerHandshake> ConnectAsync(string? token, CancellationToken ct = default);
 
-    // GET /projects, newest-updated first, one bounded page.
+    // GET /projects, newest-updated first, every page.
     Task<IReadOnlyList<ProjectRecord>> ListProjectsAsync(CancellationToken ct = default);
+
+    // GET /projects, the newest-updated `limit` only: one page, never followed.
+    Task<IReadOnlyList<ProjectRecord>> ListFirstProjectsAsync(int limit, CancellationToken ct = default);
 
     Task<ProjectFull> GetProjectAsync(string id, CancellationToken ct = default);
 
     Task<ProjectRecord> CreateProjectAsync(CreateProjectRequest request, CancellationToken ct = default);
 
-    // PUT /projects/{id}; 409 = conflict.
     Task<ProjectRecord> UpdateProjectAsync(string id, UpdateProjectRequest request, CancellationToken ct = default);
 
     Task DeleteProjectAsync(string id, CancellationToken ct = default);

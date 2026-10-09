@@ -4,6 +4,7 @@
 
 #include "fileStore.hpp"
 #include "ProjectsStore.hpp"
+#include "projectSort.hpp"
 
 #include <QColor>
 #include <QCursor>
@@ -30,7 +31,7 @@ namespace stencil::gui {
   inline constexpr int HOVER_FADE_MS = 90;
 
   // Per-session, deliberately NOT persisted (the browser modal's sessionStorage).
-  inline QString g_projectsSortMode = QStringLiteral("name");
+  inline QString g_projectsSortMode = PROJECT_SORT_DEFAULT;
   inline QStringList g_projectsManualOrder;
 
   // Browser projectsModal.js menuBtn.title.
@@ -56,7 +57,7 @@ namespace stencil::gui {
   // Qt ships no stock magnifier cursor (browser cursor:zoom-in); built once, after QGuiApplication exists.
   const QCursor& zoomInCursor();
 
-  // Browser expiryLabel(): "EXPIRED", "expires in 1 day", "expires in N days".
+  // Browser expiryLabel(): "EXPIRED", "expires in 1 day", "expires in N days", "never expires".
   QString expiryText(const core::ProjectsStore& store,
                      const core::ProjectMeta& meta, long long now);
 

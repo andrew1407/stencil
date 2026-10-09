@@ -20,11 +20,6 @@ namespace stencil::gui {
     return QStringLiteral("Not a readable image or video: %1").arg(src);
   }
 
-  inline bool isHttp(const QUrl& u) {
-    const QString s = u.scheme();
-    return s == "http" || s == "https";
-  }
-
   // Video by container extension (the launch arg's suffix, or the URL path's).
   inline bool looksLikeVideo(const QString& src, const QUrl& url) {
     return isVideoFileName(src) || isVideoFileName(url.path());

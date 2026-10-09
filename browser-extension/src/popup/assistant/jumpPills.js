@@ -4,7 +4,7 @@
 // two would touch, the hovered bubble's trigger lifts clear of them, or (too
 // little room) hides instead of sitting under them (desktop/browser parity).
 import { icon } from '../../lib/icons.js';
-import { msgMenuLiftPx, msgMenuLiftFits } from '../../lib/chat/msgMenu.js';
+import { rowMenuLiftPx, rowMenuLiftFits } from '../../lib/chat/msgMenu.js';
 
 export const createJumpPills = (transcriptEl) => {
   const jumpsEl = document.getElementById('chat-jumps');
@@ -29,9 +29,9 @@ export const createJumpPills = (transcriptEl) => {
     if (!btn) return;
     const pills = livePillRects();
     const btnRect = btn.getBoundingClientRect();
-    const lift = msgMenuLiftPx(btnRect, pills);
+    const lift = rowMenuLiftPx(btnRect, pills);
     if (!lift) { clearMenuLift(hoverMsgEl); return; }
-    if (msgMenuLiftFits(hoverMsgEl.getBoundingClientRect(), btnRect, lift)) {
+    if (rowMenuLiftFits(hoverMsgEl.getBoundingClientRect(), btnRect, lift)) {
       btn.style.setProperty('--menu-lift', `${lift}px`);
       btn.classList.remove('msg-menu-btn-yield');
     } else {

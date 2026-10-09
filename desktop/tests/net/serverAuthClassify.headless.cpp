@@ -1,5 +1,6 @@
 // Classifying a connection: which kind of row a reachable origin yields.
 #include "serverAuthParts.hpp"
+#include "fetchGuard.hpp"
 
 namespace serverauth {
 
@@ -110,6 +111,41 @@ namespace serverauth {
     check(cl && cl->getStatus() == ServerClient::Status::CONNECTED && !cl->needsReauth(),
           "…with no re-auth needed");
   }
+
+  // A redirect is a failure: the bearer never follows it to another host.
+  {
+    MockServer elsewhere;
+    check(elsewhere.listen(), "a second server listens");
+    mock.projectsStatus = 200;
+    mock.tokenStatus = 200;
+    ConnectionManager mgr;
+    QString err;
+    check(stencil::test::connectNow(mgr, mock.url(), QStringLiteral("good-token"), err), "a session connects");
+    mock.redirectTo = elsewhere.url().toUtf8() + "/projects";
+    bool done = false, listed = true;
+    mgr.find(mock.url())->listProjectsAsync([&](bool ok, QVector<stencil::net::ServerProject>) {
+      listed = ok;
+      done = true;
+    });
+    pumpUntil([&] { return done; });
+    mock.redirectTo.clear();
+    check(done && !listed && elsewhere.requests == 0, "a 302 fails the request and nothing reaches its target");
+
+    // A reply claiming more than the fetch cap is cut off, not buffered.
+    mock.claimLength = stencil::net::fetchGuard::MAX_FETCH_BYTES + 1;
+    done = false;
+    listed = true;
+    mgr.find(mock.url())->listProjectsAsync([&](bool ok, QVector<stencil::net::ServerProject>) {
+      listed = ok;
+      done = true;
+    });
+    pumpUntil([&] { return done; });
+    mock.claimLength = 0;
+    check(done && !listed, "a reply past the fetch cap fails");
+  }
+  check(ServerClient::normalizeBase(QStringLiteral("https://me:secret@stencil.example:8090/x")) ==
+            QStringLiteral("https://stencil.example:8090"),
+        "a base never keeps user:pass@");
 
   std::printf("server targets (blockedRanges serverTarget, private allowed):\n");
   {

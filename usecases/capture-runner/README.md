@@ -85,8 +85,8 @@ screenshots the chat column. The bot is never started from here and its env is n
   `STENCIL_DOCS_SERVER_TOKEN` or a session token in `.out/session.token` (mint one with
   `POST /auth/token` and the server's admin token). The CLI and bot captures need the same
   token in their `STENCIL_LLM_*` env (`bot.mjs` never starts the bot). Without a token the
-  browser, extension and desktop fall back to the e2e LLM stub's canned answers, and the CLI
-  and bot skip their prompt shots.
+  browser, extension, desktop and CLI fall back to the e2e LLM stub's canned answers, and the
+  bot skips its prompt shots.
 - **No shot carries anything personal.** The VS Code captures run out of a neutral root
   (`vscode.roots` in `config/shared.json`, `/tmp/stencil-capture` by default) with a copy of
   the CLI beside them and a shell started without rc files, so a terminal shows `$ ` and

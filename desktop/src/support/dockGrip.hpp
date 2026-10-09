@@ -41,6 +41,7 @@ namespace stencil::gui {
       if (support::motionReduced()) { hot = to; update(); return; }
       anim->setStartValue(hot);
       anim->setEndValue(to);
+      anim->setDuration(support::motionMs(HOVER_MS));
       anim->start();
     }
 

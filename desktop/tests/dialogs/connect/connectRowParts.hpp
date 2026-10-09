@@ -1,4 +1,5 @@
 #pragma once
+#include <QNetworkProxy>
 // The connect-row suite's sections, one TU each behind this header, called in this order from
 // main(); each takes only the parts of the shared fixture it reads. checkRowLayout hands back
 // the row widget it measured, which every later section works on.

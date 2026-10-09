@@ -320,8 +320,8 @@
 @2856 2290B 9cc5fcf1b9e6953a
 # /theme default
 # echo
-\x01> \x1b[0m/theme default\x1b[0m
-@2856 2658B 6c9fa544f93fac88
+\x01> \x1b[0m\x01/theme\x1b[0m default
+@2856 2676B 138c8f8b69cf9635
 ~wait 115
 @2971 146B 5a85573644ce6792
 \x1b7
@@ -343,7 +343,7 @@
 \x1b7
 \x1b[6;24H\x1b[1mS\x1b[0m\x1b[1m \x1b[0m\x1b[1mT\x1b[0m\x1b[1m \x1b[0m\x1b[1mE\x1b[0m\x1b[1m \x1b[0m\x1b[1mN\x1b[0m\x1b[1m \x1b[0m\x1b[1mC\x1b[0m\x1b[1m \x1b[0m\x1b[1m\x1b[38;2;124;58;237mI\x1b[0m\x1b[1m \x1b[0m\x1b[1mL\x1b[0m\x1b8
 ~wait 115
-@3546 4074B df2ac8d04157695d
+@3546 4110B f6c47fe0aa9edc75
 ~wait 13
 @3559 22B d22c1506884b69c0
 \x1b7
@@ -369,7 +369,7 @@
 \x1b7
 \x1b[21;1Htheme set to violet (#7c\x1b[0m\x1b[K\x1b8
 ~wait 13
-@3637 1166B a63f506b94cab47a
+@3637 1184B 821a00d15be6c3c5
 \x1b7
 \x1b[21;1Htheme set to violet (#7c3aed\x1b[0m\x1b[K
 \x1b[12;1Hwrote out.png (640x480 px · A4 29.7×21cm)\x1b[0m\x1b[K
@@ -380,7 +380,7 @@
 \x1b[17;1H\x1b[38;2;124;58;237m> \x1b[0m\x1b[1;38;2;255;215;0m/mranderson\x1b[0m\x1b[0m\x1b[K
 \x1b[18;1H\x1b[1;38;2;255;215;0mMeow(\x1b[0m\x1b[0m\x1b[K
 \x1b[19;1H\x1b[1;38;2;255;215;0mWHY, Mr. Anderson, WHY?\x1b[0m\x1b[0m\x1b[K
-\x1b[20;1H\x1b[38;2;124;58;237m> \x1b[0m/theme default\x1b[0m\x1b[0m\x1b[K
+\x1b[20;1H\x1b[38;2;124;58;237m> \x1b[0m\x1b[38;2;124;58;237m/theme\x1b[0m default\x1b[0m\x1b[K
 \x1b[21;1Htheme set to violet (#7c3aed)\x1b[0m\x1b[K\x1b8
 \x1b[22;1H\x1b[2K\x1b[38;2;124;58;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\x1b[2m\x1b[0m
 \x1b[24;1H\x1b[2K\x1b[38;2;124;58;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\x1b[2m\x1b[0m

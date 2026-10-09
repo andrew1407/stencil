@@ -1,6 +1,7 @@
 // The arrival on the storage routes (js/core/storage/storage.js), on a real Storage over the stub
 // page: an open plays the dust once its image is decoded and the saved scroll is in place, in the
-// same tick; a peer's edit synced in from another tab repaints without it.
+// same tick; a peer's edit synced in from another tab repaints without it. A project switched to
+// takes nothing of the last one's lines: its points table and selection start empty.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mountStorage } from '../../helpers/storageRig.js';
@@ -62,4 +63,26 @@ test('a peer\'s edit synced in from another tab repaints without the arrival', (
   assert.equal(r.app.imageDataUrl, 'data:image/png;base64,BBBB', 'the peer\'s picture was loaded');
   assert.deepEqual(r.arrivals, [], 'and it did not dissolve in under the reader');
   assert.ok(!r.viewport.classList.contains(ASSEMBLING_CLASS));
+});
+
+test('opening a project with no lines empties the points table and the last selection', (t) => {
+  const r = rigWithDecode(t);
+  Object.assign(r.app, { lines: [{ points: [{ x: 1, y: 2 }] }], selectedLineIdx: 0, selectedLines: [0],
+    coordLineIdx: 0, currentLine: { points: [] } });
+  r.app.coordTable.update(r.app.lines[0].points);
+  r.storage.activeId = 'p2';
+  r.storage.loadPayloadIntoApp(saved('data:image/png;base64,AAAA'), { landing: true });
+  assert.equal(r.app.coordTable.shown, null, 'the table is emptied, not left on the last project\'s points');
+  assert.equal(r.app.coordTable.line, -1, '…and names no line');
+  assert.deepEqual([r.app.selectedLineIdx, r.app.selectedLines, r.app.currentLine], [-1, [], null],
+    'nothing selected or in progress names a line this project lacks');
+});
+
+test('opening a project with lines lists its last line\'s points', (t) => {
+  const r = rigWithDecode(t);
+  const pts = [{ x: 5, y: 6 }, { x: 7, y: 8 }];
+  r.storage.activeId = 'p3';
+  r.storage.loadPayloadIntoApp({ image: 'data:image/png;base64,AAAA', layout: { lines: [{ points: [] }, { points: pts }] } });
+  assert.equal(r.app.coordTable.shown, pts);
+  assert.equal(r.app.coordTable.line, 1, 'listed against the line that owns them');
 });

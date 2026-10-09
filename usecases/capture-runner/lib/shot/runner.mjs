@@ -1,7 +1,7 @@
 // One capture run: the frozen step table an app script declares, filtered by `--only`,
 // each step told which theme it is taken in, and the size budget checked at the end.
 import { makeThemePicker } from '../theme/selector.mjs';
-import { checkBudget, sizesTable } from '../imageBudget.mjs';
+import { checkBudget, sizesOf, sizesTable } from '../imageBudget.mjs';
 import { shoot } from './shots.mjs';
 
 // `--only <name>` limits a run to the steps whose name starts with it, while iterating.
@@ -30,9 +30,10 @@ export function makeShotRunner({ config, out }) {
       return ctx;
     },
 
-    finish() {
-      checkBudget(out, config.budget);
-      console.log(sizesTable(out));
+    async finish() {
+      const sizes = await sizesOf(out);
+      checkBudget(sizes, config.budget);
+      console.log(sizesTable(sizes));
     },
   };
 }

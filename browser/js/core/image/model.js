@@ -3,6 +3,7 @@ import { editorMemento } from '../historyStack.js';
 import { keepLineSelection } from '../line/selection.js';
 import { pageNaturalSize } from '../settings/units.js';
 import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoints, snapCropRect, rotateEditQuarter, mirrorEdit } from '../parse/cropGeometry.js';
+import { context2d } from './decodeLimit.js';
 
 // Non-destructive crop + mirror + quarter-turn rotation over `originalImage` (never modified);
 // `cropRect` is in rotated-original pixels. Geometry: cropGeometry.js (wasm/JS twin).
@@ -40,7 +41,7 @@ export class ImageModel {
     const c = document.createElement('canvas');
     c.width = swap ? img.height : img.width;
     c.height = swap ? img.width : img.height;
-    const ctx = c.getContext('2d');
+    const ctx = context2d(c);
     ctx.translate(c.width / 2, c.height / 2);
     ctx.rotate(q * Math.PI / 2);
     if (this.app.mirrored) ctx.scale(-1, 1);
@@ -70,7 +71,7 @@ export class ImageModel {
     const c = document.createElement('canvas');
     c.width = r.width;
     c.height = r.height;
-    const ctx = c.getContext('2d');
+    const ctx = context2d(c);
     if (q === 0 && !app.mirrored) ctx.drawImage(img, r.x, r.y, r.width, r.height, 0, 0, r.width, r.height);
     else {
       const { width: rw, height: rh } = this.rotatedOriginalDims();

@@ -6,6 +6,8 @@ import type { Storage } from './storage.js';
 
 /** Custom page size and the unit, then the unit sweep over the UI. */
 export declare const applyStoredPage: (app: DrawingApp, layout: ProjectLayout) => void;
+/** The project's lines in, the previous project's line in progress out. */
+export declare const adoptStoredLines: (app: DrawingApp, lines: ProjectLayout['lines'] | undefined) => void;
 /** Colours, thickness, point size, style, visibility and the image filter. */
 export declare const applyStoredDrawing: (app: DrawingApp, layout: ProjectLayout) => void;
 /** Image name/ext and the provenance URLs, then the tooltip switches. */
@@ -18,3 +20,5 @@ export declare const applyStoredTools: (app: DrawingApp, layout: ProjectLayout) 
 export declare const applyStoredImage: (storage: Storage, id: string | null, image: string) => Promise<void>;
 /** Lines kept pending behind the missing-image banner, or settings only. */
 export declare const applyImagelessPayload: (storage: Storage, layout: ProjectLayout) => void;
+/** A decoded stored picture past the pixel cap: reopens the payload image-less under IMAGE_TOO_LARGE, answers true. */
+export declare const refuseOversizedImage: (storage: Storage, img: HTMLImageElement, layout: ProjectLayout) => boolean;

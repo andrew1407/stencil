@@ -11,6 +11,7 @@ set(STENCIL_GUI_SOURCES
   src/app/events/popover/MainWindowExecPopover.cpp
   src/app/actions/SettingsDialogs.cpp
   src/app/project/flows/ProjectFlows.cpp
+  src/app/project/flows/ProjectFlowsRequests.cpp
   src/app/open/projectThumbs.cpp
   src/app/actions/ActionsBuilder.cpp
   src/app/actions/HotkeyTable.cpp
@@ -97,6 +98,7 @@ set(STENCIL_GUI_SOURCES
   src/model/ScriptDoc.cpp
   src/app/open/source/SourceOpenerReplace.cpp
   src/app/project/flows/ProjectFlowsServer.cpp
+  src/app/project/flows/ProjectFlowsLayoutMeta.cpp
   src/app/project/flows/ProjectFlowsPublish.cpp
   src/app/project/flows/ProjectFlowsLaunch.cpp
   src/app/project/flows/ProjectFlowsSave.cpp
@@ -114,6 +116,7 @@ set(STENCIL_GUI_SOURCES
   src/app/project/copy/ProjectCopyOpen.cpp
   src/app/project/copy/ProjectCopyFlow.cpp
   src/app/meta/MainWindowSettings.cpp
+  src/app/meta/SharedState.cpp
   src/app/mainWindowShared.cpp
   src/app/open/MainWindowSource.cpp
   src/app/open/source/SourceOpenerFile.cpp
@@ -145,6 +148,7 @@ set(STENCIL_GUI_SOURCES
   src/app/meta/DataExportImage.cpp
   src/app/remote/RemoteSession.cpp
   src/app/remote/RemoteSyncController.cpp
+  src/app/remote/RemoteSyncControllerResult.cpp
   src/app/project/ProjectTransferController.cpp
   src/app/project/ProjectTransferImport.cpp
   src/app/open/launchOptions.cpp

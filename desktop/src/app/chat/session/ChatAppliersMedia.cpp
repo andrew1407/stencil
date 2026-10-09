@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "SharedState.hpp"
 #include "ChatAppliers.hpp"
 #include "ChatSessionController.hpp"
 #include "mainWindowHelpers.hpp"
@@ -80,7 +81,7 @@ namespace stencil::gui {
           registryChanged;
     // ONE registry write + dock-menu rebuild for the whole extraction.
     if (registryChanged) {
-      fileStore::saveProjects(w.projectList);
+      SharedState::instance().saveProjects(&w);
       SiblingWindows::refreshDockMenu(w.projectList);
     }
     w.refreshActions();
@@ -115,7 +116,7 @@ namespace stencil::gui {
     pr.meta.imageH = img.height();
     w.projectList.push_back(pr);
     if (!deferRegistrySave) {
-      fileStore::saveProjects(w.projectList);
+      SharedState::instance().saveProjects(&w);
       SiblingWindows::refreshDockMenu(w.projectList);
     }
     return QString::fromStdString(pr.meta.id);

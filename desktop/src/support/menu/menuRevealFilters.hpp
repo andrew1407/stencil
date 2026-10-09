@@ -79,12 +79,12 @@ namespace stencil::support {
       m->setGeometry(start);
 
       auto* geo = new QPropertyAnimation(m, "geometry", this);
-      geo->setDuration(MENU_MS * ms / MENU_POPUP_DUST_MS);  // the fallback keeps the ratio
+      geo->setDuration(motionMs(MENU_MS * ms / MENU_POPUP_DUST_MS));  // the fallback keeps the ratio
       geo->setStartValue(start);
       geo->setEndValue(target);
       geo->setEasingCurve(QEasingCurve::OutCubic);
       auto* fade = new QPropertyAnimation(m, "windowOpacity", this);
-      fade->setDuration(MENU_MS * ms / MENU_POPUP_DUST_MS);
+      fade->setDuration(motionMs(MENU_MS * ms / MENU_POPUP_DUST_MS));
       fade->setStartValue(0.0);
       fade->setEndValue(1.0);
       fade->setEasingCurve(QEasingCurve::OutCubic);

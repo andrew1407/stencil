@@ -69,8 +69,9 @@ size) work as in the browser app, with the same keyboard shortcuts.
   Close — or **Project ▸ Close Project**, `Alt+Shift+W` — closes it here and stays saved),
   **Controls & Shortcuts Info** (`Alt+H`), and the **Keyboard Shortcuts** editor (`Alt+K`: click
   a combo and press the new chord).
-- **Motion** — Settings → Motion: *Drawing animation* on/off and *Interface animation*
-  (Dust, Water, Fire, Sliding, None). `STENCIL_NO_ANIM=1` overrides the setting.
+- **Motion** — Settings → Motion: *Drawing animation* on/off, *Interface animation*
+  (Dust, Water, Fire, Sliding, None) and its *Animation speed* (0.1 slowest to 1 fastest,
+  0.37 the standard pace). `STENCIL_NO_ANIM=1` overrides the setting.
 - **Notifications** — Settings → Notifications: *In the app* (the corner toasts, the default) or
   *System notifications* (the OS notification centre, through a tray icon shown while chosen).
   Where the OS offers none, the toasts stay.

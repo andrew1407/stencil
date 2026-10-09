@@ -59,10 +59,14 @@ page units.
 |---|---|
 | ![a selected line](img/lines-selection-light.png) | ![the same, dark](img/lines-selection-dark.png) |
 
-The **Lines** tab lists every line with its colour. Click a line's colour chip to pick a new
-colour for it, with the canvas following as you drag; double-click the chip to give the line
-the toolbar's line colour back. Double-clicking the toolbar's own line colour resets it to the
-default yellow.
+The **Lines** tab lists every line with its name and colour. A line is `Line 1`, `Line 2`… until
+you name it: double-click the name to type one. The eye hides a line from the canvas, dimming
+its row, and shows it again.
+
+Click a line's colour chip to pick a new colour for it, with the canvas following as you drag;
+double-click the chip to give the line the toolbar's line colour back. Double-clicking any other
+colour chip puts it back to its default — the toolbar's line colour to yellow, its point colour
+to the line's, the tint to its default, and each colour in Settings to its own.
 
 Each row also carries the line's thickness, its points' colour and their size. Double-click a
 number to type a new one — Enter keeps it, Escape leaves it as it was — and click the round chip
@@ -100,12 +104,16 @@ the whole project with its colour, keywords, description and chat:
 
 ## Change the look
 
-**View ▸ Visuals & Settings…** (`Alt+V`) sets the accent, appearance, motion style, drawing
-defaults and app preferences. The logo click cycles accents; right-click it for the list.
+**View ▸ Visuals & Settings…** (`Alt+V`) sets the accent, appearance, motion style and how fast
+it plays (**Animation speed**, 0.1 to 1), drawing defaults and app preferences. Double-click a
+row's title to put that setting back to its default. The logo click cycles accents; right-click it for the list.
 
 | Settings, light | Settings, dark | Accent picker |
 |---|---|---|
 | ![settings](img/settings-dialog-light.png) | ![settings, dark](img/settings-dialog-dark.png) | ![accents](img/accent-picker.png) |
+
+With **Multiple windows** on, windows like Settings or Projects open side by side and stay open:
+nothing behind them dims, and a click outside closes none of them.
 
 The theme switch wipes the new palette across the window:
 
@@ -119,9 +127,19 @@ changes.
 
 Drag the logo onto the picture to see it bare: no filter, lines, points or compare split while
 the logo is over it. Drop it there to keep that clean view; the toolbar's filter and view
-controls follow. Drop it anywhere else and nothing changes.
+controls follow. Drop it on a line — on the canvas, its Lines row or the selected-line bar — and
+that line takes the toolbar's style; drop it on a control that has a default and the control
+goes back to it. Anywhere else, nothing changes.
 
 ![the logo dropped on the canvas for the clean view](img/drag-logo-clean.gif)
+
+## Work in fullscreen
+
+**View ▸ Enter Fullscreen** (`Alt+F`) hides the toolbar so the picture fills the screen; it
+slides back in when the pointer touches the top edge, and leaves again when the pointer moves
+away.
+
+![the toolbar sliding in at the top edge in fullscreen, and leaving again](img/fullscreen-strip.gif)
 
 ## Crop, flip, rotate
 
@@ -166,7 +184,8 @@ in the Script window, highlighted and ready to edit; nothing runs until **Run** 
 ## Projects and servers
 
 **Project ▸ Projects…** (`Ctrl+Shift+P`) manages the auto-saved projects, local and on
-servers; **Project ▸ Servers…** (`Ctrl+Shift+K`) connects to a collaboration server.
+servers, the one you opened most recently first (or by name, by last edit, or in your own
+order); a project kept forever says **never expires**; **Project ▸ Servers…** (`Ctrl+Shift+K`) connects to a collaboration server.
 
 | Projects, light | Projects, dark | Servers |
 |---|---|---|

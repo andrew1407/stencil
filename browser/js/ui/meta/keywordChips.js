@@ -1,5 +1,5 @@
 import { FILTER_ENTERING_CLASS, disintegrate, flipFrom, leaveThenRemove,
-         motionReduced, speckPainter,
+         motionMs, motionReduced, speckPainter,
          CHIP_MOTE_PX, CHIP_DUST_MS, CHIP_DUST_DRIFT, CHIP_ENTER_MS, CHIP_ENTER_DELAY_MS,
          chipGrid } from '../motion.js';
 import { icon } from '../icons.js';
@@ -131,7 +131,7 @@ export const keywordChipsField = ({ placeholder }) => ({
         });
         el.style.animationDelay = dust ? `${CHIP_ENTER_DELAY_MS}ms` : '0ms';
         el.classList.add(FILTER_ENTERING_CLASS);
-        el.__settle = setTimeout(() => settle(el), CHIP_ENTER_DELAY_MS + CHIP_ENTER_MS + 60);
+        el.__settle = setTimeout(() => settle(el), motionMs(CHIP_ENTER_DELAY_MS + CHIP_ENTER_MS + 60));
       });
     };
 

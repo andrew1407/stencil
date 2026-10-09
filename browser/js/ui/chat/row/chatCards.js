@@ -40,16 +40,21 @@ export const chatResultCard = (r) => {
   const label = document.createElement('span');
   label.className = 'chat-result-label';
   label.textContent = r.label;
-  const dl = document.createElement('a');
-  dl.className = 'chat-hbtn chat-result-btn';
+  // A <button>, not a link: every button shimmers and mimes its glyph on hover (layout/shimmer.css).
+  const dl = document.createElement('button');
+  dl.className = 'btn-icon chat-result-btn';
   dl.dataset.title = `Download ${r.label}`;
-  dl.download = `${sanitizeLabel(r.label)}.png`;
-  dl.href = r.dataUrl;
-  dl.innerHTML = icon('download', { size: 13 });
+  dl.innerHTML = icon('download', { size: 16 });
+  dl.addEventListener('click', () => {
+    const a = document.createElement('a');
+    a.download = `${sanitizeLabel(r.label)}.png`;
+    a.href = r.dataUrl;
+    a.click();
+  });
   const use = document.createElement('button');
-  use.className = 'chat-hbtn chat-result-btn';
+  use.className = 'btn-icon chat-result-btn';
   use.dataset.title = `Open ${r.label} as the working image`;
-  use.innerHTML = icon('external', { size: 13 });
+  use.innerHTML = icon('external', { size: 16 });
   use.addEventListener('click', async () => {
     try { await window.stencil.load(r.dataUrl, { name: `${sanitizeLabel(r.label)}.png` }); }
     catch (err) { notify(`Could not open ${r.label} — ${err.message}`, 'fail'); }

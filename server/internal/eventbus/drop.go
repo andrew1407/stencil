@@ -41,5 +41,6 @@ func (d *DropLog) Drop(backend, channel string) {
 	d.n, d.lastAt = 0, now
 	d.mu.Unlock()
 	log.Printf("WARN %s: dropped %d message(s) to a slow subscriber on %q; "+
-		"clients recover by version resync, but sustained drops mean a stuck peer", backend, n, channel)
+		"a client's projects list stays stale until it lists again or a stale write is refused 409; "+
+		"sustained drops mean a stuck peer", backend, n, channel)
 }

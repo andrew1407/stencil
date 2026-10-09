@@ -1,12 +1,6 @@
 // The on-page 2×2 drop overlay, injected while a row is dragged out of the panel via
 // executeScript({func}) — so mountDropZones must stay SELF-CONTAINED, no imports. A drop
 // only completes from the SIDE PANEL; DROPZONES_DISARM tears it down on drag end.
-// Inlined again inside mountDropZones (an injected func can't call module scope).
-export const quadrantAt = (x, y, w, h) => {
-  const left = x < w / 2, top = y < h / 2;
-  return top ? (left ? 'here' : 'incognito') : (left ? 'newtab' : 'crop');
-};
-
 // `mode` is the Appearance choice already RESOLVED by the panel (lib/prefs/shellTheme.js
 // injectedScheme) — a host page answers prefers-color-scheme differently; never use it here.
 export const mountDropZones = (accent = '#7c3aed', editor = false, mode = 'system') => {

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyEnd, isLongPress, dist, midpoint, touchDist, TOUCH_DEFAULTS } from '../../../js/core/touch/gestures.js';
+import { classifyEnd, dist, midpoint, touchDist, TOUCH_DEFAULTS } from '../../../js/core/touch/gestures.js';
 
 const T = (x, y) => ({ clientX: x, clientY: y });
 
@@ -19,12 +19,6 @@ test('classifyEnd: held too long → drag (became a hold, not a tap)', () => {
 
 test('classifyEnd: custom thresholds override defaults', () => {
   assert.equal(classifyEnd({ moved: 20, elapsed: 50 }, { moveTol: 30 }), 'tap');
-});
-
-test('isLongPress: still & long enough → true; moved → false', () => {
-  assert.equal(isLongPress({ moved: 2, elapsed: TOUCH_DEFAULTS.longPressMs }), true);
-  assert.equal(isLongPress({ moved: 2, elapsed: TOUCH_DEFAULTS.longPressMs - 1 }), false);
-  assert.equal(isLongPress({ moved: TOUCH_DEFAULTS.moveTol + 1, elapsed: 9999 }), false);
 });
 
 test('dist / touchDist: 3-4-5 triangle', () => {

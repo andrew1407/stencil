@@ -1,6 +1,6 @@
 export type MotionMode = 'particles' | 'water' | 'fire' | 'slide' | 'none';
 export interface MotionPrefs { mode: MotionMode; drawing: boolean;
-  backdrop: boolean; multiWindow: boolean; }
+  multiWindow: boolean; speed: number; }
 
 export declare const MOTION_STORAGE_KEY: string;
 /** Fired after every change (eventBus/appBus.js EVENTS.motionChanged). */
@@ -10,6 +10,11 @@ export declare const MOTION_MODES: MotionMode[];
 export declare const PARTICLE_MODES: MotionMode[];
 export declare const DEFAULT_MOTION_MODE: MotionMode;
 export declare const DEFAULT_DRAWING_ANIMATIONS: boolean;
+/** common/config/motion.json `speed`: the Animation speed range, its step and its default. */
+export declare const MOTION_SPEED: Readonly<{ min: number; max: number; default: number; step: number }>;
+export declare const DEFAULT_MOTION_SPEED: number;
+/** Clamped into MOTION_SPEED's range at two decimals; a non-number reads as the default. */
+export declare const clampMotionSpeed: (v: unknown) => number;
 /** [modeKey, label] pairs for the desktop combo and the extension options page. */
 export declare const MOTION_MODE_LABELS: [MotionMode, string][];
 
@@ -20,14 +25,18 @@ export declare const normalizeMotionMode: (v: unknown) => MotionMode;
 export declare const motionPrefs: () => MotionPrefs;
 export declare const motionMode: () => MotionMode;
 export declare const drawingAnimations: () => boolean;
-/** Whether an open window dims and blurs what it covers. Desktop twin: motionPrefs.hpp. */
-export declare const modalBackdrop: () => boolean;
-export declare const DEFAULT_MODAL_BACKDROP: boolean;
 /** Many windows open at once, with no backdrop and no outside-click close. Desktop twin: motionPrefs.hpp multiWindow(). */
 export declare const multiWindow: () => boolean;
 export declare const DEFAULT_MULTI_WINDOW: boolean;
 /** True while a session override lies over the stored prefs. */
 export declare const motionOverridden: () => boolean;
+export declare const motionSpeed: () => number;
+/** DEFAULT_MOTION_SPEED / speed: the factor every interface duration is stretched by, exactly 1 at the default. */
+export declare const motionScale: () => number;
+/** `ms` stretched by motionScale(), rounded; returned untouched at the default. */
+export declare const motionMs: (ms: number) => number;
+/** A clock for one flight, started now, whose ms pass at the speed in force at its start. */
+export declare const motionClock: (real?: () => number) => () => number;
 export declare const storedMotionMode: () => MotionMode;
 export declare const showMotionStyle: () => string;
 /** Whether a logo show may fly a cloud: false in 'slide' and 'none'. */

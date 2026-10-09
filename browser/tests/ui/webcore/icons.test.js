@@ -3,7 +3,7 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import PIXELS from '../../../../common/config/iconsWebcore.json' with { type: 'json' };
-import { icon, DRAW_MODE_ICON, iconSkin } from '../../../js/ui/icons.js';
+import { icon, DRAW_MODE_ICON } from '../../../js/ui/icons.js';
 import { pixelRects, pixelTable, pixelIconSvg, setPixelIcons, swapIconArt } from '../../../js/ui/webcore/icons.js';
 
 afterEach(() => setPixelIcons(false));
@@ -20,7 +20,6 @@ test('a row of the map becomes one rect per lit run', () => {
 test('installed, icon() serves the pixel art on the 16-grid; removed, the line-art is back', () => {
   assert.match(icon('save'), /viewBox="0 0 24 24".*stroke="currentColor"/);
   setPixelIcons(true);
-  assert.ok(iconSkin());
   const s = icon('save', { size: 13, cls: 'x' });
   assert.match(s, /^<svg class="ic ic-save x" viewBox="0 0 16 16" width="13" height="13" shape-rendering="crispEdges"/);
   assert.ok(!s.includes('currentColor') && s.includes('<rect'), 'the colour is baked');
@@ -28,7 +27,6 @@ test('installed, icon() serves the pixel art on the 16-grid; removed, the line-a
   assert.match(DRAW_MODE_ICON.rect, /class="ic ic-draw-mode-rect draw-mode-icon" viewBox="0 0 16 16"/);
   assert.equal(icon('nosuch'), '');
   setPixelIcons(false);
-  assert.equal(iconSkin(), null);
   assert.match(icon('save'), /stroke="currentColor"/);
   assert.match(DRAW_MODE_ICON.rect, /currentColor/);
 });

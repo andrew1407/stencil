@@ -24,7 +24,7 @@ public abstract class PromptHandlerTestBase : IDisposable
 
     protected PromptHandlerTestBase()
     {
-        _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-promptcmd-" + Guid.NewGuid().ToString("N"));
+        _dataDir = TempDirs.New("bot-promptcmd");
         BotOptions options = new() { DataDir = _dataDir };
         _handlers = TestHandlers.Create(options, _store, _cli, _bot, _llm);
         _callbacks = new CallbackAction(_handlers, _bot, _store);
@@ -32,7 +32,7 @@ public abstract class PromptHandlerTestBase : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
+        TempDirs.Delete(_dataDir);
         GC.SuppressFinalize(this);
     }
 
@@ -40,13 +40,5 @@ public abstract class PromptHandlerTestBase : IDisposable
         _handlers.DispatchAsync(UserId, ChatId, CommandParser.Parse(text), CancellationToken.None);
 
     protected Task Tap(string data) =>
-        _callbacks.HandleAsync(
-            new CallbackQuery
-            {
-                Id = "cb",
-                From = new User { Id = UserId },
-                Message = new Message { Chat = new Chat { Id = ChatId } },
-                Data = data,
-            },
-            CancellationToken.None);
+        _callbacks.HandleAsync(TestHandlers.Tap(UserId, ChatId, data), CancellationToken.None);
 }

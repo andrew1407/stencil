@@ -3,62 +3,7 @@
 // with the undo history kept; a steady session toasts on a change of state only.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { installDom, createStubElement } from '../../helpers/dom.js';
-import { recordingCtx } from '../../helpers/recordingCtx.js';
-
-const toasts = [];
-// The result renders inline here (no Worker): one stub canvas that encodes to a fixed PNG.
-const resultCanvas = () => ({ width: 0, height: 0, getContext: () => recordingCtx().ctx,
-  toBlob: (cb) => cb(new Blob([new Uint8Array([7])])) });
-const doc = installDom({ createElement: (tag) => (tag === 'canvas' ? resultCanvas() : createStubElement(tag)) });
-doc.register('notify-balloon', createStubElement('div', { notify: (msg) => toasts.push(msg) }));
-const { RemoteSyncController } = await import('../../../js/core/remote/syncController.js');
-
-// The decode boundary: a reload is the real loadImageFromFile reading the fetched original, so
-// each read counts as one load of the rig in play; the decode itself never needs to finish.
-let current = null;
-globalThis.FileReader = class { readAsDataURL() { current.calls.loads++; } };
-
-const HASH = 'a'.repeat(64);
-const RECORD = { id: 'r1', hasImage: true, originalPath: 'projects/r1/original.png', imageW: 4, imageH: 3, originalHash: HASH };
-const settle = () => new Promise((r) => setImmediate(r));
-
-const rig = () => {
-  const calls = { put: [], files: [], fetches: 0, loads: 0, resets: 0, pushes: [], settles: [] };
-  let version = 1;
-  const server = { layout: { lines: [], cropRect: { x: 0, y: 0, w: 4, h: 3 }, rotationQuarters: 0 }, record: { ...RECORD } };
-  const conn = {
-    url: 'http://s',
-    updateProject: async (id, body) => { calls.put.push(body.layout); return { version: ++version }; },
-    putFile: async (id, kind) => { calls.files.push(kind); version++; },
-    getProject: async () => ({ project: { ...server.record, version }, layout: server.layout }),
-    fetchFile: async () => { calls.fetches++; return new Blob([new Uint8Array([1])], { type: 'image/png' }); },
-  };
-  const app = {
-    remoteLink: { address: 'http://s', remoteId: 'r1', version: 1 },
-    connections: { get: () => conn }, activeProjectId: null, imageBaseName: 'img',
-    image: {}, originalImage: { width: 4, height: 3 }, canvas: { width: 4, height: 3 },
-    cropRect: { x: 0, y: 0, width: 4, height: 3 }, rotationQuarters: 0,
-    lines: [], selectedLineIdx: -1, selectedLines: [], coordLineIdx: -1,
-    // The view an undo step names, taken from the original as ImageModel.restoreView takes it.
-    imageModel: {
-      roundRect: (r) => ({ x: r.x, y: r.y, width: r.w ?? r.width, height: r.h ?? r.height }),
-      restoreView: (m) => {
-        if (JSON.stringify(m.cropRect) === JSON.stringify(app.cropRect) && m.rotationQuarters === app.rotationQuarters) return false;
-        Object.assign(app, { cropRect: m.cropRect, rotationQuarters: m.rotationQuarters });
-        return true;
-      },
-      settleView: (opts) => calls.settles.push(opts),
-    },
-    history: { push: (m) => calls.pushes.push(m.lines.length), reset: () => { calls.resets++; } },
-    renderer: { redraw() {}, restingBase: () => ({}) }, coordTable: { update() {} }, updateButtons() {}, deselectLine() {},
-    storage: { saveSoon() {}, promoteTemporaryToProject() {}, store: { getMeta: () => null } },
-    tabs: { reportActive() {} },
-    settings: { syncFormulaUI() {}, showFormulaError() {} },
-  };
-  current = { app, conn, calls, server, sync: new RemoteSyncController(app), bump: () => ++version };
-  return current;
-};
+import { toasts, RECORD, settle, rig } from '../../helpers/coEditRig.js';
 
 test('a burst of edits pushes the layout at the debounce and the result once, when idle', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
@@ -168,3 +113,54 @@ for (const [name, noted, fresh] of [
     assert.deepEqual(calls.pushes, []);
   });
 }
+
+// A peer's save right after ours lands inside our 150 ms echo window: asked again after it.
+test('a newer peer event inside the echo window is pulled once the window passes', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 10_000 });
+  const { app, sync, calls, server, bump } = rig();
+  sync.noteServerImage(RECORD);
+  await sync.saveToServer();
+  const gets = calls.gets;
+  server.layout = { ...server.layout, lines: [{ points: [{ x: 1, y: 1 }, { x: 2, y: 2 }], color: '#0000ff' }] };
+  sync.onServerProjectEvent({ type: 'project-event', event: 'updated', project: { ...RECORD, version: bump() } });
+  await settle();
+  assert.equal(calls.gets, gets, 'not pulled inside the window');
+  t.mock.timers.tick(150);
+  await settle(); await settle();
+  assert.equal(calls.gets, gets + 1);
+  assert.equal(app.lines.length, 1, 'the peer\'s line is adopted');
+});
+
+test('our own echo that beat our PUT\'s reply is still dropped after the window', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 10_000 });
+  const { app, sync, calls, conn } = rig();
+  sync.noteServerImage(RECORD);
+  const update = conn.updateProject;
+  conn.updateProject = async (id, body) => {
+    const out = await update(id, body);
+    sync.onServerProjectEvent({ type: 'project-event', event: 'updated', project: { ...RECORD, version: out.version } });
+    return out;
+  };
+  await sync.saveToServer();
+  const gets = calls.gets;
+  t.mock.timers.tick(150);
+  await settle(); await settle();
+  assert.equal(calls.gets, gets, 'the link reached that version: nothing to pull');
+  assert.equal(app.remoteLink.version, 3, 'the layout write, then the result write');
+});
+
+// A peer saved while our events feed was down: the reopened feed re-reads the record.
+test('a resumed feed pulls a version saved while it was down, and nothing when none was', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 10_000 });
+  const { app, sync, calls, server, conn, bump } = rig();
+  sync.noteServerImage(RECORD);
+  sync.onServerProjectEvent({ type: 'feed-resumed' }, conn);
+  await settle(); await settle();
+  assert.equal(calls.gets, 1, 'one read to learn the version');
+  assert.equal(app.lines.length, 0, 'the same version: nothing adopted');
+  server.layout = { ...server.layout, lines: [{ points: [{ x: 1, y: 1 }, { x: 2, y: 2 }], color: '#0000ff' }] };
+  bump();
+  sync.onServerProjectEvent({ type: 'feed-resumed' }, conn);
+  await settle(); await settle(); await settle();
+  assert.equal(app.lines.length, 1, 'the missed peer line is adopted');
+});

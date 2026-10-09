@@ -30,9 +30,9 @@ func TestSetFileRecordsTheOriginalsHash(t *testing.T) {
 	}
 	list, _ := s.ListProjects(ctx, ProjectPage{})
 	full, _ := s.GetProject(ctx, p.ID)
-	snap, _ := s.GetProjectSnapshot(ctx, p.ID)
+	snap, _ := s.GetProject(ctx, p.ID)
 	if len(list) != 1 || list[0].OriginalHash != "bb22" || full.OriginalHash != "bb22" || snap.OriginalHash != "bb22" {
-		t.Fatalf("reads lost the hash: list %+v, get %q, snapshot %q", list, full.OriginalHash, snap.OriginalHash)
+		t.Fatalf("reads lost the hash: list %+v, get %q, again %q", list, full.OriginalHash, snap.OriginalHash)
 	}
 	original.Hash = "" // an original stored without a hash is unknown again, never the old picture's
 	if rec, _ := s.SetFile(ctx, p.ID, original); rec.OriginalHash != "" {

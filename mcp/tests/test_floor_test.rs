@@ -106,6 +106,33 @@ fn every_integration_target_declares_tests_or_is_a_registered_walker() {
     assert!(problems.is_empty(), "integration targets that run no test: {problems:?}");
 }
 
+/// A folder target compiles only the files its `main.rs` names, so the floor's recursive scan
+/// counts an unnamed file's tests that never build.
+#[test]
+fn every_file_in_a_folder_target_is_a_module_of_its_main() {
+    let (mut targets, mut orphans) = (0, Vec::new());
+    for entry in std::fs::read_dir(crate_dir().join("tests")).expect("the tests directory").flatten() {
+        let main = entry.path().join("main.rs");
+        if !main.is_file() {
+            continue;
+        }
+        targets += 1;
+        let mods: Vec<String> = read(&main)
+            .lines()
+            .filter_map(|l| l.trim().strip_prefix("mod ")?.strip_suffix(';').map(str::to_owned))
+            .collect();
+        for file in std::fs::read_dir(entry.path()).expect("a target folder").flatten() {
+            let path = file.path();
+            let stem = path.file_stem().expect("a file name").to_string_lossy().to_string();
+            if path.extension().is_some_and(|e| e == "rs") && stem != "main" && !mods.contains(&stem) {
+                orphans.push(path.display().to_string());
+            }
+        }
+    }
+    assert!(targets >= 3, "tests/ folder targets were not walked: only {targets} found");
+    assert!(orphans.is_empty(), "files no main.rs names, so never compiled: {orphans:?}");
+}
+
 #[test]
 fn the_walked_fixture_corpora_still_hold_their_cases() {
     let root = crate_dir().parent().expect("the repo root above mcp/");

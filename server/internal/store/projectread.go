@@ -15,11 +15,6 @@ func (s *Store) GetProject(ctx context.Context, id string) (protocol.ProjectReco
 	return s.getProject(ctx, id, projectCols, withLayout)
 }
 
-// GetProjectSnapshot is a live session's snapshot: the same whole row as GetProject.
-func (s *Store) GetProjectSnapshot(ctx context.Context, id string) (protocol.ProjectRecord, error) {
-	return s.getProject(ctx, id, projectCols, withLayout)
-}
-
 // GetProjectMeta is the metadata alone, what the file routes read (originalPath, resultPath).
 func (s *Store) GetProjectMeta(ctx context.Context, id string) (protocol.ProjectRecord, error) {
 	return s.getProject(ctx, id, projectMetaCols, metaOnly)

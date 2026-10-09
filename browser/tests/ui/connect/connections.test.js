@@ -2,10 +2,9 @@
 // carrying a token in the fragment, and the handshake that issues or validates one.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import {
-  normalizeUrl, wsUrl, ServerConnection, ConnectionManager, isLoopbackHost, isInsecureRemote,
-  parseInviteUrl, buildInviteUrl,
-} from '../../../js/net/connectionManager.js';
+import { normalizeUrl, wsUrl, isLoopbackHost, isInsecureRemote, parseInviteUrl, buildInviteUrl } from '../../../js/net/urlRules.js';
+import { ServerConnection } from '../../../js/net/serverConnection.js';
+import { ConnectionManager } from '../../../js/net/connectionManager.js';
 import { makeMockServer, StubWS } from '../../helpers/connectionsRig.js';
 import { conn, openModal, rows, find, sleep } from '../../helpers/connectModalRig.js';
 
@@ -107,6 +106,9 @@ test('isLoopbackHost / isInsecureRemote classify the connection', () => {
   assert.equal(isLoopbackHost('127.0.0.1'), true);
   assert.equal(isLoopbackHost('::1'), true);
   assert.equal(isLoopbackHost('example.com'), false);
+  assert.equal(isLoopbackHost('localhost.'), true, 'one trailing dot is the same host');
+  assert.equal(isLoopbackHost('app.localhost.'), true);
+  assert.equal(isLoopbackHost('localhost..'), false);
   // Only cleartext-to-a-remote-host is flagged insecure.
   assert.equal(isInsecureRemote('http://example.com:8090'), true);
   assert.equal(isInsecureRemote('http://localhost:8090'), false);

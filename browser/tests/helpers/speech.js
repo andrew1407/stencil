@@ -1,5 +1,7 @@
 // Fakes for the voice-input suites: a scripted SpeechRecognition, a scripted audio
-// stack for the level meter, and a controllable clock. Nothing here touches globals.
+// stack for the level meter, a controllable clock, and the engine wired over all three.
+// Nothing here touches globals.
+import { createVoiceInput } from '../../js/llm/voice/input.js';
 
 // A SpeechRecognition whose instances record their calls and let the test fire Chrome's events.
 // fire.result takes the CUMULATIVE session list of alternatives lists, each with `isFinal`.
@@ -119,4 +121,36 @@ export const stubClock = (start = 1000) => {
       t = end;
     },
   };
+};
+
+// A level meter double: records start/stop, lets the test push a level.
+export const fakeMeter = () => {
+  const m = { started: 0, stopped: 0, onLevel: null, fail: false };
+  m.create = () => ({
+    async start(cb) { m.started++; if (m.fail) throw new Error('mic refused'); m.onLevel = cb; },
+    stop() { m.stopped++; m.onLevel = null; },
+  });
+  return m;
+};
+
+// `over.recognition` scripts the fake recognizer; `over.unsupported` leaves the browser without one.
+export const makeEngine = (over = {}) => {
+  const sr = createFakeSpeechRecognition(over.recognition || {});
+  const clock = stubClock();
+  const meter = fakeMeter();
+  const engine = createVoiceInput({
+    SpeechRecognition: over.unsupported ? undefined : sr.ctor,
+    createLevelMeter: meter.create,
+    setTimer: clock.setTimer,
+    clearTimer: clock.clearTimer,
+  });
+  const log = { transcripts: [], states: [], errors: [], levels: [] };
+  const session = (lang = 'en-US') => ({
+    lang,
+    onTranscript: (t) => log.transcripts.push(t),
+    onState: (s, extra) => log.states.push(extra ? [s, extra] : s),
+    onError: (e) => log.errors.push(e),
+    onLevel: (l) => log.levels.push(l),
+  });
+  return { sr, clock, meter, engine, log, session };
 };

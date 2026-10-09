@@ -57,8 +57,9 @@ namespace stencil::gui {
       }
       const defaultVisuals::Table& def = defaultVisuals::table();
       line.color = o.value("color").toString(def.color).toStdString();
-      line.thickness = o.value("thickness").toDouble(def.thickness);
-      line.pointSize = o.value("pointSize").toDouble(def.pointSize);
+      // Never negative, no cap (browser limits.js storedSize).
+      line.thickness = std::max(0.0, o.value("thickness").toDouble(def.thickness));
+      line.pointSize = std::max(0.0, o.value("pointSize").toDouble(def.pointSize));
       line.style = o.value("style").toString(def.style).toStdString();
       line.locked = o.value("locked").toBool(false);
       line.fillColor = o.value("fillColor").toString("transparent").toStdString();

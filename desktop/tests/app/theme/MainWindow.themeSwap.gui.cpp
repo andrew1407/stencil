@@ -119,6 +119,31 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY_WITH_TIMEOUT(overlays() == 0, 3000);
   }
 
+  // A sibling's echo of a theme change restyles its own widgets, never the application again.
+  void siblingEchoRestylesTheAppOnce() {
+    struct PaletteEvents : QObject {
+      int count = 0;
+      bool eventFilter(QObject* o, QEvent* e) override {
+        if (o == qApp && e->type() == QEvent::ApplicationPaletteChange) ++count;
+        return false;
+      }
+    };
+    MainWindow a(nullptr, /*restoreLast=*/false);
+    auto flips = [&a] {
+      PaletteEvents probe;
+      qApp->installEventFilter(&probe);
+      Settings flipped = a.settings;
+      flipped.themeMode = a.painted.dark ? "light" : "dark";
+      a.applySettings(flipped, /*persist=*/true);
+      qApp->removeEventFilter(&probe);
+      return probe.count;
+    };
+    const int alone = flips();
+    QVERIFY(alone > 0);
+    MainWindow b(nullptr, /*restoreLast=*/false);
+    QCOMPARE(flips(), alone);
+    QCOMPARE(b.painted.dark, a.painted.dark);
+  }
 };
 
 QTEST_MAIN(MainWindowGuiTest)

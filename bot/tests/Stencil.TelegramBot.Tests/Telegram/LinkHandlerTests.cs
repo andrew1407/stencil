@@ -19,12 +19,12 @@ public sealed class LinkHandlerTests : IDisposable
 
     public LinkHandlerTests()
     {
-        _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-link-" + Guid.NewGuid().ToString("N"));
+        _dataDir = TempDirs.New("bot-link");
     }
 
     public void Dispose()
     {
-        try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
+        TempDirs.Delete(_dataDir);
     }
 
     private CommandHandlers handlers(string? browserAppUrl) =>

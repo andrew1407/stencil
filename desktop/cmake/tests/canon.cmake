@@ -8,12 +8,13 @@ stencil_headless_test(stencil_llmsettings_headless
   LIBS stencil_core Qt6::Widgets)
 
 # Motion preferences (support/motionPrefs.hpp): the interface modes, the drawing switch, the
-# particle gate and the two settings keys.
+# particle gate, the animation speed and the settings keys.
 stencil_headless_test(stencil_motionprefs_headless
   SOURCES src/support/icon/motionIcons.cpp
     ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/support/motionPrefs.headless.cpp tests/support/motionPrefsStyle.headless.cpp
+    tests/support/motionPrefsSpeed.headless.cpp
     tests/support/motionPrefsGate.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets)

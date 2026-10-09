@@ -13,7 +13,7 @@ const projectMetaCols = `id, name, created_at, updated_at, expires_at, has_image
 	original_hash`
 
 // projectCols is the whole row, the layout after the metadata so one scanner reads both column sets:
-// GET /projects/{id} and a live session's snapshot.
+// GET /projects/{id}.
 const projectCols = projectMetaCols + `, layout`
 
 // rowPayload picks whether a scan expects the layout after the metadata.

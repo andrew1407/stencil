@@ -23,6 +23,17 @@ test('setPointSize: parses int, redraws, persists; NaN aborts before mutating', 
   assert.equal(app.rec.save, 1);
 });
 
+test('setPointSize and setThickness floor a negative at 0; 0 and large values are kept', () => {
+  const app = makeApp();
+  const s = new SettingsController(app);
+  s.setPointSize('-3');
+  s.setThickness('-1');
+  assert.deepEqual([app.pointSize, app.thickness], [0, 0]);
+  s.setPointSize('31');
+  s.setThickness('99');
+  assert.deepEqual([app.pointSize, app.thickness], [31, 99]);
+});
+
 test('setThickness persist:false redraws but skips the write', () => {
   const app = makeApp();
   new SettingsController(app).setThickness('5', { persist: false });

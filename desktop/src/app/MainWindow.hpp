@@ -211,7 +211,7 @@ namespace stencil::gui {
     HotkeyTable keys;
     Settings settings;
     core::ProjectsStore projectsStore;
-    std::vector<Project> projectList;
+    std::vector<Project>& projectList;   // SharedState's, shared by every window
     QString activeProjectId;
     RemoteState remote;
     DocumentSource docSource;

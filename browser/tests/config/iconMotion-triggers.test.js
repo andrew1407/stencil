@@ -5,15 +5,8 @@ import assert from 'node:assert/strict';
 
 import ICONS from '../../../common/config/icons.json' with { type: 'json' };
 import MOTION from '../../../common/config/iconMotion.json' with { type: 'json' };
-import { ANIMATIONS_CSS } from '../helpers/css.js';
+import { ICON_MOTION_CSS as SECTION } from '../helpers/css.js';
 
-const css = ANIMATIONS_CSS;
-const SECTION = (() => {
-  const from = css.indexOf('/* ── Icon hover: every glyph mimes its own action');
-  const to = css.indexOf('/* ── App logo hover');
-  assert.ok(from >= 0 && to > from, 'the icon-motion section is where the tests expect it');
-  return css.slice(from, to);
-})();
 
 test('the picture draws itself INSIDE its frame, which never moves', () => {
   const d = MOTION.icons.image;

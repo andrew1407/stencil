@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "SharedState.hpp"
 #include "ChatAppliers.hpp"
 #include "LlmClient.hpp"
 #include "SessionKey.hpp"
@@ -70,7 +71,7 @@ namespace stencil::gui {
     Project* pr = w.findProject(w.activeProjectId.toStdString());
     if (!pr) return;
     pr->chat = doc;
-    fileStore::saveProjects(w.projectList);
+    SharedState::instance().saveProjects(&w);
   }
 
   void ChatAppliers::clearPersistedChat() {
@@ -85,7 +86,7 @@ namespace stencil::gui {
     Project* pr = w.findProject(w.activeProjectId.toStdString());
     if (!pr || pr->chat.isEmpty()) return;
     pr->chat = QJsonObject();
-    fileStore::saveProjects(w.projectList);
+    SharedState::instance().saveProjects(&w);
   }
 
 }  // namespace stencil::gui

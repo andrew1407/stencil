@@ -132,6 +132,7 @@ namespace stencil::gui {
       swell->stop();
       swell->setStartValue(thick);
       swell->setEndValue(target);
+      swell->setDuration(support::motionMs(150));
       swell->start();
     }
 

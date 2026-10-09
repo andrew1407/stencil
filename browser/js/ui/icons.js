@@ -3,6 +3,7 @@
 // Pure strings: icon() output contains no backtick or "${" (the markup tests assert that).
 import ICONS_DATA from '../../../common/config/icons.json' with { type: 'json' };
 import SVG_ART from '../../../common/config/svgArt.json' with { type: 'json' };
+import { motionMs } from './motion/motionPrefs.js';
 
 // 'eraser' wipes drawn lines and is deliberately not the trash can (trash = delete). The
 // class="ic-…" hooks are inert here; config/iconMotion.json moves them via iconHover.css.
@@ -12,7 +13,6 @@ export const ICONS = ICONS_DATA;
 // While one is installed every glyph assembled afterwards is born in it; null = the line-art.
 let skinArt = null;
 export const setIconSkin = (table) => { skinArt = table || null; };
-export const iconSkin = () => skinArt;
 
 const skinFace = (name, cls, size) =>
   `<svg class="ic ic-${name}${cls}" viewBox="0 0 16 16" width="${size}" height="${size}" ` +
@@ -53,5 +53,5 @@ export const spinIconOnce = (btn) => {
   btn.classList.add('icm-spun');
   const done = () => btn.classList.remove('icm-spun');
   btn.addEventListener('animationend', done, { once: true });
-  setTimeout(done, 800);   // a glyph that never animates (reduced motion) still clears
+  setTimeout(done, motionMs(800));   // a glyph that never animates (reduced motion) still clears
 };

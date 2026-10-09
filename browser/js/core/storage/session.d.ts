@@ -16,3 +16,4 @@ export declare const promoteTemporary: (storage: Storage) => string;
 export declare const collapseCanvas: (app: DrawingApp) => void;
 /** Everything the emptied editor forgets; the canvas itself is the caller's to collapse. */
 export declare const clearEditorState: (app: DrawingApp) => void;
+export { markProjectOpened } from '../project/meta/projectOpened.js';

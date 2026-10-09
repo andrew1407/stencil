@@ -1,18 +1,76 @@
 package hub
 
-// The hub's subscription to the global feed. A write no session of this hub made — a REST upload or
-// update, a save on another instance — is announced there, and the live session it names re-reads.
+// The global feed's in-process fan-out: the hub holds the one bus subscription to `events` (one Redis
+// connection however many clients listen) and copies each frame onto every listener's bounded channel.
 
 import (
-	"encoding/json"
+	"sync"
 
 	"stencil/server/internal/eventbus"
-	"stencil/server/internal/protocol"
 )
 
-// watchFeed hands each `updated` project-event's version to that project's live session on this
-// instance, and a `deleted` one ends it, until the hub's context ends; stop releases the subscription.
-func (h *Hub) watchFeed(events <-chan eventbus.Envelope, stop func()) {
+// feed is the set of listening connections. A closed feed hands out closed channels, so a connection that
+// arrives after the bus subscription ended returns at once.
+type feed struct {
+	buffer int
+	drops  eventbus.DropLog
+
+	mu     sync.Mutex
+	subs   map[chan []byte]struct{}
+	closed bool
+}
+
+func newFeed(buffer int) *feed {
+	return &feed{buffer: max(buffer, 1), subs: map[chan []byte]struct{}{}}
+}
+
+// listen registers a listener; the returned func unregisters it.
+func (f *feed) listen() (<-chan []byte, func()) {
+	ch := make(chan []byte, f.buffer)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.closed {
+		close(ch)
+		return ch, func() {}
+	}
+	f.subs[ch] = struct{}{}
+	return ch, func() {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		if _, ok := f.subs[ch]; ok {
+			delete(f.subs, ch)
+			close(ch)
+		}
+	}
+}
+
+// deliver copies one frame to every listener without blocking; a full listener drops it.
+func (f *feed) deliver(data []byte) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for ch := range f.subs {
+		select {
+		case ch <- data:
+		default:
+			f.drops.Drop("hub", eventbus.ChannelEvents)
+		}
+	}
+}
+
+// close ends every listener once the bus subscription is gone.
+func (f *feed) close() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.closed = true
+	for ch := range f.subs {
+		delete(f.subs, ch)
+		close(ch)
+	}
+}
+
+// pump forwards the hub's one subscription into the feed until the hub closes or the bus ends it.
+func (h *Hub) pump(events <-chan eventbus.Envelope, stop func()) {
+	defer h.feed.close()
 	defer stop()
 	for {
 		select {
@@ -22,40 +80,7 @@ func (h *Hub) watchFeed(events <-chan eventbus.Envelope, stop func()) {
 			if !ok {
 				return
 			}
-			if env.Type != protocol.WSProjectEv {
-				continue
-			}
-			var msg protocol.WSMessage
-			if json.Unmarshal(env.Data, &msg) != nil || msg.Project == nil {
-				continue
-			}
-			h.mu.Lock()
-			s := h.sessions[msg.Project.ID]
-			h.mu.Unlock()
-			switch {
-			case s == nil:
-			case msg.Event == protocol.EventUpdated:
-				s.noteWrite(msg.Project.Version)
-			case msg.Event == protocol.EventDeleted:
-				s.deleteOnce.Do(func() { close(s.deleted) })
-			}
-		}
-	}
-}
-
-// noteWrite passes the run-loop the newest version a write reached, never blocking the feed: a
-// version still waiting in the one-slot channel is merged with this one, the larger kept.
-func (s *session) noteWrite(v int64) {
-	for {
-		select {
-		case s.written <- v:
-			return
-		default:
-		}
-		select {
-		case old := <-s.written:
-			v = max(v, old)
-		default:
+			h.feed.deliver(env.Data)
 		}
 	}
 }

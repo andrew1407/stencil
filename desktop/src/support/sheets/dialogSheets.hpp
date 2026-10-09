@@ -10,7 +10,7 @@ namespace stencil::support {
   QString mutedHintSheet(const QColor& muted);
   QString openImageMutedSheet();
   QString paletteMidTextSheet();
-  QString projectsHoverPreviewSheet();
+  QString projectsHoverPreviewSheet(const QColor& bg, const QColor& edge);
   QString dropIndicatorSheet(const QColor& highlight);
   QString connGripSheet();
   QString connAdminTextSheet(const QColor& gold);

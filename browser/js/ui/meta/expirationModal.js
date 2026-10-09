@@ -150,7 +150,10 @@ export class StencilExpirationModal extends StencilElement {
 
 // Stacked: opens over the projects list rather than replacing it.
     const { open, close } = wireModalShell(overlay, null, els.close, { stacked: true });
-    this.#openFor = (id, { from = null, backTo = null } = {}) => { if (loadFrom(id)) { renderAll(); open(from, backTo); } };
+    let onSaved = null;
+    this.#openFor = (id, { from = null, backTo = null, onSaved: saved = null } = {}) => {
+      if (loadFrom(id)) { onSaved = saved; renderAll(); open(from, backTo); }
+    };
 
     const seedFromPeriod = () => {
       keep = false;
@@ -185,11 +188,12 @@ export class StencilExpirationModal extends StencilElement {
     els.cancel.addEventListener('click', () => close());
     els.save.addEventListener('click', () => {
       if (targetId == null) return;
-      app.projectTransfer.setProjectExpiration(targetId, {
+      const saved = app.projectTransfer.setProjectExpiration(targetId, {
         expiresAt: keep ? 0 : expiresAt,
         refreshPeriod: period,
         autoRefresh: auto,
       });
+      if (saved) onSaved?.(saved);
       close();
       notify(keep ? 'Project kept forever' : `Expires ${fmtDay(expiresAt)}`, 'ok');
     });

@@ -1,6 +1,6 @@
 // Phone-width layout of the app's two big dialogs — the Projects list (browser/js/ui/projects/window/projectsModal.js)
-// and the Settings / keyboard-shortcuts sheet — plus the 680px breakpoint that keeps the narrow
-// rules off the desktop ones. An .app-modal clips, so overflow never shows in the page's
+// and the Settings / keyboard-shortcuts sheet — plus the window-width rules that keep the narrow
+// layout off the desktop ones. An .app-modal clips, so overflow never shows in the page's
 // scrollWidth: these measure the CONTROLS instead.
 import { test, expect } from '@playwright/test';
 import { gotoApp, seedProjectsAndOpenList, settleModalAnimations } from '../../../helpers/boot.js';
@@ -179,7 +179,7 @@ test.describe('settings modal: phone layout', () => {
   });
 });
 
-// ── The narrow rules are breakpoint-gated (max-width: 680px): the desktop dialogs keep
+// ── The narrow rules follow the window's own width (container `modal`): the desktop dialogs keep
 // the roomy chrome they had before. ──
 test.describe('modal layout: desktop is unaffected', () => {
   test.use(DESKTOP);
@@ -188,12 +188,12 @@ test.describe('modal layout: desktop is unaffected', () => {
     await openProjects(page);
     const b = await boxes(page, FILTER_CONTROLS);
     // The desktop dialog stacks the search field above `.projects-filter-row`, and the three selects
-    // share ONE row: only the phone breakpoint may wrap them onto more.
+    // share ONE row: only a narrower window may wrap them onto more.
     const selectTops = FILTER_CONTROLS.slice(1).map((s) => b[s].top);
     expect(Math.max(...selectTops) - Math.min(...selectTops), 'one row of filters').toBeLessThanOrEqual(2);
     expect(b['#projects-search'].top, 'the search bar sits above the filters').toBeLessThan(Math.min(...selectTops));
     const card = await page.locator('#projects-modal-overlay .app-modal').boundingBox();
-    expect(card.width, 'the desktop dialog keeps its 560px width').toBe(560);
+    expect(card.width, 'the desktop dialog keeps its 576px width').toBe(576);
     // The footer hint still sits BESIDE the buttons (one row), as on desktop before.
     const foot = await boxes(page, ['#projects-modal-overlay .footer-hint', '#projects-clear-all']);
     expect(Math.abs(foot['#projects-modal-overlay .footer-hint'].top - foot['#projects-clear-all'].top))

@@ -10,6 +10,7 @@
 #include "DurationParser.hpp"
 #include "downscale.hpp"
 #include "formulaParser.hpp"
+#include "HistoryStack.hpp"
 #include "imageFilter.hpp"
 #include "imageOps.hpp"
 #include "lineMerge.hpp"
@@ -88,7 +89,7 @@ extern "C" {
     int y = std::clamp(static_cast<int>(std::lround(rect->y)), 0, std::max(0, ih));
     int w = std::clamp(static_cast<int>(std::lround(rect->width)), 0, iw - x);
     int h = std::clamp(static_cast<int>(std::lround(rect->height)), 0, ih - y);
-    if (w <= 0 || h <= 0) return 0;  // an empty crop is not useful
+    if (w <= 0 || h <= 0) return -1;  // parsed, but nothing is left to keep
 
     if (outX) *outX = x;
     if (outY) *outY = y;
@@ -195,6 +196,13 @@ extern "C" {
     if (linePoints) *linePoints = abi::MAX_LINE_POINTS;
     if (points) *points = abi::MAX_LAYOUT_POINTS;
   }
+
+  void stencil_cli_historyCaps(int* steps, int* points) {
+    if (steps) *steps = static_cast<int>(HistoryStack::MAX_STEPS);
+    if (points) *points = static_cast<int>(HistoryStack::MAX_POINTS);
+  }
+
+  const char* stencil_cli_filterName(const char* mode) { return mode ? filterModeName(mode) : nullptr; }
 
   int stencil_cli_colorNameCount(void) { return static_cast<int>(colorNameCount()); }
 

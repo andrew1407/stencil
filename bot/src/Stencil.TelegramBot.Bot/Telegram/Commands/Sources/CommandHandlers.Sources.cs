@@ -13,7 +13,7 @@ public sealed partial class CommandHandlers
     {
         if (cmd.Args.Count == 0)
         {
-            await _bot.SendMessage(chatId, "Usage: /url <http(s) image link>, e.g. /url https://example.com/photo.png", cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.UrlUsage(), cancellationToken: ct);
             return;
         }
         string url = cmd.Args[0];
@@ -26,13 +26,13 @@ public sealed partial class CommandHandlers
     {
         if (cmd.Args.Count == 0)
         {
-            await _bot.SendMessage(chatId, _sourceSiteUsage, cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.SourceSiteUsage(), cancellationToken: ct);
             return;
         }
         string url = cmd.Args[0];
         if (!tryParseScrapeArgs(url, cmd.Args, out ScrapeRequest request, out string? error))
         {
-            await _bot.SendMessage(chatId, $"{error}\n\n{_sourceSiteUsage}", cancellationToken: ct);
+            await _bot.SendMessage(chatId, $"{error}\n\n{Replies.SourceSiteUsage()}", cancellationToken: ct);
             return;
         }
         // Same trust boundary as /url.
@@ -40,7 +40,7 @@ public sealed partial class CommandHandlers
         string host = Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) ? uri.Host : url;
         // The notice clears itself once the results land, whether the scrape succeeded or threw.
         ProgressNotice progress = await ProgressNotice.StartAsync(
-            _bot, chatId, $"Scraping {host}…", ChatAction.UploadPhoto, _options.ProgressTick, ct);
+            _bot, chatId, Replies.Scraping(host), ChatAction.UploadPhoto, _options.ProgressTick, ct);
         ScrapeResult result;
         try
         {
@@ -67,16 +67,9 @@ public sealed partial class CommandHandlers
         }
         await _bot.SendMessage(
             chatId,
-            Replies.Tag(Replies.Tone.SUCCESS, $"Scraped {result.Files.Count} file(s) from {host}."),
+            Replies.Tag(Replies.Tone.SUCCESS, Replies.ScrapedFiles(result.Files.Count, host)),
             cancellationToken: ct);
     }
-
-    private const string _sourceSiteUsage =
-        "Usage: /sourcesite <http(s) link> [count (default 5, 0 = all)] "
-        + "[filter=img|video|background|poster] "
-        + "[format=png|jpg|…] [name=<regex>] [minw=…] [maxw=…] [minh=…] [maxh=…] [group=N]\n"
-        + "name= is a case-insensitive regex matched on each media URL.\n"
-        + "e.g. /sourcesite https://example.com 6 filter=img format=png|jpg name=cat minw=200";
 
     // A bare integer is the item count, everything else a key=value option.
     private static bool tryParseScrapeArgs(string url, IReadOnlyList<string> args, out ScrapeRequest request, out string? error)
@@ -96,7 +89,7 @@ public sealed partial class CommandHandlers
                     count = bare;
                     continue;
                 }
-                error = $"Unrecognised option '{token}'.";
+                error = Replies.OptionUnknown(token);
                 return false;
             }
             string key = token[..eq].ToLowerInvariant();
@@ -113,7 +106,7 @@ public sealed partial class CommandHandlers
                 case "format": format = value; break;
                 case "name": name = value; break;
                 default:
-                    error = $"Unrecognised option '{key}'.";
+                    error = Replies.OptionUnknown(key);
                     return false;
             }
         }
@@ -143,7 +136,7 @@ public sealed partial class CommandHandlers
             error = null;
             return true;
         }
-        error = $"'{key}' needs a non-negative number (got '{value}').";
+        error = Replies.OptionNotCount(key, value);
         return false;
     }
 }

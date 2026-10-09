@@ -1,6 +1,6 @@
 // MainWindow GUI e2e — The panel and the dock agreeing however the panel was opened.
-// Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
-#include "../../MainWindow.gui.hpp"
+// Shared ground is in chatTurnsGui.hpp, over MainWindow.gui.hpp.
+#include "chatTurnsGui.hpp"
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
@@ -13,17 +13,10 @@ class MainWindowGuiTest : public QObject {
   void chatPanelAndDockAgreeHoweverThePanelOpens() {
     for (const bool panelOpensLate : {false, true}) {
       MainWindow win(nullptr, false);
-      win.resize(1200, 850);
-      win.show();
-      QVERIFY(QTest::qWaitForWindowExposed(&win));
-      win.settings.llmProvider = "ollama";
-      win.settings.llmBaseUrl = "http://localhost:11434";
+      QVERIFY(showSized(win, 1200, 850));
       MockChatTransport mock;
-      const auto wrap = [](const QString& json) {
-        return QJsonDocument(QJsonObject{{"message", QJsonObject{{"content", json}}}})
-            .toJson(QJsonDocument::Compact);
-      };
-      win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+      useOllama(win.settings, win.parts.chatAppliers.llmClient, mock);
+      const auto wrap = &ollamaReply;
       win.acts.chat->setChecked(true);
       QTRY_VERIFY(win.chatDock->isVisible());
       // Round 1 of the §7 turn: the reply the dock HOLDS (the continuation's
@@ -38,27 +31,7 @@ class MainWindowGuiTest : public QObject {
       if (!panelOpensLate) showPanel();
 
       // Every CARD in order: its kind plus every text it shows (body + the notes riding inside it), so
-      // one comparison catches a missing row, an extra row, a note as its own card, and a wrong body.
-      const auto cardsOf = [](QWidget* surface) {
-        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
-        QStringList out;
-        for (QFrame* f : surface->findChildren<QFrame*>()) {
-          const QString kind = f->objectName();
-          if (!kind.startsWith(QLatin1String("chatCard")) ||
-              kind == QLatin1String("chatCardMore"))
-            continue;
-          QStringList texts;
-          for (QLabel* l : f->findChildren<QLabel*>()) {
-            const QString b = l->property("chatBody").toString();
-            const QString n = l->property("chatNote").toString();
-            if (!b.isEmpty()) texts << b;
-            else if (!n.isEmpty()) texts << n;
-          }
-          if (texts.size() == 1 && texts.first() == QStringLiteral("…")) continue;  // pending
-          out << kind + QStringLiteral(": ") + texts.join(QStringLiteral(" ¶ "));
-        }
-        return out;
-      };
+      const auto cardsOf = &displayedCards;   // the displayed transcript, per surface
       const auto same = [&](const char* what) {
         settle([&] { return cardsOf(win.chatSession->chatMenuPanel) == cardsOf(win.chatDock); }, 400);
         QVERIFY2(cardsOf(win.chatSession->chatMenuPanel) == cardsOf(win.chatDock),

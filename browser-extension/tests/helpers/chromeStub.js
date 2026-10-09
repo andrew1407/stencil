@@ -1,6 +1,6 @@
 // A configurable `globalThis.chrome` stub for `node --test` — one place for the mock
 // six suites used to hand-roll. It covers exactly the surface those suites exercise:
-// storage.local get/set over an in-memory store, storage.session get/set/remove and its
+// storage.local get/set over an in-memory store, storage.session get/getKeys/set/remove and its
 // access level, storage.sync's callback-or-promise get, storage.onChanged, and
 // runtime.sendMessage/onMessage. Nothing speculative — tabs/action/contextMenus/scripting
 // stay out until a suite actually drives them.
@@ -40,6 +40,7 @@ export const installChromeStub = ({
   let localStore = { ...local };
   let sessionStore = { ...session };
   const sessionAccess = [];      // every storage.session.setAccessLevel argument
+  const sessionGets = [];        // every storage.session.get argument
   let syncStore = { ...sync };
   const sets = [];               // every storage.local.set payload, in call order
   const sent = [];               // every runtime.sendMessage payload, in call order
@@ -65,7 +66,12 @@ export const installChromeStub = ({
       session: {
         get: async (key) => {
           if (storageThrows) throw new Error('no storage');
+          sessionGets.push(key);
           return pick(sessionStore, key);
+        },
+        getKeys: async () => {
+          if (storageThrows) throw new Error('no storage');
+          return Object.keys(sessionStore);
         },
         set: async (obj) => {
           if (storageThrows) throw new Error('no storage');
@@ -106,6 +112,7 @@ export const installChromeStub = ({
     runtimeListeners,
     changedListeners,
     sessionAccess,
+    sessionGets,
     /** Raw storage.local contents. */
     peek: () => localStore,
     /** Raw storage.session contents. */
@@ -114,6 +121,7 @@ export const installChromeStub = ({
     reset: () => {
       localStore = {};
       sessionStore = {};
+      sessionGets.length = 0;
       syncStore = { ...sync };
       sets.length = 0;
       sent.length = 0;

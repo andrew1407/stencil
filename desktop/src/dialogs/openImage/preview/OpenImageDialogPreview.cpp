@@ -20,7 +20,7 @@ namespace stencil::gui {
     if (!page) return;
     QGraphicsOpacityEffect* veil = veilBehindDust(page);
     auto* fade = new QPropertyAnimation(veil, "opacity", veil);
-    fade->setDuration(180);
+    fade->setDuration(support::motionMs(180));
     fade->setStartValue(0.0);
     fade->setEndValue(1.0);
     fade->setEasingCurve(QEasingCurve::OutCubic);

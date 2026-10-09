@@ -7,8 +7,8 @@ import { COMMANDS, CONFIG_SECTION, LANGUAGE_ID, PROJECT_LANGUAGE_ID, SETTINGS,
 } from './lib/ids.js';
 import { isJsSource } from './lib/emit/jsSource.js';
 import { BAD_WEB_URL, webUrlFor } from './lib/web/target.js';
-import { buildLaunchUrl, imageDataUrl, isTooBig, localSources, projectLaunch,
-  scriptLaunch } from './lib/web/launch.js';
+import { MAX_INLINE_BYTES, buildLaunchUrl, fitsInline, imageDataUrl, isTooBig, localSources,
+  projectLaunch, scriptLaunch } from './lib/web/launch.js';
 import { evaluate, expressionFor, loadExpression, pageSession } from './lib/web/console.js';
 import { desktopLaunch, isTooBigForDesktop } from './lib/desktop/launch.js';
 import { programFor } from './lib/programCache.js';
@@ -19,6 +19,10 @@ const STCJS_IS_CONSOLE_ONLY = 'A .stcjs is JavaScript — run it with "Stencil: 
   + 'Web Console". The hand-off carries scripts and pictures, never code.';
 const TOO_BIG = 'Too much to put in a URL — open the picture in the app and run the script there';
 const OPEN_A_SCRIPT = 'Open a .stc script first';
+const IMAGE_TOO_BIG = `That picture is over ${(MAX_INLINE_BYTES / 1e6).toFixed(1)} MB — too big to hand over; `
+  + 'open it in the app instead';
+// What scriptLaunchFor answers for a picked file past MAX_INLINE_BYTES.
+const TOO_BIG_IMAGE = Object.freeze({ tooBig: true });
 
 let channel = null;
 const output = () => (channel ??= vscode.window.createOutputChannel(OUTPUT_NAME));
@@ -58,6 +62,7 @@ const scriptLaunchFor = async (document, where = 'The browser') => {
   // Every script has at least the project block; only a named @source brings its own picture.
   if (blocks.some((block) => block.source)) return scriptLaunch(script);
   const image = await pickFile();
+  if (image && inlineImages() && !fitsInline(image)) return TOO_BIG_IMAGE;
   return image ? scriptLaunch(script, image, { inline: inlineImages() }) : scriptLaunch(script);
 };
 
@@ -77,6 +82,7 @@ const handOff = async (incognito, scriptMode) => {
   if (!url) return undefined;
   const payload = await launchFor(document);
   if (!payload) return vscode.window.showErrorMessage(OPEN_A_FILE);
+  if (payload === TOO_BIG_IMAGE) return vscode.window.showErrorMessage(IMAGE_TOO_BIG);
   // The app's own throwaway session: it keeps no project, so nothing the run makes survives.
   if (incognito) payload.incognito = true;
   // 'open' puts it in the Script window instead of running it; absent, it runs.
@@ -95,7 +101,9 @@ const openScriptInWeb = () => handOff(false, 'open');
 const desktopHandOff = async (mode, incognito = false) => {
   const document = activeDocument();
   if (!document || document.languageId !== LANGUAGE_ID) return vscode.window.showErrorMessage(OPEN_A_SCRIPT);
-  const link = desktopLaunch(await scriptLaunchFor(document, 'A script sent to the desktop'), { mode, incognito });
+  const payload = await scriptLaunchFor(document, 'A script sent to the desktop');
+  if (payload === TOO_BIG_IMAGE) return vscode.window.showErrorMessage(IMAGE_TOO_BIG);
+  const link = desktopLaunch(payload, { mode, incognito });
   if (isTooBigForDesktop(link)) return vscode.window.showErrorMessage(TOO_BIG);
   return vscode.env.openExternal(vscode.Uri.parse(link));
 };
@@ -167,6 +175,10 @@ const pickImage = async () => {
     vscode.window.showErrorMessage('Turn on stencil.webInlineImages to open a local file');
     return '';
   }
+  if (!fitsInline(picked[0].fsPath)) {
+    vscode.window.showErrorMessage(IMAGE_TOO_BIG);
+    return '';
+  }
   return imageDataUrl(picked[0].fsPath)?.dataUrl ?? '';
 };
 
@@ -198,7 +210,7 @@ const register = (context) => {
 };
 
 export {
-  HANDLERS, OPEN_A_FILE, OPEN_A_SCRIPT, OUTPUT_NAME, STCJS_IS_CONSOLE_ONLY, TOO_BIG, openImageInWeb,
+  HANDLERS, IMAGE_TOO_BIG, OPEN_A_FILE, OPEN_A_SCRIPT, OUTPUT_NAME, STCJS_IS_CONSOLE_ONLY, TOO_BIG, openImageInWeb,
   openInDesktop, openInWeb, openInWebIncognito, openScriptInWeb, register, runExpression,
   runInDesktop, runInDesktopIncognito, runInWebConsole, runSelectionInWebConsole,
 };

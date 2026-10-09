@@ -3,35 +3,32 @@
 // working tree — comments stripped, whitespace collapsed — then diffs the two multisets.
 //   node tools/moveCheck.mjs <gitRef> <path...>   (paths: files or dirs; exits 1 on LOST)
 //   node tools/moveCheck.mjs --self-test
-import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
+import { blobsAt, git, listFiles, readAll, repoRoot } from './repo/io.mjs';
 import { selfTest } from './moveCheck/selfTest.mjs';
 import { diffUnits, unitsOf } from './moveCheck/units.mjs';
 
-export { langOf, mask, normalize, scan, stripComments } from './moveCheck/scan.mjs';
+export { langFor, langOf, mask, normalize, scan, stripComments } from './moveCheck/scan.mjs';
 export { diffUnits, unitsOf } from './moveCheck/units.mjs';
 
 // ── git + fs plumbing ───────────────────────────────────────────
-const git = (...args) => execFileSync('git', args, { encoding: 'utf8', maxBuffer: 64 << 20 });
 const isJs = (p) => ['.js', '.mjs'].includes(path.extname(p).toLowerCase());
 
 // Repo-relative JS paths on both sides: the working tree now (tracked + new, never
 // gitignored build output), the tree at <ref> then — so a file the move deleted still counts.
-const listNow = (root, rel) => git('-C', root, 'ls-files', '-co', '--exclude-standard', '--', ...rel)
-  .split('\n').filter((f) => f && isJs(f) && existsSync(path.join(root, f))).sort();
-const listThen = (ref, rel) => git('ls-tree', '-r', '--name-only', ref, '--', ...rel)
+const listNow = async (root, rel) => (await listFiles(root, [], rel)).filter(isJs).sort();
+const listThen = async (root, ref, rel) => (await git(root, 'ls-tree', '-r', '--name-only', ref, '--', ...rel))
   .split('\n').filter((f) => f && isJs(f)).sort();
 
-const run = (ref, args) => {
-  const root = git('rev-parse', '--show-toplevel').trim();
+const run = async (ref, args) => {
+  const root = await repoRoot();
   const rel = args.map((a) => path.relative(root, path.resolve(a)) || '.');
-  const now = listNow(root, rel);
-  const then = listThen(ref, rel);
+  const [now, then] = await Promise.all([listNow(root, rel), listThen(root, ref, rel)]);
+  const [nowTexts, thenTexts] = await Promise.all([readAll(root, now), blobsAt(root, ref, then)]);
 
-  const headUnits = now.flatMap((f) => unitsOf(f, readFileSync(path.join(root, f), 'utf8')));
-  const refUnits = then.flatMap((f) => unitsOf(f, git('show', `${ref}:${f}`)));
+  const headUnits = now.flatMap((f, i) => unitsOf(f, nowTexts[i]));
+  const refUnits = then.flatMap((f) => unitsOf(f, thenTexts.get(f) ?? ''));
   const { lost, gained, unchanged } = diffUnits(refUnits, headUnits);
 
   const at = (u) => `${u.hash}  ${u.file}:${u.line} ${u.name}`;
@@ -46,5 +43,5 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const args = process.argv.slice(2);
   if (args[0] === '--self-test') await selfTest();
   else if (args.length < 2) { console.error('usage: node tools/moveCheck.mjs <gitRef> <path...>   |   --self-test'); process.exit(2); }
-  else process.exit(run(args[0], args.slice(1)));
+  else process.exit(await run(args[0], args.slice(1)));
 }

@@ -73,7 +73,7 @@ namespace stencil::gui {
       restyle();
       if (!flip || support::motionReduced()) return;
       auto* anim = new QVariantAnimation(this);
-      anim->setDuration(FLIP_MS);
+      anim->setDuration(support::motionMs(FLIP_MS));
       anim->setStartValue(1.0 - slash);
       anim->setEndValue(slash);
       anim->setEasingCurve(QEasingCurve::OutCubic);

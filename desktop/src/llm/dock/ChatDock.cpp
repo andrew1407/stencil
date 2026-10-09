@@ -18,6 +18,10 @@ namespace stencil::gui {
 
   using namespace chatdock;
 
+  namespace {
+    constexpr int JUMP_SCROLL_MS = 220;   // the jump-to-top / -latest glide
+  }  // namespace
+
   ChatDock::ChatDock(QWidget* parent) : QDockWidget("AI Assistant", parent) {
     setObjectName("llmChatDock");
     // NOT SelectionPanel's NoDockWidgetFeatures: this panel docks on all four sides and floats.
@@ -88,13 +92,12 @@ namespace stencil::gui {
       auto* sb = scroll->verticalScrollBar();
       if (support::motionReduced()) { sb->setValue(top ? 0 : sb->maximum()); return; }
       auto* anim = new QVariantAnimation(sb);
-      anim->setDuration(220);
       anim->setStartValue(sb->value());
       anim->setEndValue(top ? 0 : sb->maximum());
       anim->setEasingCurve(QEasingCurve::OutCubic);
       connect(anim, &QVariantAnimation::valueChanged, sb,
               [sb](const QVariant& v) { sb->setValue(v.toInt()); });
-      anim->start(QAbstractAnimation::DeleteWhenStopped);
+      support::startTuned(anim, JUMP_SCROLL_MS, QAbstractAnimation::DeleteWhenStopped);
     };
     connect(log.jumpTop, &QToolButton::clicked, this, [jumpTo] { jumpTo(true); });
     connect(log.jumpBottom, &QToolButton::clicked, this, [jumpTo] { jumpTo(false); });

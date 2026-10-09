@@ -7,6 +7,7 @@
 #include "LlmClient.hpp"
 #include <QLabel>
 #include <QPlainTextEdit>
+#include <QTimer>
 #include <QtTest/QTest>
 
 using namespace stencil::gui;
@@ -25,8 +26,12 @@ namespace {
   struct CannedTransport : stencil::llm::LlmTransport {
     void postJson(const QUrl&, const QList<QPair<QByteArray, QByteArray>>&, const QByteArray&,
                   std::function<void(int, QByteArray, QString)> cb) override {
+      // Answered on the next turn of the loop, as a real reply is: a synchronous answer lands
+      // before the continuation's "…" card exists, and that card then never clears.
       const QJsonObject wire{{"message", QJsonObject{{"content", PLAN}}}};
-      cb(200, QJsonDocument(wire).toJson(QJsonDocument::Compact), QString());
+      QTimer::singleShot(0, [cb, body = QJsonDocument(wire).toJson(QJsonDocument::Compact)] {
+        cb(200, body, QString());
+      });
     }
     void getJson(const QUrl&, const QList<QPair<QByteArray, QByteArray>>&,
                  std::function<void(int, QByteArray, QString)> cb) override {
@@ -64,7 +69,7 @@ void MainWindowGuiTest::assistantShots(MainWindow& win, const QString& theme, co
       win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&canned);
     }
     ChatDock* chat = win.chatDock;
-    win.addDockWidget(Qt::RightDockWidgetArea, chat, Qt::Horizontal);
+    win.addDockWidget(Qt::LeftDockWidgetArea, chat, Qt::Horizontal);   // the edge the app opens it on
     chat->setFloating(false);
     win.acts.chat->setChecked(true);
     waitUntil([chat] { return chat->isVisible(); });

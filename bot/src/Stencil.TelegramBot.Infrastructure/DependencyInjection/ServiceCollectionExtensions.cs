@@ -37,9 +37,12 @@ public static class ServiceCollectionExtensions
             static sp => sp.GetRequiredService<StencilServerClientFactory>());
         // One HttpClient over the factory's pooled handler with the contract's slow-call timeout.
         // The endpoint comes only from explicit configuration, never from fetched content.
-        services.AddSingleton<ILlmClient>(sp => new HttpLlmClient(
-            sp.GetRequiredService<StencilServerClientFactory>().CreateHttpClient(HttpLlmClient.DefaultTimeout),
-            options.Llm));
+        services.AddSingleton<ILlmClient>(sp =>
+        {
+            StencilServerClientFactory servers = sp.GetRequiredService<StencilServerClientFactory>();
+            return new HttpLlmClient(servers.CreateHttpClient(HttpLlmClient.DefaultTimeout), options.Llm,
+                servers.CreateGuardedHttpClient(HttpLlmClient.DefaultTimeout));
+        });
         services.AddSingleton<IImageDownscaler, FfmpegImageDownscaler>();
 
         if (string.IsNullOrWhiteSpace(options.RedisUrl))

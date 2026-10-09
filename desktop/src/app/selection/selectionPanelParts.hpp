@@ -73,6 +73,15 @@ namespace stencil::gui {
     }
   };
 
+  // Every row out, its cell widgets through removeCellWidget: rows removed under them leave the
+  // widgets in the view's persistent-editor set, and a later editor at a freed address skips Escape.
+  inline void clearRows(QTableWidget* table) {
+    for (int r = 0; r < table->rowCount(); ++r)
+      for (int c = 0; c < table->columnCount(); ++c)
+        if (table->cellWidget(r, c)) table->removeCellWidget(r, c);
+    table->setRowCount(0);
+  }
+
   // A cell widget held at the cell's centre (browser td text-align/vertical-align center); a
   // bare one is stretched, or pinned to the top once its QSS caps its height.
   inline QWidget* centeredCell(QWidget* child, QWidget* parent) {

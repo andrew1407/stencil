@@ -13,23 +13,23 @@ namespace stencil::model {
     bool lines = true;
   };
 
-  // `lines` with each hidden one swapped for a mark-less stand-in, indices kept (hittableLines); the
-  // same lines, uncopied, when none hides.
-  inline const core::Lines& hittable(const core::Lines& lines, core::Lines& scratch) {
-    bool any = false;
-    for (const core::Line& l : lines) any = any || l.hidden;
-    if (!any) return lines;
-    scratch.clear();
-    scratch.reserve(lines.size());
-    for (const core::Line& l : lines) scratch.push_back(l.hidden ? core::Line{} : l);
-    return scratch;
-  }
-
   inline std::optional<core::PointHit> pointAt(const core::Lines& lines, ShownMarks shown, double x,
                                                double y, double radius) {
     if (!shown.points) return std::nullopt;
-    core::Lines scratch;
-    return core::findNearestPoint(hittable(lines, scratch), x, y, radius);
+    return core::findNearestPoint(lines, x, y, radius);
+  }
+
+  // The hover's point, in hitTest.js's order with no copy: committed lines bottom up, then the
+  // stroke in progress; the first line holding a point within `radius`, and its first such point.
+  inline std::optional<core::Point> firstPointWithin(const core::Lines& committed, const core::Line& current,
+                                                     ShownMarks shown, double x, double y, double radius) {
+    if (!shown.points) return std::nullopt;
+    for (const core::Line& l : committed)
+      if (const auto i = l.hidden ? std::nullopt : core::nearestPointInLine(l.points, x, y, radius))
+        return l.points[*i];
+    if (const auto i = current.hidden ? std::nullopt : core::nearestPointInLine(current.points, x, y, radius))
+      return current.points[*i];
+    return std::nullopt;
   }
 
   // A vertex of one point list (the in-progress stroke).
@@ -42,15 +42,13 @@ namespace stencil::model {
   inline std::optional<core::SegmentHit> segmentAt(const core::Lines& lines, ShownMarks shown, double x,
                                                    double y, double radius) {
     if (!shown.lines) return std::nullopt;
-    core::Lines scratch;
-    return core::findNearestSegment(hittable(lines, scratch), x, y, radius);
+    return core::findNearestSegment(lines, x, y, radius);
   }
 
   // core::findLineAt over what shows: the stroke alone while points are hidden, the points alone
   // while lines are, each within `radius`; -1 when neither shows.
   inline int lineAt(const core::Lines& lines, ShownMarks shown, double x, double y, double radius) {
-    core::Lines scratch;
-    if (shown.points && shown.lines) return core::findLineAt(hittable(lines, scratch), x, y, radius);
+    if (shown.points && shown.lines) return core::findLineAt(lines, x, y, radius);
     if (const auto seg = segmentAt(lines, shown, x, y, radius)) return seg->lineIdx;
     if (const auto pt = pointAt(lines, shown, x, y, radius)) return pt->lineIdx;
     return -1;
@@ -60,8 +58,7 @@ namespace stencil::model {
   // inserts into a hidden line, it starts a fresh one.
   inline core::HoldTarget holdTargetAt(const core::Lines& lines, ShownMarks shown, double x, double y,
                                        double radius) {
-    core::Lines scratch;
-    return core::holdDrawTarget(hittable(lines, scratch), x, y, shown.points ? radius : 0.0,
+    return core::holdDrawTarget(lines, x, y, shown.points ? radius : 0.0,
                                 shown.lines ? radius : 0.0);
   }
 

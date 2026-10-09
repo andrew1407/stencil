@@ -36,7 +36,7 @@ namespace stencil::gui {
     }
     auto* shrink = new QPropertyAnimation(bar, "minimumHeight", bar);
     shrink->setObjectName(QString::fromLatin1(BAR_SLOT_ANIM_NAME));
-    shrink->setDuration(ms);
+    shrink->setDuration(support::motionMs(ms));
     shrink->setStartValue(h);
     shrink->setEndValue(0);
     // The same S as revealControls: a strong ease-in barely moves, then snaps.

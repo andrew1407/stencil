@@ -9,7 +9,7 @@ public sealed class StencilCliLocatorTests
     [Fact]
     public void Should_Resolve_An_Explicit_Override_File()
     {
-        string temp = Path.Combine(Path.GetTempPath(), "stencil-cli-" + Guid.NewGuid().ToString("N"));
+        string temp = TempDirs.New("cli");
         File.WriteAllText(temp, "#!/bin/sh\n");
         try
         {
@@ -24,7 +24,7 @@ public sealed class StencilCliLocatorTests
     [Fact]
     public void Should_Resolve_The_Stencil_Cli_Env_File()
     {
-        string temp = Path.Combine(Path.GetTempPath(), "stencil-cli-" + Guid.NewGuid().ToString("N"));
+        string temp = TempDirs.New("cli");
         File.WriteAllText(temp, "#!/bin/sh\n");
         string? prior = Environment.GetEnvironmentVariable("STENCIL_CLI");
         try
@@ -44,7 +44,7 @@ public sealed class StencilCliLocatorTests
     [Fact]
     public void Should_Throw_With_The_Path_In_The_Operator_Detail_Only_For_A_Non_File_Override()
     {
-        string missing = Path.Combine(Path.GetTempPath(), "stencil-missing-" + Guid.NewGuid().ToString("N"));
+        string missing = TempDirs.New("missing");
         StencilCliException ex = Assert.Throws<StencilCliException>(() => StencilCliLocator.FindCli(missing));
         Assert.Equal(StencilCliLocator.UNAVAILABLE_MESSAGE, ex.Message);
         Assert.DoesNotContain("STENCIL_", ex.Message);

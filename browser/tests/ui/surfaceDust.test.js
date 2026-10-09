@@ -11,7 +11,7 @@ import {
   SURFACE_DRIVEN_CLASS, MOTE_PX,
 } from '../../js/ui/motion.js';
 import { ANIMATIONS_CSS } from '../helpers/css.js';
-import { installDustPage, rect } from '../helpers/dustPageRig.js';
+import { installDustPage, rect } from '../helpers/dustRig.js';
 
 const animCss = ANIMATIONS_CSS;
 

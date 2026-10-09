@@ -213,13 +213,16 @@ export function makeStillSteps({ config, runner, pages, stub, appUrl, browser })
     // The desktop-app bounce page: what a chat link to the desktop app lands on. It
     // forwards to the stencil:// scheme at once, which never "loads" here.
     ...pairStep('launch-page', async (ctx, theme, name) => {
-      const page = await browser.newPage({ viewport: config.get('viewports.launch'), colorScheme: theme });
+      const page = await browser.newPage({ viewport: config.get('viewports.launch'), colorScheme: theme, deviceScaleFactor: 2 });
       const target = encodeURIComponent(`stencil://open?src=${config.url('favicon')}`);
       await page.goto(`${appUrl}launch.html#stencil-desktop=${target}`,
         { waitUntil: 'commit', timeout: 5000 }).catch(() => {});
       await page.locator('body').waitFor();
       await waitForAnimations(page);
-      await runner.shot(page, name);
+      // The card and a margin of page around it: the rest of the viewport is empty backdrop.
+      const box = await page.locator('main').boundingBox(), pad = 32;
+      await runner.shot(page, name, { clip: { x: Math.max(0, box.x - pad), y: Math.max(0, box.y - pad),
+        width: box.width + 2 * pad, height: box.height + 2 * pad } });
       await page.close();
     }),
   ]);

@@ -13,6 +13,9 @@ public sealed class CannedHttpMessageHandler : HttpMessageHandler
         _responder = responder;
     }
 
+    /// <summary>Never answers: the request waits until the client's own timeout cancels it.</summary>
+    public bool Hang { get; init; }
+
     /// <summary>The last request the handler saw.</summary>
     public HttpRequestMessage? LastRequest { get; private set; }
 
@@ -46,6 +49,10 @@ public sealed class CannedHttpMessageHandler : HttpMessageHandler
         }
         LastRequest = request;
         LastBody = body;
+        if (Hang)
+        {
+            await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+        }
         return _responder(request, body);
     }
 }

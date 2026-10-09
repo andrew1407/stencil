@@ -188,6 +188,7 @@ namespace stencil::core {
   std::optional<double> FormulaParser::evaluate(const std::string& expr, char varName,
                                                 double varValue,
                                                 const FormulaContext& ctx) {
+    if (expr.size() > MAX_CHARS) return std::nullopt;
     Eval e(expr, varName, varValue, ctx);
     double out = 0.0;
     if (!e.run(out)) return std::nullopt;

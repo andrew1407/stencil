@@ -15,6 +15,7 @@ import { onElementAdded } from './ui/domWatch.js';
 import { installControlSwap } from './ui/control/swap.js';
 import { installVoiceModes } from './llm/voice/modes.js';
 import { applyMotionAttr } from './ui/motion/motionPrefs.js';
+import { installCssSpeed } from './ui/motion/surface/cssSpeed.js';
 import EVENTS from '../../common/config/events.json' with { type: 'json' };
 import { publishReady } from './eventBus/appBus.js';
 import { applyExternalLaunch } from './core/launch/controller.js';
@@ -43,6 +44,7 @@ window.onload = async () => {
   }
   // Restated for a host that loads the module graph without the classic prePaintTheme.js.
   applyMotionAttr();
+  installCssSpeed();
   // Both before the app constructs: Storage reads the projects backend synchronously.
   await Promise.all([core.init(), initProjectsBackend()]);
   console.info(`[stencil] core: ${core.ready ? 'WebAssembly (shared C++)' : 'JavaScript fallback'}`);

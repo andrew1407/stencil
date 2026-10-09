@@ -57,7 +57,6 @@ export interface VoiceInput {
   stop(): void;
 }
 
-export declare const isVoiceSupported: (win?: object | null) => boolean;
 /** Errors after which listening cannot continue; the rest restart. */
 export declare const FATAL_ERRORS: Set<string>;
 /** Restart delays after consecutive network drops; one more than its length is fatal. */

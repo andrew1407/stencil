@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// CloseAll cancels each connection's context to unwind a handler blocked in Read. bufio.Scanner has no
+// CloseAll cancels each connection's context to unwind a handler blocked in Read. bufio.Reader has no
 // context awareness, so the adapter pokes the read deadline; the caller must still see the ctx error.
 func TestTCPReadUnblocksOnContextCancel(t *testing.T) {
 	_, server := tcpPair(t)
@@ -105,7 +105,7 @@ func TestTCPIdleTimeoutIsPerReadNotPerConnection(t *testing.T) {
 }
 
 // A closed peer surfaces as a read error, which is how the hub notices a
-// disconnect and releases the session reference.
+// disconnect and forgets the connection.
 func TestTCPReadFailsAfterThePeerCloses(t *testing.T) {
 	client, server := tcpPair(t)
 	if err := client.Close(CloseNormal, "bye"); err != nil {

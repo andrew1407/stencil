@@ -1,8 +1,7 @@
 package hub
 
-// Live edits are relayed, never persisted (only `save` commits), so a restart
-// mid-session drops everything since the last save. The server used to just
-// close the sockets; it now says so first, and clients can surface it.
+// The goodbye: a shutdown tells every live connection why before closing it, so a client can tell a
+// restart from a network blip and reconnect.
 
 import (
 	"context"
@@ -13,45 +12,23 @@ import (
 	"stencil/server/internal/transport"
 )
 
-// shutdownNotice is the last frame a live editor gets.
+// shutdownNotice is the last frame a live connection gets.
 var shutdownNotice = protocol.WSMessage{
 	Type:    protocol.WSError,
 	Code:    protocol.CodeShutdown,
-	Message: "server is shutting down; unsaved live edits are lost — save and reconnect",
+	Message: "server is shutting down; reconnect for the events feed",
 }
 
-// CloseAll tells every live connection the server is going away (unsaved live edits die with it) and
-// cancels its context so the handler unwinds and releases the conn. Pair it with Close, after the drain.
+// CloseAll tells every live connection the server is going away and cancels its context so the handler
+// unwinds and releases the conn. Pair it with Close.
 func (h *Hub) CloseAll() {
 	h.closeAll(h.liveConns())
 }
 
-// Close ends the hub's own context, so it comes last: the goodbye writes, the final peer-leave publish
-// and an in-flight save all ride it, and cancelling it earlier is what silences the notice.
+// Close ends the hub's own context, so it comes last: the goodbye writes ride it, and cancelling it
+// earlier is what silences the notice.
 func (h *Hub) Close() {
 	h.cancel()
-}
-
-// Drain waits, until ctx ends, for every session's run loop to return; a run loop returns once its last
-// member has left and every save its worker held has committed and been announced. Call it after CloseAll.
-func (h *Hub) Drain(ctx context.Context) error {
-	for {
-		h.mu.Lock()
-		var next *session
-		for s := range h.loops {
-			next = s
-			break
-		}
-		h.mu.Unlock()
-		if next == nil {
-			return nil
-		}
-		select {
-		case <-next.exited:
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
 }
 
 // liveConns snapshots the tracked connections so the notice + cancel run outside

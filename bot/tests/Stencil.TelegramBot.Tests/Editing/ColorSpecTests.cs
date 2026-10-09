@@ -22,14 +22,14 @@ public sealed class ColorSpecTests : IDisposable
 
     public ColorSpecTests()
     {
-        _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-color-" + Guid.NewGuid().ToString("N"));
+        _dataDir = TempDirs.New("bot-color");
         BotOptions options = new() { DataDir = _dataDir, AllowedUsers = AnyUser.Instance };
         _editing = new EditingService(_cli, new UserWorkspace(options), _store);
     }
 
     public void Dispose()
     {
-        try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
+        TempDirs.Delete(_dataDir);
     }
 
     [Fact]

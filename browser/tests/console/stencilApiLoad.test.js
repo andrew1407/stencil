@@ -12,13 +12,17 @@ import {
 // session in the SAME tab, so the conversation driving it keeps the working image in front of it.
 const stubFetch = (blob) => installFetchStub(blob instanceof Error ? blob : { blob }).restore;
 // The real load flow (core/image/loadFlow.js) reads the fetched file; its decode lands a 4 × 3 picture.
-const decodeTo = (app) => installImageDecode(() => { app.calls.push(['decoded']); app.image = { width: 4, height: 3 }; });
+const decodeTo = (app, { settle = false } = {}) => installImageDecode((file, img) => {
+  app.calls.push(['decoded']);
+  app.image = { width: 4, height: 3 };
+  if (settle) img.onload();
+});
 
 test('load({ incognito }) adopts incognito in place and loads here — no new tab', async () => {
   const app = makeApp();
   const stencil = createStencil(app);
   const restore = stubFetch(new Blob(['x'], { type: 'image/png' }));
-  const decode = decodeTo(app);
+  const decode = decodeTo(app, { settle: true });
   try {
     await stencil.load('https://pics.example/cat.png', { incognito: true });
   } finally { restore(); decode.restore(); }

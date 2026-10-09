@@ -94,8 +94,6 @@ namespace stencil::gui {
                             const QColor& focusRing);
 
     // image filters (port of browser/js/core/draw/renderer.js)
-    void setFilter(const QString& mode);
-    void setFilterColor(const QColor& tint);
     void setImageFilter(const QString& mode, const QColor& tint);
     // A committed pick: ONE undo step when mode or tint differ from the step on screen's; none
     // without a picture.

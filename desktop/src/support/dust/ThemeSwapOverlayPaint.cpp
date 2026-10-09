@@ -31,8 +31,9 @@ namespace stencil::gui {
     auto* tick = new QTimer(this);
     tick->setTimerType(Qt::PreciseTimer);
     tick->setInterval(support::frameIntervalMs(this));
-    connect(tick, &QTimer::timeout, this, [this, tick, total] {
-      timeMs = std::min(double(total), clock.nsecsElapsed() / 1e6);
+    const double scale = support::motionScale();
+    connect(tick, &QTimer::timeout, this, [this, tick, total, scale] {
+      timeMs = std::min(double(total), clock.nsecsElapsed() / 1e6 / scale);
       // The WHOLE overlay repaints each frame: widgets UNDERNEATH repaint after the restyle and would
       // surface through a ring-only repaint. A clipped pixmap blit is cheap; a per-frame PATH clip is not.
       update();

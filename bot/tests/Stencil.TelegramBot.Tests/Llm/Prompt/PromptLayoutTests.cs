@@ -186,7 +186,7 @@ public sealed class PromptLayoutTests : PromptServiceTestBase
 
         Assert.Single(outcome.Renders);
         // The variant's render was handed the remapped layout: (x,y) -> (480-y, x).
-        string json = await File.ReadAllTextAsync(_cli.LastRequest!.LayoutPath!);
+        string json = _cli.LayoutJson(_cli.LastRequest!)!;
         Domain.Layout.StencilLayout layout = System.Text.Json.JsonSerializer
             .Deserialize<Domain.Layout.StencilLayout>(json, Domain.Serialization.StencilJson.Options)!;
         Domain.Layout.LayoutLine line = Assert.Single(layout.Lines);

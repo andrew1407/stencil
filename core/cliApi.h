@@ -26,7 +26,8 @@ void stencil_cli_defaultBlankSizePx(double pageWcm, double pageHcm, double dpi,
                                     int* outW, int* outH);
 
 /* Crop string ("x1 = .. x2 = .. y1 = .. y2 = ..") -> clamped integer pixel rect;
- * `album` (0/1) drives single-axis derivation. 1 on success, 0 on a bad spec / empty. */
+ * `album` (0/1) drives single-axis derivation. 1 on success, 0 on a bad spec or an edge
+ * outside the image, -1 when the rect it resolves to is empty. */
 int stencil_cli_resolveCrop(const char* spec, double imageW, double imageH,
                             double pxPerCmX, double pxPerCmY,
                             double pageWcm, double pageHcm, int album,
@@ -102,6 +103,10 @@ void stencil_cli_sobelRows(const uint8_t* luma, uint8_t* data, int width, int he
 void stencil_cli_applyFilter(const char* mode, uint8_t* data, int pixelCount,
                              int tintR, int tintG, int tintB);
 
+/* A named filter mode in the core's own static spelling, matched case-sensitively as
+ * renderer.js matches it ("bw" yes, "BW" no); NULL for anything else, which tints. */
+const char* stencil_cli_filterName(const char* mode);
+
 /* Sobel edges in place: dark on a white page, alpha preserved. */
 void stencil_cli_applyContour(uint8_t* data, int width, int height);
 
@@ -117,6 +122,9 @@ void stencil_cli_rasterizeLine(uint8_t* buf, int w, int h,
 /* The layout caps, LIMITS.layoutLinesMax / layoutLinePointsMax / layoutPointsMax of
  * common/config/constants.json: lines kept, points per line, points over all lines. */
 void stencil_cli_layoutCaps(int* lines, int* linePoints, int* points);
+
+/* The undo caps, LIMITS.historyMax / historyPointsMax: steps kept, points over the kept steps. */
+void stencil_cli_historyCaps(int* steps, int* points);
 
 /* The co-edit merge over two abi/linesCodec.hpp snapshots: keep[i] = 1 when local line i joins
  * the peer's (core::mergeKeep). Returns the local lines decoded; the first keepCap are written. */

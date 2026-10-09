@@ -1,4 +1,5 @@
 #include "DockZonesOverlay.hpp"
+#include "../../support/motionPrefs.hpp"
 
 #include <QEasingCurve>
 #include <QPainter>
@@ -36,7 +37,6 @@ namespace stencil::gui {
     setAttribute(Qt::WA_TransparentForMouseEvents);
     setAttribute(Qt::WA_NoSystemBackground);
     nudgeAnim = new QVariantAnimation(this);
-    nudgeAnim->setDuration(ZONE_NUDGE_MS);
     nudgeAnim->setLoopCount(-1);  // for the whole drag
     nudgeAnim->setEasingCurve(QEasingCurve::InOutSine);
     nudgeAnim->setKeyValueAt(0.0, -double(ZONE_NUDGE_PX));
@@ -104,7 +104,7 @@ namespace stencil::gui {
 
   void DockZonesOverlay::showEvent(QShowEvent* e) {
     QWidget::showEvent(e);
-    nudgeAnim->start();
+    support::startTuned(nudgeAnim, ZONE_NUDGE_MS);
     watchdog->start();
   }
 

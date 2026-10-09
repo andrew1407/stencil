@@ -4513,6 +4513,79 @@
    },
    "expect": "invalid",
    "reason": "incognito only rides an open copy: with open absent it would copy nothing that is kept"
+  },
+  {
+   "file": "242-layout-negative-point-size-invalid.json",
+   "name": "layout-negative-point-size-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "layout",
+      "lines": [
+       {
+        "points": [
+         {
+          "x": 0,
+          "y": 0
+         },
+         {
+          "x": 10,
+          "y": 20
+         }
+        ],
+        "pointSize": -3
+       }
+      ]
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "a layout line's pointSize is never negative: a negative radius threw in every redraw"
+  },
+  {
+   "file": "243-layout-fractional-thickness-valid.json",
+   "name": "layout-fractional-thickness-valid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "layout",
+      "lines": [
+       {
+        "points": [
+         {
+          "x": 0,
+          "y": 0
+         },
+         {
+          "x": 10,
+          "y": 20
+         }
+        ],
+        "thickness": 0.5,
+        "pointSize": 0
+       }
+      ]
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "a stored layout keeps what a script draws: a fraction under 1, and pointSize 0, which hides the points"
   }
  ]
 }

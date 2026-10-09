@@ -24,10 +24,13 @@ func SetIdleTTL(d time.Duration) {
 // Limiter is a per-key token bucket: capacity = the per-minute rate, refilled continuously, so a caller
 // may burst up to a minute's worth and then settles to the configured pace.
 type Limiter struct {
-	mu      sync.Mutex
-	perMin  float64
-	buckets map[string]*bucket
-	now     func() time.Time // test seam
+	mu        sync.Mutex
+	perMin    float64
+	buckets   map[string]*bucket
+	now       func() time.Time // test seam
+	lastSweep time.Time
+	sweptLen  int // buckets left by the last sweep
+	sweeps    int // sweeps run, so a test can bound them
 }
 
 type bucket struct {
@@ -61,7 +64,7 @@ func (l *Limiter) Allow(key string) bool {
 	if b == nil {
 		b = &bucket{tokens: l.perMin, last: now}
 		l.buckets[key] = b
-		l.sweep(now)
+		l.maybeSweep(now)
 	} else {
 		// Refill for the elapsed time, capped at one minute's worth.
 		b.tokens += now.Sub(b.last).Minutes() * l.perMin
@@ -95,12 +98,17 @@ func (l *Limiter) Refund(key string) {
 	}
 }
 
-// sweep drops buckets nobody has touched within idleTTL. Called under the lock, only when a new key
-// appears, so the cost lands on growth rather than on every spend.
-func (l *Limiter) sweep(now time.Time) {
+// maybeSweep drops buckets nobody has touched within idleTTL, but only once half the TTL has passed or
+// the map has doubled since the last sweep: each O(n) sweep pays for the growth before it.
+func (l *Limiter) maybeSweep(now time.Time) {
+	if now.Sub(l.lastSweep) < idleTTL/2 && len(l.buckets) < 2*max(l.sweptLen, 64) {
+		return
+	}
 	for key, b := range l.buckets {
 		if now.Sub(b.last) > idleTTL {
 			delete(l.buckets, key)
 		}
 	}
+	l.lastSweep, l.sweptLen = now, len(l.buckets)
+	l.sweeps++
 }

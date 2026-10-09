@@ -23,10 +23,14 @@
 /* Projects grows to the shared ceiling because its list is long; an editor has no such
    content to push it, so take that height outright and give the room to the text. */
 #script-overlay:not(.modal-popover) .app-modal { height: min(82vh, 760px); }
-/* As a toolbar popover (420 wide) the bar takes the flyout's scale (ctx/script.css), so the
-   five labels fit whole (desktop QSS: QWidget#popoverOverlay QDialog#stencilScriptDialog). */
-#script-overlay.modal-popover .script-actions-bar .chat-settings-actions { gap: 6px; }
-#script-overlay.modal-popover .script-actions-bar .btn-icon-text { font-size: 12px; padding: 4px 9px; }
+/* Popover-narrow (420, or a window dragged to it) the bar takes the flyout's scale (ctx/script.css),
+   so the five labels fit whole (desktop QSS: QWidget#popoverOverlay QDialog#stencilScriptDialog). */
+@container modal (max-width: 440px) {
+  .script-actions-bar .chat-settings-actions { gap: 6px; }
+  .script-actions-bar .btn-icon-text { font-size: 12px; padding: 4px 9px; }
+}
+/* Narrower still, the buttons wrap onto a second row instead of running past the edge. */
+.script-actions-bar .chat-settings-actions { flex: 0 1 auto; flex-wrap: wrap; min-width: 0; }
 
 /* The body flexes, so the editor fills whatever height the window has. */
 .script-modal .settings-body { display: flex; flex-direction: column; }

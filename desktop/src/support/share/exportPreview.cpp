@@ -156,7 +156,7 @@ namespace stencil::support {
       return;
     }
     tipClosing = true;
-    fade->setDuration(gui::DUST_HAND_OVER_MS);
+    fade->setDuration(support::motionMs(gui::DUST_HAND_OVER_MS));
     fade->setStartValue(w->windowOpacity());
     fade->setEndValue(0.0);
     fade->start();

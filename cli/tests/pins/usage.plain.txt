@@ -39,6 +39,8 @@ Options
       --plan-capabilities <a,b>
                              Only these capabilities are wired: an op that requires
                              another is an unknown op (default: all)
+      --merge-lines <file>   Join a peer's and our line lists as a co-edit retry does
+                             (JSON {peer, local, seen?} in, '-' reads stdin; stdout)
       --console              Interactive console: /upload, /crop, /rotate, /save, ...
       --console-full-screen  Console in a full-screen TUI: pinned logo header,
                              scrollback (wheel/PgUp/PgDn), click logo to change theme

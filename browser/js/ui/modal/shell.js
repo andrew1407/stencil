@@ -5,7 +5,7 @@ import { wireModalResize } from './resize.js';
 import { sweepDust } from '../motion.js';
 import { isTypingTarget } from '../../utils.js';
 import { modalShells, wireEscapeOnce, wireCollapseOnce, closeOpenModal, closeOpenPopovers, raiseWindow } from './registry.js';
-import { multiWindow } from '../motion/motionPrefs.js';
+import { motionMs, multiWindow } from '../motion/motionPrefs.js';
 import { createModalFlight, shownRect, MODAL_CLOSE_MS } from './flight.js';
 import { canvasAnchorRect } from './imageAnchor.js';
 
@@ -93,7 +93,7 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     overlay.classList.remove('modal-open');
     // It flies home at its own level: dropped at once, it would jump over the windows it sat under.
     api.raisedAt = 0;
-    setTimeout(() => { if (!api.isOpen()) api.setZ(null); }, MODAL_CLOSE_MS);
+    setTimeout(() => { if (!api.isOpen()) api.setZ(null); }, motionMs(MODAL_CLOSE_MS));
     if (animate) {
       flight.playClosing();
     } else {
@@ -145,7 +145,7 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
                 // Its dim and blur wait out the windows closing beside it, then fade in.
                 holdBackdrop: () => {
                   overlay.classList?.add('backdrop-wait');
-                  setTimeout(() => overlay.classList?.remove('backdrop-wait'), MODAL_CLOSE_MS);
+                  setTimeout(() => overlay.classList?.remove('backdrop-wait'), motionMs(MODAL_CLOSE_MS));
                 },
                 overlayId: overlay?.id || null,
                 get stacked() { return stackedNow; },

@@ -11,6 +11,8 @@
 #include "mainWindowHelpers.hpp"
 #include "CanvasWidget.hpp"
 #include "RemoteSyncController.hpp"
+#include "SiblingWindows.hpp"
+#include "StencilFileSync.hpp"
 #include "SelectedLineBar.hpp"
 #include "../../support/skinPrefs.hpp"
 #include "../../support/control/reveal/controlReveal.hpp"
@@ -54,6 +56,16 @@ namespace stencil::gui {
       QTimer::singleShot(0, this, [self = QPointer<MainWindow>(this)] { if (self) self->close(); });
       return;
     }
+    // A linked .stencil save still inside its debounce lands now; a layout push pending or in
+    // flight holds the close until its PUT settles, as the baked result does below.
+    if (stencilSync && stencilSync->autosavePending()) stencilSync->flushAutosave();
+    if (remoteSync && remoteSync->holdCloseForPush([self = QPointer<MainWindow>(this)] {
+          if (self) self->close();
+        })) {
+      event->ignore();
+      hide();
+      return;
+    }
     // The server's baked result lags the layout by its throttle; the window waits for the last one.
     if (remoteSync && remoteSync->holdCloseForResult([self = QPointer<MainWindow>(this)] {
           if (self) self->close();
@@ -69,6 +81,7 @@ namespace stencil::gui {
     session.flushPending();
     fileStore::flushWrites();   // any debounced registry write still inside its window
     QMainWindow::closeEvent(event);
+    SiblingWindows::noteClosed(this);
   }
 
 
@@ -89,13 +102,14 @@ namespace stencil::gui {
     if (s.themeMode != settings.themeMode) support::clearForcedDark();
     const bool channelMoved = s.notifyChannel != settings.notifyChannel;
     const bool motionMoved = s.motionMode != settings.motionMode
-        || s.drawingAnimations != settings.drawingAnimations || s.modalBackdrop != settings.modalBackdrop;
+        || s.drawingAnimations != settings.drawingAnimations;
     settings = s;
+    settings.motionSpeed = support::clampMotionSpeed(s.motionSpeed);
+    support::setMotionSpeed(settings.motionSpeed);
     // Motion first: every animation asks these switches (support/modal/modalReveal.hpp), the dialog's
     // own closing flight included.
     support::setMotionMode(support::motionModeFromKey(s.motionMode));
     support::setDrawingAnimations(s.drawingAnimations);
-    support::setModalBackdrop(s.modalBackdrop);
     const bool collapse = support::multiWindow() && !s.multiWindow;
     const bool spread = !support::multiWindow() && s.multiWindow;
     support::setMultiWindow(s.multiWindow);
@@ -179,7 +193,7 @@ namespace stencil::gui {
     canvas->setImageFilter(s.imageFilter, tools.filterColorValue);
     if (chatDock && llmChanged) chatSession->refreshLlmStatus();  // re-describe + re-probe the AI provider
     applyTheme();
-    if (persist && !incognito) fileStore::saveSettings(settings);
+    if (persist) persistSettings();
   }
 
 }  // namespace stencil::gui

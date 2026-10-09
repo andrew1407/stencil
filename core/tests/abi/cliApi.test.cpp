@@ -1,9 +1,12 @@
 #include "doctest.h"
 #include "cliApi.h"
+#include "HistoryStack.hpp"
+#include "imageFilter.hpp"
 #include "linesCodec.hpp"
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -49,6 +52,11 @@ TEST_CASE("stencil_cli_resolveCrop yields a clamped pixel rect") {
 
   CHECK(stencil_cli_resolveCrop("z = 1", 200, 200, 10, 10, 21, 29.7, 0,
                                 &x, &y, &w, &h) == 0);
+  // An edge outside the image is a bad spec; an in-range spec with nothing left is -1.
+  CHECK(stencil_cli_resolveCrop("y2 = -200%", 200, 200, 10, 10, 21, 29.7, 0,
+                                &x, &y, &w, &h) == 0);
+  CHECK(stencil_cli_resolveCrop("x1 = 50px x2 = 50px y1 = 0px y2 = 10px", 200, 200, 10, 10,
+                                21, 29.7, 0, &x, &y, &w, &h) == -1);
 }
 
 TEST_CASE("stencil_cli rotate helpers") {
@@ -195,4 +203,21 @@ TEST_CASE("stencil_cli_layoutCaps and mergeLinesKeep hand out the core's caps an
                                    static_cast<int>(l.first.size()), l.second.data(),
                                    static_cast<int>(l.second.size()) - 1, keep.data(), 3) == 3);
   CHECK(keep == std::vector<std::uint8_t>{1, 0, 0});
+}
+
+TEST_CASE("stencil_cli_filterName and historyCaps answer from the core's own tables") {
+  using namespace stencil::core;
+  for (const char* name : {"none", "bw", "sepia", "invert", "contour"}) {
+    const char* got = stencil_cli_filterName(name);
+    REQUIRE(got != nullptr);
+    CHECK(std::string_view(got) == name);
+  }
+  // Case-sensitive as renderer.js is: anything else is the tint, so no name.
+  for (const char* tint : {"BW", "Sepia", "custom", "", "#7c3aed"}) CHECK(stencil_cli_filterName(tint) == nullptr);
+  CHECK(stencil_cli_filterName(nullptr) == nullptr);
+  int steps = 0, points = 0;
+  stencil_cli_historyCaps(&steps, &points);
+  CHECK(steps == static_cast<int>(HistoryStack::MAX_STEPS));
+  CHECK(points == static_cast<int>(HistoryStack::MAX_POINTS));
+  stencil_cli_historyCaps(nullptr, nullptr);
 }

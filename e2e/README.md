@@ -69,8 +69,7 @@ change, re-record with `UPDATE_PINS=1 npm run test:ui`.
   `ADMIN_TOKEN` (default `e2e-admin`) and sends it as `X-Admin-Token`. With
   `E2E_SKIP_COMPOSE=1`, export `ADMIN_TOKEN` matching your server.
 - **Wall times.** The non-stack run takes well under a minute; the full `E2E_STACK=1` run is
-  a few minutes, because it goes single-file and `ws-peer-leave` waits out a real ~40 s
-  ping/pong cycle.
+  a few minutes, because it goes single-file.
 
 ## CI
 

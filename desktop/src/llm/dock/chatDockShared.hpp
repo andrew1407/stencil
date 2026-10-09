@@ -23,6 +23,10 @@ namespace stencil::gui::chatdock {
   // Browser .chat-result: a 44px cover thumbnail beside a label ellipsised at 120px.
   inline constexpr int RESULT_THUMB = 44;
   inline constexpr int RESULT_LABEL_MAX_PX = 120;
+  // Its download / open buttons (browser .chat-hbtn.chat-result-btn): 28px, a 16px glyph.
+  inline constexpr int RESULT_BUTTON = 28;
+  inline constexpr int RESULT_ICON = 16;
+  inline constexpr const char* RESULT_ICON_PROPERTY = "chatResultIcon";   // the glyph's iconSet name
   inline constexpr int BUTTON_EDGE = 23;
   inline constexpr int HEADER_ICON = 13;
   // The context menu's assistant panel mirrors these exact numbers.

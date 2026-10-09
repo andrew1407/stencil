@@ -55,15 +55,18 @@ pub fn pushResult(session: *Session) void {
 }
 
 /// PUT the current structured layout, version-guarded. On a 409 (a peer saved first) merge the
-/// peer's lines in and retry at its version, re-merged on every pass so no bump drops our edit.
+/// peer's lines in and retry at its version, re-merged on every pass so no bump drops our edit;
+/// a line an earlier pass adopted is the peer's, so its delete there holds (push.js seen).
 fn pushLayout(session: *Session, client: *server.Client, id: []const u8) void {
+    var seen: []u8 = &.{};
+    defer if (seen.len != 0) session.gpa.free(seen);
     var tries: u8 = 0;
     while (tries < 4) : (tries += 1) {
         const layout = session.currentLayoutJson() catch return;
         defer session.gpa.free(layout);
         client.updateProject(id, layout, session.remote_version) catch |e| {
             if (e == server.Error.Conflict) {
-                mergePeer(session, client, id) catch return;
+                mergePeer(session, client, id, &seen) catch return;
                 continue;
             }
             logo.print("sync: layout update failed ({s})\n", .{@errorName(e)});
@@ -79,13 +82,13 @@ fn pushLayout(session: *Session, client: *server.Client, id: []const u8) void {
 
 /// The browser's mergePeer: adopt the server's version and merge its layout into ours as one
 /// history state (session/peerMerge.zig).
-fn mergePeer(session: *Session, client: *server.Client, id: []const u8) !void {
+fn mergePeer(session: *Session, client: *server.Client, id: []const u8, seen: *[]u8) !void {
     const body = try client.getProject(id);
     defer session.gpa.free(body);
     const version = try server.parseProjectVersion(session.gpa, body);
     const layout_json = try extractLayoutObject(session.gpa, body);
     defer session.gpa.free(layout_json);
-    try session.mergePeer(layout_json);
+    try session.mergePeer(layout_json, seen);
     session.remote_version = version;
 }
 

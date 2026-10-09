@@ -1,12 +1,12 @@
 // The extension can't import across subprojects, so a few browser modules are duplicated
 // into src/ as rule-for-rule PORTS. Their behavioural cases live in browser/tests/; this
-// is the drift guard that lets the extension drop those duplicated suites. Two manifests:
-// whole-file pairs below, then per-function ports further down. Body differences are never
-// normalized away — a rewording in either copy fails the pair.
+// is the drift guard that lets the extension drop those duplicated suites: whole-file pairs here,
+// per-declaration ports in portParityFunctions.test.js. Body differences are never normalized
+// away — a rewording in either copy fails the pair.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 
 // name → [browser copy, extension copy], both relative to this file.
 const MANIFEST = [
@@ -121,90 +121,5 @@ for (const [name, browserPath, extPath] of MANIFEST) {
     assert.equal(ext, browser,
       `${name} drifted from its browser original — change one, change the other `
       + '(only the header comment and import paths may differ)');
-  });
-}
-
-// A module that ports only PART of a browser module lists functions instead: each must match its
-// browser original verbatim, mid-body comments included. A wasm-routed original keeps a `JS` suffix.
-const FUNCTIONS = [
-  ['popover', '../../browser/js/ui/tip/popover.js', '../src/lib/tip/popover.js', ['popoverPosition',
-    'DOUBLE_CLICK_MS', 'LONG_PRESS_MS', 'PRESS_SLOP_PX', 'LINGER_CLOSE_MS', 'glideRegistry',
-    'createModalOpenGesture']],
-  ['cropGeometry', '../../browser/js/core/parse/cropGeometry.js', '../src/lib/image/cropGeometry.js',
-    ['isAlbumOrientation', 'cropAspect', 'centeredCrop', 'resizeCropFromCorner',
-     'moveCropClamped', 'scaleCropCentered']],
-  // motion/ is the extension's own implementation, split along the browser's own file boundaries;
-  // only what it shares to the letter with the app is listed.
-  ['motion', '../../browser/js/ui/motion/', '../src/lib/motion/', [
-    'REVEAL_ITEM_CLASS', 'REVEAL_IN_CLASS', 'REVEAL_ENTERING_CLASS', 'REVEAL_MASKED_CLASS',
-    'revealDissolve', 'revealGrain',
-    'LEAVING_CLASS', 'createListHold', 'emptyStateVisible',
-    'TILE_GATHER_SHARE', 'TILE_JITTER_SHARE', 'tileNoise', 'tileWaypoint', 'reshapeGrid',
-    'reintegrate', 'rectCenter',
-    'MATERIALIZE_CLASS', 'MATERIALIZE_VEIL_CLASS', 'CHAT_ENTERING_CLASS', 'CHAT_SLIDE_CLASS',
-    'SURFACE_FORMING_CLASS', 'SURFACE_LEAVING_CLASS', 'SURFACE_DRIVEN_CLASS',
-  ]],
-  // plan.js shares the §1 mechanics and then applies the extension's own §8/§11.2 rules, so
-  // `validateAsk` and `parseOpPlan` stay out.
-  ['planParser', '../../browser/js/llm/plan/parser.js', '../src/llm/op/plan.js',
-    ['firstJsonObject', 'askAnswerText']],
-  ['typedWords', '../../browser/js/ui/bindings/keys/typedWords.js', '../src/options/secrets/typedWords.js',
-    ['LONGEST', 'matchTypedWord', 'typedLetter']],
-  ['typingTarget', '../../browser/js/utils/dom.js', '../src/options/secrets/typedWords.js', ['isTypingTarget']],
-  ['stageAccents', '../../browser/js/core/settings/accents.js', '../src/lib/logo/accents.js', ['normalizeHex']],
-  // The stage's lock and lifecycle; only the bare-window test and the mark's selector are the page's own.
-  ['logoStage', '../../browser/js/ui/logo/stage.js', '../src/lib/logo/stage.js', [
-    'STAGE_CLASS', 'OPEN_CLASS', 'logoStageOpen', 'SWALLOWED', 'closeLogoStage', 'openLogoStage', 'currentLogoStage']],
-];
-
-// One top-level `const NAME = …` / `function NAME …` statement — exported or not, since a shared
-// helper may be module-private — to the line that closes it: brackets balance, the line ends it.
-const declaration = (src, name) => {
-  const lines = src.split('\n');
-  const start = lines.findIndex((l) => new RegExp(`^(?:export )?(?:const|function) ${name}\\b`).test(l));
-  if (start < 0) return null;
-  let depth = 0;
-  for (let i = start; i < lines.length; i++) {
-    const line = lines[i];
-    // Brackets inside a string literal or a trailing `//` comment are text, not structure
-    // (`text.indexOf('{')` would otherwise leave the count permanently open).
-    for (let j = 0, quote = ''; j < line.length; j++) {
-      const c = line[j];
-      if (quote) { if (c === '\\') j++; else if (c === quote) quote = ''; continue; }
-      if (c === '"' || c === "'" || c === '`') { quote = c; continue; }
-      if (c === '/' && line[j + 1] === '/') break;
-      if ('([{'.includes(c)) depth++;
-      else if (')]}'.includes(c)) depth--;
-    }
-    if (depth <= 0 && /[;}]\s*$/.test(line)) return lines.slice(start, i + 1).join('\n');
-  }
-  return null;
-};
-
-// A port as one string: a file, or every .js under a directory — either side may hold its
-// modules in feature folders, so the walk is recursive.
-const jsUnder = (dir) => readdirSync(dir, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))
-  .flatMap((e) => (e.isDirectory()
-    ? jsUnder(new URL(`${e.name}/`, dir))
-    : (e.name.endsWith('.js') ? [readFileSync(new URL(e.name, dir), 'utf8')] : [])));
-
-const sourceOf = (rel) => {
-  if (!rel.endsWith('/')) return read(rel);
-  return jsUnder(new URL(rel, import.meta.url)).join('\n');
-};
-
-for (const [name, browserPath, extPath, fns] of FUNCTIONS) {
-  test(`${name}: every ported function matches its browser original`, () => {
-    assert.notEqual(browserPath, extPath, `${name}: both columns name the same file`);
-    const browser = sourceOf(browserPath);
-    const ext = sourceOf(extPath);
-    for (const fn of fns) {
-      const mine = declaration(ext, fn);
-      assert.ok(mine, `${name}: the extension no longer exports ${fn}`);
-      const theirs = declaration(browser, `${fn}JS`)?.replace(`${fn}JS`, fn) ?? declaration(browser, fn);
-      assert.ok(theirs, `${name}: ${fn} has no browser original (nor a ${fn}JS reference)`);
-      assert.equal(mine, theirs,
-        `${name}.${fn} drifted from its browser original — change one, change the other`);
-    }
   });
 }

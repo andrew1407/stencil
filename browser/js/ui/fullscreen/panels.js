@@ -1,4 +1,4 @@
-import { FOLD_DUST_OUT_MS, SURFACE_IN_MS, dockAwayPoint, settleSurface, surfaceIn, surfaceOut } from '../motion.js';
+import { FOLD_DUST_OUT_MS, SURFACE_IN_MS, dockAwayPoint, motionMs, settleSurface, surfaceIn, surfaceOut } from '../motion.js';
 import { EVENTS, subscribe } from '../../eventBus/appBus.js';
 // The two slide-in panels and their auto-hide timers; the hover wiring and the resizer drag
 // pause them through `pauseControlsHide` / `pausePointsHide`. Each comes and goes as dust past
@@ -146,7 +146,7 @@ const makeFsPanel = ({ panel, dock, inMs, dust, before = () => {}, after = () =>
       const played = shown && dust(panel, dock, true);
       shown = false;
       const drop = () => { panel.classList.remove(VISIBLE_CLASS); syncFsTriggers(); after(); };
-      if (played) hideTimer = setTimeout(drop, FOLD_DUST_OUT_MS);
+      if (played) hideTimer = setTimeout(drop, motionMs(FOLD_DUST_OUT_MS));
       else drop();
     }, HIDE_GRACE_MS);
   };
@@ -166,7 +166,7 @@ export const createFsPanels = ({ fsControlsPanel, fsPointsPanel, showPoints, dus
   const controls = makeFsPanel({
     panel: fsControlsPanel, dock: 'top', inMs: SURFACE_IN_MS, dust,
     before: (revealing) => placeSelectionOverlay(fsControlsPanel, revealing),
-    after: () => setTimeout(syncFsTriggers, SELECTION_TOP_MS),   // …again once the overlay has landed
+    after: () => setTimeout(syncFsTriggers, motionMs(SELECTION_TOP_MS)),   // …again once the overlay has landed
   });
   const points = makeFsPanel({
     panel: fsPointsPanel, dock: 'right', inMs: POINTS_DUST_IN_MS, dust,

@@ -96,4 +96,65 @@ public static partial class Replies
         return string.Join(", ", parts);
     }
 
+    public static string DrawNeedsImage() => BotStrings.Reply("drawNeedsImage");
+
+    public static string DrawRectPoints() => BotStrings.Reply("drawRectPoints");
+
+    public static string DrawPolygonPoints() => BotStrings.Reply("drawPolygonPoints");
+
+    public static string DrawLinePoints() => BotStrings.Reply("drawLinePoints");
+
+    public static string PenColorUsage() => BotStrings.Reply("penColorUsage");
+
+    public static string PenColorSet(string color) => BotStrings.Reply("penColorSet", color);
+
+    public static string PenThicknessUsage() => BotStrings.Reply("penThicknessUsage");
+
+    public static string PenThicknessSet(double px) => BotStrings.Reply("penThicknessSet", px);
+
+    public static string PenPointsUsage() => BotStrings.Reply("penPointsUsage");
+
+    public static string PenPointsSet(double px) => BotStrings.Reply("penPointsSet", px);
+
+    public static string PenStyleUsage() => BotStrings.Reply("penStyleUsage");
+
+    public static string PenStyleSet(string style) => BotStrings.Reply("penStyleSet", style);
+
+    public static string PenFillUsage() => BotStrings.Reply("penFillUsage");
+
+    // null: the fill was cleared.
+    public static string PenFillSet(string? fill) =>
+        fill is null ? BotStrings.Reply("penFillCleared") : BotStrings.Reply("penFillSet", fill);
+
+    public static string TintHelp() => BotStrings.Reply("tintHelp");
+
+    public static string UndoEmpty() => BotStrings.Reply("undoEmpty");
+
+    public static string RedoEmpty() => BotStrings.Reply("redoEmpty");
+
+    public static string ImageDropped() => BotStrings.Reply("imageDropped");
+
+    public static string LayoutUsage() => BotStrings.Reply("layoutUsage");
+
+    public static string LayoutCommandNeedsImage() => BotStrings.Reply("layoutCommandNeedsImage");
+
+    public static string LayoutFetchFailed() => BotStrings.Reply("layoutFetchFailed");
+
+    public static string LayoutInvalid() => BotStrings.Reply("layoutInvalid");
+
+    public static string FormatCustomUsage() => BotStrings.Reply("formatCustomUsage");
+
+    public static string FormatCustomSet(string w, string h) => BotStrings.Reply("formatCustomSet", w, h);
+
+    public static string FormatUnknown(string name) => BotStrings.Reply("formatUnknown", name);
+
+    public static string FormatSet(string name, string w, string h) => BotStrings.Reply("formatSet", name, w, h);
+
+    public static string DrawBadPoint(string token) => BotStrings.Reply("drawBadPoint", token);
+
+    public static string DrawNoPoints() => BotStrings.Reply("drawNoPoints");
+
+    public static string ScriptUsage() => BotStrings.Reply("scriptUsage");
+
+    public static string ScriptNeedsImage() => BotStrings.Reply("scriptNeedsImage");
 }

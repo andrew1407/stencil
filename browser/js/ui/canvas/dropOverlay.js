@@ -1,5 +1,6 @@
 import { StencilElement, hostTag, define } from '../base.js';
 import { icon } from '../icons.js';
+import { motionMs } from '../motion/motionPrefs.js';
 export class StencilDropOverlay extends StencilElement {
   static inner() {
     return `
@@ -66,5 +67,5 @@ export const hideDropOverlay = (el) => {
   el._dropCloseTimer = setTimeout(() => {
     el.classList.remove('drop-closing');
     el.style.display = 'none';
-  }, DROP_CLOSE_MS);
+  }, motionMs(DROP_CLOSE_MS));
 };

@@ -30,10 +30,10 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-    # Exposed for poking at the DB from the host; the server reaches it over the
-    # compose network as `db:5432` regardless.
+    # Exposed on loopback only for poking at the DB from the host; the server reaches it
+    # over the compose network as `db:5432` regardless.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
 
   redis:
     image: redis:7-alpine
@@ -43,7 +43,7 @@ services:
       timeout: 5s
       retries: 10
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
 
   # The server image is distroless :nonroot (UID 65532) and can't chown its own
   # data dir. A freshly-created named volume is root-owned, so the nonroot server

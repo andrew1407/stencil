@@ -1,15 +1,44 @@
-// The Motion section — the three toggles and the interface-animation mode with its glyphs — and
-// the Notifications section: where a notice shows.
+// The Motion section — the three toggles, the interface-animation mode with its glyphs, and its
+// speed — and the Notifications section: where a notice shows.
 #include "SettingsDialog.hpp"
 #include "../../support/menu/SearchCombo.hpp"
 #include "../../support/icon/motionIcons.hpp"
 #include "../../support/motionPrefs.hpp"
+#include "../../support/control/dblReset.hpp"
+#include "../../support/control/scrubBar.hpp"
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDoubleSpinBox>
+#include <QHBoxLayout>
+#include <QLocale>
+#include <QSignalBlocker>
+#include <QSlider>
+#include <QTimer>
+#include <QValidator>
+#include <algorithm>
 #include <QListView>
 #include <QPalette>
 
 namespace stencil::gui {
+
+  namespace {
+    // A number typed past an end is let through and lands on that end (the browser field clamps on change).
+    class ClampingSpin : public QDoubleSpinBox {
+     public:
+      using QDoubleSpinBox::QDoubleSpinBox;
+      QValidator::State validate(QString& text, int& pos) const override {
+        const QValidator::State state = QDoubleSpinBox::validate(text, pos);
+        bool ok = false;
+        locale().toDouble(text, &ok);
+        return state == QValidator::Invalid && ok ? QValidator::Intermediate : state;
+      }
+      void fixup(QString& text) const override {
+        bool ok = false;
+        const double v = locale().toDouble(text, &ok);
+        if (ok) text = textFromValue(std::clamp(v, minimum(), maximum()));
+      }
+    };
+  }  // namespace
 
   void SettingsDialog::buildMotionRows(Rows& r, const Settings& current) {
     // Motion (browser modal.js "Motion", the same rows in the same order). Live-applied,
@@ -19,7 +48,6 @@ namespace stencil::gui {
     // still, and a row that said otherwise would be describing something the user cannot see.
     heldMotionMode = current.motionMode;
     heldDrawAnim = current.drawingAnimations;
-    heldBackdrop = current.modalBackdrop;
     // A switch the user moves ends a skin's session override, even one picked back to the stored
     // value (browser setMotionPrefs clears it on every call).
     const auto touched = [this] { motionTouched = true; support::clearMotionOverride(); };
@@ -31,18 +59,10 @@ namespace stencil::gui {
 
     connect(drawAnim, &QCheckBox::clicked, this, touched);
 
-    addCheck(r, modalBackdrop, support::modalBackdrop(),
-          "On: an open window dims and blurs what it covers.\nOff: it sits on a sharp page.");
-    addRow(r, tr("Dim and blur behind windows"), modalBackdrop, /*column=*/false);
-    connect(modalBackdrop, &QCheckBox::clicked, this, touched);
-
     addCheck(r, multiWindow, current.multiWindow,   // the browser row's data-title, word for word
           "Keep several windows open side by side: nothing is dimmed or blurred, a click outside "
           "closes none, and the app stays usable behind them");
     addRow(r, tr("Multiple windows"), multiWindow, /*column=*/false);
-    // Side-by-side windows dim nothing, so the backdrop row stands idle while that is on.
-    modalBackdrop->setEnabled(!multiWindow->isChecked());
-    connect(multiWindow, &QCheckBox::toggled, this, [this](bool on) { modalBackdrop->setEnabled(!on); });
 
     motionMode = addCombo(r, QString());   // no tooltip — the browser's dropdown has none (the glyphs say it)
     motionMode->setObjectName(QStringLiteral("motionModeCombo"));
@@ -69,6 +89,60 @@ namespace stencil::gui {
     }
     addRow(r, tr("Interface animation"), motionMode);
     connect(motionMode, &QComboBox::activated, this, [this, touched] { touched(); applyLive(); });
+
+    // The number and a slider in hundredths, kept in step (browser vs-motion-speed); either applies live.
+    const support::MotionSpeedRange& speed = support::motionSpeedRange();
+    auto* box = new QWidget(r.host);
+    auto* lay = new QHBoxLayout(box);
+    lay->setContentsMargins(0, 0, 0, 0);
+    lay->setSpacing(8);
+    motionSpeedSpin = new ClampingSpin(box);
+    motionSpeedSpin->setObjectName(QStringLiteral("motionSpeedSpin"));
+    motionSpeedSpin->setLocale(QLocale::c());   // "0.37", as the browser writes it
+    motionSpeedSpin->setRange(speed.min, speed.max);
+    motionSpeedSpin->setSingleStep(speed.step);
+    motionSpeedSpin->setDecimals(2);
+    motionSpeedSpin->setFixedWidth(64);
+    motionSpeed = new QSlider(Qt::Horizontal, box);
+    makeScrubBar(motionSpeed, QStringLiteral("motionSpeedSlider"));
+    motionSpeed->setRange(qRound(speed.min * 100), qRound(speed.max * 100));
+    motionSpeed->setSingleStep(qMax(1, qRound(speed.step * 100)));
+    lay->addWidget(motionSpeedSpin);
+    lay->addWidget(motionSpeed, 1);
+    setMotionSpeedRow(support::clampMotionSpeed(current.motionSpeed));
+    addRow(r, tr("Animation speed"), box);
+    support::setResetHook(box, [this] { setMotionSpeedRow(Settings().motionSpeed); applyLive(); });
+    support::setResetHook(motionSpeed, [this] { setMotionSpeedRow(Settings().motionSpeed); applyLive(); });
+    support::setResetHook(motionSpeedSpin, [this] { setMotionSpeedRow(Settings().motionSpeed); applyLive(); });
+    // A drag or a held arrow moves the speed itself at once (one number every animation reads); the
+    // whole-window apply and save wait until it rests, or the dialog closes (SettingsDialogs settle-up).
+    speedSettle = new QTimer(this);
+    speedSettle->setSingleShot(true);
+    speedSettle->setInterval(SPEED_SETTLE_MS);
+    connect(speedSettle, &QTimer::timeout, this, &SettingsDialog::applyLive);
+    const auto moved = [this](double v) {
+      setMotionSpeedRow(v);
+      support::setMotionSpeed(motionSpeedSpin->value());
+      speedSettle->start();
+    };
+    connect(motionSpeed, &QSlider::valueChanged, this, [moved](int v) { moved(v / 100.0); });
+    connect(motionSpeedSpin, &QDoubleSpinBox::valueChanged, this, moved);
+  }
+
+  void SettingsDialog::setMotionSpeedRow(double speed) {
+    const QSignalBlocker quietSpin(motionSpeedSpin);
+    const QSignalBlocker quietSlider(motionSpeed);
+    motionSpeedSpin->setValue(speed);
+    motionSpeed->setValue(qRound(speed * 100));
+  }
+
+  // Reset All's motion half, as the browser's reset does.
+  void SettingsDialog::resetMotionRows() {
+    const Settings d;
+    drawAnim->setChecked(d.drawingAnimations);
+    multiWindow->setChecked(d.multiWindow);
+    motionMode->setCurrentIndex(qMax(0, motionMode->findData(d.motionMode)));
+    setMotionSpeedRow(d.motionSpeed);
   }
 
   void SettingsDialog::buildNotifyRows(Rows& r, const Settings& current) {

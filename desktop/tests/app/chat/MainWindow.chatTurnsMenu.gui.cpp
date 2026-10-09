@@ -1,6 +1,6 @@
 // MainWindow GUI e2e — A card's row menu surviving transcript churn, and the hover button that opens it.
-// Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
-#include "../../MainWindow.gui.hpp"
+// Shared ground is in chatTurnsGui.hpp, over MainWindow.gui.hpp.
+#include "chatTurnsGui.hpp"
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
@@ -12,17 +12,13 @@ class MainWindowGuiTest : public QObject {
   // land and repaint rows, the chat can be mid-close, and the card itself can be deleted.
   void chatCardMenuSurvivesTranscriptChurn() {
     MainWindow win(nullptr, false);
-    win.resize(1150, 800);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.settings.llmProvider = "ollama";
-    win.settings.llmBaseUrl = "http://localhost:11434";
+    QVERIFY(showSized(win, 1150, 800));
     MockChatTransport mock;
+    useOllama(win.settings, win.parts.chatAppliers.llmClient, mock);
     mock.response = QJsonDocument(QJsonObject{
         {"message", QJsonObject{{"content",
                                  "{\"version\":1,\"reply\":\"working on it\",\"actions\":[]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
     win.acts.chat->setChecked(true);
     QTRY_VERIFY(win.chatDock->isVisible());
     auto* dock = win.chatDock;
@@ -123,17 +119,13 @@ class MainWindowGuiTest : public QObject {
   // bubbles, RIGHT on assistant cards — and clicking it opens the right-click menu; Leave hides it.
   void chatCardHoverMenuButton() {
     MainWindow win(nullptr, false);
-    win.resize(1100, 760);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.settings.llmProvider = "ollama";
-    win.settings.llmBaseUrl = "http://localhost:11434";
+    QVERIFY(showSized(win, 1100, 760));
     MockChatTransport mock;
+    useOllama(win.settings, win.parts.chatAppliers.llmClient, mock);
     mock.response = QJsonDocument(QJsonObject{
         {"message", QJsonObject{{"content",
                                  "{\"version\":1,\"reply\":\"hi there\",\"actions\":[]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
     auto* dock = win.chatDock;
     QVERIFY(dock);
     dock->show();   // visibility checks below need visible ancestors

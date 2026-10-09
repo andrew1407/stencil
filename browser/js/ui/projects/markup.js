@@ -23,11 +23,13 @@ export function projectsModalInner() {
                     <option value="peer-closed">Not open elsewhere</option>
                 </select>
                 <select id="projects-sort" class="modal-filter" data-title="Sort projects (drag a row to set a manual order)">
+                    <option value="opened-desc">Recently opened</option>
+                    <option value="opened-asc">Least recently opened</option>
                     <option value="name">Name</option>
                     <option value="local">Local first</option>
                     <option value="server">Server first</option>
-                    <option value="date-desc">Newest</option>
-                    <option value="date-asc">Oldest</option>
+                    <option value="date-desc">Recently edited</option>
+                    <option value="date-asc">Least recently edited</option>
                     <option value="manual">Manual order</option>
                 </select>
                 <select id="projects-search-mode" class="modal-filter" data-title="What the search box matches">

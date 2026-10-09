@@ -2,6 +2,7 @@
 #include "Notifications.hpp"
 #include "ServerClient.hpp"
 #include <QJsonObject>
+#include <QPointer>
 
 namespace stencil::gui {
 
@@ -56,6 +57,22 @@ namespace stencil::gui {
         // `resolve` is a no-op, so the start version is unused.
         [](qint64, std::function<void(bool, qint64)> cb) { cb(true, 0); },
         [done, outVersion](GO r) { done(r == GO::COMMITTED, *outVersion); });
+  }
+
+  void RemoteSession::putMetaAsync(
+      stencil::net::ServerClient* c, const QString& address, const QString& id,
+      std::function<void(qint64 version, std::function<void(bool ok, qint64 newVersion, bool conflict)> cb)> put,
+      std::function<void(RemoteLink&)> ownLink, std::function<void(bool ok, qint64 outVersion)> done) {
+    const qint64 before = link.version;
+    QPointer<RemoteSession> self(this);
+    putVersionGuardedAsync(c, id, std::move(put), [self, address, id, before, ownLink, done](bool ok, qint64 nv) {
+      if (!self) return;
+      if (ok && self->link.id == id && self->link.address == address) {
+        if (ownLink) ownLink(self->link);
+        adoptOwnFileVersion(self->link, before, nv);
+      }
+      if (done) done(ok, nv);
+    });
   }
 
 }  // namespace stencil::gui

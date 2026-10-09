@@ -1,12 +1,13 @@
-// Headless checks for the DESCRIPTION editor and both editors' store write (dialogs/descriptionDialog,
+// Headless checks for the DESCRIPTION editor and both editors' meta edit (dialogs/descriptionDialog,
 // dialogs/keywordsDialog); the keywords FIELD itself is keywordChips.headless.cpp. The browser's
 // description modal on the shared shell: its structure, a field pre-filled with the current value where
-// Save returns the trimmed text and Cancel/Escape reject, and apply()'s store write against a temp state
-// dir, round-tripped through fileStore::loadProjects. Offscreen, driven from a 0-timer inside exec().
+// Save returns the trimmed text and Cancel/Escape reject, and apply()'s in-memory edit, which leaves the
+// temp state dir's projects.json to the caller. Offscreen, driven from a 0-timer inside exec().
 #include "DescriptionDialog.hpp"
 #include "KeywordsDialog.hpp"
 #include "fileStore.hpp"
 #include "modalChrome.hpp"
+#include "metaDialogs.hpp"
 
 #include <QApplication>
 #include <QDialog>
@@ -24,31 +25,6 @@
 using namespace stencil::gui;
 
 #include "../../support/check.hpp"
-
-static void pumpFor(int ms) {
-  QElapsedTimer t;
-  t.start();
-  while (t.elapsed() < ms) QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
-}
-
-static QPushButton* btnByText(QWidget* root, const QString& text) {
-  for (QPushButton* b : root->findChildren<QPushButton*>())
-    if (b->text() == text) return b;
-  return nullptr;
-}
-
-static bool headerHasGlyph(QWidget* root) {
-  for (QLabel* l : root->findChildren<QLabel*>())
-    if (!l->pixmap().isNull()) return true;
-  return false;
-}
-
-static void pressKey(QWidget* w, Qt::Key key, Qt::KeyboardModifiers mods = Qt::NoModifier) {
-  QKeyEvent down(QEvent::KeyPress, key, mods);
-  QApplication::sendEvent(w, &down);
-  QKeyEvent up(QEvent::KeyRelease, key, mods);
-  QApplication::sendEvent(w, &up);
-}
 
 // Run `act` once `dlg` is up inside exec(); it must close the dialog.
 static int execWith(QDialog& dlg, std::function<void()> act) {
@@ -153,7 +129,7 @@ int main(int argc, char** argv) {
     check(k.isEmpty(), qPrintable("keywords: nothing clipped as a popover: " + k));
   }
 
-  // ── apply(): the store write, round-tripped through the file store ──
+  // ── apply(): the in-memory edit; the window's SharedState makes the one store write ──
   {
     std::vector<Project> projects;
     Project p;
@@ -161,19 +137,17 @@ int main(int argc, char** argv) {
     p.meta.name = "Kitchen";
     p.meta.updatedAt = 10;
     projects.push_back(p);
-    check(!DescriptionDialog::apply(projects, "nope", "x", 20), "apply: an unknown id writes nothing");
+    check(!DescriptionDialog::apply(projects, "nope", "x", 20), "apply: an unknown id edits nothing");
     check(DescriptionDialog::apply(projects, "p1", "A sunny kitchen", 20), "apply: description lands");
     check(KeywordsDialog::apply(projects, "p1", {"kitchen", "plan"}, 30), "apply: keywords land");
     check(projects[0].meta.description == "A sunny kitchen" && projects[0].meta.updatedAt == 30,
           "apply: the in-memory list is mutated and stamped");
-    const std::vector<Project> back = fileStore::loadProjects();
-    check(back.size() == 1 && back[0].meta.description == "A sunny kitchen",
-          "apply: the description round-trips through projects.json");
-    check(back.size() == 1 && back[0].meta.keywords == std::vector<std::string>({"kitchen", "plan"}),
-          "apply: the keywords round-trip through projects.json");
-    check(DescriptionDialog::apply(projects, "p1", "", 40) && fileStore::loadProjects()[0].meta.description.empty(),
+    check(projects[0].meta.keywords == std::vector<std::string>({"kitchen", "plan"}),
+          "apply: the keywords replace the old list");
+    check(fileStore::loadProjects().empty(), "apply: projects.json is left to the caller's one write");
+    check(DescriptionDialog::apply(projects, "p1", "", 40) && projects[0].meta.description.empty(),
           "apply: an empty description clears it");
-    check(KeywordsDialog::apply(projects, "p1", {}, 50) && fileStore::loadProjects()[0].meta.keywords.empty(),
+    check(KeywordsDialog::apply(projects, "p1", {}, 50) && projects[0].meta.keywords.empty(),
           "apply: an empty list clears the keywords");
   }
 

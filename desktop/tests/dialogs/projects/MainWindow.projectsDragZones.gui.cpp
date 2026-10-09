@@ -97,9 +97,7 @@ class MainWindowGuiTest : public QObject {
     if (qApp->platformName() != QLatin1String("offscreen"))
       QSKIP("modal-dialog drags need the offscreen platform");
     MainWindow win(nullptr, false);
-    win.resize(1100, 800);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(held::showForProjects(win));
     QImage img(40, 30, QImage::Format_RGB32);
     img.fill(Qt::darkMagenta);
     const QString id = win.parts.chatAppliers.addImageProjectEntry(img, "zones-look");

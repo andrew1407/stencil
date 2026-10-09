@@ -4,8 +4,10 @@
 #include "CanvasWidget.hpp"
 #include "Notifications.hpp"
 #include "RemoteSession.hpp"
+#include "RemoteSyncController.hpp"
 #include "ChatSessionController.hpp"
 #include "theme.hpp"
+#include "skinPrefs.hpp"
 
 #include <QBuffer>
 
@@ -45,7 +47,11 @@ namespace stencil::gui {
       remote.connections = new stencil::net::ConnectionManager(this);
       // The desktop analogue of the browser connectionManager onChange → saveServers.
       connect(remote.connections, &stencil::net::ConnectionManager::changed, this, [this] {
-        stencil::net::connectionStore::saveServers(remote.connections->snapshot());
+        stencil::net::connectionStore::saveKeeping(remote.connections->snapshot(),
+                                                   remote.connections->getForgotten());
+        // A forgotten server takes its token with it: the linked project stops listening to it.
+        const QString linked = remote.session->address();
+        if (!linked.isEmpty() && !remote.connections->find(linked) && remoteSync) remoteSync->stopRemotePoll();
       });
       // The manager starts null until this lazy creation.
       remote.session->setConnections(remote.connections);
@@ -97,7 +103,11 @@ namespace stencil::gui {
         settings.imageFilter, settings.filterColor,
         canvas->getCropRect(), canvas->getRotationQuarters(), currentLayoutMeta(), canvas->getMirrored());
     pf.hasTheme = true;
-    pf.themeMode = resolveDark(settings.themeMode) ? "dark" : "light";
+    // "system" reads the shade last painted: resolving it again runs gdbus/gsettings on Linux.
+    const bool painterFollowsMode = painted.done && !support::forcedDark();
+    const bool dark = settings.themeMode == "system" && painterFollowsMode ? painted.dark
+                                                                           : resolveDark(settings.themeMode);
+    pf.themeMode = dark ? "dark" : "light";
     pf.themeAccent = settings.accentColor;
     // Persisted chat rides into the portable file only with the opt-in on (§12.3).
     if (settings.saveChatsWithProject && !incognito) pf.chat = chatSession->buildActiveChatDoc();

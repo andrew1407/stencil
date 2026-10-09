@@ -71,8 +71,10 @@ export interface StencilSettings {
   drawingAnimations: boolean;
   motionMode: MotionMode;
   readonly motionModes: MotionMode[];
-  modalBackdrop: boolean;
-  /** Many windows open at once: no backdrop, and a click outside closes none. */
+  /** How fast the interface animates, 0.1–1 (clamped); 0.37, the default, is the tuned pace. */
+  motionSpeed: number;
+  /** Many windows open at once: no backdrop, and a click outside closes none. Off, one window
+   *  at a time dims and blurs the page behind it. */
   multiWindow: boolean;
   /** Where a notice shows: in the app, or the browser's own once its permission is granted. */
   notifyChannel: NotifyChannel;

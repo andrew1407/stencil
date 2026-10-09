@@ -12,6 +12,9 @@ public sealed record LlmChatRequest
 
     public string? ServerToken { get; init; }
 
+    // ServerUrl is a server the user connected, not the operator's: it is dialled through the address guard.
+    public bool ServerFromUser { get; init; }
+
     // The profile the user picked with /chatapi; null = the operator's own STENCIL_LLM_* config.
     public LlmOptions? Options { get; init; }
 }

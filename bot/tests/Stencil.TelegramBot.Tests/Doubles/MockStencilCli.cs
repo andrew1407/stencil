@@ -1,6 +1,8 @@
 using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Editing;
+using Stencil.TelegramBot.Domain.Layout;
 using Stencil.TelegramBot.Domain.Llm;
+using Stencil.TelegramBot.Domain.Serialization;
 
 namespace Stencil.TelegramBot.Tests.Doubles;
 
@@ -9,6 +11,10 @@ public sealed class MockStencilCli : IStencilCli
 {
     // Variant renders run in parallel, so the recorded calls are guarded.
     private readonly List<EditRequest> _requests = [];
+    private readonly Dictionary<EditRequest, string> _layouts = [];
+
+    /// <summary>The layout JSON a request's <c>LayoutPath</c> held while the CLI ran (the file is gone after).</summary>
+    public string? LayoutJson(EditRequest request) { lock (_requests) { return _layouts.GetValueOrDefault(request); } }
 
     /// <summary>Every request passed to <see cref="EditAsync"/>, in call order.</summary>
     public IReadOnlyList<EditRequest> Requests { get { lock (_requests) { return [.. _requests]; } } }
@@ -31,9 +37,14 @@ public sealed class MockStencilCli : IStencilCli
     /// <summary>Capture the request, materialise the output file and return a canned result.</summary>
     public async Task<RenderResult> EditAsync(EditRequest request, CancellationToken ct = default)
     {
+        string? layout = request.LayoutPath is string lp && File.Exists(lp) ? await File.ReadAllTextAsync(lp, ct) : null;
         lock (_requests)
         {
             _requests.Add(request);
+            if (layout is not null)
+            {
+                _layouts[request] = layout;
+            }
         }
         if (BeforeEdit is not null)
         {
@@ -105,6 +116,22 @@ public sealed class MockStencilCli : IStencilCli
     {
         Interlocked.Increment(ref _planCheckCalls);
         return PlanCheckFailure is null ? PlanCheckRecordings.CheckAsync(reply, ct) : throw PlanCheckFailure;
+    }
+
+    /// <summary>Every <see cref="MergeLinesAsync"/> call's (peer, local, seen), in order.</summary>
+    public List<(IReadOnlyList<LayoutLine> Peer, IReadOnlyList<LayoutLine> Local, IReadOnlyList<LayoutLine> Seen)> Merges { get; } = new();
+
+    /// <summary>core's mergeLines in miniature: the peer's lines, then each local line keyed like none
+    /// of <c>seen</c>, the peer's or an earlier local one (the key is every field, as core's is).</summary>
+    public Task<LineMerge> MergeLinesAsync(IReadOnlyList<LayoutLine> peer, IReadOnlyList<LayoutLine> local,
+        IReadOnlyList<LayoutLine> seen, CancellationToken ct = default)
+    {
+        Merges.Add((peer, local, seen));
+        HashSet<string> dropped = [.. seen.Select(StencilJson.Serialize)];
+        HashSet<string> keys = [.. peer.Select(StencilJson.Serialize)];
+        List<LayoutLine> kept = [.. local.Where(l => !dropped.Contains(StencilJson.Serialize(l)) && keys.Add(StencilJson.Serialize(l)))];
+        bool peerAdded = peer.Any(p => !local.Select(StencilJson.Serialize).Contains(StencilJson.Serialize(p)));
+        return Task.FromResult(new LineMerge([.. peer, .. kept], peerAdded));
     }
 
     public async Task<ScrapeResult> ScrapeAsync(ScrapeRequest request, CancellationToken ct = default)

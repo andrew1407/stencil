@@ -11,6 +11,7 @@ function toPosix(p) {
 export function resolveAbs(p, ctx) {
   let s = String(p);
   if (s === '~' || s.startsWith('~/') || s.startsWith('~\\')) s = ctx.homeDir + s.slice(1);
+  s = s.replace(/^(\$HOME|\$\{HOME\})(?=$|[/\\])/, ctx.homeDir);
   if (!path.isAbsolute(s)) s = path.resolve(ctx.repoRoot, s);
   return path.normalize(s);
 }

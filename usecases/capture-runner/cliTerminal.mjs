@@ -10,6 +10,7 @@ import { CLI_BIN, SHELL, VsCodeHost } from './lib/vscodeHost.mjs';
 import { film } from './lib/shot/shots.mjs';
 import { dropBand, framesToGif, quantizePng } from './lib/gifTools.mjs';
 import { settle, waitForStable } from './lib/waits.mjs';
+import { startLlmStub } from './lib/llmStub.mjs';
 
 const config = loadCaptureConfig('cli');
 const runner = makeShotRunner({ config, out: outDir('cli') });
@@ -20,7 +21,7 @@ const SCREEN = '.terminal-wrapper.active .xterm';
 const host = await VsCodeHost.launch(config, runner.themeOf('term'), { open: null });
 const { page } = host;
 await host.runCommand('View: Toggle Primary Side Bar Visibility');
-await page.keyboard.press('Control+`');
+await host.runCommand('Terminal: Create New Terminal');
 await page.locator(`${SCREEN}-screen`).first().waitFor({ timeout: 20_000 });
 await host.runCommand('View: Toggle Maximized Panel');
 const screen = page.locator(SCREEN).first();
@@ -88,16 +89,15 @@ const clipGif = async (name, drive) => {
   console.log(`  ${name}.gif`);
 };
 
-// The server-backed assistant rides the CLI's env; the env line is typed before the clear
-// and the console's alternate screen hides the shell's scrollback anyway.
+// The assistant rides the CLI's env — the server's real model when a token is at hand, else the
+// stub's canned plan; the env line is typed before the clear, and the alternate screen hides it.
 const token = config.serverToken();
-if (token) {
-  await type(SHELL.setEnv({
-    STENCIL_LLM_PROVIDER: 'stencil-server',
-    STENCIL_LLM_SERVER_URL: config.serverUrl,
-    STENCIL_LLM_SERVER_TOKEN: token,
-  }));
-}
+const stub = token ? null : await startLlmStub();
+await type(SHELL.setEnv(token ? {
+  STENCIL_LLM_PROVIDER: 'stencil-server',
+  STENCIL_LLM_SERVER_URL: config.serverUrl,
+  STENCIL_LLM_SERVER_TOKEN: token,
+} : { STENCIL_LLM_PROVIDER: 'openai-compat', STENCIL_LLM_BASE_URL: `${stub.url}/v1`, STENCIL_LLM_MODEL: 'stub' }));
 await type(SHELL.clearThen(`${CLI_BIN(config)} --console-full-screen out/console.png`));
 // `clear` empties the buffer, which reads as "idle" long before the console has drawn:
 // wait for its own intro line instead.
@@ -123,9 +123,9 @@ const STEPS = Object.freeze([
     await shot('term-upload', { trim: true });
   } },
   { name: 'term-prompt', run: async (ctx) => {
-    if (!token) { console.log('  term-prompt skipped (no server token)'); return; }
     await load(ctx);
-    await type(`/prompt ${config.prompt('real')}`, TIMEOUTS.promptMs);
+    stub?.queue(config.stubPlan('sepiaOutline'));
+    await type(`/prompt ${config.prompt(token ? 'real' : 'stub')}`, TIMEOUTS.promptMs);
     await shot('term-prompt', { trim: true });
   } },
   { name: 'term-edit', run: async (ctx) => {
@@ -137,9 +137,11 @@ const STEPS = Object.freeze([
     await type('/save out/edited.png');
     await shot('term-edit', { trim: true });
   } },
-  { name: 'term-blank', run: async () => {
+  { name: 'term-blank', run: async (ctx) => {
     await type('/blank a5 black');
+    ctx.loaded = false;   // the blank replaced the uploaded icon
     await type('/script @rect (10%, 10%) (90%, 90%) ; @filter sepia');
+    await type('/undo');
     await shot('term-blank', { trim: true });
   } },
   // The header logo cycles the accent: two clicks, filmed over a loaded image's header and an
@@ -169,4 +171,5 @@ console.log('cli console');
 await runner.play(STEPS, { loaded: false });
 await type('/exit');
 await host.stop();
-runner.finish();
+await stub?.close();
+await runner.finish();

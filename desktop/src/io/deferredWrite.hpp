@@ -11,8 +11,7 @@ namespace stencil::gui::deferredWrite {
   bool atomic(const QString& path, const QByteArray& bytes, bool ownerOnly = false);
 
   // `build` runs ON A POOL THREAD: capture by value, never touch GUI state.
-  void schedule(const QString& path, int delayMs, std::function<QByteArray()> build,
-                bool ownerOnly = false);
+  void schedule(const QString& path, int delayMs, std::function<QByteArray()> build);
 
   // Flush before a read that must see the bytes, and on the way out of the app.
   void flush();

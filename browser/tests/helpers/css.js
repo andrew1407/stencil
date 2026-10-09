@@ -18,6 +18,14 @@ export const LAYOUT_CSS = concat('layout');
 export const COMPONENTS_CSS = concat('components');
 export const ANIMATIONS_CSS = concat('animations');
 
+// The icon-motion section of the animations sheet, its comment header to the next section's.
+export const ICON_MOTION_CSS = (() => {
+  const from = ANIMATIONS_CSS.indexOf('/* ── Icon hover: every glyph mimes its own action');
+  const to = ANIMATIONS_CSS.indexOf('/* ── App logo hover');
+  if (from < 0 || to <= from) throw new Error('the icon-motion section is not where the tests expect it');
+  return ANIMATIONS_CSS.slice(from, to);
+})();
+
 // The extension's twin sheets are sheet sets too; re-exported here so a parity assertion
 // reaches both surfaces' stylesheets through one helper.
 export { extensionAnimationsCss, extensionThemeCss } from './extensionCss.js';

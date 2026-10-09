@@ -82,6 +82,7 @@ namespace stencil::gui {
       update();
       return;
     }
+    anim->setDuration(support::motionMs(DRAW_MS));
     anim->start();
     update();
   }

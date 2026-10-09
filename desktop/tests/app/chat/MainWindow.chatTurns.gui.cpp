@@ -68,8 +68,7 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // A plan that waits on I/O spans event-loop turns, so the composer stays live while the
-  // executor holds the canvas: a Send landing there is refused, and the turn clears the gate.
+  // A plan holds the canvas through its turn (planRunning); the settled turn lets go of it again.
   void chatSendIgnoredWhilePlanRuns() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
@@ -94,17 +93,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(dock);
     win.chatSession->onChatSend("make it sepia");
     QTRY_VERIFY(assistantBubbleTexts(dock).contains(QStringLiteral("Sepia it is.")));
-    QVERIFY2(!win.chatSession->planRunning, "the settled turn left the plan gate open again");
-
-    // Mid-plan the dock is idle, so only the gate stands between a second Send and a
-    // re-entered executePlan: the turn never starts and the history is untouched.
-    const int histBefore = win.chatSession->chatHistory.size();
-    QVERIFY(!dock->isBusy());
-    win.chatSession->planRunning = true;
-    win.chatSession->onChatSend("now crop it");
-    QCOMPARE(win.chatSession->chatHistory.size(), histBefore);
-    QVERIFY(!dock->isBusy());
-    win.chatSession->planRunning = false;
+    QVERIFY2(!win.chatSession->planRunning, "the settled turn left the plan gate held");
     beat();
   }
 

@@ -3,12 +3,6 @@
 import { normalizeUrl, parseInviteUrl } from './urlRules.js';
 import { ServerConnection } from './serverConnection.js';
 
-export {
-  REMOTE_FLAG, isLoopbackHost, normalizeUrl, parseInviteUrl, buildInviteUrl,
-  isInsecureRemote, wsUrl, isAuthStatus, isExpiredSession,
-} from './urlRules.js';
-export { ServerConnection } from './serverConnection.js';
-
 // Nothing connected. A lone failure is rethrown as it stands — its `expired`/`status` are
 // what the Servers UI reads; several are joined, and `expired` only if every one was.
 const allFailed = (failures) => {
@@ -28,6 +22,9 @@ export class ConnectionManager {
   // A connection being re-established stays known, or the row (and selection bar) would
   // blink out during the handshake; the stand-in carries just what the list renders.
   #reconnecting = new Map();   // url -> { url, status, connected, credentialKind }
+  // A handshake under way, so a second connect() of that URL joins it instead of opening a
+  // second socket; a disconnect drops the entry, and the late handshake is then closed.
+  #inflight = new Map();   // url -> handshake promise
   #lastSet = [];        // for reconnect()
   constructor({ fetchImpl, WebSocketImpl, onChange } = {}) {
     this.#fetch = fetchImpl; this.#WS = WebSocketImpl;
@@ -84,22 +81,30 @@ export class ConnectionManager {
   async connect(spec) {
     const items = Array.isArray(spec) ? spec : [spec];
     const pending = [];
+    const joined = [];
     for (const item of items) {
       const { url, token, kind } = typeof item === 'string' ? { url: item, token: '' } : (item || {});
       // An explicitly supplied token wins over the invite fragment's.
       const inv = parseInviteUrl(url);
       const norm = normalizeUrl(inv.url);
       if (this.#conns.has(norm) || pending.some((p) => p.norm === norm)) continue;
+      if (this.#inflight.has(norm)) { joined.push(this.#inflight.get(norm)); continue; }
       const conn = new ServerConnection(norm, {
         token: token || inv.token, kind, fetchImpl: this.#fetch, WebSocketImpl: this.#WS,
       });
       conn._onStatus = () => this.#onChange({ type: 'status', connection: conn });
-      pending.push({ norm, conn });
+      const shake = conn.handshake();
+      this.#inflight.set(norm, shake);
+      pending.push({ norm, conn, shake });
     }
-    const settled = await Promise.allSettled(pending.map((p) => p.conn.handshake()));
+    const settled = await Promise.allSettled(pending.map((p) => p.shake));
     const failures = [];
     // Adopted in the order asked for, not the order they answered, so the rows keep it.
-    pending.forEach(({ norm, conn }, i) => {
+    pending.forEach(({ norm, conn, shake }, i) => {
+      // A disconnect while it shook hands, or a URL already live: this socket is never adopted.
+      const current = this.#inflight.get(norm) === shake;
+      if (current) this.#inflight.delete(norm);
+      if (!current || (settled[i].status === 'fulfilled' && this.#conns.has(norm))) { conn.close(); return; }
       if (settled[i].status === 'fulfilled') {
         this.#expired.delete(norm);
         conn.onEvent((msg, c) => this.#onChange({ type: 'event', message: msg, connection: c }));
@@ -119,7 +124,9 @@ export class ConnectionManager {
     const snap = this.snapshot();
     if (snap.length) this.#lastSet = snap;
     this.#onChange({ type: 'connect' });
-    if (pending.length && failures.length === pending.length) throw allFailed(failures);
+    for (const r of await Promise.allSettled(joined)) if (r.status === 'rejected') failures.push(r.reason);
+    const asked = pending.length + joined.length;
+    if (asked && failures.length === asked) throw allFailed(failures);
     return this;
   }
 
@@ -127,6 +134,7 @@ export class ConnectionManager {
     let target;
     if (url == null) { const k = this.knownUrls; target = k[k.length - 1]; }
     else target = normalizeUrl(url);
+    this.#inflight.delete(target);
     const conn = target && (this.#conns.get(target) || this.#expired.get(target));
     if (conn) { conn.close(); this.#conns.delete(target); this.#expired.delete(target); }
     this.#onChange({ type: 'disconnect' });
@@ -138,6 +146,7 @@ export class ConnectionManager {
     for (const c of this.#expired.values()) c.close();
     this.#conns.clear();
     this.#expired.clear();
+    this.#inflight.clear();
     this.#onChange({ type: 'disconnect' });
     return this;
   }

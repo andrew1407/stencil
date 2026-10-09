@@ -18,6 +18,8 @@ Thumbs.db
 !.claude/agents/
 !.claude/hooks/
 !.claude/rules/
+# This machine's toolchain notes (SDK pins, Homebrew paths), loaded by Claude Code, never shared.
+CLAUDE.local.md
 
 # Node (`node --test` plus the two sanctioned dev deps, browser/'s vite and
 # vscode-extension/'s @vscode/vsce; no runtime deps anywhere)

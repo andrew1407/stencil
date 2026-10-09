@@ -17,6 +17,8 @@ namespace stencil::gui {
     Q_OBJECT
    public:
     static constexpr int MARGIN = 10;   // paint room around the button (ring + glow)
+    static constexpr int PULSE_MS = 1200;   // one breath per loop (browser logoPulse)
+    static constexpr int SPIN_MS = 8000;    // one ray revolution (browser logoRaysSpin)
     LogoHoverFx(QToolButton* logo, std::function<QPixmap()> makePixmap,
                 std::function<QColor()> accent);
 

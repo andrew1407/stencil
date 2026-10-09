@@ -40,10 +40,13 @@ const MIME = {
 
 const inside = (abs, root) => abs === root || abs.startsWith(root + path.sep);
 
-// Resolve a URL path to an on-disk file under the fixtures or a served tree, refusing any
-// path that escapes them.
+// Resolve a URL path to an on-disk file under the fixtures or a served tree: null for a path
+// that escapes them, BAD for one that is not valid percent-encoding.
+const BAD = Symbol('bad request');
 const resolveFile = (urlPath) => {
-  const rel = path.posix.normalize(decodeURIComponent(urlPath.split('?')[0]));
+  let decoded;
+  try { decoded = decodeURIComponent(urlPath.split('?')[0]); } catch { return BAD; }
+  const rel = path.posix.normalize(decoded);
   const [prefix, root] = TREES.find(([p]) => rel === p || rel.startsWith(`${p}/`));
   let abs = path.join(root, rel.slice(prefix.length));
   if (!inside(abs, root)) return null;
@@ -53,6 +56,7 @@ const resolveFile = (urlPath) => {
 
 const server = http.createServer(async (req, res) => {
   const file = resolveFile(req.url || '/');
+  if (file === BAD) { res.writeHead(400).end('bad request'); return; }
   if (!file) { res.writeHead(403).end('forbidden'); return; }
   try {
     const body = await readFile(file);

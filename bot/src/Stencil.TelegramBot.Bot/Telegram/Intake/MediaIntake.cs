@@ -1,8 +1,10 @@
+using Stencil.TelegramBot.Infrastructure.Workspace;
 using Stencil.TelegramBot.Application.Editing;
 using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Configuration;
 using Telegram.Bot;
 using Stencil.TelegramBot.Bot.Telegram.Commands;
+using Stencil.TelegramBot.Bot.Telegram.Messaging;
 
 namespace Stencil.TelegramBot.Bot.Telegram.Intake;
 
@@ -11,13 +13,13 @@ namespace Stencil.TelegramBot.Bot.Telegram.Intake;
 public sealed class MediaIntake
 {
     private readonly CommandHandlers _handlers;
-    private readonly IEditingService _editing;
+    private readonly EditingService _editing;
     private readonly ISessionStore _store;
     private readonly ITelegramBotClient _bot;
     private readonly IBotPolicy _options;
 
     public MediaIntake(
-        CommandHandlers handlers, IEditingService editing, ISessionStore store,
+        CommandHandlers handlers, EditingService editing, ISessionStore store,
         ITelegramBotClient bot, IBotPolicy options)
     {
         _handlers = handlers;
@@ -43,14 +45,14 @@ public sealed class MediaIntake
             }
             catch
             {
-                tryDelete(path);
+                TempFiles.TryDelete(path);
                 throw;
             }
             await use(path);
         }
         finally
         {
-            tryDelete(path);
+            TempFiles.TryDelete(path);
         }
     }
 
@@ -78,7 +80,7 @@ public sealed class MediaIntake
             }
             else
             {
-                await _bot.SendMessage(chatId, "Grabbed frame 0 — use /frame n to pick another.", cancellationToken: ct);
+                await _bot.SendMessage(chatId, Replies.FrameGrabbed(), cancellationToken: ct);
                 await _handlers.RenderAndSendAsync(userId, chatId, ct);
             }
         }, ct);
@@ -145,16 +147,5 @@ public sealed class MediaIntake
             fileId, extension, async path => bytes = await File.ReadAllBytesAsync(path, ct), ct,
             _options.MaxDocumentBytes);
         return bytes;
-    }
-
-    private static void tryDelete(string path)
-    {
-        try
-        {
-            File.Delete(path);
-        }
-        catch
-        {
-        }
     }
 }

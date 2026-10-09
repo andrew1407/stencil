@@ -1,11 +1,11 @@
 // Unit tests for the pure projects-modal sort/order helpers (js/ui/projects/window/projectSort.js).
 // The modal's DOM wiring isn't node-testable, but these comparators + the manual-order
-// reconciliation are pure, so they carry the behavioral contract for the five sort modes
+// reconciliation are pure, so they carry the behavioral contract for the sort modes
 // and drag-reorder.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SORT_MODES, sortProjectItems, reconcileManualOrder } from '../../../../js/ui/projects/window/projectSort.js';
+import { SORT_MODES, DEFAULT_SORT_MODE, sortProjectItems, reconcileManualOrder } from '../../../../js/ui/projects/window/projectSort.js';
 
 // Item factory: key, lowercased name, date (epoch ms), isRemote.
 const it = (key, name, date, isRemote) => ({ key, name: name.toLowerCase(), date, isRemote });
@@ -19,11 +19,21 @@ const sample = () => [
 ];
 const keys = (arr) => arr.map((i) => i.key);
 
-test('SORT_MODES lists the six selectable modes', () => {
-  assert.deepEqual(SORT_MODES, ['name', 'local', 'server', 'date-desc', 'date-asc', 'manual']);
+test('SORT_MODES lists the eight selectable modes, recently opened first and by default', () => {
+  assert.deepEqual(SORT_MODES, ['opened-desc', 'opened-asc', 'name', 'local', 'server', 'date-desc', 'date-asc', 'manual']);
+  assert.equal(DEFAULT_SORT_MODE, 'opened-desc');
 });
 
-test('name (default) interleaves server + local alphabetically', () => {
+test('opened orders by when the project was last opened here; never opened counts as least recent', () => {
+  const opened = { 'local:1': 50, 'remote:s:9': 0, 'local:2': 900, 'remote:s:8': 50 };
+  const items = sample().map((i) => ({ ...i, opened: opened[i.key] }));
+  assert.deepEqual(keys(sortProjectItems(items, 'opened-desc')), ['local:2', 'local:1', 'remote:s:8', 'remote:s:9']);
+  assert.deepEqual(keys(sortProjectItems(items, 'opened-asc')), ['remote:s:9', 'local:1', 'remote:s:8', 'local:2']);
+  assert.deepEqual(keys(sortProjectItems(sample(), 'opened-desc')), keys(sortProjectItems(sample(), 'name')),
+    'nothing opened yet: by name');
+});
+
+test('name interleaves server + local alphabetically', () => {
   assert.deepEqual(keys(sortProjectItems(sample(), 'name')),
     ['remote:s:9', 'local:1', 'local:2', 'remote:s:8']);  // apple, banana, cherry, date
 });

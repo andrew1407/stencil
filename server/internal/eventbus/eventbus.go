@@ -1,7 +1,6 @@
-// Package eventbus is the publish/subscribe abstraction the hub uses to fan edit and
-// project events out to every connection — across server instances when backed
-// by Redis, or within one process via the in-memory implementation here. The
-// hub depends only on the Bus interface, so the transport (WS or TCP) and the
+// Package eventbus is the publish/subscribe abstraction that fans project events out to every
+// connection — across server instances when backed by Redis, or within one process via the in-memory
+// implementation here. The hub depends only on the Bus interface, so the transport (WS or TCP) and the
 // backend (Redis or in-proc) are both swappable.
 package eventbus
 
@@ -20,22 +19,16 @@ const (
 	ChannelEvents = "events"
 )
 
-// ProjectChannel returns the per-project edit/presence channel name.
-func ProjectChannel(projectID string) string { return "proj:" + projectID }
-
-// Envelope is one bus message: the marshalled frame plus the two header fields a
-// receiver routes on, so fan-out never re-parses the frame to read them.
+// Envelope is one bus message: the marshalled frame plus the type a receiver routes on, so fan-out
+// never re-parses the frame to read it.
 type Envelope struct {
 	Type string          `json:"type"`
-	From string          `json:"from,omitempty"` // originating client id ("" = server)
-	Data json.RawMessage `json:"data"`           // the frame as sent to clients
-	// Origin names the publishing hub instance ("" = none), which delivers to its own members directly.
-	Origin string `json:"origin,omitempty"`
+	Data json.RawMessage `json:"data"` // the frame as sent to clients
 }
 
 // EnvelopeOf wraps an already-marshalled frame for publication.
 func EnvelopeOf(msg protocol.WSMessage, data []byte) Envelope {
-	return Envelope{Type: msg.Type, From: msg.FromClientID, Data: data}
+	return Envelope{Type: msg.Type, Data: data}
 }
 
 // Bus is a minimal pub/sub contract.
@@ -67,7 +60,7 @@ func PublishProjectEvent(ctx context.Context, b Bus, event string, rec protocol.
 }
 
 // DefaultSubBuffer bounds per-subscriber queueing on both backends (BUS_SUB_BUFFER); a slow consumer drops
-// messages rather than stalling the publisher, and edit state is reconciled by version.
+// messages rather than stalling the publisher, and a client re-reads the list it missed an event for.
 const DefaultSubBuffer = 64
 
 // inProc is an in-memory Bus for single-instance deployments and tests.

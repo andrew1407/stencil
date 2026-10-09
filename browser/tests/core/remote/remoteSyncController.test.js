@@ -73,6 +73,14 @@ test('adoptServerFormulas: restores expressions + drives the formula UI', () => 
   assert.deepEqual(app.rec.showFormulaError, [false]);
 });
 
+test('adoptServerFormulas: a peer formula past LIMITS.formulaMaxChars is not kept', () => {
+  const app = makeApp();
+  const long = 'x' + '+1'.repeat(600);
+  new RemoteSyncController(app).adoptServerFormulas({ allowFormulas: true, formulaX: long, formulaY: 'y+1' });
+  assert.equal(app.formulaX, '', 'it could never apply on any surface');
+  assert.equal(app.formulaY, 'y+1');
+});
+
 test('renderResultBytes: no image → null', async () => {
   const bytes = await new RemoteSyncController(makeApp({ image: null })).renderResultBytes();
   assert.equal(bytes, null);

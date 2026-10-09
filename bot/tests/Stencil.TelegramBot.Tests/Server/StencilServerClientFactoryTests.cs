@@ -5,6 +5,7 @@ using Stencil.TelegramBot.Application.Editing;
 using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Exceptions;
 using Stencil.TelegramBot.Infrastructure.Configuration;
+using Stencil.TelegramBot.Infrastructure.Net;
 using Stencil.TelegramBot.Infrastructure.Server;
 
 namespace Stencil.TelegramBot.Tests.Server;
@@ -67,6 +68,41 @@ public sealed class StencilServerClientFactoryTests
         Assert.Equal(HttpStatusCode.Found, response.StatusCode);
         Assert.Equal(0, target.Connections);
         Assert.Equal(options.MaxServerResponseBytes, http.MaxResponseContentBufferSize);
+    }
+
+    [Fact]
+    public async Task Should_Report_A_Closed_Port_As_Unreachable_Not_Refused()
+    {
+        TcpListener probe = new(IPAddress.Loopback, 0);
+        probe.Start();
+        int port = ((IPEndPoint)probe.LocalEndpoint).Port;
+        probe.Stop(); // nothing listens there now
+        StencilServerClientFactory factory = new(new BotOptions(), RemoteImageUrl.ServerAddressGuard(allowPrivate: true));
+
+        ServerException ex = await Assert.ThrowsAsync<ServerException>(
+            () => factory.Create($"http://127.0.0.1:{port}", "t").ListProjectsAsync());
+
+        Assert.Equal("unreachable", ex.Code);
+    }
+
+    // A proxy would be dialled instead of the target, so the guard would judge the proxy's address.
+    [Fact]
+    public void Should_Bypass_Any_Proxy_Only_Where_A_Guard_Judges_The_Address()
+    {
+        Assert.False(GuardedConnect.Handler(_ => false, "refused").UseProxy);
+        Assert.True(GuardedConnect.Handler(null, "refused").UseProxy);
+    }
+
+    [Fact]
+    public async Task Should_Guard_The_Llm_Client_For_A_User_Connected_Server()
+    {
+        StencilServerClientFactory factory = new(new BotOptions(), isBlockedAddress: _ => true);
+        using HttpClient http = factory.CreateGuardedHttpClient(TimeSpan.FromSeconds(10));
+
+        HttpRequestException ex = await Assert.ThrowsAsync<HttpRequestException>(
+            () => http.GetAsync("http://93.184.216.34:8090/llm/chat"));
+
+        Assert.Equal("That server address isn't allowed.", GuardedConnect.RefusalIn(ex)?.Message);
     }
 
     /// <summary>A loopback HTTP peer that answers every request with one canned response and counts connections.</summary>

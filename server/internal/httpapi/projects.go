@@ -5,10 +5,10 @@ import (
 	"net/http"
 
 	"stencil/server/internal/auth"
-	"stencil/server/internal/eventbus"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/service"
 	"stencil/server/internal/store"
+	"stencil/server/internal/validate"
 )
 
 func (a *API) handleGetProject(rw http.ResponseWriter, req *http.Request) {
@@ -33,6 +33,10 @@ func (a *API) handleGetProject(rw http.ResponseWriter, req *http.Request) {
 func (a *API) handleCreateProject(rw http.ResponseWriter, req *http.Request) {
 	var body protocol.CreateProjectRequest
 	if !a.decodeJSON(rw, req, &body) {
+		return
+	}
+	if err := validate.CreateProject(body); err != nil {
+		writeBadRequest(rw, err.Error())
 		return
 	}
 	owner := ""
@@ -67,17 +71,13 @@ func (a *API) handleUpdateProject(rw http.ResponseWriter, req *http.Request) {
 	if !a.decodeJSON(rw, req, &body) {
 		return
 	}
+	if err := validate.UpdateProject(body); err != nil {
+		writeBadRequest(rw, err.Error())
+		return
+	}
 	ctx, cancel := a.opCtx(req)
 	defer cancel()
-	rec, err := a.deps.Projects.UpdateProject(ctx, req.PathValue("id"), store.ProjectPatch{
-		Name:        body.Name,
-		Color:       body.Color,
-		Description: body.Description,
-		Keywords:    body.Keywords,
-		BlankColor:  body.BlankColor,
-		ExpiresAt:   body.ExpiresAt,
-		Layout:      body.Layout,
-	}, body.Version)
+	rec, err := a.projects.Update(ctx, req.PathValue("id"), body)
 	switch {
 	case errors.Is(err, store.ErrNotFound):
 		writeNotFound(rw, msgProjectNotFound)
@@ -89,21 +89,15 @@ func (a *API) handleUpdateProject(rw http.ResponseWriter, req *http.Request) {
 		writeInternalError(rw, msgUpdateProject)
 		return
 	}
-	eventbus.PublishProjectEvent(ctx, a.deps.Bus, protocol.EventUpdated, rec)
 	writeJSON(rw, http.StatusOK, rec)
 }
 
-// handleDeleteProject defers to the service: the live-session guard and the
-// row-then-bytes-then-announce ordering are shared with the expiry sweep.
+// handleDeleteProject defers to the service: the row-then-bytes-then-announce ordering is shared with
+// the expiry sweep.
 func (a *API) handleDeleteProject(rw http.ResponseWriter, req *http.Request) {
 	ctx, cancel := a.opCtx(req)
 	defer cancel()
-	err := a.projects.Delete(ctx, req.PathValue("id"))
-	switch {
-	case errors.Is(err, service.ErrProjectInUse):
-		writeErr(rw, http.StatusConflict, protocol.CodeConflict, msgProjectInUse)
-		return
-	case err != nil:
+	if err := a.projects.Delete(ctx, req.PathValue("id")); err != nil {
 		writeInternalError(rw, msgDeleteProject)
 		return
 	}

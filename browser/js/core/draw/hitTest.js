@@ -3,7 +3,8 @@ import { distToSegmentSq } from '../../utils.js';
 // Pure hit-testing over the line model; DrawingApp supplies lines/currentLine and the
 // zoom-aware thresholds (screen-px radius / zoom, so hits stay constant on screen).
 // Every scan runs 2-3x per mouse-move over every point, so each is allocation-free and
-// takes the same bbox early reject as core/geometry/hitTest.cpp findLineAt.
+// takes the same bbox early reject as core/geometry/hitTest.cpp findLineAt. A hidden committed
+// line offers no mark to any of them, its index kept, as core's.
 const farFromBox = (pts, x, y, margin) => {
   let minX = pts[0].x, maxX = minX, minY = pts[0].y, maxY = minY;
   for (let i = 1; i < pts.length; i++) {
@@ -22,7 +23,7 @@ export function findLineAt(lines, x, y, threshold) {
   const segSq = threshold >= 0 ? threshold * threshold : -1;
   for (let i = lines.length - 1; i >= 0; i--) {
     const pts = lines[i].points;
-    if (!pts.length || farFromBox(pts, x, y, margin)) continue;
+    if (lines[i].hidden || !pts.length || farFromBox(pts, x, y, margin)) continue;
 
     for (const p of pts) {
       const dx = p.x - x, dy = p.y - y;
@@ -50,6 +51,7 @@ export function findNearestPoint(lines, currentLine, x, y, threshold) {
     return null;
   };
   for (const line of lines) {
+    if (line.hidden) continue;
     const hit = near(line.points);
     if (hit) return hit;
   }
@@ -69,6 +71,7 @@ export function findNearestPointWithIdx(lines, currentLine, x, y, threshold) {
     if (hit) return hit;
   }
   for (let li = lines.length - 1; li >= 0; li--) {
+    if (lines[li].hidden) continue;
     const hit = near(lines[li].points, li);
     if (hit) return hit;
   }
@@ -82,7 +85,7 @@ export function findNearestSegmentWithIdx(lines, x, y, threshold) {
   let best = null;
   for (let li = lines.length - 1; li >= 0; li--) {
     const pts = lines[li].points;
-    if (!pts.length || farFromBox(pts, x, y, threshold)) continue;
+    if (lines[li].hidden || !pts.length || farFromBox(pts, x, y, threshold)) continue;
     for (let pi = 0; pi < pts.length - 1; pi++) {
       const d = distToSegmentSq(x, y, pts[pi], pts[pi + 1]);
       if (d < bestSq) {

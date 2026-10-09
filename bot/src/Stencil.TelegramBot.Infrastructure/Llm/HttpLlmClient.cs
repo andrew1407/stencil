@@ -25,11 +25,15 @@ public sealed class HttpLlmClient : ILlmClient
         };
 
     private readonly HttpClient _http;
+    private readonly HttpClient _userServerHttp;
     private readonly LlmOptions _options;
 
-    public HttpLlmClient(HttpClient http, LlmOptions options)
+    // userServerHttp dials a user-connected stencil-server through the address guard; http is the
+    // operator's own endpoint, often a loopback model.
+    public HttpLlmClient(HttpClient http, LlmOptions options, HttpClient? userServerHttp = null)
     {
         _http = http;
+        _userServerHttp = userServerHttp ?? http;
         _options = options;
     }
 
@@ -43,13 +47,16 @@ public sealed class HttpLlmClient : ILlmClient
                 $"unknown LLM provider \"{options.Provider}\" — set STENCIL_LLM_PROVIDER to "
                 + "ollama, openai-compat or stencil-server");
         }
-        using JsonDocument doc = await postAsync(
+        HttpClient http = request.ServerFromUser && options.Provider == LlmOptions.PROVIDER_STENCIL_SERVER
+            ? _userServerHttp
+            : _http;
+        using JsonDocument doc = await postAsync(http,
             mapping.Url(request, options), mapping.Body(request, options),
             mapping.Bearer(request, options), ct).ConfigureAwait(false);
         return mapping.Read(doc.RootElement);
     }
 
-    private async Task<JsonDocument> postAsync(string url, JsonObject body, string? bearer, CancellationToken ct)
+    private static async Task<JsonDocument> postAsync(HttpClient http, string url, JsonObject body, string? bearer, CancellationToken ct)
     {
         // Streamed straight onto the request: with multi-MB base64 images a ToJsonString() copy
         // would land on the LOH.
@@ -64,7 +71,7 @@ public sealed class HttpLlmClient : ILlmClient
         HttpResponseMessage response;
         try
         {
-            response = await _http.SendAsync(message, ct).ConfigureAwait(false);
+            response = await http.SendAsync(message, ct).ConfigureAwait(false);
         }
         catch (HttpRequestException ex)
         {

@@ -26,7 +26,7 @@ namespace stencil::gui {
                                                /*dust=*/true, FORM_CELLS, FORM_MS);
       if (!fx) return;
       veilBehindDust(cell);
-      QTimer::singleShot(int(FORM_MS * FORM_VEIL), cell, [cell] { cell->setGraphicsEffect(nullptr); });
+      QTimer::singleShot(support::motionMs(int(FORM_MS * FORM_VEIL)), cell, [cell] { cell->setGraphicsEffect(nullptr); });
     });
   }
 

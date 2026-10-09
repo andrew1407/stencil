@@ -82,19 +82,6 @@ namespace stencil::gui {
 
   // image filters (port of browser/js/core/draw/renderer.js
   // drawImageWithFilter ~9 + #applyTintFilter ~164)
-  void CanvasScene::setFilter(const QString& mode) {
-    imageFilter = mode;
-    filterMode = core::filterModeFromString(mode.toStdString());
-    filterDirty = true;
-    sceneChanged();
-  }
-
-  void CanvasScene::setFilterColor(const QColor& tint) {
-    filterColor = tint;
-    filterDirty = true;
-    sceneChanged();
-  }
-
   void CanvasScene::setImageFilter(const QString& mode, const QColor& tint) {
     imageFilter = mode;
     filterMode = core::filterModeFromString(mode.toStdString());

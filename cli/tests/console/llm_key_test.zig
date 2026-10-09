@@ -151,7 +151,8 @@ test "a key typed after /llm key is masked in the full-screen scrollback and the
     const line = loop.recordLine(&rig.session, &ed, &rig.scr, &hist, typed, &sbuf);
     try testing.expectEqualStrings(typed, line); // the command itself still runs with the key
     try testing.expectEqualStrings("/llm key", hist.items.items[hist.items.items.len - 1]);
-    try testing.expect(std.mem.indexOf(u8, rig.scr.lines.back().?, key.masked_echo) != null);
+    // The echo inks the command word, so the masked arguments are matched after it.
+    try testing.expect(std.mem.indexOf(u8, rig.scr.lines.back().?, key.masked_echo["/llm".len..]) != null);
     for (0..rig.scr.lines.len) |i| try testing.expect(std.mem.indexOf(u8, rig.scr.lines.at(i), typed_key) == null);
     try testing.expect(std.mem.indexOf(u8, rig.frame.items, typed_key) == null); // nor painted
 

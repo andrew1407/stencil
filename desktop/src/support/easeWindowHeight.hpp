@@ -94,7 +94,7 @@ namespace stencil::support {
     }
     anim->stop();
     anim->setProperty(MID_Y, midY);
-    anim->setDuration(ms);
+    anim->setDuration(support::motionMs(ms));
     anim->setStartValue(start);
     anim->setEndValue(to);
     anim->start();

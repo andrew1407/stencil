@@ -29,7 +29,7 @@ namespace stencil::gui {
     // After the height ease has LANDED — a cloud pinned mid-resize flies to where the label
     // was passing through — and after any departing picture has fallen: two clouds read as noise.
     const qint64 left = motion.scatterEnds - QDateTime::currentMSecsSinceEpoch();
-    QTimer::singleShot(std::max<qint64>(OI_RESIZE_MS, left), label,
+    QTimer::singleShot(std::max<qint64>(support::motionMs(OI_RESIZE_MS), left), label,
                        [this, label, shot, veil, gen] {
       if (!label || gen != motion.gen) return;   // the tab moved on while this waited
       if (QLayout* l = label->parentWidget()->layout()) l->activate();
@@ -95,7 +95,7 @@ namespace stencil::gui {
       };
       if (motion.dimsAnim) connect(motion.dimsAnim, &QVariantAnimation::valueChanged, fx, follow);
       if (size.anim) connect(size.anim, &QVariantAnimation::valueChanged, fx, follow);
-      QTimer::singleShot(int(keywordChipClocks().dustMs * FILTER_DUST_VEIL_STOP), label, lift);
+      QTimer::singleShot(support::motionMs(int(keywordChipClocks().dustMs * FILTER_DUST_VEIL_STOP)), label, lift);
     });
   }
 
@@ -109,7 +109,7 @@ namespace stencil::gui {
     // Raised while the label is STILL SHOWN (overRect refuses an invisible source); the room
     // it took goes straight after, the cloud carrying the picture on.
     if (host && !shot.isNull() && !support::motionReduced()) {
-      motion.scatterEnds = QDateTime::currentMSecsSinceEpoch() + CANVAS_DUST_MS;
+      motion.scatterEnds = QDateTime::currentMSecsSinceEpoch() + support::motionMs(CANVAS_DUST_MS);
       motion.arrivalDue = true;   // whatever lands next flies in, seen before or not
       DisintegrateOverlay::overRect(previewLabel, box, host, DisintegrateOverlay::Sweep::FALL,
                                     false, DisintegrateOverlay::DUST_MAX_CELLS, CANVAS_DUST_MS,

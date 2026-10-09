@@ -11,6 +11,8 @@ export interface StencilSchemeOptions {
   layout?: string | Record<string, unknown>;
   frame?: number;
   incognito?: boolean;
+  script?: string;
+  scriptMode?: 'open' | 'run';
 }
 
 export declare function buildStencilSchemeUrl(opts?: StencilSchemeOptions): string;

@@ -8,8 +8,12 @@ import constants from '../../../common/config/constants.json' with { type: 'json
 // Depth cap shared with core/state/HistoryStack.hpp's MAX_STEPS (drift-tested in
 // tests/core/history.test.js); cli's max_states and pystencil's _MAX_STATES carry the same 64.
 export const MAX_STEPS = constants.LIMITS.historyMax;
+// Points kept across every step: two layouts at layoutPointsMax, so a full layout still has one
+// undo step; pinned beside MAX_STEPS in core/state/HistoryStack.hpp's MAX_POINTS.
+export const MAX_POINTS = constants.LIMITS.historyPointsMax;
 
 const linesOf = (s) => (Array.isArray(s) ? s : (s?.lines ?? []));
+const pointsOf = (s) => linesOf(s).reduce((n, l) => n + (l?.points?.length ?? 0), 0);
 // The step -1 stop: no lines, on the view of the step the stack starts from.
 const floorOf = (s) => (Array.isArray(s) || !s ? [] : { ...s, lines: [] });
 
@@ -32,6 +36,10 @@ export const sameFilter = (step, app) => !!step?.filter
   && step.filter === app.imageFilter && step.filterColor === app.filterColor;
 
 export class HistoryStack {
+// #points[i]: the points of history[i]; #total: their sum, kept on push, truncation and eviction.
+  #points = [];
+  #total = 0;
+
   constructor() {
     this.history = [];
     this.historyStep = -1;
@@ -44,6 +52,8 @@ export class HistoryStack {
 // A negative step means "no current snapshot": keep the history empty so canRedo() stays
 // false (a phantom empty snapshot would surface a stray redo after a blank image).
     this.history = step >= 0 ? [this.#clone(snapshot)] : [];
+    this.#points = step >= 0 ? [pointsOf(snapshot)] : [];
+    this.#total = this.#points[0] ?? 0;
     this.historyStep = step;
     this.floor = this.#clone(floorOf(snapshot));
   }
@@ -52,12 +62,20 @@ export class HistoryStack {
     this.historyStep++;
 // Truncate in place: a no-op in the common no-redo case, no reallocation per push.
     if (this.history.length > this.historyStep) this.history.length = this.historyStep;
+    for (const n of this.#points.splice(this.historyStep)) this.#total -= n ?? 0;
     this.history.push(this.#clone(snapshot));
-// Evict the oldest and shift the cursor down by as many; the floor takes the view of the
-// last one evicted, so undoing off the trimmed front still ends at the step -1 stop.
-    if (this.history.length > MAX_STEPS) {
-      const dropped = this.history.splice(0, this.history.length - MAX_STEPS);
-      this.historyStep -= dropped.length;
+    const n = pointsOf(snapshot);
+    this.#points[this.history.length - 1] = n;
+    this.#total += n;
+// Evict the oldest past the depth, then while the points kept exceed MAX_POINTS (never the step
+// just pushed); the floor takes the view of the last one evicted, so undo still ends at step -1.
+    const len = this.history.length;
+    let drop = 0;
+    while (len - drop > MAX_STEPS || (drop < len - 1 && this.#total > MAX_POINTS)) this.#total -= this.#points[drop++] ?? 0;
+    if (drop > 0) {
+      const dropped = this.history.splice(0, drop);
+      this.#points.splice(0, drop);
+      this.historyStep -= drop;
       this.floor = floorOf(dropped[dropped.length - 1]);
     }
   }

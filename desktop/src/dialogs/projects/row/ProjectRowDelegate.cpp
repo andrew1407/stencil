@@ -74,7 +74,7 @@ namespace stencil::gui {
       slideTick = new QTimer(self);
       slideTick->setInterval(16);
       QObject::connect(slideTick, &QTimer::timeout, self, [this] {
-        const double step = 16.0 / SLIDE_MS;
+        const double step = slideStep;
         bool active = false;
         for (auto it = slide.begin(); it != slide.end();) {
           const bool toward = it.key() == slideHover;
@@ -91,7 +91,9 @@ namespace stencil::gui {
         if (!active) slideTick->stop();
       });
     }
-    if (!slideTick->isActive()) slideTick->start();
+    if (slideTick->isActive()) return;
+    slideStep = 16.0 / support::motionMs(SLIDE_MS);   // held for the whole run, as motionElapsed holds its scale
+    slideTick->start();
   }
 
   void ProjectRowDelegate::paintFaded(QPainter* p, const QStyleOptionViewItem& opt,

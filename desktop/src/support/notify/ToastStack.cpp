@@ -158,7 +158,7 @@ namespace stencil::gui {
     } else {
       fx->setOpacity(0.0);
       auto* fadeIn = new QPropertyAnimation(fx, "opacity", toast);
-      fadeIn->setDuration(FADE_IN_MS);
+      fadeIn->setDuration(support::motionMs(FADE_IN_MS));
       fadeIn->setStartValue(0.0);
       fadeIn->setEndValue(1.0);
       fadeIn->setEasingCurve(QEasingCurve::OutCubic);
@@ -167,7 +167,7 @@ namespace stencil::gui {
       // Named so reflow() can retarget it: an entrance left pointing at the OLD slot would
       // drag a restacked toast back down there when it finished.
       riseIn->setObjectName("toastRise");
-      riseIn->setDuration(FADE_IN_MS + 80);
+      riseIn->setDuration(support::motionMs(FADE_IN_MS + 80));
       riseIn->setStartValue(rest.translated(0, SLIDE_PX));
       riseIn->setEndValue(rest);
       riseIn->setEasingCurve(QEasingCurve::OutBack);

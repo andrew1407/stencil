@@ -44,7 +44,10 @@ export const isEditDirective: (d: string) => boolean;
 export const classifySource: (spec: string) => SourceKind;
 export const utf8Length: (s: string, from?: number, to?: number) => number;
 export const utf8Truncate: (s: string, max: number) => string;
+/** The reference oracle for columnIndex: a 1-based byte column as a 0-based UTF-16 index. */
 export const unitIndexOfColumn: (line: string, col: number) => number;
+/** unitIndexOfColumn for every 1-based byte column of `line`, precomputed; `bytes` is its UTF-8 length. */
+export const columnIndex: (line: string) => { bytes: number; unitOf: (col: number) => number };
 export const unquoteWord: (s: string) => string;
 export const isUnitWord: (w: string) => boolean;
 export const isStencilUse: (st: { args: { text: string }[] }) => boolean;

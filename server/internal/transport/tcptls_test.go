@@ -94,6 +94,7 @@ func TestTCPWriteOverTLSCarriesALargeFrameWhole(t *testing.T) {
 	client, server := tlsPair(t)
 	conn := transport.NewTCP(server.tls)
 	reader := transport.NewTCP(client)
+	reader.SetReadLimit(transport.MaxMessageBytes)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

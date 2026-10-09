@@ -1,27 +1,42 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { quadrantAt, mountDropZones } from '../../../src/lib/drop/zones.js';
+import { mountDropZones } from '../../../src/lib/drop/zones.js';
 import { installDom, stubDoc, stubEl, stubWin } from '../../helpers/domStub.js';
 
-// The 4-quadrant map the on-page drop overlay uses (see lib/drop/zones.js / popup drag).
-test('quadrantAt maps each corner to its action', () => {
-  const W = 1000, H = 800;
-  assert.equal(quadrantAt(10, 10, W, H), 'here');          // top-left
-  assert.equal(quadrantAt(990, 10, W, H), 'incognito');    // top-right
-  assert.equal(quadrantAt(10, 790, W, H), 'newtab');       // bottom-left
-  assert.equal(quadrantAt(990, 790, W, H), 'crop');        // bottom-right
+// Which action a drop at each corner sends: mounted on the stub page, a drop is fired at the
+// point and the PAGE_DROP message read back. `<` is top/left, so the exact middle is the far cell.
+const dropAt = (x, y) => {
+  const sent = [];
+  const win = stubWin({ innerWidth: 1000, innerHeight: 800 });
+  const el = () => stubEl('div', { attachShadow: () => ({ append() {} }) });
+  const restore = installDom({
+    document: stubDoc({ createElement: el }), window: win,
+    chrome: { runtime: { sendMessage: (m) => { sent.push(m); } } },
+  });
+  try {
+    mountDropZones('#7c3aed', false, 'light');
+    const dataTransfer = { types: ['text/uri-list'], getData: (k) => (k === 'text/uri-list' ? 'https://cdn.example/a.png' : '') };
+    win.fire('drop', { clientX: x, clientY: y, dataTransfer, preventDefault() {}, stopPropagation() {} });
+  } finally { restore(); }
+  return sent.map((m) => m.action);
+};
+
+test('a drop in each quadrant sends that quadrant\'s action', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  assert.deepEqual(dropAt(10, 10), ['here']);
+  assert.deepEqual(dropAt(990, 10), ['incognito']);
+  assert.deepEqual(dropAt(10, 790), ['newtab']);
+  assert.deepEqual(dropAt(990, 790), ['crop']);
 });
 
-test('quadrantAt splits on the exact midpoint (< is top/left)', () => {
-  const W = 1000, H = 800;
-  // Exactly on the divide counts as the far (right/bottom) half, since the test is `< half`.
-  assert.equal(quadrantAt(500, 400, W, H), 'crop');
-  assert.equal(quadrantAt(499, 399, W, H), 'here');
-  assert.equal(quadrantAt(500, 399, W, H), 'incognito');
-  assert.equal(quadrantAt(499, 400, W, H), 'newtab');
+test('the split is on the exact midpoint, which counts as the far half', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  assert.deepEqual(dropAt(500, 400), ['crop']);
+  assert.deepEqual(dropAt(499, 399), ['here']);
+  assert.deepEqual(dropAt(500, 399), ['incognito']);
+  assert.deepEqual(dropAt(499, 400), ['newtab']);
 });
-
 
 // The zones wear the EXTENSION's Appearance choice, which travels in unresolved. NB: mounting
 // arms the overlay's 12s self-teardown — left running it takes the whole FILE down, so mock timers.

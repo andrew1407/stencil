@@ -34,6 +34,7 @@ namespace stencil::gui {
       slide->stop();
       slide->setStartValue(underline);
       slide->setEndValue(to);
+      slide->setDuration(support::motionMs(SLIDE_MS));
       slide->start();
     });
   }
@@ -208,6 +209,7 @@ namespace stencil::gui {
     a->stop();
     a->setStartValue(hoverVal.value(i, 0.0));
     a->setEndValue(to);
+    a->setDuration(support::motionMs(HOVER_MS));
     a->start();
   }
 

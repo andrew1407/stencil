@@ -57,8 +57,10 @@ export const createThumbZoom = () => {
     img.style.width = `${Math.round(zoomSize.nw * scale)}px`;
     img.style.height = `${Math.round(zoomSize.nh * scale)}px`;
   };
-  window.addEventListener('keydown', e => { if (e.key === 'Alt') { zoomAlt = true; applyZoomScale(); replayZoomDust(); } });
-  window.addEventListener('keyup', e => { if (e.key === 'Alt') { zoomAlt = false; applyZoomScale(); replayZoomDust(); } });
+  // The resized box is re-placed at the last cursor point, or it overflows until the next move.
+  const altZoom = on => { zoomAlt = on; applyZoomScale(); positionZoom(); replayZoomDust(); };
+  window.addEventListener('keydown', e => { if (e.key === 'Alt' && !e.repeat) altZoom(true); });
+  window.addEventListener('keyup', e => { if (e.key === 'Alt') altZoom(false); });
   // Re-crops the box into the window as it actually is; on show and resize, not per
   // mousemove (a style write before every measure forced a layout per move).
   const ZOOM_EDGE = 8;
@@ -69,9 +71,11 @@ export const createThumbZoom = () => {
   };
   onWindowResize(applyZoomCaps);
   // An overflowing height pins to the bottom edge rather than flipping above.
+  let zoomCursor = null;
   const positionZoom = e => {
-    if (!zoomEl) return;
-    placeNearCursor(zoomEl, e.clientX, e.clientY, { edge: ZOOM_EDGE, clampY: true });
+    if (e) zoomCursor = [e.clientX, e.clientY];
+    if (!zoomEl || !zoomCursor || zoomEl.style.display === 'none') return;
+    placeNearCursor(zoomEl, zoomCursor[0], zoomCursor[1], { edge: ZOOM_EDGE, clampY: true });
   };
   const enableThumbZoom = thumbEl => {
     thumbEl.addEventListener('mouseenter', e => {

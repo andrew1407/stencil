@@ -32,16 +32,16 @@
   // Inline mirror of lib/image/pageImages.js cssImageUrls (pageApiMainMirror.test.js).
   const cssImageUrls = (cssValue) => {
     const s = String(cssValue || '');
-    if (!s.includes('url(')) return [];   // cheap skip for none/normal/auto/gradients
+    if (!s.includes('url(')) return [];
     const re = /url\((['"]?)(.*?)\1\)/g;
-    const urls = [];
+    const out = [];
     let m;
     while ((m = re.exec(s))) {
       const u = (m[2] || '').trim();
       if (!u || u.startsWith('#')) continue;
-      urls.push(u);
+      out.push(u);
     }
-    return urls;
+    return out;
   };
   // Inline mirror of lib/image/pageImages.js srcsetUrls.
   const srcsetUrls = (srcset) => {
@@ -66,7 +66,9 @@
       const base = decodeURIComponent(u.pathname.split('/').filter(Boolean).pop() || '');
       if (base && /\.[a-z0-9]{2,4}$/i.test(base)) return base;
       return `${base || fallback}.png`;
-    } catch { return `${fallback}.png`; }
+    } catch {
+      return `${fallback}.png`;
+    }
   };
   const videoHasFrame = (v) => !!(v && v.videoWidth && v.videoHeight && v.readyState >= 2 && !(v.paused && !v.currentTime));
 

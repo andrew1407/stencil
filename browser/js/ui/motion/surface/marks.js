@@ -1,4 +1,4 @@
-import { motionReduced } from '../motionPrefs.js';
+import { motionMs, motionReduced } from '../motionPrefs.js';
 import { disintegrate } from '../disintegrate.js';
 import { markPaint, speckPainter } from './painters.js';
 import { cancelDust, reshapeGrid } from './tiles.js';
@@ -44,7 +44,7 @@ const holdMarkVeil = (el, veil, ms) => {
       el.classList.remove(veil);
       el.__markVeil = null;
       el.style?.removeProperty?.('--mark-ms');
-    }, ms + 40);
+    }, motionMs(ms + 40));
 };
 
 export function settleMark(el) {

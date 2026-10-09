@@ -97,6 +97,9 @@ public sealed record BotOptions : IBotPolicy
 
     public bool AllowedFor(long userId) => AllowedUsers.Contains(userId);
 
+    // Long enough that a stranger's flood costs one reply, short enough that a retry later is answered.
+    public TimeSpan RefusalReplyWindow { get; init; } = TimeSpan.FromSeconds(_defaultRefusalWindowSeconds);
+
     // One CLI process per logical CPU, at least one.
     private static readonly int _defaultMaxConcurrentCli = Math.Max(1, Environment.ProcessorCount);
 
@@ -126,6 +129,7 @@ public sealed record BotOptions : IBotPolicy
     private const int _defaultSyncPollSeconds = 6;
     private const int _defaultAlbumSettleMs = 1000;
     private const int _defaultMaxServerResponseMb = 64;
+    private const int _defaultRefusalWindowSeconds = 300;
 
     public static BotOptions FromEnvironment() => new()
     {
@@ -172,5 +176,7 @@ public sealed record BotOptions : IBotPolicy
         Llm = LlmProfileOptions.FromEnvironment(),
         LlmProfiles = LlmProfileOptions.ProfilesFromEnvironment(),
         AllowedUsers = EnvRead.UserIds(Environment.GetEnvironmentVariable("STENCIL_BOT_ALLOWED_USERS")),
+        RefusalReplyWindow = TimeSpan.FromSeconds(EnvRead.PositiveInt(
+            EnvRead.Var("STENCIL_BOT_REFUSAL_WINDOW_SECONDS"), _defaultRefusalWindowSeconds)),
     };
 }

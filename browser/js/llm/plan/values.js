@@ -2,7 +2,6 @@
 // The small checks the validator, the executors and the plan runner all share.
 import { LIMITS } from './schema.js';
 
-export const isObj = (v) => v != null && typeof v === 'object' && !Array.isArray(v);
 export const isStr = (v, max = LIMITS.stringChars) => typeof v === 'string' && v.length <= max;
 
 // Variant labels name files/projects — keep them short and filesystem-safe.

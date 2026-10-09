@@ -1,6 +1,6 @@
 import { StencilElement, hostTag, define } from '../base.js';
 import { icon } from '../icons.js';
-import { surfaceIn, surfaceOut, dockAwayPoint, retargetDust, SURFACE_MENU_IN_MS } from '../motion.js';
+import { surfaceIn, surfaceOut, dockAwayPoint, motionMs, retargetDust, SURFACE_MENU_IN_MS } from '../motion.js';
 import { attachToastGlow } from '../dust/toastGlow.js';
 import { STAGE } from '../logo/stageRules.js';
 import SVG_ART from '../../../../common/config/svgArt.json' with { type: 'json' };
@@ -150,7 +150,7 @@ export class StencilNotifications extends StencilElement {
       toast.remove();
       // Removing a row shrinks the column too.
       for (const el of this.children) { retargetDust(el); clipDustToFree(el); }
-    }, LEAVE_ANIM_MS);
+    }, motionMs(LEAVE_ANIM_MS));
   }
 }
 define('stencil-notifications', StencilNotifications);

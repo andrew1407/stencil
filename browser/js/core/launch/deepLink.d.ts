@@ -32,7 +32,6 @@ export declare const TELEGRAM_START_LIMIT: 64;
 /** "1" + base64url("host[:port]|projectId"); null when it would exceed the limit. */
 export declare const encodeTelegramStartPayload: (serverUrl: string, projectId: string) => string | null;
 export declare const buildTelegramLink: (botUsername: string, payload: string) => string;
-export declare const buildDesktopBounceUrl: (browserBase: string | null | undefined, stencilUrl: string) => string;
 /** The server's 32 MiB MaxBodyBytes — the largest inbound dataUrl accepted. */
 export declare const LAUNCH_DATA_URL_MAX: number;
 

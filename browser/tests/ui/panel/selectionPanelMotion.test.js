@@ -3,7 +3,7 @@
 // surfaceOut). Desktop mirrors it via DisintegrateOverlay over SelectedLineBar (MainWindow.cpp).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { installDustDom, rect as box, boxEl, cloudKind } from '../../helpers/dustCloudRig.js';
+import { installDustDom, rect as box, boxEl, cloudKind } from '../../helpers/dustRig.js';
 import { LAYOUT_CSS } from '../../helpers/css.js';
 
 const dust = installDustDom({ docOpts: { autoCreateById: true } });

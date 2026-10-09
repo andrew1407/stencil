@@ -43,7 +43,7 @@ class EditorPipelineTests(EditorCase):
   def test_crop_shrinks_dims(self):
     ed = self._blank()
     before = ed.image_size
-    ed.crop("x1=0.5 y1=0.5 x2=2 y2=2")
+    ed.crop("x1=1px y1=1px x2=20px y2=30px")
     after = ed.image_size
     # A bounded crop must not be larger than the original view in either axis.
     self.assertLessEqual(after[0], before[0])

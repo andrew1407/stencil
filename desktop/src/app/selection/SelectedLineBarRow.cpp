@@ -66,7 +66,7 @@ namespace stencil::gui {
     // Losing the fill group can cost the flow layout a row; refit now and once the reveal has
     // finished.
     refitHeight();
-    QTimer::singleShot(CONTROL_REVEAL_IN_MS + 80, this, [this] { refitHeight(); });
+    QTimer::singleShot(support::motionMs(CONTROL_REVEAL_IN_MS + 80), this, [this] { refitHeight(); });
   }
 }  // namespace stencil::gui
 

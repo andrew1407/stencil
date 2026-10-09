@@ -53,7 +53,7 @@ namespace stencil::gui {
       };
       if (*slidePtr) connect(*slidePtr, &QVariantAnimation::valueChanged, fx, follow);
       if (size.anim) connect(size.anim, &QVariantAnimation::valueChanged, fx, follow);
-      QTimer::singleShot(int(keywordChipClocks().dustMs * FILTER_DUST_VEIL_STOP), w, lift);
+      QTimer::singleShot(support::motionMs(int(keywordChipClocks().dustMs * FILTER_DUST_VEIL_STOP)), w, lift);
     });
   }
 

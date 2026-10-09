@@ -133,8 +133,8 @@ namespace stencil::gui {
     return edit;
   }
 
-  // Run `mutate` on project `id`'s meta, stamp updatedAt and persist the list — the SAME
-  // store write the Projects window's row menu makes. False when no project has that id.
+  // Run `mutate` on project `id`'s meta and stamp updatedAt; the caller persists the list once,
+  // through SharedState. False when no project has that id.
   template <class Mutate>
   bool applyToProjectMeta(std::vector<Project>& projects, const QString& id, long long now,
                           Mutate&& mutate) {
@@ -142,7 +142,6 @@ namespace stencil::gui {
       if (QString::fromStdString(p.meta.id) != id) continue;
       mutate(p.meta);
       p.meta.updatedAt = now;
-      fileStore::saveProjects(projects);
       return true;
     }
     return false;

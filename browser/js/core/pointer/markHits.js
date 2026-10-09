@@ -13,14 +13,9 @@ const { HIT } = constants;
 const shown = (flag) => flag === undefined || !!flag;
 export const shownMarks = (app) => ({ points: shown(app.showPoints), lines: shown(app.showLines) });
 
-// A hidden line keeps its index but offers no mark, so every hit-test reads the same indices.
-const NO_MARKS = Object.freeze({ points: Object.freeze([]) });
-export const hittableLines = (lines) => (Array.isArray(lines) && lines.some((l) => l?.hidden) ? lines.map((l) => (l?.hidden ? NO_MARKS : l)) : lines);
-
 // findLineAt over what shows: the stroke alone while points are hidden, the points alone while
 // lines are, each within `threshold`; -1 when neither shows.
-export const lineAt = (all, shown, x, y, threshold) => {
-  const lines = hittableLines(all);
+export const lineAt = (lines, shown, x, y, threshold) => {
   if (shown.points && shown.lines) return findLineAt(lines, x, y, threshold);
   const hit = shown.lines ? findNearestSegmentWithIdx(lines, x, y, threshold)
     : shown.points ? findNearestPointWithIdx(lines, null, x, y, threshold) : null;
@@ -30,4 +25,4 @@ export const lineAt = (all, shown, x, y, threshold) => {
 // A hidden kind's radius is 0, which reaches nothing: a hold never continues a hidden point or
 // inserts into a hidden line, it starts a fresh one.
 export const holdTargetAt = (lines, shown, x, y, radius = HIT.grabRadiusPx) =>
-  holdDrawTarget(hittableLines(lines), x, y, { pointThreshold: shown.points ? radius : 0, segThreshold: shown.lines ? radius : 0 });
+  holdDrawTarget(lines, x, y, { pointThreshold: shown.points ? radius : 0, segThreshold: shown.lines ? radius : 0 });

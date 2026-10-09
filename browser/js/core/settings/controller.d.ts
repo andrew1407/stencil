@@ -50,6 +50,6 @@ export declare class SettingsController {
   setFormula(axis: 'x' | 'y', expr: string | null | undefined): void;
   setTooltipOption(key: TooltipOptionKey, on: boolean): void;
   /** App-wide motion preference (ui/motion/motionPrefs.js); throws on an unknown key or mode. */
-  setMotion(key: 'mode' | 'drawing', value: unknown): MotionPrefs;
+  setMotion(key: 'mode' | 'drawing' | 'multiWindow' | 'speed', value: unknown): MotionPrefs;
   setVisualColor(key: VisualColorKey, value: string, opts?: { persist?: boolean }): void;
 }

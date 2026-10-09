@@ -88,12 +88,12 @@ int main(int argc, char** argv) {
   host.resize(400, 300);
   host.show();
   {
-    support::setModalBackdrop(false);
+    support::setMultiWindow(true);
     QDialog dlg(&host);
     check(ModalBackdrop::behind(&dlg, &host) == nullptr,
-          "behind: the Visuals switch off creates nothing at all");
+          "behind: Multiple windows on creates nothing at all");
   }
-  support::setModalBackdrop(true);
+  support::setMultiWindow(false);
   {
     QDialog dlg(&host);
     ModalBackdrop* bd = ModalBackdrop::behind(&dlg, &host);

@@ -4,7 +4,8 @@ import { pageNaturalSize } from '../../core/settings/units.js';
 import { cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped, scaleCropCentered, cropChange, isAlbumOrientation, swapCropOrientation } from '../../core/parse/cropGeometry.js';
 import { icon, spinIconOnce } from '../icons.js';
 import { pinWidestFace } from '../motion.js';
-import { tweenRect } from '../motion/rectTween.js';
+import { RECT_TWEEN_MS, tweenRect } from '../motion/rectTween.js';
+import { motionMs } from '../motion/motionPrefs.js';
 import { wireCropFit } from './cropFit.js';
 
 // A rect over the original image, locked to the page aspect; confirm stores it without
@@ -111,7 +112,7 @@ export class StencilCropModal extends StencilElement {
       aspect = cropAspect(pageDims().width, pageDims().height, album);
       rect = swapCropOrientation(rect, aspect, iw, ih);
       renderBox();
-      if (from.width >= 1) flight = tweenRect(from, rect, paintBox);
+      if (from.width >= 1) flight = tweenRect(from, rect, paintBox, motionMs(RECT_TWEEN_MS));
     };
 
     // The picture fills the window's free room, re-fitted on every resize; the box follows its scale.

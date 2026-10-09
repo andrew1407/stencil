@@ -37,6 +37,9 @@ public interface IBotPolicy
     // Empty = the bot is OFF for everyone.
     IReadOnlySet<long> AllowedUsers { get; }
 
+    // An unlisted id is answered at most once per window; the rest of its updates are dropped silently.
+    TimeSpan RefusalReplyWindow { get; }
+
     IReadOnlyList<LlmProfile> LlmProfiles { get; }
 
     bool AllowedFor(long userId);

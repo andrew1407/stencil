@@ -37,19 +37,18 @@ int main(int argc, char** argv) {
   bool syncOn = true, incognito = false;
   int reloads = 0, pushes = 0, detaches = 0, uploads = 0;
   std::function<void()> finishUpload;
-  RemoteSyncController ctrl(
-      nullptr, &session, &reloading, &pushing, &planRunning,
-      RemoteSyncController::Hooks{
-          [&syncOn] { return syncOn; },
-          [&incognito] { return incognito; },
-          [&pushes] { ++pushes; },
-          [&reloads](const QString&, const QString&, bool) { ++reloads; },
-          [&detaches] { ++detaches; },
-          [&uploads, &finishUpload](std::function<void()> done) {
-            ++uploads;
-            finishUpload = std::move(done);
-          },
-      });
+  const RemoteSyncController::Hooks hooks{
+    [&syncOn] { return syncOn; },
+    [&incognito] { return incognito; },
+    [&pushes] { ++pushes; },
+    [&reloads](const QString&, const QString&, bool) { ++reloads; },
+    [&detaches] { ++detaches; },
+    [&uploads, &finishUpload](std::function<void()> done) {
+      ++uploads;
+      finishUpload = std::move(done);
+    },
+  };
+  RemoteSyncController ctrl(nullptr, &session, &reloading, &pushing, &planRunning, hooks);
   ctrl.setResultTiming(60, 400);
 
   // A peer version ahead of ours reloads, but off the timer, never from the event slot.
@@ -101,6 +100,17 @@ int main(int argc, char** argv) {
   pump(700);
   check(pushes == 1, "an edit flushes to the server once the burst settles");
   pushes = 0;
+
+  // A push in flight owns the link's version: the next one waits for it, then leaves once.
+  pushing = true;
+  ctrl.scheduleRemotePush();
+  pump(800);
+  check(pushes == 0, "no push starts while another is in flight");
+  pushing = false;
+  ctrl.pushFinished();
+  pump(300);
+  check(pushes == 1, "the waiting push leaves once the one in flight has settled");
+  pushes = 0;
   incognito = true;
   ctrl.scheduleRemotePush();
   pump(700);
@@ -140,6 +150,32 @@ int main(int argc, char** argv) {
   check(!settled, "…and has not settled while it is");
   std::exchange(finishUpload, {})();
   check(settled && !ctrl.resultBusy(), "the flush settles once the last result has landed");
+
+  // Leaving the project clears an upload still in flight; its late answer changes nothing.
+  ctrl.scheduleResultUpload();
+  pump(450);
+  check(uploads == 4 && ctrl.resultBusy(), "a fourth result is in flight");
+  ctrl.stopRemotePoll();
+  check(!ctrl.resultBusy(), "leaving the project clears the result in flight");
+  std::exchange(finishUpload, {})();
+  check(!ctrl.resultBusy(), "…and the left project's late answer leaves it clear");
+
+  // A closing window's push and result holds share one deadline: the second gets what is left.
+  {
+    RemoteSyncController closing(nullptr, &session, &reloading, &pushing, &planRunning, hooks);
+    closing.setResultTiming(60, 400);
+    closing.setCloseHoldCap(300);
+    bool pushHeldOut = false;
+    pushing = true;
+    check(closing.holdCloseForPush([&pushHeldOut] { pushHeldOut = true; }), "an in-flight push holds the close");
+    pump(400);
+    check(pushHeldOut, "…until the cap runs out");
+    pushing = false;
+    closing.scheduleResultUpload();
+    check(closing.resultBusy() && !closing.holdCloseForResult([] {}),
+          "the result hold gets no second cap once the push hold spent it");
+    closing.stopRemotePoll();
+  }
 
   // The guarded write behind every push lets go of its callbacks once done: they hold the
   // push guard, and a flag that never clears stops every later poll and reload.

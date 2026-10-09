@@ -1,4 +1,4 @@
-import { motionReduced } from '../motionPrefs.js';
+import { motionMs, motionReduced } from '../motionPrefs.js';
 import { disintegrate } from '../disintegrate.js';
 import { speckPainter } from './painters.js';
 import { SURFACE_COLS, SURFACE_DRIVEN_CLASS, SURFACE_FORMING_CLASS, SURFACE_IN_MS, SURFACE_LEAVING_CLASS, SURFACE_MOTE_PX, SURFACE_OUT_MS, SURFACE_ROWS } from './motion.js';
@@ -58,7 +58,7 @@ const playSurface = (el, point, { ms, gather, box = null, delayScale = null, bel
     el.__surfaceTimer = null;
     el.classList.remove(SURFACE_FORMING_CLASS, SURFACE_LEAVING_CLASS);
     el.style?.removeProperty?.('--dust-ms');
-  }, ms + 60);
+  }, motionMs(ms + 60));
   return true;
 };
 

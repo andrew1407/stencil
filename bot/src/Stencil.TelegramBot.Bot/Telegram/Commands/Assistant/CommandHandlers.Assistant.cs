@@ -13,12 +13,6 @@ namespace Stencil.TelegramBot.Bot.Telegram.Commands;
 
 public sealed partial class CommandHandlers
 {
-    private const string _promptUsage =
-        "Usage: /prompt <request>, e.g. /prompt make it black & white and crop 10% off each side\n"
-        + "The AI assistant plans the edit (crop/rotate/filter/draw/…) and the bot renders it with "
-        + "the same engine as every other command. Ask for alternatives to get several images. "
-        + "/p is a shortcut; a photo captioned /prompt … works too.";
-
     // Re-reads the session first: the turn may have written it (chat history, a partly-applied
     // plan) before it ended.
     private async Task rememberForRetryAsync(long userId, string text, CancellationToken ct)
@@ -32,7 +26,7 @@ public sealed partial class CommandHandlers
         string text = cmd.ArgumentText.Trim();
         if (text.Length == 0)
         {
-            await _bot.SendMessage(chatId, _promptUsage, cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.PromptUsage(), cancellationToken: ct);
             return;
         }
         UserSession session = await _store.GetAsync(userId, ct);
@@ -153,7 +147,7 @@ public sealed partial class CommandHandlers
         string text = ask.Question;
         if (ask.AllowCustom)
         {
-            text += $"\n\n({ask.CustomLabel} — or just type your answer)";
+            text += Replies.AskCustomHint(ask.CustomLabel);
         }
         await _bot.SendMessage(
             chatId,

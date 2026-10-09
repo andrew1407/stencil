@@ -1,7 +1,7 @@
 package service
 
 // Project lifecycle policy: what a project must be to exist at all, how long it
-// lives, and who is allowed to remove it.
+// lives, and the order a removal runs in.
 
 import (
 	"context"
@@ -11,22 +11,21 @@ import (
 	"stencil/server/internal/clock"
 	"stencil/server/internal/eventbus"
 	"stencil/server/internal/protocol"
+	"stencil/server/internal/store"
 )
 
-// ProjectService owns project creation and deletion.
+// ProjectService owns project creation, update and deletion.
 type ProjectService struct {
 	Projects  ProjectStore
-	Files     ProjectFiles   // optional: nil skips the byte drop
-	Live      SessionCounter // optional: nil means no live session on this instance
-	Remote    RemoteSessions // optional: nil means no other instance
+	Files     ProjectFiles // optional: nil skips the byte drop
 	Bus       eventbus.Bus
 	TTL       time.Duration // default project lifetime; 0 = no expiry (off)
 	Originals *FileService  // stores a create's inline original; nil refuses one
 }
 
-// NewProjects builds the service. Files and live may be nil.
-func NewProjects(projects ProjectStore, files ProjectFiles, live SessionCounter, b eventbus.Bus, ttl time.Duration) *ProjectService {
-	return &ProjectService{Projects: projects, Files: files, Live: live, Bus: b, TTL: ttl}
+// NewProjects builds the service. Files may be nil.
+func NewProjects(projects ProjectStore, files ProjectFiles, b eventbus.Bus, ttl time.Duration) *ProjectService {
+	return &ProjectService{Projects: projects, Files: files, Bus: b, TTL: ttl}
 }
 
 // Create persists and announces a project: one made FROM an image (HasImage), inheriting PROJECT_TTL when it
@@ -59,34 +58,32 @@ func (s *ProjectService) Create(ctx context.Context, ownerSession string, req pr
 	return rec, nil
 }
 
-// Delete removes a project row, then its bytes, then announces it. A project is a shared workspace, so
-// deletion is allowed only while at most one client is in its live edit session, on any instance.
-func (s *ProjectService) Delete(ctx context.Context, id string) error {
-	members, err := s.liveMembers(ctx, id)
+// Update applies req's named fields under its expected version and announces the result; a stale version
+// is store.ErrConflict, a missing row store.ErrNotFound.
+func (s *ProjectService) Update(ctx context.Context, id string, req protocol.UpdateProjectRequest) (protocol.ProjectRecord, error) {
+	rec, err := s.Projects.UpdateProject(ctx, id, store.ProjectPatch{
+		Name:        req.Name,
+		Color:       req.Color,
+		Description: req.Description,
+		Keywords:    req.Keywords,
+		BlankColor:  req.BlankColor,
+		ExpiresAt:   req.ExpiresAt,
+		Layout:      req.Layout,
+	}, req.Version)
 	if err != nil {
-		return err
+		return protocol.ProjectRecord{}, err
 	}
-	if members >= 2 {
-		return ErrProjectInUse
-	}
+	eventbus.PublishProjectEvent(ctx, s.Bus, protocol.EventUpdated, rec)
+	return rec, nil
+}
+
+// Delete removes a project row, then its bytes, then announces it.
+func (s *ProjectService) Delete(ctx context.Context, id string) error {
 	if err := s.Projects.DeleteProject(ctx, id); err != nil {
 		return err
 	}
 	s.Dropped(ctx, id)
 	return nil
-}
-
-// liveMembers counts a project's live editors: this instance's exactly, the others' as last published.
-func (s *ProjectService) liveMembers(ctx context.Context, id string) (int, error) {
-	n := 0
-	if s.Live != nil {
-		n = s.Live.ConnectionCount(id)
-	}
-	if s.Remote == nil {
-		return n, nil
-	}
-	remote, err := s.Remote.RemoteMembers(ctx, id)
-	return n + remote, err
 }
 
 // Dropped is Delete's tail: drop a removed project's bytes and tell connected clients. The expiry sweep

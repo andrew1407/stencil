@@ -30,4 +30,4 @@ for (const theme of ['dark', 'light']) {
   await runner.play(steps, { host, page: host.page });
   await host.stop();
 }
-runner.finish();
+await runner.finish();

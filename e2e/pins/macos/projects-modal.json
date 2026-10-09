@@ -34,8 +34,8 @@
         "border-radius": "10px",
         "font-size": "16px",
         "font-family": "Arial, sans-serif",
-        "width": "560px",
-        "height": "560px",
+        "width": "576px",
+        "height": "590.4px",
         "transform": "matrix(1, 0, 0, 1, 0, 0)",
         "box-shadow": "rgba(0, 0, 0, 0.45) 0px 16px 48px 0px",
         "flex-direction": "column",
@@ -54,7 +54,7 @@
         "font-size": "16px",
         "font-family": "Arial, sans-serif",
         "padding": "14px 18px",
-        "width": "558px",
+        "width": "574px",
         "height": "52px",
         "justify-content": "space-between",
         "align-items": "center"
@@ -155,7 +155,7 @@
         "font-family": "Arial, sans-serif",
         "padding": "12px 18px 6px",
         "gap": "8px",
-        "width": "558px",
+        "width": "574px",
         "height": "52px",
         "align-items": "center"
       }
@@ -174,7 +174,7 @@
         "font-size": "14px",
         "font-family": "Arial",
         "padding": "8px 12px",
-        "width": "522px",
+        "width": "538px",
         "height": "34px",
         "box-shadow": "color(srgb 0.486275 0.227451 0.929412 / 0.25) 0px 0px 0px 3px",
         "overflow": "clip"
@@ -192,7 +192,7 @@
         "font-family": "Arial, sans-serif",
         "padding": "4px 18px",
         "gap": "8px",
-        "width": "558px",
+        "width": "574px",
         "height": "42px",
         "align-items": "center"
       }
@@ -293,7 +293,7 @@
         "border-color": "rgb(0, 0, 0)",
         "font-size": "16px",
         "font-family": "Arial, sans-serif",
-        "width": "125px",
+        "width": "178px",
         "height": "34px"
       }
     },
@@ -313,7 +313,7 @@
         "font-family": "Arial, sans-serif",
         "padding": "8px 12px",
         "gap": "6px",
-        "width": "125px",
+        "width": "178px",
         "height": "34px",
         "text-align": "left",
         "align-items": "center",
@@ -330,11 +330,11 @@
         "border-color": "rgb(0, 0, 0)",
         "font-size": "14px",
         "font-family": "Arial, sans-serif",
-        "width": "80px",
+        "width": "133px",
         "height": "16px",
         "text-align": "left"
       },
-      "text": "Name"
+      "text": "Recently opened"
     },
     {
       "path": ":root/div[1]/div[3]/span[2]/button[1]/span[3]",
@@ -463,8 +463,8 @@
         "font-size": "16px",
         "font-family": "Arial, sans-serif",
         "padding": "6px 18px 14px",
-        "width": "558px",
-        "height": "355px"
+        "width": "574px",
+        "height": "385.4px"
       }
     },
     {
@@ -484,7 +484,7 @@
         "padding": "8px 10px",
         "margin": "0px 0px 8px",
         "gap": "12px",
-        "width": "522px",
+        "width": "538px",
         "height": "74px",
         "opacity": "0.92",
         "align-items": "center",
@@ -536,7 +536,7 @@
         "border-color": "rgb(0, 0, 0)",
         "font-size": "16px",
         "font-family": "Arial, sans-serif",
-        "width": "432px",
+        "width": "448px",
         "height": "32px"
       }
     },
@@ -551,7 +551,7 @@
         "font-size": "14px",
         "font-weight": "600",
         "font-family": "Arial, sans-serif",
-        "width": "432px",
+        "width": "448px",
         "height": "16px",
         "overflow": "hidden"
       },
@@ -569,7 +569,7 @@
         "font-family": "Arial, sans-serif",
         "margin": "2px 0px 0px",
         "gap": "2px 8px",
-        "width": "432px",
+        "width": "448px",
         "height": "14px",
         "align-items": "center"
       },
@@ -588,7 +588,7 @@
         "font-family": "Arial, sans-serif",
         "padding": "12px 18px",
         "gap": "8px",
-        "width": "558px",
+        "width": "574px",
         "height": "57px",
         "justify-content": "flex-end",
         "align-items": "center"
@@ -604,7 +604,7 @@
         "border-color": "rgb(136, 136, 136)",
         "font-size": "12px",
         "font-family": "Arial, sans-serif",
-        "width": "175.9px",
+        "width": "191.9px",
         "height": "28px",
         "text-align": "left"
       },

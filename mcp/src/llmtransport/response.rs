@@ -90,10 +90,17 @@ fn read_chunked(mut buf: Vec<u8>, stream: &mut Reader) -> Result<Vec<u8>, LlmErr
     let mut body: Vec<u8> = Vec::new();
     let mut pos = 0usize;
     loop {
-        // The chunk-size line.
+        // The chunk-size line, held to the header cap; each read rescans only its new bytes.
+        let mut scanned = pos;
         let line_end = loop {
-            if let Some(i) = find_subslice(&buf[pos..], b"\r\n") {
-                break pos + i;
+            if let Some(i) = find_subslice(&buf[scanned..], b"\r\n") {
+                break scanned + i;
+            }
+            scanned = buf.len().saturating_sub(1).max(pos);
+            if buf.len() - pos > MAX_HEADER_BYTES {
+                return Err(LlmError::BadResponse(format!(
+                    "chunk size line over {MAX_HEADER_BYTES} bytes"
+                )));
             }
             if fill(stream, &mut buf)? == 0 {
                 return Err(LlmError::BadResponse(
@@ -113,7 +120,7 @@ fn read_chunked(mut buf: Vec<u8>, stream: &mut Reader) -> Result<Vec<u8>, LlmErr
         if size == 0 {
             return Ok(body); // done; any trailers are ignored
         }
-        if body.len() + size > stream.max_body {
+        if size > stream.max_body.saturating_sub(body.len()) {
             return Err(too_large(stream));
         }
         // The chunk data + its trailing CRLF.

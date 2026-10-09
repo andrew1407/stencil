@@ -71,7 +71,7 @@ func TestDeleteExpiredProjects(t *testing.T) {
 	future, _ := s.CreateProject(ctx, "", protocol.CreateProjectRequest{Name: "Future", ExpiresAt: 10_000})
 	forever, _ := s.CreateProject(ctx, "", protocol.CreateProjectRequest{Name: "Forever"}) // expires_at 0
 
-	ids, err := s.DeleteExpiredProjects(ctx, 5_000, 0, nil)
+	ids, err := s.DeleteExpiredProjects(ctx, 5_000, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,12 +88,8 @@ func TestDeleteExpiredProjects(t *testing.T) {
 	if _, err := s.GetProject(ctx, forever.ID); err != nil {
 		t.Fatalf("keep-forever project should survive: %v", err)
 	}
-	// A kept id (a project with live editors) is deferred, not swept.
-	if ids2, _ := s.DeleteExpiredProjects(ctx, 10_000, 0, []string{future.ID}); len(ids2) != 0 {
-		t.Fatalf("a kept project was swept: %v", ids2)
-	}
 	// The boundary is inclusive: expires_at == now is swept.
-	if ids2, _ := s.DeleteExpiredProjects(ctx, 10_000, 0, nil); len(ids2) != 1 || ids2[0] != future.ID {
+	if ids2, _ := s.DeleteExpiredProjects(ctx, 10_000, 0); len(ids2) != 1 || ids2[0] != future.ID {
 		t.Fatalf("expires_at == now should be swept, got %v", ids2)
 	}
 }

@@ -122,20 +122,24 @@ pub fn runAction(session: *Session, io: std.Io, action: Action) bool {
                     src = std.mem.trim(u8, src[0..i], " \t");
                 }
             }
-            const bytes = pipeline.loadLayoutBytes(session.gpa, io, src) catch return false; // msg printed
+            const bytes = pipeline.loadText(session.gpa, io, src) catch return false; // msg printed
             defer session.gpa.free(bytes);
+            var parsed: ?layout_mod.Layout = layout_mod.parse(session.gpa, bytes) catch null;
+            defer if (parsed) |*L| L.deinit();
+            if (parsed) |L| if (L.bad_line) |bad| {
+                var buf: [96]u8 = undefined;
+                logo.err(msg.layout_refused, .{ src, bad.describe(&buf) });
+                return false;
+            };
             if (replace) {
                 session.setLines(bytes) catch return false;
             } else {
                 session.addLines(bytes) catch return false;
             }
-            // Adopt the layout file's embedded filter, if any (layout.zig "imageFilter"/legacy "filter").
-            var L = layout_mod.parse(session.gpa, bytes) catch {
-                ui.ack(session, if (replace) "drawn (replaced)" else "drawn");
-                return true; // the lines were added even if the filter parse failed
+            // Adopt the layout file's embedded filter, if any; the lines stand even when it is unreadable.
+            if (parsed) |L| if (L.filter) |f| {
+                _ = applyFilterArg(session, f);
             };
-            defer L.deinit();
-            if (L.filter) |f| _ = applyFilterArg(session, f);
             ui.ack(session, if (replace) "drawn (replaced)" else "drawn");
         },
     }

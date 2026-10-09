@@ -125,7 +125,7 @@ namespace stencil::gui {
     // A CUT in the frame the overlay deletes itself: a fade-up would double the arrival.
     QPointer<QWidget> cp(card);
     // The card takes over at three quarters of the flight; the last motes settle on top of it.
-    QTimer::singleShot(CHAT_ARRIVE_MS * 3 / 4, card, [cp, settle] { if (cp) settle(); });
+    QTimer::singleShot(support::motionMs(CHAT_ARRIVE_MS * 3 / 4), card, [cp, settle] { if (cp) settle(); });
   }
 
 }  // namespace stencil::gui

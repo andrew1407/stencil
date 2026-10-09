@@ -16,9 +16,7 @@ class MainWindowGuiTest : public QObject {
     if (qApp->platformName() != QLatin1String("offscreen"))
       QSKIP("modal-dialog drags need the offscreen platform");
     MainWindow win(nullptr, false);
-    win.resize(1100, 800);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(held::showForProjects(win));
     QImage img(40, 30, QImage::Format_RGB32);
     img.fill(Qt::darkCyan);
     const QString idA = win.parts.chatAppliers.addImageProjectEntry(img, "held-alpha");
@@ -83,9 +81,7 @@ class MainWindowGuiTest : public QObject {
       QSKIP("modal-dialog drags need the offscreen platform");
     const auto motion = withMotion();
     MainWindow win(nullptr, false);
-    win.resize(1100, 800);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(held::showForProjects(win));
     QImage img(40, 30, QImage::Format_RGB32);
     img.fill(Qt::darkYellow);
     const QString id = win.parts.chatAppliers.addImageProjectEntry(img, "shimmer-held");

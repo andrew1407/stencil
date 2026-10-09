@@ -3,6 +3,7 @@
 import { rowMatches } from '../../base.js';
 import { sortProjectItems } from '../window/projectSort.js';
 import { makeIncognitoPeerRow } from './placeholderRows.js';
+import { projectOpenedAt, projectOpenedTable } from '../../../core/project/meta/projectOpened.js';
 
 // One flat, sortable item list: a stable key, a lowercased name + date for the
 // comparators, an isRemote flag, and a build() returning the row element.
@@ -23,15 +24,16 @@ export function createRowPlan(ctx) {
     const showLocal = filterMode() === 'all' || filterMode() === 'local' || showsPeerOpen();
     const showServer = showsServer();
     const items = [];
+    const opened = projectOpenedTable();
     const all = store.list()
       .filter((m) => !applySearch || prefs.matchRow(m.name, m.keywords, q))
       .filter((m) => filterMode() !== 'peer-open' || isPeerOpen(m))
       .filter((m) => filterMode() !== 'peer-closed' || !isPeerOpen(m));
     const localLinked = all.filter((m) => isServerMeta(m));
-    if (showLocal) for (const meta of all.filter((m) => !isServerMeta(m)))
-      items.push({ key: localRowKey(meta), name: metaName(meta), date: metaDate(meta), isRemote: false, meta, build: () => makeRow(meta) });
-    if (showServer) for (const meta of localLinked)
-      items.push({ key: localRowKey(meta), name: metaName(meta), date: metaDate(meta), isRemote: false, meta, build: () => makeRow(meta) });
+    const local = (meta) => ({ key: localRowKey(meta), name: metaName(meta), date: metaDate(meta),
+      opened: projectOpenedAt(meta.id, opened), isRemote: false, meta, build: () => makeRow(meta) });
+    if (showLocal) for (const meta of all.filter((m) => !isServerMeta(m))) items.push(local(meta));
+    if (showServer) for (const meta of localLinked) items.push(local(meta));
     // Deduped against server-linked local rows.
     if (showServer && Array.isArray(remotes.cache)) {
       const claimed = new Set(localLinked.map((m) => `${m.address}|${m.remoteId}`));

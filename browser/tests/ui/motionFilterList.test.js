@@ -29,7 +29,7 @@ test('filterDelta: what a change drops, reveals, and whether it merely moved', a
 });
 
 // A tiny list rig: `state` is the key set the next render will show.
-const filterRig = ({ shown = [], reduced = false } = {}) => {
+const filterRig = ({ shown = [], reduced = false, leave = false, dustOut = () => false } = {}) => {
   const timers = [];
   const rows = new Map();
   const rig = {
@@ -37,8 +37,10 @@ const filterRig = ({ shown = [], reduced = false } = {}) => {
     keys: shown.slice(),
     nextKeys: shown.slice(),
     classesOf: (k) => rows.get(k)?.classes ?? new Set(),
+    find: (k) => rows.get(k) ?? null,
     run: null,
     flush: () => { for (const t of timers.splice(0).sort((a, b) => a.ms - b.ms)) t.fn(); },
+    timers,
   };
   const makeRow = (k) => {
     const classes = new Set();
@@ -62,6 +64,8 @@ const filterRig = ({ shown = [], reduced = false } = {}) => {
     find: (k) => rows.get(k) ?? null,
     setTimer: (fn, ms) => { timers.push({ fn, ms }); return timers.length; },
     reduced: () => reduced,
+    leave,
+    dustOut,
   });
   return rig;
 };
@@ -92,6 +96,29 @@ test('what the filter DROPS never plays at all — it is simply not the answer a
   // A filter's SHAPE, not its speed, tells it from a removal: nothing plays on the way out,
   // so the arrival may be slow enough to read.
   assert.ok(FILTER_ENTER_MS >= 300, 'slow enough to read as a deliberate settle, not a flicker');
+});
+
+// The projects list opts in (desktop ListFilterFade onLeave): a dropped row dissolves where it sat,
+// measured while it is still on screen, and the render that drops it is not held up.
+test('with `leave`, each dropped row dissolves before the render takes it', async () => {
+  const dissolved = [];
+  let rig;
+  rig = filterRig({ shown: ['a', 'b', 'c'], leave: true,
+    dustOut: (el, i, n) => { dissolved.push([el, i, n, rig.renders]); return true; } });
+  const [a, c] = [rig.find('a'), rig.find('c')];
+  rig.nextKeys = ['b'];
+  await rig.run();
+  assert.deepEqual(dissolved.map(([el, i, n, renders]) => [el, i, n, renders]), [[a, 0, 2, 0], [c, 1, 2, 0]],
+    'both dropped rows, sharing one budget, before the one render');
+  assert.strictEqual(rig.renders, 1);
+  dissolved.length = 0;
+  rig.nextKeys = ['b'];
+  await rig.run();
+  assert.deepEqual(dissolved, [], 'nothing dropped, nothing dissolves');
+  const still = filterRig({ shown: ['a', 'b'], leave: true, reduced: true,
+    dustOut: () => { throw new Error('reduced motion dissolves nothing'); } });
+  still.nextKeys = ['b'];
+  await still.run();
 });
 
 test('a filter that only REVEALS rows plays the whole set in too', async () => {
@@ -142,6 +169,22 @@ test('fast typing: every keystroke renders NOW, and never drops rows', async () 
   assert.deepEqual(rig.keys, ['a'], 'the final rendered set is the last one asked for');
   rig.flush();                      // the enter clean-ups fire late, over nothing
   assert.deepEqual(rig.keys, ['a']);
+});
+
+// The Visuals "Animation speed" stretches the CSS entrance (css speed hook); the timer that ends it
+// stretches with it, or a slow entrance is cut off and the row jumps to full.
+test('the entrance ends on the animation-speed clock, not the tuned one', async () => {
+  const { setMotionPrefs, DEFAULT_MOTION_SPEED } = await import('../../js/ui/motion/motionPrefs.js');
+  try {
+    setMotionPrefs({ speed: DEFAULT_MOTION_SPEED / 2 });   // twice as slow
+    const rig = filterRig({ shown: ['a'] });
+    rig.nextKeys = ['a', 'b'];
+    await rig.run();
+    const ends = rig.timers.map((t) => t.ms);
+    assert.ok(ends.every((ms) => ms >= 2 * FILTER_ENTER_MS), `cleanup at ${ends}, not before ${2 * FILTER_ENTER_MS}ms`);
+  } finally {
+    setMotionPrefs({ speed: DEFAULT_MOTION_SPEED });
+  }
 });
 
 test('animations.css: a filter has an arrival and no exit at all', () => {

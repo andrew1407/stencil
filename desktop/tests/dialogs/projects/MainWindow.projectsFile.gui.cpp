@@ -3,6 +3,7 @@
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "../../MainWindow.gui.hpp"
 #include "../../../src/support/theme/filterFade.hpp"
+#include "../../../src/app/remote/StencilFileSync.hpp"
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
@@ -99,6 +100,41 @@ class MainWindowGuiTest : public QObject {
       return rot;
     };
     QTRY_COMPARE_WITH_TIMEOUT(fileRotation(), 1, 4000);   // the edit auto-saved into the linked file
+    beat();
+  }
+
+  // A close inside the auto-save debounce writes the edit into the linked file first.
+  void closeFlushesThePendingLiveSyncSave() {
+    QByteArray png;
+    { QFile f(guiTestImage()); QVERIFY(f.open(QIODevice::ReadOnly)); png = f.readAll(); }
+    stencil::gui::fileStore::ProjectFileData pf;
+    pf.name = "Closing";
+    pf.imageExt = "png";
+    pf.imageBytes = png;
+    pf.imageWidth = 240;
+    pf.imageHeight = 160;
+    pf.layout = stencil::gui::fileStore::buildLayoutJson(240, 160, {}, "none", "#7c3aed", {}, 0, {});
+    const QString path = QDir::temp().filePath("stencil_closeflush.stencil");
+    { QFile wf(path); QVERIFY(wf.open(QIODevice::WriteOnly | QIODevice::Truncate)); wf.write(stencil::gui::fileStore::buildProjectFile(pf)); }
+
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    win.openPathFromOS(path);
+    CanvasWidget* canvas = win.findChild<CanvasWidget*>();
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
+    actionByText(&win, "Live Sync with File")->setChecked(true);
+    settle([&win] { return !win.stencilSync->autosavePending(); }, 3000);   // the switch's own save
+    actionByText(&win, "Rotate Right")->trigger();
+    QVERIFY(win.stencilSync->autosavePending());
+    win.close();
+    QFile rf(path);
+    QVERIFY(rf.open(QIODevice::ReadOnly));
+    stencil::gui::fileStore::ProjectFileData out;
+    QVERIFY(stencil::gui::fileStore::parseProjectFile(rf.readAll(), out));
+    int w = 0, h = 0, rot = 0;
+    stencil::gui::fileStore::parseLayoutJson(out.layout, w, h, nullptr, &rot);
+    QCOMPARE(rot, 1);
     beat();
   }
 

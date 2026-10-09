@@ -1,4 +1,5 @@
 #include "motionIcons.hpp"
+#include "motionPrefs.hpp"
 
 namespace stencil::support {
 
@@ -109,7 +110,7 @@ namespace stencil::support {
     this->view->viewport()->installEventFilter(this);
     tick.setInterval(16);
     QObject::connect(&tick, &QTimer::timeout, this->view->viewport(), [this] {
-      if (clock.elapsed() > HOVER_MS) tick.stop();
+      if (support::motionElapsed(clock.elapsed(), scale) > HOVER_MS) tick.stop();
       this->view->viewport()->update();
     });
   }
@@ -121,7 +122,7 @@ namespace stencil::support {
     initStyleOption(&opt, index);
     const QString mode = index.data(Qt::UserRole).toString();
     const bool hovered = index.row() == hoverRow;
-    const double ms = hovered ? double(clock.elapsed()) : 1e9;
+    const double ms = hovered ? double(support::motionElapsed(clock.elapsed(), scale)) : 1e9;
     // The browser's 16px, not PM_SmallIconSize (half again as big on a Mac).
     opt.decorationSize = QSize(MOTION_ICON_PX, MOTION_ICON_PX);
     const double dpr = p->device() ? p->device()->devicePixelRatio() : 1.0;
@@ -138,7 +139,7 @@ namespace stencil::support {
       const QPoint pos = e->type() == QEvent::MouseMove ? static_cast<QMouseEvent*>(e)->pos()
                                                         : static_cast<QHoverEvent*>(e)->position().toPoint();
       const int row = view->indexAt(pos).row();
-      if (row != hoverRow) { hoverRow = row; clock.restart(); tick.start(); }
+      if (row != hoverRow) { hoverRow = row; clock.restart(); scale = support::motionScale(); tick.start(); }
     } else if (watched == view->viewport() && e->type() == QEvent::Leave) {
       hoverRow = -1;
       tick.stop();
@@ -156,6 +157,7 @@ namespace stencil::support {
 
   void MotionIconFace::play() {
     clock.restart();
+    scale = support::motionScale();
     tick.start();
     frame();
   }
@@ -184,7 +186,7 @@ namespace stencil::support {
     const int row = combo->currentIndex();
     if (row < 0) { tick.stop(); return; }
     const QString mode = combo->itemData(row).toString();
-    const double ms = clock.elapsed();
+    const double ms = support::motionElapsed(clock.elapsed(), scale);
     const bool done = ms >= motionIconMs(mode);
     const double dpr = combo->devicePixelRatioF();
     combo->setItemIcon(row, motionIconFrame(mode, combo->palette().color(QPalette::Text),

@@ -1,4 +1,4 @@
-import { motionReduced } from './motionPrefs.js';
+import { motionMs, motionReduced } from './motionPrefs.js';
 
 // The desktop dialog's own height ease (openImageDialogParts.hpp OI_RESIZE_MS).
 export const BOX_RESIZE_MS = 380;
@@ -33,7 +33,7 @@ export const easeBoxHeight = (box, scroller, ms = BOX_RESIZE_MS) => {
     // start is pinned here — unpinned, the box paints one frame at the target and rewinds.
     box.style.height = `${from}px`;
     const f = box.animate([{ height: `${from}px` }, { height: `${want}px` }],
-                          { duration: ms, easing: BOX_RESIZE_EASE });
+                          { duration: motionMs(ms), easing: BOX_RESIZE_EASE });
     flight = f;
     f.finished.then(() => { if (flight === f) { flight = null; release(); } }, () => {});
   });
@@ -49,7 +49,7 @@ export const releaseHeldHeight = (el, held, ms = BOX_RESIZE_MS) => {
   if (!(held > want) || motionReduced() || typeof el.animate !== 'function') return () => {};
   el.style.minHeight = `${held}px`;   // the flight's first frame is the next one: pinned till then
   const f = el.animate([{ minHeight: `${held}px` }, { minHeight: `${want}px` }],
-                       { duration: ms, easing: BOX_RESIZE_EASE, fill: 'forwards' });
+                       { duration: motionMs(ms), easing: BOX_RESIZE_EASE, fill: 'forwards' });
   const done = () => { f.cancel(); el.style.minHeight = ''; };
   f.finished.then(done, () => {});
   return done;

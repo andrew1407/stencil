@@ -26,7 +26,7 @@ const rig = (serverLines, localLines) => {
     lines: localLines, filterDirty: true,
     history: { push() {} }, renderer: { redraw() {} },
   };
-  const hooks = { saved() {}, toast() {}, reload() {}, adoptServerFilter() {} };
+  const hooks = { saved() {}, toast() {}, reload() {}, adoptServerFilter() {}, live: () => true };
   return { app, hooks, puts };
 };
 

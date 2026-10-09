@@ -67,16 +67,6 @@ export const cellRuns = (grid) => {
   return runs;
 };
 
-// The colour the finished picture holds at pixel (px, py): the last cloud block over the cell.
-export const pixelColorAt = (px, py) => {
-  const grid = cellGrid();
-  const cx = Math.floor(px / grid.cell), cy = Math.floor(py / grid.cell);
-  let color = cellColorAt(cx, cy, grid);
-  for (const b of cloudBlocks())
-    if (cx >= b.x && cx < b.x + b.w && cy >= b.y && cy < b.y + b.h) color = b.color;
-  return color;
-};
-
 const round2 = (v) => Math.round(v * 100) / 100;
 
 // The word as closed, locked, filled lines across the sky of a w×h image, one colour each.

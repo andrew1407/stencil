@@ -2,7 +2,7 @@
 // (DockChrome::panelSurfaceFlight): its card is not painted, its header and table hold their open
 // boxes as the picture the grains leave or form over, and the layout slides beneath on the one slide
 // both apps read from config/motion.json (animations/collapse.css; desktop setPanelShown).
-import { FOLD_INSTANT_CLASS, foldBox, foldDust, motionReduced, sweepDust } from '../motion.js';
+import { FOLD_INSTANT_CLASS, foldBox, foldDust, motionMs, motionReduced, sweepDust } from '../motion.js';
 import { TUNE } from '../motion/tune.js';
 
 const COLLAPSED = 'coord-collapsed';
@@ -65,12 +65,12 @@ export function createCoordFold(panel, header, body) {
       pin(body, table);
       panel.classList.add(VEILED_CLASS);
       // Closing, the rail is back as the last grains go; opening, the card as the slide lands.
-      timer = setTimeout(settle, hidden ? PANEL_DUST_OUT_MS : PANEL_SLIDE_IN_MS, hidden);
+      timer = setTimeout(settle, motionMs(hidden ? PANEL_DUST_OUT_MS : PANEL_SLIDE_IN_MS), hidden);
       return;
     }
     // Hold the table out of the layout for half the slide (.coord-folding,
     // animations/collapse.css), by when the out-sine ease is ~70% done.
     const slide = hidden ? PANEL_SLIDE_OUT_MS : PANEL_SLIDE_IN_MS;
-    timer = setTimeout(() => panel.classList.remove(FOLDING), still ? 0 : slide / 2);
+    timer = setTimeout(() => panel.classList.remove(FOLDING), still ? 0 : motionMs(slide / 2));
   };
 }

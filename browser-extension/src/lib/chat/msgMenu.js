@@ -40,12 +40,12 @@ export const clampMenuPosition = ({ x, y, size, viewport, margin = 6 }) => {
   return { left: Math.max(margin, x), top: Math.max(margin, y) };
 };
 
-// The jump pills win: a "…" that would sit under one rises clear of it, or hides where
+// The jump pills win: a "…" under one rises clear of it by this many px, or hides where
 // there is no room to — the desktop's placeChatCardMore and the browser's view.js.
-export const MSG_MENU_JUMP_GAP = 6;   // px clearance once lifted clear of the pills
+export const CHAT_ROW_MENU_JUMP_GAP = 6;
 
 // px `btn` must rise to clear every pill it overlaps; 0 when none touch it.
-export const msgMenuLiftPx = (btn, pills = [], gap = MSG_MENU_JUMP_GAP) => {
+export const rowMenuLiftPx = (btn, pills = [], gap = CHAT_ROW_MENU_JUMP_GAP) => {
   if (!btn || !(btn.width > 0)) return 0;
   let lift = 0;
   for (const p of pills) {
@@ -58,9 +58,9 @@ export const msgMenuLiftPx = (btn, pills = [], gap = MSG_MENU_JUMP_GAP) => {
 };
 
 // A short bubble has nowhere to lift the trigger TO; the caller hides it instead.
-export const msgMenuLiftFits = (bubble, btn, lift) => {
-  if (!bubble || !btn || !(lift > 0)) return true;
-  return btn.top - lift >= bubble.top;
+export const rowMenuLiftFits = (row, btn, lift) => {
+  if (!row || !btn || !(lift > 0)) return true;
+  return btn.top - lift >= row.top;
 };
 
 // The click point relative to the clamped menu box, held inside it so a clamped-away

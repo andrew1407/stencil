@@ -9,9 +9,11 @@ class QComboBox;
 class QCheckBox;
 class QDoubleSpinBox;
 class QLabel;
+class QSlider;
 class QLineEdit;
 class QPushButton;
 class QSpinBox;
+class QTimer;
 class QVBoxLayout;
 class QWidget;
 
@@ -20,6 +22,7 @@ class QWidget;
 // and a footer hint beside Reset All. Live-apply, like the browser — no Save/Cancel,
 // just Close. Desktop-only preferences ride along as extra sections. The AI-assistant
 // rows are commit/discard and live in AssistantSettingsDialog (the chat dock's gear).
+
 namespace stencil::gui {
 
   class SettingsDialog : public QDialog {
@@ -54,6 +57,8 @@ namespace stencil::gui {
     // Section builders, in the order the browser's modal lists them.
     void buildAppearanceRows(Rows& r, const Settings& current);
     void buildMotionRows(Rows& r, const Settings& current);
+    void resetMotionRows();
+    void setMotionSpeedRow(double speed);   // both speed controls, without either echoing
     void buildNotifyRows(Rows& r, const Settings& current);
     void buildDrawingRows(Rows& r, const Settings& current);
     void buildPreferenceRows(Rows& r, const Settings& current);
@@ -79,7 +84,6 @@ namespace stencil::gui {
     // the stored switches — so an untouched dialog hands the stored ones back unchanged.
     QString heldMotionMode;
     bool heldDrawAnim = true;
-    bool heldBackdrop = true;
     bool motionTouched = false;
 
     std::function<void(const Settings&)> onChange;
@@ -100,9 +104,11 @@ namespace stencil::gui {
     QDoubleSpinBox* customH = nullptr;
     QSpinBox* holdDelay = nullptr;
     QCheckBox* drawAnim = nullptr;         // canvas stroke motion (browser vs-draw-anim)
-    QCheckBox* modalBackdrop = nullptr;    // dim+blur behind windows (browser vs-modal-backdrop)
     QCheckBox* multiWindow = nullptr;      // windows side by side (browser vs-multi-window)
     QComboBox* motionMode = nullptr;       // particles | water | fire | slide | none (browser vs-motion-mode)
+    QDoubleSpinBox* motionSpeedSpin = nullptr;   // the animation speed (browser vs-motion-speed)
+    QSlider* motionSpeed = nullptr;              // …and the same in hundredths
+    QTimer* speedSettle = nullptr;   // the full apply once a dragged or key-held speed rests
     QComboBox* notifyChannel = nullptr;    // toast | system (browser vs-notify-channel)
     QPushButton* selGlow = nullptr;        // selection highlight glow
     QPushButton* hoverRing = nullptr;      // point hover ring
@@ -117,6 +123,7 @@ namespace stencil::gui {
     QList<QWidget*> columnFields;   // every control sized to the column
     // The browser's ONE control column (--vs-ctrl-w), and its width now, scaled with the window.
     static constexpr int CTRL_W = 180;
+    static constexpr int SPEED_SETTLE_MS = 250;   // ms the speed rests before the whole-window apply
     int ctrlW = CTRL_W;
   };
 

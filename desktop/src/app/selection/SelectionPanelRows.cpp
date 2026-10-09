@@ -48,7 +48,7 @@ namespace stencil::gui {
   void SelectionPanel::showLine(const core::Line* line, int selectedPoint,
                                 const std::vector<PageRow>& pageRows) {
     points->clearSpans();    // the empty-state row spans the table; a real one must not
-    points->setRowCount(0);  // clear rows (NOT clear() — that would drop the header labels)
+    clearRows(points);  // rows only (NOT clear() — that would drop the header labels)
 
     if (!line || line->points.empty()) { showEmptyPoints(); return; }
     points->horizontalHeader()->show();   // …and back once there are rows to head

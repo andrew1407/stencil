@@ -24,7 +24,7 @@ public abstract class ScriptServiceTestBase : IDisposable
 
     protected ScriptServiceTestBase()
     {
-        _root = Path.Combine(Path.GetTempPath(), "stencil-script-" + Guid.NewGuid().ToString("N"));
+        _root = TempDirs.New("script");
         BotOptions options = new() { DataDir = _root };
         _workspace = new UserWorkspace(options);
         _editing = new EditingService(_cli, _workspace, _store);
@@ -34,7 +34,7 @@ public abstract class ScriptServiceTestBase : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_root, recursive: true); } catch { /* best effort */ }
+        TempDirs.Delete(_root);
         GC.SuppressFinalize(this);
     }
 

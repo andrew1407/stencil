@@ -1,4 +1,4 @@
-import { dustEnabled } from './motionPrefs.js';
+import { dustEnabled, motionClock, motionMs } from './motionPrefs.js';
 import { startCloud, resolveColour, paletteCss } from '../dust/cloud.js';
 import { speckPainter } from './surface/painters.js';
 import { SURFACE_SPREAD, surfaceMotion } from './surface/motion.js';
@@ -9,12 +9,21 @@ const DUST_SCOPE = '.app-modal-overlay, [data-dust-scope]';
 const scopeOpen = (scope) => typeof scope.matches !== 'function'
   || scope.matches(scope.dataset?.dustScope || '.modal-open');
 
+// The nearest ancestor that scrolls: a cloud is position:fixed, so its list never clips it.
+export const scrollerOf = (el) => {
+  for (let a = el?.parentElement; a && a !== document.body; a = a.parentElement) {
+    const s = globalThis.getComputedStyle?.(a);
+    if (s && /auto|scroll/.test(`${s.overflowY} ${s.overflowX}`)) return a;
+  }
+  return null;
+};
+
 export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE_ROWS,
                                    gather = false, toward = null, ms = 0, px = MOTE_PX,
                                    spread = SURFACE_SPREAD, drift = 1, toBody = false,
                                    hostClass = '', paintTile = null, own = true, box = null,
                                    delayScale = null, flight = null, scoped = true, picture = false,
-                                   anchor = null, anchorBox = null, zIndex = null } = {}) {
+                                   anchor = null, anchorBox = null, zIndex = null, clip = null } = {}) {
   if (typeof document === 'undefined' || !el?.getBoundingClientRect || !document.body) return false;
 // Every element-sized cloud is built here, so this is where the motion mode turns
 // particles off; `false` leaves the caller on its own CSS entrance.
@@ -28,6 +37,10 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     if (r.width < 4 || r.height < 4) return false;
     const scope = scoped ? el.closest?.(DUST_SCOPE) : null;
     if (scope && !scopeOpen(scope)) return false;
+// `clip`: an element (or true for the row's scroller) the motes stay inside; a row out of its
+// view flies nothing.
+    const c = (clip === true ? scrollerOf(el) : clip)?.getBoundingClientRect?.();
+    if (c && !(c.bottom > r.top && c.top < r.bottom && c.right > r.left && c.left < r.right)) return false;
     ({ cols, rows } = reshapeGrid(cols, rows, r.width, r.height, px));
     const paint = paintTile || speckPainter(el);
     const host = document.createElement('div');
@@ -53,6 +66,9 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     host.style.top = `${r.top}px`;
     host.style.width = `${r.width}px`;
     host.style.height = `${r.height}px`;
+// Negative insets reach past the host, so a mote is cut only at the scroller's edge.
+    if (c) host.style.clipPath = `inset(${Math.round(c.top - r.top)}px ${Math.round(r.right - c.right)}px `
+      + `${Math.round(r.bottom - c.bottom)}px ${Math.round(c.left - r.left)}px)`;
     const cellW = r.width / cols;
     const cellH = r.height / rows;
 // Every grain computed once; the cloud is one canvas evaluating these per frame
@@ -100,7 +116,7 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     host.appendChild(probe);
     const fills = paints.map((css) => resolveColour(document, css, probe));
     probe.remove();
-    startCloud(host, motes, { flight: kind, span, colours: fills, origin: { x: r.left, y: r.top }, style });
+    startCloud(host, motes, { flight: kind, span, colours: fills, origin: { x: r.left, y: r.top }, style, now: motionClock() });
 // `anchor`: what the cloud rides as it moves (a control in a modal easing its height);
 // `anchorBox` is its box when the cloud was measured, if that was not now.
     if (anchor) followDust(host, anchor, span, anchorBox || (anchor === el && !box ? r : undefined));
@@ -108,7 +124,7 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
       host.__stop?.();
       host.remove();
       if (el.__dustHost === host) { el.__dustHost = null; el.__dustTimer = null; }
-    }, span + 150);
+    }, motionMs(span + 150));
     if (own) { el.__dustHost = host; el.__dustTimer = life; }
     return true;
   } catch {

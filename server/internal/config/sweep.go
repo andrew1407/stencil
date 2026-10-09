@@ -2,11 +2,16 @@
 // that clears bytes no project row owns and temp files a crashed upload left behind.
 package config
 
-import "time"
+import (
+	"fmt"
+	"time"
+
+	"stencil/server/internal/store"
+)
 
 // SweepOptions sizes the periodic maintenance passes.
 type SweepOptions struct {
-	Batch     int           // SWEEP_BATCH: rows one DELETE ... RETURNING takes
+	Batch     int           // SWEEP_BATCH: rows one DELETE ... RETURNING takes, at most store.MaxSweepBatch
 	Workers   int           // SWEEP_WORKERS: concurrent per-project byte drops
 	Reconcile time.Duration // FILESTORE_RECONCILE_MINUTES: reconcile cadence; 0 disables it
 	TmpMaxAge time.Duration // FILESTORE_TMP_MAX_AGE_MINUTES: an upload temp file older than this is dead
@@ -25,6 +30,10 @@ func loadSweep(get getter, cfg *Config) error {
 	var err error
 	if s.Batch, err = positiveInt(get, "SWEEP_BATCH", defaultSweepBatch, 1); err != nil {
 		return err
+	}
+	// The store clamps a batch to its cap, so a larger one would read every full pass as the last.
+	if s.Batch > store.MaxSweepBatch {
+		return fmt.Errorf("config: SWEEP_BATCH %d is over the store's batch cap %d", s.Batch, store.MaxSweepBatch)
 	}
 	if s.Workers, err = positiveInt(get, "SWEEP_WORKERS", defaultSweepWorkers, 1); err != nil {
 		return err

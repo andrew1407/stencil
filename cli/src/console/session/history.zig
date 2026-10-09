@@ -4,6 +4,8 @@ const Session = @import("../session.zig").Session;
 const image = @import("../../media/image.zig");
 const EditState = @import("../session.zig").EditState;
 const max_states = @import("../session.zig").max_states;
+const state_mod = @import("state.zig");
+const core = @import("../../core.zig");
 const freeImg = @import("../session.zig").freeImg;
 const rasterizeLinesJson = @import("../session.zig").rasterizeLinesJson;
 
@@ -28,7 +30,10 @@ pub fn state(self: *Session) EditState {
 
 /// Push `next` as the new current state (dropping any redo states), then rebuild the view. Takes
 /// ownership of `next` only on a successful append; a rebuild failure leaves the old view standing.
-pub fn pushState(self: *Session, next: EditState) !void {
+/// Past max_states, then while the points kept pass core's cap, the oldest edits drop off the front.
+pub fn pushState(self: *Session, pushed: EditState) !void {
+    var next = pushed;
+    next.points = state_mod.pointsIn(self.gpa, next.lines());
     self.dropAfterCursor();
     if (self.run_floor) |floor| if (self.cursor > floor) {
         self.history.items[self.cursor].deinit(self.gpa);
@@ -38,7 +43,8 @@ pub fn pushState(self: *Session, next: EditState) !void {
     };
     try self.history.append(self.gpa, next); // append fails BEFORE ownership → caller frees
     self.cursor = self.history.items.len - 1;
-    while (self.history.items.len > max_states) {
+    var drop = state_mod.evictions(self.history.items, max_states, core.historyCaps().points);
+    while (drop > 0) : (drop -= 1) {
         self.history.items[1].deinit(self.gpa);
         _ = self.history.orderedRemove(1);
         self.cursor -= 1;

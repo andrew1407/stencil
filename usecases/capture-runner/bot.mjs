@@ -219,4 +219,4 @@ const STEPS = Object.freeze([
 console.log('bot chat');
 await runner.play(STEPS, { photo: false });
 await context.close();
-runner.finish();
+await runner.finish();

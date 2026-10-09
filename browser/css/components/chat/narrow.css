@@ -55,7 +55,8 @@
 .chat-ask-answered .chat-ask-option { cursor: default; }
 .chat-ask-sent { color: var(--text-muted); font-style: italic; }
 
-.chat-results { display: flex; flex-wrap: wrap; gap: 8px; align-self: flex-start; }
+/* One column as wide as its widest card: every card shares that width, so the buttons line up. */
+.chat-results { display: inline-grid; grid-template-columns: minmax(0, max-content); gap: 8px; align-self: flex-start; max-width: 100%; }
 .chat-result {
     display: flex;
     align-items: center;
@@ -74,7 +75,9 @@
     border: 1px solid var(--border-main);
 }
 .chat-result-label { color: var(--text-muted); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.chat-result-btn { display: inline-flex; }
+/* The toolbar's accent square (a bare button), at the composer buttons' scale. */
+.chat-result-btn { width: 28px; height: 28px; padding: 0; flex: 0 0 auto; border-radius: 6px; }
+.chat-result-label + .chat-result-btn { margin-left: auto; }
 
 /* What the USER attached to a turn: thumbnails above their own message, so they sit
    on the user's side of the transcript (flex-end) like the bubble they belong to. */

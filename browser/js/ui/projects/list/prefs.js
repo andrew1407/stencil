@@ -1,7 +1,7 @@
 // The projects list's session preferences: sort mode, the manual drag order and the search
 // scope. sessionStorage only — never the shared localStorage registry with its C++ core twin.
 import { rowMatches } from '../../base.js';
-import { SORT_MODES } from '../window/projectSort.js';
+import { SORT_MODES, DEFAULT_SORT_MODE } from '../window/projectSort.js';
 
 const SORT_KEY = 'stencil_projects_sortmode';
 const ORDER_KEY = 'stencil_projects_order';
@@ -11,7 +11,7 @@ const ssGet = (k) => { try { return window.sessionStorage.getItem(k); } catch { 
 const ssSet = (k, v) => { try { window.sessionStorage.setItem(k, v); } catch { /* private mode / disabled */ } };
 
 export function createListPrefs({ sortEl, searchModeEl }) {
-  const loadSortMode = () => { const v = ssGet(SORT_KEY); return SORT_MODES.includes(v) ? v : 'name'; };
+  const loadSortMode = () => { const v = ssGet(SORT_KEY); return SORT_MODES.includes(v) ? v : DEFAULT_SORT_MODE; };
   const loadSearchMode = () => { const v = ssGet(SEARCH_MODE_KEY); return SEARCH_MODES.includes(v) ? v : 'common'; };
   let sortMode = loadSortMode();
   let searchMode = loadSearchMode();

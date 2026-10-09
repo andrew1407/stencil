@@ -57,7 +57,7 @@ namespace stencil::gui {
       ctl::flyReveal(row, pm, QRect(row->mapTo(m, QPoint(0, 0)), QSize(row->width(), full)), show, ms);
       QGraphicsOpacityEffect* veil = veilBehindDust(row);   // while the motes fly, they ARE the row
       auto* anim = new QVariantAnimation(row);
-      anim->setDuration(ms);
+      anim->setDuration(support::motionMs(ms));
       anim->setStartValue(show ? 0 : full);
       anim->setEndValue(show ? full : 0);
       anim->setEasingCurve(QEasingCurve::InOutCubic);

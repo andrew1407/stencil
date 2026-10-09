@@ -79,3 +79,17 @@ test('a number or formula field resets to the editor default; the point colour t
   assert.equal(inputs, 1, 'the formula commits from its input event');
   assert.equal(defaultOf(new FakeControl({ id: 'point-color', type: 'color', value: '#000000' })), '#ffff00');
 });
+
+test('every Visuals row has a default its title can put back, the speed and the sort included', () => {
+  assert.equal(defaultOf(new FakeControl({ id: 'vs-motion-speed-value', type: 'number', value: '0.8' })), '0.37');
+  assert.equal(defaultOf(new FakeControl({ id: 'vs-motion-speed', type: 'range', value: '0.8' })), '0.37');
+  assert.equal(defaultOf(new FakeControl({ id: 'vs-thickness', type: 'number', value: '9' })), '2');
+  assert.equal(defaultOf(new FakeControl({ id: 'vs-hold-delay', type: 'number', value: '900' })), '500');
+  assert.equal(defaultOf(new FakeControl({ id: 'vs-voice-silence', type: 'number', value: '3000' })), '1000');
+  assert.equal(defaultOf(new FakeControl({ id: 'vs-multi-window', type: 'checkbox', checked: true })), false);
+  assert.equal(defaultOf(select('projects-sort', 'name', ['opened-desc', 'name'])), 'opened-desc');
+  const bar = new FakeControl({ id: 'vs-motion-speed', type: 'range', value: '0.9' });
+  const seen = changes(bar);
+  assert.equal(resetControl(bar), true);
+  assert.deepEqual(seen, ['0.37']);
+});

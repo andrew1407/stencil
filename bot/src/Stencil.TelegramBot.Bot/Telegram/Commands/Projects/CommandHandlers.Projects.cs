@@ -29,7 +29,7 @@ public sealed partial class CommandHandlers
         if (cmd.ArgumentText.Length == 0)
         {
             IReadOnlyList<ServerProjectInfo> projects = await _servers.ListProjectsAsync(userId, null, ct);
-            string text = $"{Replies.ProjectsText(projects)}\n\nUsage: /fetch <project name or id>";
+            string text = $"{Replies.ProjectsText(projects)}\n\n{Replies.FetchUsage()}";
             await _bot.SendMessage(
                 chatId,
                 text,
@@ -41,7 +41,7 @@ public sealed partial class CommandHandlers
         // §12: with chat saving on, a fetched project brings its persisted chat back (never a model
         // call).
         int restored = await tryRestoreChatAsync(userId, session, ct);
-        string loaded = Replies.Tag(Replies.Tone.SUCCESS, $"Loaded project '{session.ActiveProjectName}'.");
+        string loaded = Replies.Tag(Replies.Tone.SUCCESS, Replies.ProjectLoaded(session.ActiveProjectName));
         if (restored > 0)
         {
             loaded += "\n" + Replies.ChatRestored(restored);
@@ -56,17 +56,16 @@ public sealed partial class CommandHandlers
         ProjectRecord record = await _servers.CreateProjectAsync(userId, name, null, ct);
         await _bot.SendMessage(
             chatId,
-            Replies.Tag(Replies.Tone.SUCCESS,
-                $"Created project '{record.Name}' (id {record.Id}, v{record.Version})."),
+            Replies.Tag(Replies.Tone.SUCCESS, Replies.ProjectCreated(record.Name, record.Id, record.Version)),
             cancellationToken: ct);
     }
 
     private async Task saveAsync(long userId, long chatId, CancellationToken ct)
     {
-        ProjectRecord record = await _servers.SaveActiveProjectAsync(userId, ct);
+        ProjectRecord record = await _servers.SaveActiveProjectAsync(userId, ct: ct);
         await _bot.SendMessage(
             chatId,
-            Replies.Tag(Replies.Tone.SUCCESS, $"Saved '{record.Name}' (v{record.Version})."),
+            Replies.Tag(Replies.Tone.SUCCESS, Replies.ProjectSaved(record.Name, record.Version)),
             cancellationToken: ct);
     }
 
@@ -78,19 +77,19 @@ public sealed partial class CommandHandlers
             : cmd.Args[0] is "on" or "true" or "1" or "yes";
         if (target && session.ActiveProjectId is null)
         {
-            await _bot.SendMessage(chatId, "Open a server project first (/fetch or /create), then /sync on.", cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.SyncNeedsProject(), cancellationToken: ct);
             return;
         }
         await _store.SaveAsync(session with { SyncEnabled = target }, ct);
         if (target)
         {
             _sync.Enable(userId, chatId);
-            await _bot.SendMessage(chatId, "🔄 Live sync ON — your edits upload automatically, and a peer's changes are pulled into the chat.", cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.SyncOn(), cancellationToken: ct);
         }
         else
         {
             _sync.Disable(userId);
-            await _bot.SendMessage(chatId, "Live sync OFF. Use /save to push changes manually.", cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.SyncOff(), cancellationToken: ct);
         }
     }
 }

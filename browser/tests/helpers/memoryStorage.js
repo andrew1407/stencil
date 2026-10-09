@@ -73,3 +73,15 @@ export const installMemoryStorage = (init = {}, opts = {}) => {
   };
   return storage;
 };
+
+// An async Map standing in for the IndexedDB key-value store; `opts.failSet` makes every write throw.
+export const makeKv = (init = {}, opts = {}) => {
+  const m = new Map(Object.entries(init));
+  return {
+    _map: m,
+    async get(k) { return m.has(k) ? m.get(k) : undefined; },
+    async set(k, v) { if (opts.failSet) throw new Error('idb set'); m.set(k, v); },
+    async remove(k) { m.delete(k); },
+    async entries() { return Array.from(m.entries()); },
+  };
+};

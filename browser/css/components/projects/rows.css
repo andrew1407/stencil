@@ -27,7 +27,7 @@
 .project-thumb-zoom {
     position: fixed; z-index: 100002; display: none; pointer-events: none;
     padding: 4px; background: var(--input-bg); border-radius: 8px;
-    border: 2px solid var(--remote-gold); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+    border: 2px solid var(--accent); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
     /* positionZoom pins the box per move; the clip covers a picture not yet shrunk. */
     overflow: hidden;
 }

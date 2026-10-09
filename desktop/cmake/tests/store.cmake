@@ -1,6 +1,11 @@
 # The canvas's fixture runs, and what the store persists and carries: layouts, project colour
 # and keywords, the .stencil file, the transfer, deep links and the live feed.
 
+# The deferred JSON writer (io/deferredWrite): coalescing, an overtaken write, owner-only files.
+stencil_headless_test(stencil_deferredwrite_headless
+  SOURCES tests/io/deferredWrite.headless.cpp src/io/deferredWrite.cpp
+  LIBS Qt6::Core)
+
 # Hold-to-draw + selection-delete headless check (CanvasWidget public API).
 stencil_headless_test(stencil_holddraw_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
@@ -61,6 +66,7 @@ stencil_headless_test(stencil_projecttransfer_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/app/project/projectTransfer.headless.cpp src/app/project/ProjectTransferController.cpp src/app/project/ProjectTransferImport.cpp
+    src/app/meta/SharedState.cpp
     ${STENCIL_SERVERCLIENT_SOURCES} ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
     ${STENCIL_THEME_SOURCES} ${STENCIL_NOTIFY_SOURCES} src/support/icon/iconSet.cpp
     src/support/logo/logoStageRules.cpp src/support/logo/logoStageConfig.cpp

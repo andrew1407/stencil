@@ -1,7 +1,8 @@
-import { dustEnabled } from '../motionPrefs.js';
+import { dustEnabled, motionMs, motionScale } from '../motionPrefs.js';
 import { resolveColour, paletteCss, styleFrame, tintOf, stopOfTint, dustMix, grainShape, headingOf, fillGrains, edgeDipOf } from '../../dust/cloud.js';
 import { DUST_ALPHA_LEVELS } from './canvasDustStage.js';
-import { THEME_SWAP_MS, bezierY, swapEase, swapRadius } from '../surface/themeSwap.js';
+import { bezierY } from '../../dust/flight.js';
+import { THEME_SWAP_MS, swapEase, swapRadius } from '../surface/themeSwap.js';
 import { tileNoise } from '../surface/tiles.js';
 import { TUNE, styleCode } from '../tune.js';
 // The torn front kicks up dust in the OLD palette's colours, always just inside the clip:
@@ -135,6 +136,7 @@ export function spawnSwapDust(px, paint) {
     const tints = Int8Array.from(specs, (s) => tintOf(s.w));
     const total = THEME_SWAP_MS + SWAP_DUST_LIFE_MS;
     const started = performance.now();
+    const scale = motionScale();
     let raf = 0;
     const stop = () => {
       if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(raf);
@@ -143,7 +145,7 @@ export function spawnSwapDust(px, paint) {
       if (root._swapDustStop === stop) { root._swapDustStop = null; root._swapDustTimer = null; }
     };
     const frame = (now) => {
-      const ms = now - started;
+      const ms = (now - started) / scale;
       if (ms >= total) { stop(); return; }
       ctx.clearRect(0, 0, px.w, px.h);
       for (let i = 0; i < specs.length; i++) {
@@ -180,6 +182,6 @@ export function spawnSwapDust(px, paint) {
     raf = requestAnimationFrame(frame);
     root._swapDustStop = stop;
 // A throttled rAF (a backgrounded tab) would otherwise leave the stage over the page for good.
-    root._swapDustTimer = setTimeout(stop, total + 200);
+    root._swapDustTimer = setTimeout(stop, motionMs(total + 200));
   } catch { /* decoration only — the swap carries on regardless */ }
 }

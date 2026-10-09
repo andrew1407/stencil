@@ -61,7 +61,7 @@ namespace stencil::gui {
     panel->setChatSwapSides(settings.chatSwapSides);   // the same preference the dock's row drives
     connect(panel, &ChatMenuPanel::chatSwapSidesChanged, this, [this](bool on) {
       settings.chatSwapSides = on;
-      fileStore::saveSettings(settings);
+      if (h.persistSettings) h.persistSettings();
       if (chatDock) chatDock->setChatSwapSides(on);
     });
     // Created LAZILY: replay what the dock DISPLAYED — never chatHistory, which carries the §7 continuation note and interim rounds.

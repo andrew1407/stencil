@@ -74,7 +74,7 @@ namespace stencil::gui {
     batch.checked.remove(key);             // …and it stops counting towards the selection bar
     // Nothing flew, so there is no dust to outlive: the slot goes with the row (ConnectDialog
     // parity, browser wipeDurationMs). Held open, an empty gap sat there for a second and a half.
-    const int hold = support::isDustAllowed() ? DisintegrateOverlay::ITEM_MS : 0;
+    const int hold = support::isDustAllowed() ? support::motionMs(DisintegrateOverlay::ITEM_MS) : 0;
     QTimer::singleShot(hold, this, [this, key] {
       // Re-found by key: a re-list may have rebuilt the rows (fresh ones aren't doomed).
       for (int i = 0; i < list->count(); ++i)

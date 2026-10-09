@@ -25,9 +25,9 @@ beforeEach(() => {
   savedSharedWorker = globalThis.SharedWorker;
   savedWindow = globalThis.window;
   globalThis.SharedWorker = MockSharedWorker;
-  // #trySharedWorker wires a `beforeunload` listener and projectsChanged()
-  // dispatches a DOM event — both best-effort, so a no-op window suffices.
-  globalThis.window = { addEventListener() {}, dispatchEvent() {} };
+  // #trySharedWorker wires the page lifecycle listeners (kept, to fire them below) and
+  // projectsChanged() dispatches a DOM event — best-effort, so a bare window suffices.
+  globalThis.window = { listeners: {}, addEventListener(ev, fn) { (this.listeners[ev] ||= []).push(fn); }, dispatchEvent() {} };
 });
 
 afterEach(() => {
@@ -38,6 +38,7 @@ afterEach(() => {
 });
 
 const port = () => MockSharedWorker.last.port;
+const fire = (ev, e = {}) => (globalThis.window.listeners[ev] || []).forEach((fn) => fn(e));
 
 test('uses the SharedWorker transport and says hello', () => {
   new TabsCoordinator();
@@ -124,4 +125,42 @@ test('outgoing broadcastAccent posts an ACCENT control message to the worker', (
   port().sent.length = 0; // drop the initial HELLO
   tabs.broadcastAccent('amber');
   assert.deepEqual(port().sent, [{ type: MSG.ACCENT, key: 'amber' }]);
+});
+
+test('a cancelled unload keeps the tab counted: nothing is said on beforeunload', () => {
+  new TabsCoordinator();
+  assert.equal(globalThis.window.listeners.beforeunload, undefined);
+  fire('beforeunload');
+  assert.deepEqual(port().sent, [{ type: MSG.HELLO }]);
+});
+
+test('pagehide says BYE; a bfcache restore says HELLO again with the tab\'s state', () => {
+  const tabs = new TabsCoordinator();
+  tabs.reportActive('p1');
+  port().sent.length = 0;
+  fire('pagehide');
+  assert.deepEqual(port().sent, [{ type: MSG.BYE }]);
+  fire('pageshow', { persisted: false });
+  assert.equal(port().sent.length, 1, 'a fresh load already said hello in the constructor');
+  fire('pageshow', { persisted: true });
+  assert.deepEqual(port().sent.at(-1), { type: MSG.HELLO, activeId: 'p1', incognito: null });
+});
+
+test('the BroadcastChannel roll-call: BYE on pagehide, the roll-call again on a bfcache restore', () => {
+  delete globalThis.SharedWorker;
+  const savedChannel = globalThis.BroadcastChannel;
+  class MockChannel { constructor() { this.sent = []; MockChannel.last = this; } postMessage(m) { this.sent.push(m); } }
+  globalThis.BroadcastChannel = MockChannel;
+  try {
+    new TabsCoordinator();
+    const sent = MockChannel.last.sent;
+    assert.equal(sent[0].type, MSG.HELLO);
+    assert.equal(globalThis.window.listeners.beforeunload, undefined);
+    fire('pagehide');
+    assert.deepEqual(sent.at(-1), { type: MSG.BYE, peerId: sent[0].peerId });
+    fire('pageshow', { persisted: true });
+    assert.deepEqual(sent.at(-1), sent[0]);
+  } finally {
+    if (savedChannel === undefined) delete globalThis.BroadcastChannel; else globalThis.BroadcastChannel = savedChannel;
+  }
 });

@@ -7,33 +7,38 @@ import { lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFile
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { hookNote, itemsOf, loadManifest, normalizePort, regeneratePort } from './syncTwins.mjs';
+import { declaration, declarationShape, hookNote, itemsOf, loadManifest, normalizePort, regeneratePort } from './syncTwins.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const src = (rel) => readFileSync(path.join(ROOT, rel), 'utf8');
 const rel = (from, spec) => path.posix.normalize(path.posix.join(path.posix.dirname(from), spec));
 const between = (text, open, close = '\n];') => text.slice(text.indexOf(open), text.indexOf(close, text.indexOf(open)));
-const manifest = loadManifest();
+const manifest = await loadManifest();
 const key = (r) => `${r.from} -> ${r.to}`;
 
 // ── the pair tables, read out of each parity test ───────────────
 const PORT = 'browser-extension/tests/portParity.test.js';
+const FUNCS = 'browser-extension/tests/portParityFunctions.test.js';
 const DATA = 'browser-extension/tests/dataParity.test.js';
 const PARSER = 'vscode-extension/tests/parserParity.test.js';
+const LAYERS = 'vscode-extension/tests/layerBoundary.test.js';
 const PY = 'pystencil/tests/test_canonical_drift.py';
 
 const portRows = () => [...between(src(PORT), 'const MANIFEST = [').matchAll(/\['(\w+)', '([^']+)', '([^']+)'\]/g)]
   .map(([, name, a, b]) => ({ name, from: rel(PORT, a), to: rel(PORT, b) }));
 
 const functionRows = () => {
-  const port = [...between(src(PORT), 'const FUNCTIONS = [').matchAll(/\['(\w+)', '([^']+)', '([^']+)',\s*\[([^\]]*)\]\]/g)]
-    .map(([, name, a, b, list]) => ({ name, from: rel(PORT, a), to: rel(PORT, b), names: [...list.matchAll(/'(\w+)'/g)].map((m) => m[1]) }));
+  const port = [...between(src(FUNCS), 'const FUNCTIONS = [').matchAll(/\['(\w+)', '([^']+)', '([^']+)',\s*\[([^\]]*)\]\]/g)]
+    .map(([, name, a, b, list]) => ({ name, from: rel(FUNCS, a), to: rel(FUNCS, b), names: [...list.matchAll(/'(\w+)'/g)].map((m) => m[1]) }));
   const t = src(PARSER);
   const dir = (v) => rel(PARSER, new RegExp(`const ${v} = fileURLToPath\\(new URL\\('([^']+)'`).exec(t)[1]);
   const index = { name: 'parserIndex', from: dir('CORE') + /\$\{CORE\}(\w+\.js)/.exec(t)[1],
     to: dir('PARSER') + /\$\{PARSER\}(\w+\.js)/.exec(t)[1],
     names: [.../for \(const name of \[([^\]]+)\]\)/.exec(t)[1].matchAll(/'(\w+)'/g)].map((m) => m[1]) };
-  return [...port, index];
+  const l = src(LAYERS);
+  const scan = { name: 'layerScan', from: rel(LAYERS, /new URL\('([^']+)', import\.meta\.url\)/.exec(l)[1]), to: LAYERS,
+    names: [.../for \(const name of \[([^\]]+)\]\)/.exec(l)[1].matchAll(/'(\w+)'/g)].map((m) => m[1]) };
+  return [...port, index, scan];
 };
 
 const goCopies = () => {
@@ -102,9 +107,17 @@ test('every whole-file port and per-function port portParity pins is in the mani
   assert.deepEqual(manifest.functions.map(({ name, from, to, names }) => ({ name, from, to, names })), functionRows());
 });
 
-test('every pair in the manifest is in step now', () => {
-  const drifted = itemsOf(manifest).map((i) => [i.label, i.drift()]).filter(([, d]) => d.length);
+test('every pair in the manifest is in step now', async () => {
+  const drifted = (await Promise.all(itemsOf(manifest).map(async (i) => [i.label, await i.drift()]))).filter(([, d]) => d.length);
   assert.deepEqual(drifted, [], 'run `node tools/syncTwins.mjs` to re-copy from the originals');
+});
+
+test('declaration reads past regex literals and block comments, and finds an inline copy', () => {
+  const src = "export const f = (s) => {\n  const re = /url\\((['\"]?)\\)/g; /* } */\n  return s.replace(/\\//g, '_');\n};\nconst g = 1;\n";
+  assert.equal(declaration(src, 'f').split('\n').length, 4);
+  const inline = '(() => {\n  const f = (s) => {\n    return s;\n  };\n})();\n';
+  assert.equal(declarationShape(declaration(inline, 'f')), 'const f = (s) => {\n  return s;\n};');
+  assert.equal(declarationShape('export const x = 1;'), 'const x = 1;', 'export is placement');
 });
 
 // ── the sync itself, on a scratch tree ──────────────────────────
@@ -118,7 +131,7 @@ test('a port keeps its header and its own import spellings; the body follows the
   assert.deepEqual(regeneratePort('import { b } from \'./b.js\';\n', copy).missing, ['./b.js']);
 });
 
-test('sync brings every kind of row back in step, and --check sees it first', () => {
+test('sync brings every kind of row back in step, and --check sees it first', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'syncTwins-'));
   const put = (p, t) => { mkdirSync(path.dirname(path.join(root, p)), { recursive: true }); writeFileSync(path.join(root, p), t); };
   put('a/c.json', '{"k":1}\n'); put('b/c.json', '{"k":0}\n');
@@ -130,25 +143,26 @@ test('sync brings every kind of row back in step, and --check sees it first', ()
     trees: [{ from: 'a/t/', to: 'b/t/', ext: ['.js'] }], ports: [],
     functions: [{ name: 'f', from: 'a/f.js', to: 'b/f.js', names: ['f'] }] };
   const items = itemsOf(m, root);
-  assert.equal(items.filter((i) => i.drift().length).length, 4);
-  items.forEach((i) => i.sync());
-  assert.deepEqual(items.map((i) => i.drift()), [[], [], [], []]);
+  const drifts = () => Promise.all(items.map((i) => i.drift()));
+  assert.equal((await drifts()).filter((d) => d.length).length, 4);
+  for (const i of items) await i.sync();
+  assert.deepEqual(await drifts(), [[], [], [], []]);
   assert.equal(readFileSync(path.join(root, 'b/p.json'), 'utf8'), '{\n  "y": "2"\n}\n');
   assert.equal(existsSync(path.join(root, 'b/t/gone.js')), false);
   assert.match(readFileSync(path.join(root, 'b/f.js'), 'utf8'), /^\/\/ mine\n[\s\S]*return 2;[\s\S]*export const g = 0;\n$/);
 });
 
-test('the PostToolUse note names a drifted original, a hand-edited copy, and stays quiet otherwise', () => {
+test('the PostToolUse note names a drifted original, a hand-edited copy, and stays quiet otherwise', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'syncTwinsHook-'));
   const put = (p, t) => { mkdirSync(path.dirname(path.join(root, p)), { recursive: true }); writeFileSync(path.join(root, p), t); };
   put('tools/twins.json', JSON.stringify({ copies: [{ from: 'a/c.json', to: 'b/c.json' }], picks: [], trees: [], ports: [], functions: [] }));
   put('a/c.json', '1\n'); put('b/c.json', '1\n'); put('a/other.js', '');
   const note = (file) => hookNote({ tool_input: { file_path: file } }, root);
-  assert.equal(note(path.join(root, 'a/c.json')), null);
+  assert.equal(await note(path.join(root, 'a/c.json')), null);
   put('a/c.json', '2\n');
-  assert.match(note(path.join(root, 'a/c.json')), /^a\/c\.json has twins out of step \(b\/c\.json\)/);
-  assert.match(note('b/c.json'), /^b\/c\.json is a copy of a\/c\.json/);
-  assert.equal(note(path.join(root, 'a/other.js')), null);
-  assert.equal(note('/elsewhere/x.js'), null);
-  assert.equal(hookNote({}, root), null);
+  assert.match(await note(path.join(root, 'a/c.json')), /^a\/c\.json has twins out of step \(b\/c\.json\)/);
+  assert.match(await note('b/c.json'), /^b\/c\.json is a copy of a\/c\.json/);
+  assert.equal(await note(path.join(root, 'a/other.js')), null);
+  assert.equal(await note('/elsewhere/x.js'), null);
+  assert.equal(await hookNote({}, root), null);
 });

@@ -99,8 +99,10 @@ namespace stencil::gui {
                                                    Qt::WindowTransparentForInput |
                                                    Qt::WindowDoesNotAcceptFocus);
               hover.hoverPreview->setAttribute(Qt::WA_ShowWithoutActivating, true);
-              hover.hoverPreview->setStyleSheet(support::projectsHoverPreviewSheet());
             }
+            // Per appearance: the accent or theme may have changed since the last glance.
+            hover.hoverPreview->setStyleSheet(support::projectsHoverPreviewSheet(
+                palette().color(QPalette::Base), palette().color(QPalette::Highlight)));
             // Alt HELD magnifies (browser parity); the SOURCE rides along so the Alt toggle can re-scale without a move.
             const int edge =
                 (QGuiApplication::queryKeyboardModifiers() & Qt::AltModifier)

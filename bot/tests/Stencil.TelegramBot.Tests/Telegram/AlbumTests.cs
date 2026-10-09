@@ -34,7 +34,7 @@ public sealed class AlbumTests : IDisposable
 
     public AlbumTests()
     {
-        _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-album-" + Guid.NewGuid().ToString("N"));
+        _dataDir = TempDirs.New("bot-album");
         BotOptions options = new() { DataDir = _dataDir, AllowedUsers = AnyUser.Instance };
         EditingService editing = new(_cli, new UserWorkspace(options), _store);
         _handlers = TestHandlers.Create(options, _store, _cli, _bot, _llm, editing: editing);
@@ -53,7 +53,7 @@ public sealed class AlbumTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
+        TempDirs.Delete(_dataDir);
     }
 
     /// <summary>Route one album member exactly as the poller would deliver it.</summary>
@@ -197,5 +197,20 @@ public sealed class AlbumTests : IDisposable
         Assert.Equal("make it sepia", turn.Messages[^1].Text);
         Assert.Equal("sepia", (await _store.GetAsync(_userId)).Edits.Filter);
         Assert.Single(_bot.Requests.OfType<SendPhotoRequest>());
+    }
+
+    [Fact]
+    public async Task Should_Queue_The_Flush_On_The_Users_Lane()
+    {
+        List<long> lanes = [];
+        List<Func<Task>> queued = [];
+        _router.UseLanes((lane, work) => { lanes.Add(lane); queued.Add(work); return Task.CompletedTask; });
+        await sendAlbumPhoto(1, "p1");
+        await settleAsync();
+
+        Assert.Equal([_userId], lanes);
+        Assert.Empty(DownloadedFileIds); // nothing ran off the lane
+        await Assert.Single(queued)();
+        Assert.Equal(["p1"], DownloadedFileIds);
     }
 }

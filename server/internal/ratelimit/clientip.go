@@ -6,9 +6,13 @@ import (
 	"strings"
 )
 
-// ClientIP returns the address to key a limiter on. X-Forwarded-For is believed only when the peer itself
+// ClientIP returns the key a limiter spends against. X-Forwarded-For is believed only when the peer itself
 // is inside trusted, and then only back to the rightmost untrusted hop, so no client can pick its bucket.
 func ClientIP(remoteAddr, xff string, trusted []netip.Prefix) string {
+	return keyOf(clientHost(remoteAddr, xff, trusted))
+}
+
+func clientHost(remoteAddr, xff string, trusted []netip.Prefix) string {
 	peer := hostOf(remoteAddr)
 	if len(trusted) == 0 || xff == "" || !isTrusted(peer, trusted) {
 		return peer
@@ -24,6 +28,19 @@ func ClientIP(remoteAddr, xff string, trusted []netip.Prefix) string {
 		}
 	}
 	return peer // every hop was a trusted proxy
+}
+
+// keyOf folds an IPv6 address to its /64: one subscriber holds a whole /64, so keying per address would
+// hand a client a fresh bucket per request. IPv4 and anything unparsable stay as they are.
+func keyOf(host string) string {
+	addr, err := netip.ParseAddr(host)
+	if err != nil {
+		return host
+	}
+	if addr = addr.Unmap().WithZone(""); addr.Is4() {
+		return addr.String()
+	}
+	return netip.PrefixFrom(addr, 64).Masked().String()
 }
 
 // isTrusted reports whether host parses as an address inside one of the CIDRs.

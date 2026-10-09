@@ -69,7 +69,7 @@ test('animations.css: materialize is the leave reversed, veil outranks keyframes
     'the veil must outrank rowMaterialize’s animated opacity (author !important beats keyframes)');
   // The transition lives on the lift, not the veil, and the box keyframes leave opacity to
   // it — a transition never starts on a property an animation is holding.
-  assert.match(css, /\.materialize-veil\.materialize-lift \{ opacity: 1 !important; transition: opacity var\(--veil-fade, 0ms\) linear; \}/);
+  assert.match(css, /\.materialize-veil\.materialize-lift \{ opacity: var\(--rest-opacity, 1\) !important; transition: opacity var\(--veil-fade, 0ms\) linear; \}/);
   assert.match(css, /\.materializing\.materialize-veil \{ animation-name: rowMaterializeBox; \}/);
   assert.ok(!/@keyframes rowMaterializeBox \{[^}]*opacity/.test(css), 'the box keyframes carry no alpha');
   assert.match(css, /\.disintegrate-host\.dust-forming \{ animation: dustHostOut var\(--host-ms, var\(--gather-ms, 420ms\)\)/,

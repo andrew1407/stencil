@@ -1,13 +1,15 @@
 //! The report and project modes (CONTRACT.md §6): `--probe` measures an input, `--list-projects`
 //! and `--project-info` read a server's project metadata, `--project-update` writes it, and
 //! `--project-files` / `--project-file` list and download a project's stored files. Each prints one
-//! JSON document on the stdout writer main.zig hands in and reports a failure as `error:` lines.
+//! JSON document on the stdout writer main.zig hands in and reports a failure as `error:` lines,
+//! as `--merge-lines` does with the co-edit line union (§8).
 const std = @import("std");
 const args = @import("args.zig");
 const probe = @import("inspect/probe.zig");
 const projects = @import("inspect/projects.zig");
 const update = @import("inspect/update.zig");
 const files = @import("inspect/files.zig");
+pub const mergeLines = @import("inspect/mergeLines.zig");
 
 pub fn run(gpa: std.mem.Allocator, io: std.Io, out: *std.Io.Writer, opts: args.Options, kind: args.Inspect) !void {
     switch (kind) {
@@ -25,4 +27,5 @@ test {
     _ = projects;
     _ = update;
     _ = files;
+    _ = mergeLines;
 }

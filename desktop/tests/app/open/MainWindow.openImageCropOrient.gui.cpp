@@ -1,28 +1,10 @@
 // MainWindow GUI e2e — a tab's crop starts from ITS OWN orientation, never a stale opinion
 // left over from another tab: the outgoing stage used to survive just long enough into the
 // arriving tab's showPreview() to recompute (and persist) a rect from the WRONG aspect.
-#include "../../MainWindow.gui.hpp"
+#include "openImageGui.hpp"
 
-#include "OpenImageDialog.hpp"
 #include "openImageDialogParts.hpp"
-#include <QCheckBox>
 #include <QDir>
-#include <QLineEdit>
-#include <QPushButton>
-#include <QTabWidget>
-
-using stencil::gui::OpenImageDialog;
-
-namespace {
-
-  // The dialog's crop toggle: the one visible check with no text of its own.
-  QCheckBox* cropBox(OpenImageDialog* dlg) {
-    for (QCheckBox* c : dlg->findChildren<QCheckBox*>())
-      if (c->isVisible() && c->text().isEmpty()) return c;
-    return nullptr;
-  }
-
-}  // namespace
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
@@ -35,9 +17,7 @@ class MainWindowGuiTest : public QObject {
   void aTabsFirstCropStartsFromItsOwnOrientationNotTheOtherTabs() {
     bool localAlbum = false, urlAlbum = true;
     MainWindow win(nullptr, false);
-    win.resize(1250, 980);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(showForOpenImage(win));
     QTimer::singleShot(0, &win, [&] {
       auto* dlg = qobject_cast<OpenImageDialog*>(QApplication::activeModalWidget());
       if (!dlg) return;
@@ -79,15 +59,12 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(!urlAlbum, "the portrait video's own default is Portrait, not the other tab's Album");
   }
 
-
   // Pressing the Album/Portrait button must flip the stage on screen: syncQuickcropEnabled's full
   // rebuild re-derived the picture's own default orientation and overwrote the press.
   void pressingTheOrientationButtonFlipsTheStage() {
     bool albumBefore = false, albumAfter = true, rectChanged = false;
     MainWindow win(nullptr, false);
-    win.resize(1250, 980);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(showForOpenImage(win));
     QTimer::singleShot(0, &win, [&] {
       auto* dlg = qobject_cast<OpenImageDialog*>(QApplication::activeModalWidget());
       if (!dlg) return;
@@ -124,9 +101,7 @@ class MainWindowGuiTest : public QObject {
   void pickingARatioReshapesTheStageToTheNewAspect() {
     bool ratio11 = false, ratio23Distinct = false, customReshaped = false, projectPageUntouched = true;
     MainWindow win(nullptr, false);
-    win.resize(1250, 980);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(showForOpenImage(win));
     QTimer::singleShot(0, &win, [&] {
       auto* dlg = qobject_cast<OpenImageDialog*>(QApplication::activeModalWidget());
       if (!dlg) return;
@@ -183,9 +158,7 @@ class MainWindowGuiTest : public QObject {
     QString pageLabel;
     int wPortrait = -1, wAlbum = -1, wSelector = -1, wHint = -1, wRow = -1;
     MainWindow win(nullptr, false);
-    win.resize(1250, 980);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(showForOpenImage(win));
     QTimer::singleShot(0, &win, [&] {
       auto* dlg = qobject_cast<OpenImageDialog*>(QApplication::activeModalWidget());
       if (!dlg) return;

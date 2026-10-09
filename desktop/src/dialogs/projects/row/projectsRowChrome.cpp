@@ -50,7 +50,7 @@ namespace stencil::gui {
                      const core::ProjectMeta& meta, long long now) {
     if (store.isExpired(meta, now)) return "EXPIRED";
     const auto at = store.expiresAt(meta);
-    if (!at.has_value()) return QString();
+    if (!at.has_value()) return QStringLiteral("never expires");
     const long long day = 24LL * 60 * 60 * 1000;
     long long days = (*at - now + day - 1) / day;  // ceil
     if (days < 0) days = 0;

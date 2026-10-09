@@ -25,5 +25,6 @@ namespace motionprefs {
 
   void checkModeStorageAndStyles();
   void checkGateAndGlyphs();
+  void checkSpeed();
 
 }  // namespace motionprefs

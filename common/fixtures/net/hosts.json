@@ -86,5 +86,7 @@
   {"name": "6to4-public", "host": "2002:808:808::1", "address": "2002:808:808::1", "expect": {"fetch": "allow", "fetch+allowLoopback": "allow", "serverTarget": "allow", "serverTarget+allowPrivate": "allow"}},
   {"name": "name", "host": "example.com", "address": null},
   {"name": "name-with-dotted-quad-prefix", "host": "1.2.3.4.example.com", "address": null},
-  {"name": "name-with-hex-label", "host": "0x7f.example", "address": null}
+  {"name": "name-with-hex-label", "host": "0x7f.example", "address": null},
+  {"name": "loopback-name", "host": "localhost", "address": null, "loopbackName": true},
+  {"name": "loopback-name-trailing-dot", "host": "localhost.", "address": null, "loopbackName": true}
 ]

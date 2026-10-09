@@ -36,8 +36,10 @@ export declare function focusTab(tab: { id: number; windowId?: number }): Promis
 /** False = no open editor tab took it; the caller opens a fresh tab. */
 export declare function resumeInOpenEditor(opts: { source: string; name?: string }): Promise<boolean>;
 
-export declare const CROP_SRC_KEY: string;
-export declare const CROP_META_KEY: string;
+/** Session key prefix of a quick-crop launch; the nonce after it rides in the page's `?k=`. */
+export declare const CROP_KEY_PREFIX: string;
 export declare function launchCrop(
   opts: { src: string; source?: string; resource?: string; tabId?: number | null },
 ): Promise<unknown>;
+/** The crop page's hand-off: `?src=`, else the launch's session entry (removed once read); `error` is a failed launch's reason. */
+export declare function takeCropHandoff(search: string): Promise<{ src: string; source: string; resource: string; error: string }>;

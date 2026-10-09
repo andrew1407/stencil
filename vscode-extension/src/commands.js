@@ -5,7 +5,7 @@
 import * as vscode from 'vscode';
 
 import { COMMANDS, LANGUAGE_ID } from './lib/ids.js';
-import { MISSING_CLI_MESSAGE, cliFor } from './lib/spawn/cliLocator.js';
+import { cliFor, missingCliMessage } from './lib/spawn/cliLocator.js';
 import { MISSING_PYTHON_MESSAGE, pythonFor } from './lib/spawn/pythonLocator.js';
 import { emitTarget, pickEmitTarget } from './lib/emit/targets.js';
 import { isPySource } from './lib/emit/pySource.js';
@@ -15,7 +15,7 @@ const spawnCli = (buildArgs) => spawn(vscode, {
   document: activeIn(vscode, (document) => document.languageId === LANGUAGE_ID),
   missing: 'Open a .stc script first',
   locate: (document) => cliFor(vscode, document),
-  missingBinary: MISSING_CLI_MESSAGE,
+  missingBinary: missingCliMessage(vscode),
   buildArgs,
 });
 

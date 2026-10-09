@@ -14,10 +14,10 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const CLI_BIN = process.env.STENCIL_CLI || path.resolve(HERE, '../../../cli/zig-out/bin/stencil');
 export const cliAvailable = () => existsSync(CLI_BIN);
 
-// Run the CLI. Returns { code, stdout, stderr, out } (out = stdout+stderr combined, since
-// the human-readable outcome lines go to stderr).
-export function runCli(args, { cwd } = {}) {
-  const r = spawnSync(CLI_BIN, args, { cwd, encoding: 'utf8', timeout: 30_000 });
+// Run the CLI, `input` (if any) on its stdin. Returns { code, stdout, stderr, out } (out =
+// stdout+stderr combined, since the human-readable outcome lines go to stderr).
+export function runCli(args, { cwd, input } = {}) {
+  const r = spawnSync(CLI_BIN, args, { cwd, input, encoding: 'utf8', timeout: 30_000 });
   const stdout = r.stdout || '';
   const stderr = r.stderr || '';
   return { code: r.status, stdout, stderr, out: stdout + stderr };

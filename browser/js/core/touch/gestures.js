@@ -20,8 +20,3 @@ export const classifyEnd = ({ moved, elapsed }, opts = {}) => {
   const { moveTol, tapMaxMs } = { ...TOUCH_DEFAULTS, ...opts };
   return moved <= moveTol && elapsed <= tapMaxMs ? 'tap' : 'drag';
 };
-
-export const isLongPress = ({ moved, elapsed }, opts = {}) => {
-  const { moveTol, longPressMs } = { ...TOUCH_DEFAULTS, ...opts };
-  return moved <= moveTol && elapsed >= longPressMs;
-};

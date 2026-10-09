@@ -117,7 +117,7 @@ namespace stencil::gui {
                                              std::function<void()> done,
                                              const QEasingCurve& easing = QEasingCurve::OutCubic) {
     auto* anim = new QVariantAnimation(owner);
-    anim->setDuration(ms);
+    anim->setDuration(support::motionMs(ms));
     anim->setEasingCurve(easing);
     anim->setStartValue(from);
     anim->setEndValue(to);
@@ -167,7 +167,7 @@ namespace stencil::gui {
   // is untouched.
   inline void fadeInWindow(QWidget* win) {
     auto* fade = new QPropertyAnimation(win, "windowOpacity", win);
-    fade->setDuration(240);
+    fade->setDuration(support::motionMs(240));
     fade->setStartValue(0.0);
     fade->setEndValue(1.0);
     fade->setEasingCurve(QEasingCurve::OutCubic);

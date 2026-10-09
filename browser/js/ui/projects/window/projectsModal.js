@@ -176,12 +176,14 @@ export class StencilProjectsModal extends StencilElement {
     });
 
     // Every filter control re-lists through the same transition (createFilterAnimator): the light
-    // filter effect, never the delete's scatter. A keystroke mid-animation re-renders at once.
+    // filter effect, never the delete's scatter — a dropped row dissolves, a kept one re-forms
+    // (desktop ListFilterFade dustRowOut / dustRowIn). A keystroke mid-animation re-renders at once.
     const runFilter = createFilterAnimator({
       keys: () => shownKeys,
       next: () => rowPlan().map((e) => e.key),
       render,
       find: rowByFilterKey,
+      leave: true,
     });
     attachSearchFilter(search, () => runFilter());
     filterEl.addEventListener('change', () => { filterMode = filterEl.value; runFilter(); });

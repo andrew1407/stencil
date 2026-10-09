@@ -111,7 +111,7 @@ namespace stencil::gui {
     } else {
       // Leaving edit mode: wait for the ✓/✗ slots to close before ✎/🎨 take them, or all four sit in the row at once.
       QPointer<ProjectTitleController> self(this);
-      QTimer::singleShot(CONTROL_REVEAL_OUT_MS, this, [self, placeAffordances] {
+      QTimer::singleShot(support::motionMs(CONTROL_REVEAL_OUT_MS), this, [self, placeAffordances] {
         if (!self) return;
         placeAffordances(self->nameBar.field && self->nameBar.field->isEnabled()
                          && !self->nameBar.editing);

@@ -2,7 +2,10 @@
 // commit through applyCrop, the derived axis and the scale form.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createStencil, makeApp, called, lastCall } from '../helpers/stencilApiRig.js';
+import { CROP_EDGE_SLACK_PX } from '../../js/console/api/cropApi.js';
+import constants from '../../../common/config/constants.json' with { type: 'json' };
 
 // ── Zoom / crop ─────────────────────────────────────────────────────────────────
 test('zoom: relative step recentres; passing a point keeps it fixed; zoomLevel get/set', () => {
@@ -110,4 +113,47 @@ test('crop({ scale }) scales the rect about its centre via applyCrop; rejects no
     assert.throws(() => createStencil(a).crop({ scale: bad }), /crop scale must be a positive number/);
     assert.equal(called(a, 'applyCrop').length, 0);
   }
+});
+
+test('crop refuses an edge outside the image (core cropSpec twin) and a non-finite aspect', () => {
+  const makeCropApp = () => makeApp({
+    originalImage: {},
+    cropRect: { x: 0, y: 0, width: 100, height: 100 },
+    effectiveOriginalDims: () => ({ width: 100, height: 100 }),
+    getPageDimensions: () => ({ width: 21, height: 29.7 }),
+    canvas: { width: 100, height: 100 },
+    defaultCropRect: () => ({ x: 0, y: 0, width: 100, height: 100 }),
+    applyCrop: function (rect, o) { this.calls.push(['applyCrop', rect, o]); },
+  });
+  for (const spec of [{ y2: '-200%' }, { x1: '0px', x2: '101px' }, { x1: -20 }]) {
+    const app = makeCropApp();
+    assert.throws(() => createStencil(app).crop(spec), /lies outside the image/, JSON.stringify(spec));
+    assert.equal(called(app, 'applyCrop').length, 0);
+  }
+  assert.throws(() => createStencil(makeCropApp()).crop({ x1: 'bogus' }), /not a length/);
+  const huge = `${'9'.repeat(400)}:1`;
+  assert.throws(() => createStencil(makeCropApp()).crop({ aspect: huge }), /crop aspect/);
+  // The far edge exactly, and a reversed pair inside the image, still commit.
+  const app = makeCropApp();
+  createStencil(app).crop({ x1: '0px', x2: '100%', y1: '60px', y2: '10px' });
+  const [, rect] = lastCall(app, 'applyCrop');
+  assert.deepEqual([rect.x, rect.y, rect.width, rect.height], [0, 10, 100, 50]);
+});
+
+test('the crop edge slack is one value: constants.json, cropApi and core cropSpec.hpp', () => {
+  assert.equal(CROP_EDGE_SLACK_PX, constants.LIMITS.cropEdgeSlackPx);
+  const hpp = readFileSync(new URL('../../../core/parse/cropSpec.hpp', import.meta.url), 'utf8');
+  assert.equal(Number(/CROP_EDGE_SLACK_PX\s*=\s*([0-9.eE+-]+)/.exec(hpp)?.[1]), CROP_EDGE_SLACK_PX);
+  const app = makeApp({
+    originalImage: {},
+    cropRect: { x: 0, y: 0, width: 100, height: 100 },
+    effectiveOriginalDims: () => ({ width: 100, height: 100 }),
+    getPageDimensions: () => ({ width: 21, height: 29.7 }),
+    canvas: { width: 100, height: 100 },
+    defaultCropRect: () => ({ x: 0, y: 0, width: 100, height: 100 }),
+    applyCrop: function (rect, o) { this.calls.push(['applyCrop', rect, o]); },
+  });
+  createStencil(app).crop({ x1: '0px', x2: `${100 + CROP_EDGE_SLACK_PX / 2}px` });
+  assert.equal(called(app, 'applyCrop').length, 1);
+  assert.throws(() => createStencil(app).crop({ x2: `${100 + CROP_EDGE_SLACK_PX * 10}px` }), /lies outside the image/);
 });

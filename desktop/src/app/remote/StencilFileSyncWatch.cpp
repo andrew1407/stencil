@@ -7,6 +7,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QFileSystemWatcher>
+#include <QTimer>
 
 #include <utility>
 
@@ -16,6 +17,7 @@
 namespace stencil::gui {
 
   void StencilFileSync::flushAutosave() {
+    if (autosaveTimer) autosaveTimer->stop();
     if (path.isEmpty() || !liveSync) return;
     if (prompting) { missedWhilePrompting = true; return; }
     const QByteArray cur = h.build();
@@ -69,13 +71,19 @@ namespace stencil::gui {
     const ConfirmChoice pick = h.choose ? h.choose(host, spec) : confirmModalChoice(host, spec);
     if (!self) return;
     prompting = false;
-    if (pick == ConfirmChoice::CONFIRM) h.applyExternal(ext, false);
-    else if (pick == ConfirmChoice::ALT) h.applyExternal(ext, /*merge=*/true);
-    else writeNow();   // keep mine → overwrite the file with the editor as it is now
+    const bool taken = pick == ConfirmChoice::CONFIRM || pick == ConfirmChoice::ALT;
+    // The file's version is the baseline from the answer on: the apply lands later, and a re-run
+    // before it must neither ask about these bytes again nor write the old editor over them.
+    if (taken) {
+      baseline = ext;
+      h.applyExternal(ext, /*merge=*/pick == ConfirmChoice::ALT);
+    } else {
+      writeNow();   // keep mine → overwrite the file with the editor as it is now
+    }
     // A change or flush that arrived while the question was open runs against the new baseline.
     if (std::exchange(missedWhilePrompting, false)) {
       onFileChanged();
-      flushAutosave();
+      if (!taken) flushAutosave();
     }
   }
 

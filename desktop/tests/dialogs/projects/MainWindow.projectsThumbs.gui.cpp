@@ -1,7 +1,7 @@
 // MainWindow GUI e2e — the Projects dialog's local thumbnails: the rows open before their
 // pictures, each picture arrives composed at thumbnail scale, and a reopen serves it cached.
-// Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
-#include "../../MainWindow.gui.hpp"
+// Shared ground is in projectsHeld.gui.hpp, over MainWindow.gui.hpp.
+#include "projectsHeld.gui.hpp"
 
 namespace {
 
@@ -38,9 +38,7 @@ class MainWindowGuiTest : public QObject {
 
   void thumbnailsArriveLazilyAndReopenCached() {
     MainWindow win(nullptr, false);
-    win.resize(1100, 800);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(held::showForProjects(win));
     QImage img(2400, 1600, QImage::Format_RGB32);
     img.fill(Qt::white);
     const QString id = win.parts.chatAppliers.addImageProjectEntry(img, QStringLiteral("thumb-row"));

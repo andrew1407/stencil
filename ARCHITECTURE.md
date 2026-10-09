@@ -227,6 +227,7 @@ span surfaces.
 - **A server project converges by version.** Every layout write carries the version it was
   based on; a 409 re-reads, merges the peer's lines with `mergeLines` and retries a bounded
   number of times. A client adopts a server version only together with the layout it names.
-- **Live frames are best effort, saves are not.** The hub relays `edit` frames without
-  persisting them and saves the full layout under the version guard; a peer that misses a
-  frame catches up from the next `updated` event or welcome.
+- **The server carries projects, the events feed and version-guarded saves; it relays no
+  edits.** Every write is a REST save under the version guard, and the feed announces each
+  committed write as a `project-event`; convergence stays the clients' 409 merge, and a
+  client that misses an event re-reads the project.

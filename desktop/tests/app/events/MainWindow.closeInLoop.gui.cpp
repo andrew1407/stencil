@@ -2,6 +2,7 @@
 // plan or a script waits on a load.
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "../../MainWindow.gui.hpp"
+#include "../../support/recordingSink.hpp"
 
 namespace {
 
@@ -13,13 +14,6 @@ namespace {
     }
   };
 
-  // Every notice the window raises, whatever its lifetime on screen.
-  struct RecordingSink : stencil::gui::NotificationSink {
-    QStringList shown;
-    bool show(const stencil::gui::Notice& n) override { shown << n.text; return true; }
-    bool isAvailable() const override { return true; }
-    void setActive(bool) override {}
-  };
 
 }  // namespace
 
@@ -81,8 +75,8 @@ class MainWindowGuiTest : public QObject {
     }
     QPointer<MainWindow> win = openDeletingWindow();
     QVERIFY(QTest::qWaitForWindowExposed(win.data()));
-    auto owned = std::make_unique<RecordingSink>();
-    RecordingSink* notices = owned.get();
+    auto owned = std::make_unique<stencil::test::RecordingSink>();
+    stencil::test::RecordingSink* notices = owned.get();
     win->notify->setSystemSink(std::move(owned));
     win->notify->setChannel(stencil::gui::NotifyChannel::SYSTEM);
     CloseSpy spy;

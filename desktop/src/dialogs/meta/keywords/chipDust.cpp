@@ -46,6 +46,7 @@ namespace stencil::gui {
       });
     }
     anim->stop();
+    anim->setDuration(support::motionMs(OI_RESIZE_MS));
     anim->setStartValue(from);
     anim->setEndValue(show ? full : 0);
     // The END state into the layout LAST: setStartValue emits its value straight away, so

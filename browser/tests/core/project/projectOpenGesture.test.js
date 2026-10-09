@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
+import { stubTimers } from '../../helpers/timers.js';
 
 // Opening a project row: the gesture → intent mapping and the deferred-single-click machine
 // behind it (js/core/project/openGesture.js) — pure/injected, so the whole mouse+touch matrix
@@ -9,21 +10,6 @@ import {
 } from '../../../js/core/project/openGesture.js';
 
 // A controllable clock: timers fire only when the test advances it.
-const stubTimers = () => {
-  const jobs = new Map();
-  let seq = 0;
-  return {
-    setTimer: (fn, ms) => { jobs.set(++seq, { fn, ms }); return seq; },
-    clearTimer: (id) => jobs.delete(id),
-    get pending() { return jobs.size; },
-    // Run every timer whose delay is <= ms (the only delays here are the two constants).
-    advance(ms) {
-      for (const [id, job] of [...jobs]) {
-        if (job.ms <= ms) { jobs.delete(id); job.fn(); }
-      }
-    },
-  };
-};
 const recorder = () => {
   const intents = [];
   return { intents, run: (i) => intents.push(`${i.confirm ? 'confirm' : 'now'}:${i.target}`) };

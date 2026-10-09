@@ -62,7 +62,7 @@ namespace stencil::gui {
     // The slide starts only once the dust actually flies; the card waits fully hidden.
     const auto slide = [card, lay, rest] {
       auto* anim = new QVariantAnimation(card);
-      anim->setDuration(APPEAR_MS);
+      anim->setDuration(support::motionMs(APPEAR_MS));
       anim->setStartValue(0.0);
       anim->setEndValue(1.0);
       anim->setEasingCurve(QEasingCurve::OutCubic);

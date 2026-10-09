@@ -2,27 +2,9 @@
 // that surface as themselves, bounded and key-free. Split from llmClient.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { createLlmClient, probeProvider, providerUrl, listModels, fetchLlmInfo, LlmError, sanitizeProviderText } from '../../js/llm/client.js';
+import { createLlmClient, probeProvider, providerUrl, listModels, LlmError, sanitizeProviderText } from '../../js/llm/client.js';
+import { makeMockFetch, MSGS } from '../helpers/llmClientRig.js';
 
-// ── A mock fetch that records every request and replies from a queue ──
-// (the mock-fetch idiom from connections.test.js).
-const makeMockFetch = (responses) => {
-  const calls = [];
-  const queue = Array.isArray(responses) ? responses.slice() : [responses];
-  const fetchImpl = async (url, init = {}) => {
-    calls.push({ url, init });
-    const next = queue.length > 1 ? queue.shift() : queue[0];
-    const { status = 200, body = {} } = next || {};
-    return { ok: status >= 200 && status < 300, status, json: async () => body };
-  };
-  return { calls, fetchImpl };
-};
-
-const MSGS = [
-  { role: 'user', text: 'hello', images: [{ mediaType: 'image/png', data: 'AAAA' }, { mediaType: 'image/jpeg', data: 'BBBB' }] },
-  { role: 'assistant', text: 'prior reply' },
-  { role: 'user', text: 'again' },
-];
 
 // ── Reachability probe (the panel's status dot / intro card; never throws) ──
 test('probe ollama: GET /api/version → ok with the version', async () => {
@@ -117,10 +99,9 @@ test('providerUrl names the endpoint the settings talk to', () => {
 });
 
 // A 30x must not carry a key or bearer token to a second host, on any provider's GET either.
-test('the probe, the model list and /llm/info never follow a redirect', async () => {
+test('the probe and the model list never follow a redirect', async () => {
   const { calls, fetchImpl } = makeMockFetch({ body: { data: [{ id: 'm' }], version: '1', enabled: true } });
   await probeProvider({ provider: 'openai-compat', baseUrl: 'https://llm.example/v1', apiKey: 'sk-x' }, { fetchImpl });
   await listModels({ provider: 'ollama', baseUrl: 'http://localhost:11434' }, { fetchImpl });
-  await fetchLlmInfo('http://srv:8090', { token: 't', fetchImpl });
-  assert.deepStrictEqual(calls.map((c) => c.init.redirect), ['error', 'error', 'error']);
+  assert.deepStrictEqual(calls.map((c) => c.init.redirect), ['error', 'error']);
 });

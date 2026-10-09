@@ -87,7 +87,7 @@ namespace stencil::gui {
         w->setGraphicsEffect(nullptr);   // hand the widget back untouched
       });
     }
-    anim->setDuration(std::max(1, int(FILTER_FADE_MS * std::abs(to - from))));
+    anim->setDuration(std::max(1, support::motionMs(int(FILTER_FADE_MS * std::abs(to - from)))));
     anim->setStartValue(from);
     anim->setEndValue(to);
     anim->start();

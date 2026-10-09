@@ -7,9 +7,10 @@ namespace stencil::model {
     return buffer;
   }
 
-  void ScriptBuffer::setText(const QString& text) {
+  void ScriptBuffer::setText(const QString& text, bool fromLink) {
     if (this->text == text) return;
     this->text = text;
+    this->fromLink = fromLink;
     emit changed(this->text);
   }
 

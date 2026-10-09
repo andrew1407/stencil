@@ -1,4 +1,5 @@
 import { TUNE } from '../tune.js';
+import { motionMs } from '../motionPrefs.js';
 export const CHAT_DISINTEGRATE_COLS = TUNE.CHAT_DISINTEGRATE_COLS;
 export const CHAT_DISINTEGRATE_ROWS = TUNE.CHAT_DISINTEGRATE_ROWS;
 
@@ -161,8 +162,9 @@ export function followDust(host, anchor, ms, from = anchor?.getBoundingClientRec
   const left = parseFloat(host.style.left) || 0;
   const top = parseFloat(host.style.top) || 0;
   const started = Date.now();
+  const span = motionMs(ms);
   const pin = () => {
-    if (!host.parentNode || Date.now() - started >= ms) return false;
+    if (!host.parentNode || Date.now() - started >= span) return false;
     const r = anchor.getBoundingClientRect();
     if (!(r.width > 0 || r.height > 0)) return false;
     host.style.left = `${left + r.left - from.left}px`;

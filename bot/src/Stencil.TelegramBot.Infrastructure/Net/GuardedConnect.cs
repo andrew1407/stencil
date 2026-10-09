@@ -14,12 +14,15 @@ public static class GuardedConnect
         {
             return handler;
         }
+        // A proxy would make the guard judge the proxy's address while the proxy dials the target.
+        handler.UseProxy = false;
         handler.ConnectCallback = async (context, ct) =>
         {
             DnsEndPoint dns = context.DnsEndPoint;
             IReadOnlyList<IPAddress> addresses = IPAddress.TryParse(dns.Host, out IPAddress? literal)
                 ? new[] { literal }
                 : await Dns.GetHostAddressesAsync(dns.Host, ct);
+            Exception? unreachable = null;
             foreach (IPAddress address in addresses)
             {
                 if (isBlockedAddress(address))
@@ -35,12 +38,18 @@ public static class GuardedConnect
                     await socket.ConnectAsync(new IPEndPoint(address, dns.Port), ct);
                     return new NetworkStream(socket, ownsSocket: true);
                 }
-                catch
+                catch (Exception ex)
                 {
                     socket.Dispose();
+                    if (ex is OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    unreachable = ex;
                 }
             }
-            throw new InvalidOperationException(refusal);
+            // Only a host with no allowed address is refused; one whose allowed address failed is unreachable.
+            throw unreachable ?? new InvalidOperationException(refusal);
         };
         return handler;
     }

@@ -50,6 +50,12 @@ stencil_headless_test(stencil_projectsbatch_headless
     resources/app.qrc src/support/sheets/dialogSheets.cpp
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
 
+# The projects list's sort modes and order, and the "Recently opened" store with its cap.
+stencil_headless_test(stencil_projectsort_headless
+  SOURCES tests/dialogs/projects/list/projectSort.headless.cpp
+    ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp resources/app.qrc
+  LIBS stencil_core Qt6::Widgets)
+
 # The same dialog's composition + row-data pin: what it builds, and what refresh() writes per row.
 stencil_headless_test(stencil_projectsdialogrows_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}

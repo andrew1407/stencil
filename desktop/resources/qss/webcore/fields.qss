@@ -50,7 +50,7 @@
         color: %WC_INK%; selection-background-color: %WC_SELECT%; font-family: Menlo, Consolas, monospace; font-size: 12px;
       }
       QLabel#openInFallbackCmds { font-family: Menlo, Consolas, monospace; font-size: 12px; }
-      QSlider#oiFrameScrub::groove:horizontal { background: %WC_WINDOW%; border: 1px solid %WC_SHADOW%; border-radius: 0; }
-      QSlider#oiFrameScrub::sub-page:horizontal { background: %WC_SELECT%; border-radius: 0; }
-      QSlider#oiFrameScrub::handle:horizontal { background: %WC_FACE%; border: 1px solid %WC_DARK%; border-radius: 0; }
+      QSlider#oiFrameScrub::groove:horizontal, QSlider#motionSpeedSlider::groove:horizontal { background: %WC_WINDOW%; border: 1px solid %WC_SHADOW%; border-radius: 0; }
+      QSlider#oiFrameScrub::sub-page:horizontal, QSlider#motionSpeedSlider::sub-page:horizontal { background: %WC_SELECT%; border-radius: 0; }
+      QSlider#oiFrameScrub::handle:horizontal, QSlider#motionSpeedSlider::handle:horizontal { background: %WC_FACE%; border: 1px solid %WC_DARK%; border-radius: 0; }
 

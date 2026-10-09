@@ -43,6 +43,18 @@ pub fn parseColor(spec: [:0]const u8) ?Rgba {
     return .{ .r = toByte(r), .g = toByte(g), .b = toByte(b), .a = toByte(a) };
 }
 
+/// `mode` as core's filter table spells it, matched case-sensitively as core and renderer.js
+/// match it ("bw" yes, "BW" no); null for a tint. The result is core's static string.
+pub fn namedFilter(mode: []const u8) ?[:0]const u8 {
+    const name = c.stencil_cli_filterName((zstr(mode) orelse return null).ptr) orelse return null;
+    return std.mem.span(name);
+}
+
+/// Whether `mode` is a filter at all: a named one, or a colour core parses as the tint.
+pub fn isFilter(mode: []const u8) bool {
+    return namedFilter(mode) != null or parseColor(zstr(mode) orelse return false) != null;
+}
+
 /// The canonical page-format names ("A0 A1 … C10"), space-separated, in canonical order.
 /// A static string owned by the core — no allocation, valid for the program's lifetime.
 pub fn pageFormats() []const u8 {
@@ -120,6 +132,16 @@ pub const LineDraw = struct {
 
 pub const LayoutCaps = lines.LayoutCaps;
 pub const layoutCaps = lines.layoutCaps;
+
+/// The undo caps (constants.json LIMITS.historyMax / historyPointsMax): states, points over them.
+pub const HistoryCaps = struct { steps: usize, points: usize };
+
+pub fn historyCaps() HistoryCaps {
+    var steps: c_int = 0;
+    var points: c_int = 0;
+    c.stencil_cli_historyCaps(&steps, &points);
+    return .{ .steps = @intCast(steps), .points = @intCast(points) };
+}
 pub const mergeKeep = lines.mergeKeep;
 
 pub fn rasterizeLine(buf: []u8, w: i32, h: i32, line: LineDraw) void {

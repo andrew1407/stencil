@@ -9,9 +9,12 @@ public sealed partial class EditingService
     public Task<UserSession> SetCropAsync(long userId, string spec, bool album, CancellationToken ct = default) =>
         applyEditAsync(userId, edits => edits with { CropSpec = spec, Album = album }, ct);
 
+    // A crop of the view the session renders, composed onto the stored one; the lines rescale, or
+    // clear on an album/portrait flip (a plan crop, llm-contract §2).
     public Task<UserSession> ComposeCropAsync(long userId, string spec, CancellationToken ct = default) =>
         applyEditAsync(userId, session => session.Edits.WithViewCrop(spec, session.OriginalWidth, session.OriginalHeight), ct);
 
+    // Accumulates clockwise, normalised to 0..3.
     public Task<UserSession> RotateAsync(long userId, int quarterTurns, CancellationToken ct = default) =>
         applyEditAsync(userId, edits => edits with { Rotate = ((((edits.Rotate + quarterTurns) % 4) + 4) % 4) }, ct);
 
@@ -19,9 +22,11 @@ public sealed partial class EditingService
     public Task<UserSession> FlipAsync(long userId, CancellationToken ct = default) =>
         applyEditAsync(userId, edits => edits with { Flip = !edits.Flip, Rotate = (4 - edits.Rotate) % 4 }, ct);
 
+    // Null/empty/"none" clears it.
     public Task<UserSession> SetFilterAsync(long userId, string? filter, CancellationToken ct = default) =>
         applyEditAsync(userId, edits => edits with { Filter = normalizeFilter(filter) }, ct);
 
+    // A canonical ISO name (B5) or "custom" with cm; a named format is the /blank default page.
     public Task<UserSession> SetPageFormatAsync(long userId, string format, double? widthCm = null, double? heightCm = null, CancellationToken ct = default) =>
         applyEditAsync(userId, edits => withPageFormat(edits, format, widthCm, heightCm), ct);
 
@@ -34,6 +39,8 @@ public sealed partial class EditingService
             CustomPageHeight = format == "custom" ? heightCm : null,
         };
 
+    // combine appends to the lines already drawn; false replaces them (the editors'
+    // Combine/Replace).
     public Task<UserSession> ApplyLayoutAsync(
         long userId, StencilLayout layout, bool combine = false, CancellationToken ct = default) =>
         applyEditAsync(userId, edits =>
@@ -45,6 +52,8 @@ public sealed partial class EditingService
             return edits with { Layout = layout with { Lines = merged } };
         }, ct);
 
+    // Metadata like the browser's formulaX/Y: never changes the raster; an empty expr clears the
+    // axis.
     public Task<UserSession> SetFormulaAsync(long userId, string axis, string expr, CancellationToken ct = default) =>
         applyEditAsync(userId, edits =>
         {
@@ -78,6 +87,7 @@ public sealed partial class EditingService
         return await saveAsync(EditSessions.With(session, stepped, next), ct);
     }
 
+    // Keeps the working image.
     public async Task<UserSession> ResetEditsAsync(long userId, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
@@ -85,6 +95,7 @@ public sealed partial class EditingService
             EditSessions.With(session, HistoryStack<EditState>.Empty, new EditState()), ct);
     }
 
+    // Drops the working image AND the active project, and wipes the workspace.
     public async Task<UserSession> DropImageAsync(long userId, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);

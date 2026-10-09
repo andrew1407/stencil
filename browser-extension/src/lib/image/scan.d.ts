@@ -38,6 +38,10 @@ export interface AttributedScanEntry extends ScanEntry {
 }
 
 export declare const MAX_IMAGES: number;
+/** Elements whose computed styles one frame's scan reads. */
+export declare const MAX_SCAN_ELEMENTS: number;
+/** Video frames one frame's scan encodes; past it a video lists with its poster only. */
+export declare const MAX_VIDEO_FRAMES: number;
 export declare const BLOCKED_SCHEMES: string[];
 export declare function mergeScanFrames(
   results: Array<{ result?: ScanEntry[] } | null | undefined> | null | undefined,

@@ -19,9 +19,6 @@ export declare const faviconSvg: (hex: string) => string;
 export declare const normalizeHex: (value: unknown) => string | null;
 /** WCAG relative luminance (0..1) of a hex colour, or null when it isn't one. */
 export declare const relativeLuminance: (hex: unknown) => number | null;
-/** Contrast ratio (1..21) of pure white / pure black against `hex`; null when not a hex. */
-export declare const contrastWithWhite: (hex: unknown) => number | null;
-export declare const contrastWithBlack: (hex: unknown) => number | null;
 export declare const ON_ACCENT_LIGHT: '#ffffff';
 export declare const ON_ACCENT_DARK: '#1a1a1a';
 /** True when black reads better on `hex` than white does; a non-hex answers false. */

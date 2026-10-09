@@ -12,6 +12,8 @@
 #include "ProjectTransferController.hpp"
 #include "StencilFileSync.hpp"
 #include "SiblingWindows.hpp"
+#include "SharedState.hpp"
+#include "ProjectsDialog.hpp"
 #include <QStyleHints>
 #include <QToolBar>
 
@@ -89,8 +91,25 @@ namespace stencil::gui {
   }
 
   void WindowAssembly::restorePersistedState(bool restoreLast) {
-    w.projectList = fileStore::loadProjects();
-    w.settings = fileStore::loadSettings();
+    // The first window reads the files, a sibling shares them; a sibling's save re-applies its
+    // settings here (this window keeps its own picture filter and layout) and repaints Projects.
+    if (SiblingWindows::openCount() == 0) SharedState::instance().load();
+    SiblingWindows::noteOpened(&w);
+    w.settings = SharedState::instance().getSettings();
+    QObject::connect(&SharedState::instance(), &SharedState::settingsChanged, &w,
+                     [this](const Settings& s, QObject* source) {
+                       if (source == &w) return;
+                       Settings next = s;
+                       next.imageFilter = w.settings.imageFilter;
+                       next.filterColor = w.settings.filterColor;
+                       next.windowState = w.settings.windowState;
+                       w.applySettings(next, false);
+                     });
+    QObject::connect(&SharedState::instance(), &SharedState::projectsChanged, &w, [this](QObject* source) {
+      if (source == &w) return;
+      w.refreshActions();
+      for (ProjectsDialog* dlg : w.findChildren<ProjectsDialog*>()) dlg->setProjects(w.projectList);
+    });
     // The filter/tint and the compare view never carry over an app relaunch (a .stencil round-trip
     // still keeps them); reset before applySettings.
     w.settings.imageFilter = Settings{}.imageFilter;

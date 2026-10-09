@@ -126,7 +126,7 @@ namespace stencil::gui {
       fx->setOpacity(1.0);
     }
     auto* anim = new QVariantAnimation(l);
-    anim->setDuration(CHAT_ROW_LEAVE_MS);
+    anim->setDuration(support::motionMs(CHAT_ROW_LEAVE_MS));
     anim->setStartValue(1.0);
     anim->setEndValue(0.0);
     anim->setEasingCurve(QEasingCurve::OutCubic);
@@ -151,7 +151,7 @@ namespace stencil::gui {
     // The dock's sequencing (ChatDock.cpp clearConversation): the rows leave
     // FIRST and the empty state returns only once the particles have landed.
     if (!wiped) { suggest->show(); return; }
-    QTimer::singleShot(DisintegrateOverlay::ITEM_MS, this, [this] {
+    QTimer::singleShot(support::motionMs(DisintegrateOverlay::ITEM_MS), this, [this] {
       // A turn may have started while the wipe played — then the chips are wrong.
       if (!rowsAdded.isEmpty() || pending) return;
       suggest->show();

@@ -1,6 +1,6 @@
 // MainWindow GUI e2e — The bubble's own context menu, and Escape closing a card menu.
-// Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
-#include "../../MainWindow.gui.hpp"
+// Shared ground is in chatTurnsGui.hpp, over MainWindow.gui.hpp.
+#include "chatTurnsGui.hpp"
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
@@ -12,17 +12,13 @@ class MainWindowGuiTest : public QObject {
   // bubbles with the original attachments; a mouse selection inside one copies with the shortcut.
   void chatBubbleContextMenu() {
     MainWindow win(nullptr, false);
-    win.resize(1100, 760);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.settings.llmProvider = "ollama";
-    win.settings.llmBaseUrl = "http://localhost:11434";
+    QVERIFY(showSized(win, 1100, 760));
     MockChatTransport mock;
+    useOllama(win.settings, win.parts.chatAppliers.llmClient, mock);
     mock.response = QJsonDocument(QJsonObject{
         {"message", QJsonObject{{"content",
                                  "{\"version\":1,\"reply\":\"hi there\",\"actions\":[]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
     auto* dock = win.chatDock;
     QVERIFY(dock);
     win.acts.chat->setChecked(true);   // the menu only pops on a VISIBLE surface
@@ -135,9 +131,7 @@ class MainWindowGuiTest : public QObject {
   // released, nothing runs — guarded so the menu reveal animation can never break it.
   void chatCardMenuEscapeCloses() {
     MainWindow win(nullptr, false);
-    win.resize(1100, 760);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(showSized(win, 1100, 760));
     auto* dock = win.chatDock;
     QVERIFY(dock);
     win.acts.chat->setChecked(true);   // the menu only pops on a VISIBLE surface

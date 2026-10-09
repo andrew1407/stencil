@@ -498,6 +498,130 @@
       ]
     },
     {
+      "name": "webcoreIcons",
+      "from": "browser/js/ui/webcore/icons.js",
+      "to": "browser-extension/src/lib/webcore/icons.js",
+      "names": [
+        "NAME_RE",
+        "pixelRects",
+        "themeInk"
+      ]
+    },
+    {
+      "name": "urlRules",
+      "from": "browser/js/net/urlRules.js",
+      "to": "browser-extension/src/lib/connection/model.js",
+      "names": [
+        "isLoopbackHost",
+        "normalizeUrl",
+        "parseInviteUrl"
+      ]
+    },
+    {
+      "name": "nameEditor",
+      "from": "browser/js/utils/nameEditor.js",
+      "to": "browser-extension/src/lib/displayName.js",
+      "names": [
+        "NAME_DISPLAY_CHARS",
+        "shortName"
+      ]
+    },
+    {
+      "name": "chatTurn",
+      "from": "browser/js/llm/chat/turn.js",
+      "to": "browser-extension/src/llm/chatController.js",
+      "names": [
+        "HISTORY_LIMIT",
+        "MAX_ATTACHMENTS",
+        "splitDataUrl",
+        "replayMessages"
+      ]
+    },
+    {
+      "name": "chatGeometry",
+      "from": "browser/js/ui/chat/geometry.js",
+      "to": "browser-extension/src/lib/chat/statusTip.js",
+      "names": [
+        "gearTipFootText"
+      ]
+    },
+    {
+      "name": "deepLink",
+      "from": "browser/js/core/launch/deepLink.js",
+      "to": "browser-extension/src/lib/menu/openIn.js",
+      "names": [
+        "buildStencilSchemeUrl",
+        "TELEGRAM_START_LIMIT",
+        "compressOrigin",
+        "toBase64",
+        "encodeTelegramStartPayload",
+        "buildTelegramLink"
+      ]
+    },
+    {
+      "name": "listPaging",
+      "from": "browser/js/net/listPaging.js",
+      "to": "browser-extension/src/lib/connection/rest.js",
+      "names": [
+        "MAX_LIST_PAGES",
+        "nextPageCursor"
+      ]
+    },
+    {
+      "name": "chatRowMenu",
+      "from": "browser/js/ui/chat/row/chatRowMenuModel.js",
+      "to": "browser-extension/src/lib/chat/msgMenu.js",
+      "names": [
+        "CHAT_ROW_MENU_JUMP_GAP",
+        "rowMenuLiftPx",
+        "rowMenuLiftFits"
+      ]
+    },
+    {
+      "name": "customSelectMenu",
+      "from": "browser/js/ui/control/customSelect.js",
+      "to": "browser-extension/src/lib/control/customSelect.js",
+      "names": [
+        "applySearch",
+        "buildOptions",
+        "openMenu",
+        "closeMenu"
+      ]
+    },
+    {
+      "name": "pageImagesEditorApi",
+      "from": "browser-extension/src/lib/image/pageImages.js",
+      "to": "browser-extension/src/content/editorApiMain.js",
+      "names": [
+        "nameFromUrl"
+      ]
+    },
+    {
+      "name": "pageImagesMedia",
+      "from": "browser-extension/src/lib/image/pageImages.js",
+      "to": "browser-extension/src/content/pageApiMedia.js",
+      "names": [
+        "cssImageUrls",
+        "nameFromUrl"
+      ]
+    },
+    {
+      "name": "pageImagesScan",
+      "from": "browser-extension/src/lib/image/pageImages.js",
+      "to": "browser-extension/src/lib/image/scan.js",
+      "names": [
+        "cssImageUrls"
+      ]
+    },
+    {
+      "name": "highlightRgb",
+      "from": "browser-extension/src/lib/highlight/highlight.js",
+      "to": "browser-extension/src/lib/highlight/hoverHighlight.js",
+      "names": [
+        "toRgb"
+      ]
+    },
+    {
       "name": "parserIndex",
       "from": "browser/js/core/script.js",
       "to": "vscode-extension/src/parser/index.js",
@@ -507,6 +631,16 @@
         "scriptDiagnostics"
       ],
       "test": "vscode-extension/tests/parserParity.test.js"
+    },
+    {
+      "name": "layerScan",
+      "from": "browser-extension/tests/layerBoundary.test.js",
+      "to": "vscode-extension/tests/layerBoundary.test.js",
+      "names": [
+        "IMPORT",
+        "walk"
+      ],
+      "test": "vscode-extension/tests/layerBoundary.test.js"
     }
   ]
 }

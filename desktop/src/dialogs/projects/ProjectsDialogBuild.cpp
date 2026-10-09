@@ -43,15 +43,10 @@ namespace stencil::gui {
       frow->addWidget(filter);
       sortCombo = new SearchComboBox(this, /*searchable=*/false);
       sortCombo->setToolTip("Sort projects (drag a row to set a manual order)");
-      sortCombo->addItem(tr("Name"), QStringLiteral("name"));
-      sortCombo->addItem(tr("Local first"), QStringLiteral("local"));
-      sortCombo->addItem(tr("Server first"), QStringLiteral("server"));
-      sortCombo->addItem(tr("Newest"), QStringLiteral("date-desc"));
-      sortCombo->addItem(tr("Oldest"), QStringLiteral("date-asc"));
-      sortCombo->addItem(tr("Manual order"), QStringLiteral("manual"));
+      for (const auto& [mode, label] : projectSortModes()) sortCombo->addItem(label, mode);
       // What a double-click restores (browser projects/list/prefs.js).
       support::setResetDefault(filter, 0);
-      support::setResetDefault(sortCombo, QStringLiteral("name"));
+      support::setResetDefault(sortCombo, PROJECT_SORT_DEFAULT);
       {
         const int mi = sortCombo->findData(g_projectsSortMode);
         sortCombo->setCurrentIndex(mi >= 0 ? mi : 0);

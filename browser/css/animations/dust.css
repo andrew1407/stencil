@@ -39,7 +39,7 @@
 }
 /* The row fades up under the landing motes; the transition lives on the LIFT alone, or the row is seen
    fading out at the start of its own arrival. */
-.materialize-veil.materialize-lift { opacity: 1 !important; transition: opacity var(--veil-fade, 0ms) linear; }
+.materialize-veil.materialize-lift { opacity: var(--rest-opacity, 1) !important; transition: opacity var(--veil-fade, 0ms) linear; }
 /* Surfaces made of dust (motion.js surfaceIn / surfaceOut). `.dust-driven` is permanent: dropping it
    after the flight would restart the element's own entrance. */
 .dust-driven { animation: none !important; }

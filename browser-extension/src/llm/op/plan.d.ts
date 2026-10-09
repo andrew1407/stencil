@@ -45,7 +45,5 @@ export declare function buildSystemPrompt(registry?: unknown, opts?: { exclude?:
 export declare function validateAsk(ask: unknown, listingLength: number, warnings: string[]): PlanAsk | null;
 export declare function askAnswerText(ask: PlanAsk, answer?: { picked?: string[]; custom?: string }): string;
 export declare function parseOpPlan(text: string, context?: PlanContext): OpPlan;
-/** The plan's only actionable output is `attach` — the single bounded auto-continuation. */
-export declare function attachOnly(plan: OpPlan | null | undefined): boolean;
 /** Every action only GATHERS context, so another model round is needed to act on it. */
 export declare function continuationOnly(plan: OpPlan | null | undefined): boolean;

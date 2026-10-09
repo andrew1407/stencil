@@ -172,3 +172,23 @@ async fn a_save_path_writes_the_project_inside_output_dir_via_the_real_cli() {
     assert_eq!(path, expected.to_string_lossy());
     assert!(expected.exists(), "the .stencil project landed at the honored path");
 }
+
+/// A layout path naming a file that is not a layout object reaches the caller as the CLI's
+/// own `error:` line, never "the stencil CLI failed without a message".
+#[tokio::test]
+async fn a_non_object_layout_file_is_named_in_the_error() {
+    if !cli_present() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let layout = dir.path().join("bad.json");
+    std::fs::write(&layout, b"[]").unwrap();
+    let call = json!({
+        "input": FIXTURE,
+        "layout": layout.to_string_lossy(),
+        "output": dir.path().join("out.png").to_string_lossy(),
+    });
+    let err = pipeline::run_edit(&confined_params(call, dir.path())).await.unwrap_err().to_string();
+    assert!(err.contains("could not read layout") && err.contains("(not a JSON object)"), "got: {err}");
+    assert!(!err.contains("without a message"), "got: {err}");
+}

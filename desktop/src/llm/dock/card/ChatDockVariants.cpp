@@ -4,7 +4,6 @@
 #include "../../../support/motion/DisintegrateOverlay.hpp"
 #include "../../../support/motionPrefs.hpp"   // support::isDustAllowed()
 #include "chatWidgets.hpp"
-#include "../../../support/control/FlowLayout.hpp"
 #include "iconSet.hpp"
 
 #include <QFileDialog>
@@ -18,8 +17,20 @@
 namespace stencil::gui {
 
   using namespace chatdock;
-  // Browser .chat-results: one compact framed card per variant, wrapping as a row — the cover
-  // thumbnail, the muted label ellipsised, then the download and open glyphs.
+
+  namespace {
+    // The toolbar's accent square (browser .btn-icon.chat-result-btn); restyleIcons re-inks it by name.
+    void sizeResultButton(QToolButton* b, const QString& icon, const QColor& onAccent) {
+      b->setProperty("chatAccent", true);
+      b->setProperty(RESULT_ICON_PROPERTY, icon);
+      b->setFixedSize(RESULT_BUTTON, RESULT_BUTTON);
+      b->setIconSize(QSize(RESULT_ICON, RESULT_ICON));
+      b->setIcon(themedIcon(icon, onAccent, RESULT_ICON));
+    }
+  }  // namespace
+
+  // Browser .chat-results: one column of framed cards, each as wide as the widest — the cover
+  // thumbnail, the muted label ellipsised, then the download and open glyphs at the right edge.
   void ChatDock::appendVariants(const QVector<VariantCard>& variants) {
     if (variants.isEmpty()) return;
     QVBoxLayout* lay = appendTranscriptCard(0);
@@ -28,7 +39,10 @@ namespace stencil::gui {
     if (host) host->setFrameShape(QFrame::NoFrame);
     lay->setContentsMargins(0, 0, 0, 0);
     auto* strip = new QWidget(host);
-    auto* flow = new FlowLayout(strip, 0, 8, 8);
+    strip->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
+    auto* column = new QVBoxLayout(strip);
+    column->setContentsMargins(0, 0, 0, 0);
+    column->setSpacing(8);
     for (const VariantCard& v : variants) {
       auto* card = new QFrame(strip);
       card->setObjectName(QStringLiteral("chatResult"));
@@ -44,10 +58,11 @@ namespace stencil::gui {
       name->setText(name->fontMetrics().elidedText(v.label, Qt::ElideRight, RESULT_LABEL_MAX_PX));
       name->setToolTip(v.label);
       row->addWidget(name);
+      row->addStretch(1);
       const QImage img = v.image;
       const QString label = v.label;
       QToolButton* save = makeGhostButton(card, QStringLiteral("Download %1").arg(v.label));
-      save->setIcon(themedIcon(QStringLiteral("download"), textCache, HEADER_ICON));
+      sizeResultButton(save, QStringLiteral("download"), paletteCache.onAccent);
       connect(save, &QToolButton::clicked, this, [this, img, label] {
         const QString path = QFileDialog::getSaveFileName(
             this, "Save variant", label + QStringLiteral(".png"), "PNG image (*.png)");
@@ -55,15 +70,15 @@ namespace stencil::gui {
       });
       row->addWidget(save);
       QToolButton* open = makeGhostButton(card, QStringLiteral("Open %1 in a new window").arg(v.label));
-      open->setIcon(themedIcon(QStringLiteral("external"), textCache, HEADER_ICON));
+      sizeResultButton(open, QStringLiteral("external"), paletteCache.onAccent);
       open->setEnabled(!v.projectId.isEmpty());
       const QString pid = v.projectId;
       connect(open, &QToolButton::clicked, this,
               [this, pid] { emit openVariantRequested(pid); });
       row->addWidget(open);
-      flow->addWidget(card);
+      column->addWidget(card);
     }
-    lay->addWidget(strip);
+    lay->addWidget(strip, 0, Qt::AlignLeft);
   }
 
   // Provider settings and the working image are NOT touched; the owner clears the model history.
@@ -92,7 +107,7 @@ namespace stencil::gui {
     // only while something is actually falling in front of it (browser wipeDurationMs).
     if (wiped && support::isDustAllowed()) {
       // A hair past the scatter's duration; the overlay deletes itself on finish.
-      QTimer::singleShot(DisintegrateOverlay::ITEM_MS + 60, this, [this] {
+      QTimer::singleShot(support::motionMs(DisintegrateOverlay::ITEM_MS + 60), this, [this] {
         // A turn may have started while the wipe played.
         if (transcriptHasCards()) return;
         cmp.suggest->show();

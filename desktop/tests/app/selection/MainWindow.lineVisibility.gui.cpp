@@ -58,6 +58,18 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(!canvas->getLines()[0].hidden);
   }
 
+  // A refresh that changes nothing in the table rebuilds nothing (a stroke asks twice); a change does.
+  void anUnchangedRefreshKeepsTheRows() {
+    MainWindow win(nullptr, false);
+    CanvasWidget* canvas = seed(win);
+    QTableWidget* list = listOf(win);
+    QTableWidgetItem* before = list->item(1, NAME_COL);
+    win.onSelectionChanged();
+    QCOMPARE(list->item(1, NAME_COL), before);
+    canvas->setLineName(1, QStringLiteral("Edge"));
+    QTRY_COMPARE(list->item(1, NAME_COL)->text(), QString("Edge"));
+  }
+
   void aNameTypedInPlaceIsOneStepAndEscapeKeepsIt() {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = seed(win);
@@ -91,6 +103,28 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(canvas->getLines()[1].name, std::string("Roof ridge"));
     canvas->undo();
     QCOMPARE(canvas->getLines()[1].name, std::string());   // one undo step
+  }
+
+  // A row shows a point count, not the points: a drag rebuilds nothing; a new count or look does.
+  void rowsRebuildOnlyForWhatTheyShow() {
+    MainWindow win(nullptr, false);
+    seed(win);
+    QTableWidget* list = listOf(win);
+    stencil::core::Lines lines{lineAt(40), lineAt(120)};
+    const int mark = Qt::UserRole + 99;   // a rebuilt row is a fresh item, without it
+    win.selPanel->setLines(lines, {});
+    list->item(0, 0)->setData(mark, true);
+    lines[0].points[1] = {60, 90};
+    win.selPanel->setLines(lines, {});
+    QVERIFY2(list->item(0, 0)->data(mark).toBool(), "a moved point rebuilt the rows");
+    lines[0].points.push_back({90, 90});
+    win.selPanel->setLines(lines, {});
+    QVERIFY(!list->item(0, 0)->data(mark).toBool());
+    QCOMPARE(list->item(0, 6)->text(), QStringLiteral("3"));
+    list->item(0, 0)->setData(mark, true);
+    lines[1].style = "dashed";
+    win.selPanel->setLines(lines, {});
+    QVERIFY2(!list->item(0, 0)->data(mark).toBool(), "a style change still rebuilds the rows");
   }
 };
 

@@ -56,7 +56,7 @@ func TestStoreRefusesAnUnknownProject(t *testing.T) {
 }
 
 // The sweep deleting the row between the check and SetFile must not orphan the
-// bytes: the compensating delete takes them back.
+// bytes: the staged upload is discarded, never moved into place.
 func TestStoreCompensatesWhenTheRowGoesDuringSetFile(t *testing.T) {
 	svc, st, files := fileSvc(t)
 	st.Seed(protocol.ProjectRecord{ID: "p_1"})
@@ -68,8 +68,8 @@ func TestStoreCompensatesWhenTheRowGoesDuringSetFile(t *testing.T) {
 	if len(files.kinds()) != 0 {
 		t.Fatalf("bytes survived a vanished project: %v", files.kinds())
 	}
-	if len(files.removedKind) != 1 || files.removedKind[0] != "p_1/original" {
-		t.Fatalf("compensation = %v, want [p_1/original]", files.removedKind)
+	if len(files.discarded) != 1 || files.discarded[0] != "p_1/original" {
+		t.Fatalf("discarded = %v, want [p_1/original]", files.discarded)
 	}
 }
 

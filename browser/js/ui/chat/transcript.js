@@ -1,6 +1,6 @@
 // Rendering the shared transcript log. Model output is DATA — every string lands via
 // textContent, never innerHTML.
-import { LEAVING_CLASS, chatIn, observeReveal, wipeDurationMs } from '../motion.js';
+import { LEAVING_CLASS, chatIn, motionMs, observeReveal, wipeDurationMs } from '../motion.js';
 import { applyShrinkWrap, bindShrinkWrapResize, rowTextNode, setRowClass } from './row/chatRowDom.js';
 import { chatAskCard, chatAttachmentStrip, chatConfigureButton, chatReconnectButton, chatResultCard } from './row/chatCards.js';
 import { chatEmptyState, typingDots } from './empty.js';
@@ -164,7 +164,7 @@ const restoreEmptyState = (transcript, log, wiped) => {
   if (!leaving) { paint(); return; }
   if (transcript._emptyWaiting) return;
   transcript._emptyWaiting = true;
-  setTimeout(paint, wipeDurationMs());
+  setTimeout(paint, motionMs(wipeDurationMs()));
 };
 
 // On the transcript itself: the .chat-empty block is replaced whenever the conversation empties.

@@ -1,6 +1,7 @@
 using Stencil.TelegramBot.Application.Servers;
 using Stencil.TelegramBot.Domain.Projects;
 using Stencil.TelegramBot.Domain.Sessions;
+using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests.Servers;
 
@@ -143,4 +144,42 @@ public sealed class ServerServiceTests : ServerServiceTestBase
             () => _service.FetchAsync(UserId, "Nope", url: null));
     }
 
+    // Otherwise every later call re-mints, and the sync poll trips the server's token limit.
+    [Fact]
+    public async Task Should_Persist_A_Token_The_Client_Re_Minted()
+    {
+        MockStencilServerClient server = _factory.ClientFor(ServerA);
+        server.Seed(new ProjectRecord { Id = "p_seed", Name = "Shared", Version = 4 }, LayoutWithFilter("none"));
+        await _service.ConnectAsync(UserId, ServerA, token: "adm-secret", verifyTls: true);
+        await _service.FetchAsync(UserId, "Shared", url: null);
+        server.Session = new ServerHandshake("re-minted", CredentialKind.ADMIN);
+
+        await _service.ActiveServerVersionAsync(UserId);
+
+        ServerConnectionInfo stored = Assert.Single((await _store.GetAsync(UserId)).Connections);
+        Assert.Equal("re-minted", stored.Token);
+        Assert.Equal(CredentialKind.ADMIN, stored.CredentialKind);
+        Assert.Equal("adm-secret", stored.Credential);
+    }
+
+    [Fact]
+    public async Task Should_Open_A_Project_By_Id_Without_Listing_And_Keep_An_Unchanged_Original()
+    {
+        MockStencilServerClient server = _factory.ClientFor(ServerA);
+        ProjectRecord seeded = server.Seed(
+            new ProjectRecord { Id = "p_seed", Name = "Shared", Version = 4, OriginalHash = "h1" }, LayoutWithFilter("none"));
+        await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
+        server.ThrowOnList = true; // an id never walks the listing
+
+        UserSession first = await _service.FetchAsync(UserId, "p_seed", url: null);
+        server.Seed(seeded with { Version = 5 }, LayoutWithFilter("bw")); // a peer's layout-only save
+        UserSession pulled = (await _service.PullActiveAsync(UserId))!;
+
+        Assert.Equal(["original"], server.FileGets);
+        Assert.Equal(first.OriginalImagePath, pulled.OriginalImagePath);
+        Assert.Equal(5, pulled.ActiveProjectVersion);
+        server.Seed(seeded with { Version = 6, OriginalHash = "h2" });
+        await _service.PullActiveAsync(UserId);
+        Assert.Equal(["original", "original"], server.FileGets);
+    }
 }

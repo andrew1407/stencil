@@ -15,7 +15,7 @@ namespace stencil::gui {
     fx->show();
     fx->raise();
     auto* anim = new QVariantAnimation(fx);
-    anim->setDuration(ms);
+    anim->setDuration(support::motionMs(ms));
     fx->ms = ms;
     anim->setStartValue(0.0);
     anim->setEndValue(1.0);

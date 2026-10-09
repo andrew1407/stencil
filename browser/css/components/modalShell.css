@@ -9,7 +9,7 @@
     justify-content: center;
 }
 .app-modal-overlay.modal-open { display: flex; }
-/* The darkening half of the backdrop (motionPrefs modalBackdrop; its blur is in overlays.css).
+/* The darkening half of the backdrop (one window at a time; its blur is in overlays.css).
    Never the popover: dimming the page for a small panel reads wrong. */
 :root[data-modal-backdrop] .app-modal-overlay:not(.modal-popover) {
     background: rgba(0,0,0,0.5);
@@ -58,6 +58,8 @@
     width: 560px;
     max-width: calc(100vw - 40px);
     max-height: min(82vh, 760px);   /* the shared ceiling — see #settings-modal */
+    /* Content adapts to the window's own width, which a phone, the popover or a resize may narrow. */
+    container: modal / inline-size;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -171,6 +173,12 @@ stencil-llm-settings-modal .vs-ctrl .accent-dd-trigger {
     font-size: 13px;
     border-radius: 6px;
 }
+/* A row's title resets its control on a double-click (ui/control/dblReset.js), so it selects no text. */
+.vs-row > label:first-child { user-select: none; -webkit-user-select: none; }
+/* The Animation speed: its number box, then the frame scrub's bar (.vs-range, components/openImage.css). */
+stencil-visuals-modal .vs-ctrl.vs-speed { gap: 10px; height: var(--vs-ctrl-h); }
+stencil-visuals-modal .vs-ctrl.vs-speed > .vs-speed-num { flex: 0 0 64px; width: 64px; }
+stencil-visuals-modal .vs-ctrl.vs-speed > .vs-range { flex: 1 1 auto; width: auto; height: 13px; padding: 0; border-radius: 0; }
 stencil-visuals-modal .vs-ctrl.vs-color {
     gap: 8px;
     height: var(--vs-ctrl-h);

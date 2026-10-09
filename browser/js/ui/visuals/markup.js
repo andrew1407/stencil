@@ -1,7 +1,7 @@
 // ── Markup: the Visuals & Settings modal ────────────────────────────────────
 // The searchable rows of visual defaults: accent mount, motion mode, drawing colours.
 import { icon } from '../icons.js';
-import { MOTION_MODE_LABELS } from '../motion/motionPrefs.js';
+import { MOTION_MODE_LABELS, MOTION_SPEED } from '../motion/motionPrefs.js';
 import { NOTIFY_CHANNEL_LABELS } from '../../core/settings/notifyChannel.js';
 import { SILENCE_MS_MIN, SILENCE_MS_MAX } from '../../llm/voice/settings.js';
 import { THICKNESS_RANGE, POINT_SIZE_RANGE } from '../../core/settings/limits.js';
@@ -31,9 +31,6 @@ export const visualsModalInner = () => `
                 <div class="vs-row"><label for="vs-draw-anim">Drawing animation</label>
                     <span class="vs-ctrl vs-ctrl-check"><input type="checkbox" id="vs-draw-anim"></span>
                 </div>
-                <div class="vs-row"><label for="vs-modal-backdrop">Dim and blur behind windows</label>
-                    <span class="vs-ctrl vs-ctrl-check"><input type="checkbox" id="vs-modal-backdrop"></span>
-                </div>
                 <div class="vs-row"><label for="vs-multi-window" data-title="Keep several windows open side by side: nothing is dimmed or blurred, a click outside closes none, and the app stays usable behind them">Multiple windows</label>
                     <span class="vs-ctrl vs-ctrl-check"><input type="checkbox" id="vs-multi-window"></span>
                 </div>
@@ -41,6 +38,9 @@ export const visualsModalInner = () => `
                     <span class="vs-ctrl"><select id="vs-motion-mode" data-cs-skip>
                         ${MOTION_MODE_LABELS.map(([v, label]) => `<option value="${v}">${label}</option>`).join('')}
                     </select></span>
+                </div>
+                <div class="vs-row"><label>Animation speed</label>
+                    <span class="vs-ctrl vs-speed"><input type="number" id="vs-motion-speed-value" class="vs-speed-num" aria-label="Animation speed" min="${MOTION_SPEED.min}" max="${MOTION_SPEED.max}" step="${MOTION_SPEED.step}"><input type="range" id="vs-motion-speed" class="vs-range" min="${MOTION_SPEED.min}" max="${MOTION_SPEED.max}" step="${MOTION_SPEED.step}"></span>
                 </div>
                 <div class="vs-section">Notifications</div>
                 <div class="vs-row"><label data-title="In the app: the notice stack in the corner. Browser notifications: the browser's own, shown even when this tab is in the background — asks for permission once">Show notifications</label>

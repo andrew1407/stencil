@@ -5,7 +5,7 @@ import { DEFAULT_ACCENT } from '../../core/settings/accents.js';
 import { buildAccentPicker } from '../accent/picker.js';
 import { motionModeIcon } from '../motion/icons.js';
 import { enhanceSelect } from '../control/customSelect.js';
-import { motionPrefs, MOTION_EVENT, DEFAULT_MOTION_MODE, DEFAULT_DRAWING_ANIMATIONS, DEFAULT_MODAL_BACKDROP, DEFAULT_MULTI_WINDOW } from '../motion/motionPrefs.js';
+import { motionPrefs, MOTION_EVENT, DEFAULT_MOTION_MODE, DEFAULT_DRAWING_ANIMATIONS, DEFAULT_MULTI_WINDOW, DEFAULT_MOTION_SPEED } from '../motion/motionPrefs.js';
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';
 import { wireVoiceSilenceRow } from './voiceRow.js';
 import { wireNotifyRow } from './notifyRow.js';
@@ -69,6 +69,9 @@ export class StencilVisualsModal extends StencilElement {
         off: () => app.accents.endAccentPreview?.(accentMount.querySelector('.accent-dd-trigger') || accentMount),
       },
     });
+    // Its row's title resets it like any other row's (ui/control/dblReset.js), from the picker.
+    accentMount.closest('.vs-row')?.querySelector('label')?.addEventListener('dblclick', () =>
+      app.accents.setAccent(DEFAULT_ACCENT, accentMount.querySelector('.accent-dd-trigger') || accentMount));
     // The accent moved elsewhere (another tab) — keep this picker in sync; custom hex first.
     subscribe(EVENTS.accentChanged,
       (e) => accentPicker.set(typeof e.detail === 'string' ? e.detail : (app.customAccent || app.accent)));
@@ -88,25 +91,30 @@ export class StencilVisualsModal extends StencilElement {
     // The toolbar toggle (or another tab) can move it while this dialog is open.
     subscribe(EVENTS.themeChanged, syncAppearance);
 
-    // ── Motion: the stroke animation, the window backdrop, and the interface, all
+    // ── Motion: the stroke animation, side-by-side windows, and the interface, all
     // app-wide (ui/motion/motionPrefs.js), routed through the shared setter the console uses. ──
-    const motionMode = document.getElementById('vs-motion-mode');
+    const [motionMode, speed, speedValue] = ['vs-motion-mode', 'vs-motion-speed', 'vs-motion-speed-value'].map((id) => document.getElementById(id));
+    // The box and the bar show one value; the bar fills to its thumb (the scrub's --scrub-fill).
+    const paintSpeed = (v) => {
+      speed.value = v;
+      speedValue.value = Number(v).toFixed(2);
+      speed.style.setProperty('--scrub-fill', `${((v - speed.min) / (speed.max - speed.min)) * 100}%`);
+    };
     // Enhanced HERE, with each mode's glyph (animated on hover), not by the app-wide pass
     // — data-cs-skip on the <select> keeps that pass off it, or its plain rows would win.
     enhanceSelect(motionMode, { icons: motionModeIcon });
-    const checks = [['vs-draw-anim', 'drawing'], ['vs-modal-backdrop', 'backdrop'], ['vs-multi-window', 'multiWindow']].map(([id, k]) => [document.getElementById(id), k]);
-    const [backdropBox] = checks.find(([, k]) => k === 'backdrop');
-    // Side-by-side windows dim nothing, so the backdrop row stands idle while that is on.
+    const checks = [['vs-draw-anim', 'drawing'], ['vs-multi-window', 'multiWindow']].map(([id, k]) => [document.getElementById(id), k]);
     const syncMotion = () => {
       const m = motionPrefs();
       for (const [box, key] of checks) box.checked = m[key];
-      backdropBox.disabled = !!m.multiWindow;
-      backdropBox.closest('.vs-row')?.classList.toggle('vs-row-idle', !!m.multiWindow);
       motionMode.value = m.mode;
+      paintSpeed(m.speed);
     };
     syncMotion();
     for (const [box, key] of checks) box.addEventListener('change', () => app.settings.setMotion(key, box.checked));
     motionMode.addEventListener('change', () => app.settings.setMotion('mode', motionMode.value));
+    speed.addEventListener('input', () => paintSpeed(app.settings.setMotion('speed', speed.value).speed));
+    speedValue.addEventListener('change', () => paintSpeed(app.settings.setMotion('speed', speedValue.value).speed));
     // Moved from the console (or another dialog) while this one is open.
     subscribe(MOTION_EVENT, syncMotion);
 
@@ -187,8 +195,8 @@ export class StencilVisualsModal extends StencilElement {
     resetBtn.addEventListener('click', () => {
       Object.assign(app, VIS_DEFAULTS);
       app.accents.setAccent(DEFAULT_ACCENT);
-      const motionDefaults = [['drawing', DEFAULT_DRAWING_ANIMATIONS], ['backdrop', DEFAULT_MODAL_BACKDROP],
-        ['multiWindow', DEFAULT_MULTI_WINDOW], ['mode', DEFAULT_MOTION_MODE]];
+      const motionDefaults = [['drawing', DEFAULT_DRAWING_ANIMATIONS],
+        ['multiWindow', DEFAULT_MULTI_WINDOW], ['mode', DEFAULT_MOTION_MODE], ['speed', DEFAULT_MOTION_SPEED]];
       for (const [k, v] of motionDefaults) app.settings.setMotion(k, v);
       voiceRow.reset();
       notifyRow.reset();

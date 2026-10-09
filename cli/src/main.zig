@@ -104,6 +104,12 @@ pub fn main(init: std.process.Init) !void {
             if (status == .invalid) std.process.exit(1);
             return;
         },
+        // --merge-lines prints the co-edit line union; exit 2 when the input cannot be had or read.
+        .merge_lines => |path| {
+            var buf: [4096]u8 = undefined;
+            var stdout = std.Io.File.stdout().writerStreaming(io, &buf);
+            return inspect.mergeLines.run(gpa, io, &stdout.interface, path) catch std.process.exit(2);
+        },
         // A `.stencil` project on either side, or a `--prompt` turn, reuses the console Session so
         // its layout renders like the editors; server mode stays on the raster pipeline.
         .project => return project_cli.runWith(gpa, io, opts, llm.Env.fromMap(init.environ_map)) catch std.process.exit(1),
@@ -142,6 +148,7 @@ test {
     _ = @import("clipboard.zig");
     _ = @import("safety/child.zig");
     _ = @import("safety/confine.zig");
+    _ = @import("safety/input.zig");
     _ = @import("safety/sanitize.zig");
     _ = @import("media/page.zig");
     _ = @import("app/brand.zig");

@@ -10,7 +10,7 @@ import { FLIGHTS, moteFrame, paletteCss } from '../../../js/ui/dust/cloud.js';
 import { ANIMATIONS_CSS } from '../../helpers/css.js';
 import { createStubElement, installDom } from '../../helpers/dom.js';
 import { recordingCtx, argsOf, indexOf } from '../../helpers/recordingCtx.js';
-import { installDustPage, rect } from '../../helpers/dustPageRig.js';
+import { installDustPage, rect } from '../../helpers/dustRig.js';
 
 test('tileWaypoint sits part-way along the throw, pushed sideways by its own noise', () => {
   const { mx, my } = tileWaypoint(100, 0, 0.9);

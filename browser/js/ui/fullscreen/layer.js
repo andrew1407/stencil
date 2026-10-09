@@ -2,7 +2,7 @@ import { StencilElement, hostTag, define } from '../base.js';
 import { hotkeys } from '../../core/settings/hotkeys.js';
 import { icon } from '../icons.js';
 import { wirePanelResizer, onWindowResize } from '../../utils.js';
-import { flipFrom, FLIP_MS } from '../motion.js';
+import { flipFrom, motionMs, FLIP_MS } from '../motion.js';
 import { canvasOrigin } from '../../core/zoom/pan.js';
 import { publish, EVENTS } from '../../eventBus/appBus.js';
 import { fullscreenLayerInner } from './markup.js';
@@ -128,7 +128,7 @@ export class StencilFullscreenLayer extends StencilElement {
             app.zoomPan.syncViewportHeight();
 // …and again once the exit flight has landed: the toolbar rows are still coming back now,
 // and the early measure leaves the frame too tall (a permanent page scrollbar).
-            setTimeout(() => app.zoomPan.syncViewportHeight(), FLIP_MS + 120);
+            setTimeout(() => app.zoomPan.syncViewportHeight(), motionMs(FLIP_MS + 120));
           } else {
             vp.style.maxHeight = Math.max(300, window.innerHeight - 220) + 'px';
           }

@@ -10,15 +10,6 @@ namespace Stencil.TelegramBot.Bot.Telegram.Commands;
 
 public sealed partial class CommandHandlers
 {
-    private const string _scriptUsage =
-        "Usage: /script <stencil script>, e.g. /script @crop 10% ; @filter bw ; @line (0,0) (100%,100%)\n"
-        + "Newlines work too, and `@source <link>:` starts a block that loads its own image. "
-        + "Send a .stc file to run it as a script; the ops apply to the working image exactly like "
-        + "the slash commands, so /undo walks them back.";
-
-    private const string _scriptNeedsImage =
-        "There is no working image — send a photo first, or give the script an `@source <link>:` block.";
-
     private Task scriptAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct) =>
         RunScriptAsync(userId, chatId, cmd.ArgumentText, ct);
 
@@ -27,13 +18,13 @@ public sealed partial class CommandHandlers
     {
         if (text.Trim().Length == 0)
         {
-            await _bot.SendMessage(chatId, _scriptUsage, cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.ScriptUsage(), cancellationToken: ct);
             return;
         }
         UserSession session = await _store.GetAsync(userId, ct);
         if (!session.HasImage && !hasSourceBlock(text))
         {
-            await _bot.SendMessage(chatId, _scriptNeedsImage, cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.ScriptNeedsImage(), cancellationToken: ct);
             return;
         }
         ProgressNotice working = await ProgressNotice.StartAsync(

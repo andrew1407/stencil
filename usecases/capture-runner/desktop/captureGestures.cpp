@@ -1,12 +1,13 @@
-// The chrome drags, filmed step by step for the GIFs desktop.mjs assembles: a toolbar icon carried
+// The chrome gestures, filmed step by step for the GIFs desktop.mjs assembles: a toolbar icon carried
 // out to open its dialog where it drops, the header mark dropped for the clean view, the theme
-// lens, and one colour chip dropped on another. Driven as tests/app/drag/iconDragGui.hpp drives
+// lens, one colour chip dropped on another, and the fullscreen toolbar at the top edge. Driven as tests/app/drag/iconDragGui.hpp drives
 // the suites, so the real drag machines run.
 #include "captureShared.hpp"
 
 #include "CanvasWidget.hpp"
 #include "app/drag/iconDragGui.hpp"
 
+#include <QCursor>
 #include <QFile>
 #include <QScrollArea>
 #include <QToolButton>
@@ -190,5 +191,31 @@ void MainWindowGuiTest::gestureShots(MainWindow& win, const ShotSet& shots) {
     clearToasts(&win);
     strip.frame(DWELL * 2);
     std::printf("  drag-color/ (frames)\n");
+  }
+
+  if (shots.has("fullscreen-strip")) {
+    dress();
+    win.parts.view.toggleFullscreen();
+    pumpFor(600);
+    fit(win);
+    pumpFor(200);
+    clearToasts(&win);
+    Strip strip(&win, QStringLiteral("fullscreen-strip"));
+    // The pointer at the top edge brings the rows in; down over the picture, they leave again.
+    const auto hover = [&](double fy) {
+      QCursor::setPos(win.mapToGlobal(QPoint(win.width() / 2, int(win.height() * fy))));
+      win.parts.view.fsHoverTick();
+      pumpFor(300);
+      clearToasts(&win);
+    };
+    hover(0.6);
+    strip.frame(DWELL);
+    hover(0.05);
+    strip.frame(DWELL * 2);
+    hover(0.6);
+    strip.frame(DWELL);
+    win.parts.view.toggleFullscreen();
+    pumpFor(600);
+    std::printf("  fullscreen-strip/ (frames)\n");
   }
 }

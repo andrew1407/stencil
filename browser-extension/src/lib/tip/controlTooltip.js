@@ -5,7 +5,7 @@
 // shows it. `[data-no-tooltip]` opts out a control that owns its own hover popup.
 
 import { renderTip, parseTip } from './content.js';
-import { surfaceIn, surfaceOut, settleSurface, rectCenter,
+import { surfaceIn, surfaceOut, settleSurface, rectCenter, motionMs,
          TIP_DUST_IN_MS, TIP_DUST_OUT_MS, TIP_SHOW_DELAY_MS } from '../motion.js';
 import { comboMatchesEvent, eventCombo, parseCombo } from '../control/comboMatch.js';
 import { tipsHeld, onTipsHeld } from './tipHold.js';
@@ -51,7 +51,7 @@ const flashClass = (el, cls, ms) => {
   el.classList.remove(cls);
   void el.offsetWidth;   // force a reflow so re-adding the class restarts the animation
   el.classList.add(cls);
-  el.__flashTimer = setTimeout(() => el.classList.remove(cls), ms);
+  el.__flashTimer = setTimeout(() => el.classList.remove(cls), motionMs(ms));
 };
 
 const ensureTip = () => {
@@ -115,9 +115,9 @@ const reveal = (el) => {
   place(lastEvent);
   // Placed first, so the motes stream at the box the tip will actually occupy.
   const dusted = surfaceIn(t, dustPoint(el), { ms: TIP_IN_MS });
-  if (dusted) placeHeldUntil = now() + TIP_IN_MS;
+  if (dusted) placeHeldUntil = now() + motionMs(TIP_IN_MS);
   clearTimeout(shakeTimer);
-  if (dusted) shakeTimer = setTimeout(() => { shakeTimer = null; shakeKeys(t); }, TIP_IN_MS);
+  if (dusted) shakeTimer = setTimeout(() => { shakeTimer = null; shakeKeys(t); }, motionMs(TIP_IN_MS));
   else shakeKeys(t);
 };
 

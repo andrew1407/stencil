@@ -23,7 +23,8 @@ for (const c of CASES) {
     const hostname = hostnameOf(url);
     if (!c.expect) {
       assert.equal(parseAddress(hostname), null, 'a name is never read as an address');
-      assert.equal(isAllowedImageUrl(url), true);
+      assert.equal(isAllowedImageUrl(url), !c.loopbackName, 'fetch');
+      assert.equal(isAllowedImageUrl(url, { allowLoopback: true }), true, 'fetch+allowLoopback');
       return;
     }
     // A WHATWG URL carries no zone ID, so the URL itself is refused before any host check.

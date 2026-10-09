@@ -103,7 +103,7 @@ export function attachRowActions(deps) {
     meta.color ? { icon: 'x', label: 'Clear color', onClick: clearColor } : null,
     { icon: 'flag', label: 'Add keywords', onClick: editKeywords },
     { icon: 'file-text', label: 'Add description', onClick: editDescription },
-    { icon: 'calendar', label: 'Set expiration', onClick: (at) => document.querySelector('stencil-expiration-modal')?.openFor(meta.id, { from: at, backTo: menuBtn }) },
+    { icon: 'calendar', label: 'Set expiration', onClick: (at) => document.querySelector('stencil-expiration-modal')?.openFor(meta.id, { from: at, backTo: menuBtn, onSaved: render }) },
     (hasServers() && !serverLinked) ? { icon: 'server', label: 'Move to server', onClick: moveToServer } : null,
     (hasServers() && !serverLinked) ? { icon: 'copy', label: 'Copy to server', onClick: copyToServer } : null,
     { icon: 'trash', label: 'Remove', danger: true, onClick: removeRow },

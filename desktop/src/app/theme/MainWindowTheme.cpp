@@ -31,6 +31,28 @@
 
 namespace stencil::gui {
 
+  namespace {
+    struct AppLook {
+      bool dark = false;
+      bool webcore = false;
+      QString accent;
+      QString sheet;
+    };
+
+    // `fresh`: a window's first paint re-polishes the widgets it built before it, whatever is applied.
+    void restyleAppOnce(bool dark, const QString& accent, bool fresh) {
+      static AppLook applied;
+      const bool webcore = support::isWebcore();
+      if (!fresh && !applied.sheet.isEmpty() && applied.dark == dark && applied.webcore == webcore &&
+          applied.accent == accent && qApp->styleSheet() == applied.sheet)
+        return;
+      applied = AppLook{dark, webcore, accent,
+                        webcore ? support::buildWebcoreStylesheet(dark, accent) : buildStylesheet(dark, accent)};
+      qApp->setPalette(buildQPalette(dark, accent));
+      qApp->setStyleSheet(applied.sheet);
+    }
+  }  // namespace
+
   void MainWindow::applyTheme() {
     const bool dark = parts.theme.paintingDark();
     support::setSkinDark(dark);   // before any icon is asked for: the skin's art has two faces
@@ -64,17 +86,14 @@ namespace stencil::gui {
     }
     // The global re-polish depends only on (dark, accent); keyed off paletteMoved, not `swapping`:
     // a change mid-wipe skips the wipe but must still restyle.
-    const bool restyleApp = !painted.done || paletteMoved;
+    const bool fresh = !painted.done;
+    const bool restyleApp = fresh || paletteMoved;
     painted.done = true;
     painted.dark = dark;
     painted.accent = settings.accentColor;
-    if (restyleApp) {
-      // Application level so menus, popups and native chrome are themed too; a widget-level sheet
-      // left the menubar unthemed on Fedora.
-      qApp->setPalette(buildQPalette(dark, settings.accentColor));
-      qApp->setStyleSheet(support::isWebcore() ? support::buildWebcoreStylesheet(dark, settings.accentColor)
-                                               : buildStylesheet(dark, settings.accentColor));
-    }
+    // Application level so menus, popups and native chrome are themed too; a widget-level sheet
+    // left the menubar unthemed on Fedora. Once per look app-wide: a sibling's echo finds it applied.
+    if (restyleApp) restyleAppOnce(dark, settings.accentColor, fresh);
     // Tooltips are rich text with literal colours (tipContent.hpp), re-taken from the palette on
     // every swap.
     setTooltipPalette(themePalette(dark, settings.accentColor));

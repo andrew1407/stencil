@@ -155,12 +155,12 @@ namespace stencil::gui {
     };
     if (dust) {
       // The motes already drew it into place; fading it up as well would double the arrival.
-      QTimer::singleShot(CANVAS_DUST_MS, canvas, done);
+      QTimer::singleShot(support::motionMs(CANVAS_DUST_MS), canvas, done);
       return;
     }
     // No dust to play: fall back to the plain fade, not to a hidden canvas.
     auto* anim = new QVariantAnimation(canvas);
-    anim->setDuration(360);
+    anim->setDuration(support::motionMs(360));
     anim->setStartValue(0.0);
     anim->setEndValue(1.0);
     anim->setEasingCurve(QEasingCurve::OutCubic);

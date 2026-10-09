@@ -106,23 +106,6 @@ class CoreTest(unittest.TestCase):
       [255, 255, 255, 10, 0, 0, 0, 20, 0, 0, 0, 30, 255, 255, 255, 40],
     )
 
-  def test_rotated_dims(self) -> None:
-    self.assertEqual(self.core.rotated_dims(4, 2, 1), (2, 4))
-
-  def test_snap_crop_rect_keeps_the_window_whole_inside(self) -> None:
-    self.assertEqual(self.core.snap_crop_rect((95, -3, 20, 400), 100, 50), (80, 0, 20, 50))
-
-  def test_rotate_edit_quarter_turns_the_window_and_wraps_the_count(self) -> None:
-    # A 10x4 window at (1,2) of a 100x50 original, right → x = 50 − 2 − 4 in the 50x100 turn.
-    self.assertEqual(self.core.rotate_edit_quarter((1, 2, 10, 4), 0, 100, 50, True), ((44, 1, 4, 10), 1))
-    self.assertEqual(self.core.rotate_edit_quarter((44, 1, 4, 10), 1, 100, 50, False), ((1, 2, 10, 4), 0))
-
-  def test_crop_image_rgba(self) -> None:
-    # 2x2 image, extract the top-left 1x1 -> 4 bytes.
-    src = bytes(2 * 2 * 4)
-    dst = self.core.crop_image_rgba(src, 2, 2, 0, 0, 1, 1)
-    self.assertEqual(len(dst), 4)
-
   def test_rasterize_line_marks_pixels(self) -> None:
     # A diagonal line across a 4x4 transparent buffer should touch some pixels.
     buf = bytearray(4 * 4 * 4)
@@ -168,20 +151,6 @@ class CoreTest(unittest.TestCase):
     self.core.fill_rgba(buf, 4, 10, 20, 30, 255)  # 4 px == len(buf)/4
     self.assertTrue(any(b != 0 for b in buf))
     self.core.apply_contour(buf, 2, 2)  # 2x2 == len(buf)
-
-  def test_resolve_crop(self) -> None:
-    rect = self.core.resolve_crop(
-      "x1=0 x2=2 y1=0 y2=2",
-      image_w=100.0,
-      image_h=100.0,
-      px_per_cm_x=10.0,
-      px_per_cm_y=10.0,
-      page_wcm=21.0,
-      page_hcm=29.7,
-      album=False,
-    )
-    self.assertIsNotNone(rect)
-    self.assertEqual(len(rect), 4)
 
   def test_get_core_singleton(self) -> None:
     self.assertIs(get_core(), get_core())

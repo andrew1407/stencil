@@ -192,7 +192,7 @@ test('@vscode/vsce is the only dependency, dev-only and exactly pinned', () => {
 });
 
 test('the scripts are the two the CI job runs, and the lockfile is tracked', () => {
-  assert.equal(manifest.scripts.test, 'node --test');
+  assert.equal(manifest.scripts.test, 'node ../tools/repo/testRun.mjs');
   assert.match(manifest.scripts.package, /^vsce package --out /);
   assert.ok(existsSync(here('../package-lock.json')), 'npm ci needs a tracked lockfile');
   assert.ok(existsSync(here('../.vscodeignore')), 'the .vsix must not carry tests or node_modules');

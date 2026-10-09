@@ -84,7 +84,7 @@ namespace stencil::gui {
       QGraphicsOpacityEffect* fade = veilBehindDust(chip);
       fade->setOpacity(1.0);
       auto* out = new QPropertyAnimation(fade, "opacity", chip);
-      out->setDuration(int(leaveMs * LEAVE_FADE));
+      out->setDuration(support::motionMs(int(leaveMs * LEAVE_FADE)));
       out->setStartValue(1.0);
       out->setEndValue(0.0);
       out->setEasingCurve(QEasingCurve::OutCubic);
@@ -98,7 +98,7 @@ namespace stencil::gui {
     // ONE animation for the whole batch: Clear all collapsed chip-by-chip otherwise, each
     // relayout shoving the rest sideways before their own turn came.
     auto* fold = new QVariantAnimation(this);
-    fold->setDuration(leaveMs);
+    fold->setDuration(support::motionMs(leaveMs));
     fold->setStartValue(0.0);
     fold->setEndValue(1.0);
     QPointer<KeywordChips> self(this);
@@ -130,7 +130,7 @@ namespace stencil::gui {
       QFrame* chip = it.value();
       if (from.isNull() || from == chip->geometry()) continue;
       auto* fly = new QPropertyAnimation(chip, "geometry", chip);
-      fly->setDuration(flip.ms);
+      fly->setDuration(support::motionMs(flip.ms));
       fly->setEasingCurve(flip.easing);
       fly->setStartValue(from);
       fly->setEndValue(chip->geometry());
@@ -145,7 +145,7 @@ namespace stencil::gui {
       const int holdMs = dust ? clocks.enterDelayMs : 0;
       QGraphicsOpacityEffect* fade = veilBehindDust(chip);
       auto* up = new QPropertyAnimation(fade, "opacity", chip);
-      up->setDuration(holdMs + clocks.enterMs);
+      up->setDuration(support::motionMs(holdMs + clocks.enterMs));
       up->setStartValue(0.0);
       up->setEndValue(1.0);
       up->setEasingCurve(chipEnterCurve(holdMs, clocks.enterMs));

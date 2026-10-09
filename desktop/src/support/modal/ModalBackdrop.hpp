@@ -51,7 +51,7 @@ namespace stencil::support {
     // Covers `host` and goes when `dlg` closes. Null when the switch is off (side-by-side windows
     // dim nothing), or when there is nothing worth photographing.
     static ModalBackdrop* behind(QDialog* dlg, QWidget* host) {
-      if (!modalBackdrop() || multiWindow() || !dlg || !host) return nullptr;
+      if (!modalBackdrop() || !dlg || !host) return nullptr;
       if (host->width() < 8 || host->height() < 8) return nullptr;
       // One per dialog; and a backdrop still up (one fading out behind a window just closed) stays
       // out of the photograph, or the darkness doubles (two 50% scrims read as 75%).
@@ -114,7 +114,7 @@ namespace stencil::support {
       }
       auto* anim = new QVariantAnimation(this);
       fade = anim;
-      anim->setDuration(ms);
+      anim->setDuration(motionMs(ms));
       anim->setStartValue(level);
       anim->setEndValue(to);
       anim->setEasingCurve(QEasingCurve::InOutQuad);   // CSS `ease`

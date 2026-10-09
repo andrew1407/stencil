@@ -31,13 +31,14 @@ int main(int argc, char** argv) {
     }
   });
   const quint16 port = server.serverPort();
-  // Userinfo survives normalizeBase (scheme + authority), so this yields a row URL far
-  // wider than the dialog — exactly the overflow the elide has to absorb.
+  // Every request goes through the mock as a proxy, so each host name is its own server with no
+  // DNS: this one yields a row URL far wider than the dialog, the overflow the elide absorbs.
+  QNetworkProxy::setApplicationProxy(QNetworkProxy(QNetworkProxy::HttpProxy, QStringLiteral("127.0.0.1"), port));
   const QString longUrl =
-      QStringLiteral("http://a-very-long-user-name-meant-to-stretch-the-connection-row-"
-                     "well-past-any-sane-dialog-viewport-width@127.0.0.1:%1")
+      QStringLiteral("http://a-very-long-host-name.meant-to-stretch-the-connection-row."
+                     "well-past-any-sane-dialog.viewport-width.example:%1")
           .arg(port);
-  const QString shortUrl = QStringLiteral("http://u2@127.0.0.1:%1").arg(port);
+  const QString shortUrl = QStringLiteral("http://u2.example:%1").arg(port);
 
   ConnectionManager mgr;
   QString err;

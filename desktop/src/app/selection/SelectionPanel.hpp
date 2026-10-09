@@ -6,6 +6,7 @@
 #include <QString>
 #include <QTimer>
 #include <functional>
+#include <utility>
 #include <vector>
 
 class QTableWidget;
@@ -127,6 +128,9 @@ namespace stencil::gui {
     int canvasHoverPointRow = -1;
     int canvasHoverLineRow = -1;
     std::vector<int> linesSelected;
+    // What the Lines tab last built: each row's look (its points left empty) and point count.
+    std::vector<std::pair<core::Line, size_t>> builtRows;
+    qint64 builtPalette = -1;
     int eyeFlipRow = -1;   // the row whose eye was just clicked: its next build plays the toggle once
   };
 

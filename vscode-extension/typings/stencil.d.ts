@@ -354,21 +354,23 @@ interface StencilSettings {
    */
   readonly motionModes: MotionMode[];
   /**
-   * Whether an open window dims and blurs what it covers.
+   * How fast windows, menus, tooltips, list rows and chat messages open and close.
    *
-   * Off while multiWindow is on: side-by-side windows dim nothing.
+   * 0.1 is the slowest and 1 the fastest; a value outside that is clamped. The default 0.37 plays every animation at its tuned pace.
    *
    * ```js
-   * stencil.modalBackdrop = false;
+   * stencil.motionSpeed = 0.6;
    * ```
    *
    * [Stencil console API](https://github.com/andrew1407/stencil/blob/main/browser/README.md#console-api)
    */
-  modalBackdrop: boolean;
+  motionSpeed: number;
+  /** Many windows open at once: no backdrop, and a click outside closes none. Off, one window
+   *  at a time dims and blurs the page behind it. */
   /**
    * Keep several windows open side by side.
    *
-   * Nothing is dimmed or blurred, a click outside closes none, and the editor stays usable behind them.
+   * Nothing is dimmed or blurred, a click outside closes none, and the editor stays usable behind them. Off, one window at a time dims and blurs the page behind it.
    *
    * ```js
    * stencil.multiWindow = true;

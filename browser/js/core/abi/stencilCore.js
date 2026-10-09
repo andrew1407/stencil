@@ -4,7 +4,7 @@
 import { buildStateOps } from './coreHandles.js';
 import { buildScriptOps } from '../scriptHandles.js';
 import { RUNTIME_EXPORTS, missingExports, droppedParityOps } from './coreExports.js';
-import { createMarshal } from './coreMarshal.js';
+import { createMarshal, guardHeapOps, withJsFallback } from './coreMarshal.js';
 import { buildScalarOps } from './coreScalarOps.js';
 import { buildPageOps } from './corePageOps.js';
 import { buildImageOps } from './coreImageOps.js';
@@ -42,7 +42,8 @@ class StencilCore {
         for (const op of dropped) delete wrappers[op];
         if (dropped.length) console.warn(`[stencil] wasm core lacks parity-only op(s) ${dropped.join(', ')} — rebuild per core/WASM.md.`);
         const state = dropped.includes('state') ? {} : buildStateOps(core);
-        this.#installWrappers({ ...wrappers, ...state, ...buildScriptOps(core, { withCString }) });
+        const retire = (err) => this.#retire(err);
+        this.#installWrappers({ ...guardHeapOps({ ...wrappers, ...buildScriptOps(core, { withCString }) }, retire), ...state });
         return true;
       })
       .catch(err => {
@@ -55,7 +56,7 @@ class StencilCore {
   // Read per call so a wrapper built at module-eval time picks up the post-load swap.
   // Symmetric ops only; asymmetric sites use op(name) with their own guard.
   bind(name, jsRef) {
-    return (...args) => (this.#ops[name] ?? jsRef)(...args);
+    return withJsFallback(() => this.#ops[name], jsRef);
   }
 
   // The installed wasm fn, or null. For consumers with their own guard/fallback shape.
@@ -76,6 +77,14 @@ class StencilCore {
       'HoldDrawController', 'HistoryStack',
       'projectPeriodMs', 'projectAddPeriod', 'projectShouldPersist', 'projectIsExpired', 'projectIsExpiringSoon',
     ];
+  }
+
+  // The heap could not grow: every later call, here and through op(), takes the JS twin.
+  #retire(err) {
+    if (!this.#ready) return;
+    console.warn('[stencil] wasm core out of memory — using JS fallback:', err.message);
+    this.#ops = {};
+    this.#ready = false;
   }
 
   #installWrappers(wrappers) {

@@ -63,7 +63,7 @@ fn applyOps(session: *Session, io: std.Io, script: scriptCore.Script, log: *Log,
             },
             .shape => |line| try log.shape(session, line),
             .layout => |l| try log.record(session, .{ .layout = .{
-                .doc = pipeline.loadLayoutBytes(gpa, io, l.src) catch return Unresolved.Unresolved,
+                .doc = pipeline.loadText(gpa, io, l.src) catch return Unresolved.Unresolved,
                 .replace = std.mem.eql(u8, l.mode, "replace"),
             } }),
             .steps => |n| try log.undo(session, n),

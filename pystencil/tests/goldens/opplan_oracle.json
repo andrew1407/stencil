@@ -196,6 +196,8 @@
 "239-layout-line-point-color-not-string-invalid.json": {"error": "Invalid layout action: \"pointColor\" in lines[0] must be a string", "verdict": "invalid"},
 "240-copy-project-open-incognito.json": {"actions": [], "reply": "ok\n[warning] Skipped unknown operation \"copyProject\"", "variants": [], "verdict": "valid", "warnings": ["Skipped unknown operation \"copyProject\""]},
 "241-copy-project-incognito-closed-invalid.json": {"actions": [], "reply": "ok\n[warning] Skipped unknown operation \"copyProject\"", "variants": [], "verdict": "valid", "warnings": ["Skipped unknown operation \"copyProject\""]},
+"242-layout-negative-point-size-invalid.json": {"error": "Invalid layout action: \"pointSize\" in lines[0] must be a number >= 0", "verdict": "invalid"},
+"243-layout-fractional-thickness-valid.json": {"actions": [{"lines": [{"pointSize": 0, "points": [{"x": 0, "y": 0}, {"x": 10, "y": 20}], "thickness": 0.5}], "op": "layout"}], "reply": "ok", "variants": [], "verdict": "valid", "warnings": []},
 "gen-crop-minimal": {"actions": [{"op": "crop", "spec": {"x1": "10%"}}], "reply": "ok", "variants": [], "verdict": "valid", "warnings": []},
 "gen-crop-unknown-field": {"error": "Invalid crop action: unknown field \"zzzCanary\"", "verdict": "invalid"},
 "gen-crop-spec-missing": {"error": "Invalid crop action: \"spec\" is required", "verdict": "invalid"},

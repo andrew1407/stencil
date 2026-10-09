@@ -34,5 +34,6 @@ internal static class EditSessions
             ActiveProjectExpiresAt = 0,
             ActiveProjectVersion = 0,
             ActiveProjectLayoutJson = null,
+            ActiveProjectOriginalHash = null,
         };
 }

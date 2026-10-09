@@ -23,7 +23,7 @@ namespace stencil::gui {
   // Browser surfaceForm ramp: 0 until DUST_HOLD, then up to 1.
   void holdFadeKeys(QVariantAnimation* fade, int ms) {
     fade->setKeyValues({});
-    fade->setDuration(ms);
+    fade->setDuration(support::motionMs(ms));
     fade->setKeyValueAt(0.0, 0.0);
     fade->setKeyValueAt(DUST_HOLD, 0.0);
     fade->setKeyValueAt(1.0, 1.0);

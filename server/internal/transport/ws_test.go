@@ -57,15 +57,15 @@ func wsPair(t *testing.T) (client, server Conn) {
 }
 
 // Both adapters deliver identical protocol messages, so a desktop (TCP) and a
-// browser (WS) client editing one project land in the same hub session.
+// browser (WS) client reach the same hub feed.
 func TestWSRoundTripsOneMessagePerReadWrite(t *testing.T) {
 	client, server := wsPair(t)
 	write1(t, client, `{"type":"hello"}`)
 	if got := string(read1(t, server)); got != `{"type":"hello"}` {
 		t.Errorf("got %q", got)
 	}
-	write1(t, server, `{"type":"welcome"}`)
-	if got := string(read1(t, client)); got != `{"type":"welcome"}` {
+	write1(t, server, `{"type":"pong"}`)
+	if got := string(read1(t, client)); got != `{"type":"pong"}` {
 		t.Errorf("got %q", got)
 	}
 }
@@ -110,6 +110,7 @@ func TestWSReadUnblocksOnContextCancel(t *testing.T) {
 // The same memory guard as TCP, enforced by the library's read limit.
 func TestWSRejectsAnOverLimitFrame(t *testing.T) {
 	client, server := wsPair(t)
+	server.SetReadLimit(MaxMessageBytes)
 	go func() {
 		huge := make([]byte, MaxMessageBytes+1024)
 		for i := range huge {
@@ -157,5 +158,27 @@ func TestWSRemoteAddrIdentifiesThePeer(t *testing.T) {
 	_, server := wsPair(t)
 	if addr := server.RemoteAddr(); addr == "" {
 		t.Error("RemoteAddr() is empty; it is the only peer identifier in the logs")
+	}
+}
+
+// An accepted WebSocket reads under MaxHelloBytes until the hub raises the limit: a first frame past
+// the hello cap fails the read, and the same frame passes once SetReadLimit has lifted it.
+func TestWSReadsUnderTheHelloCapUntilRaised(t *testing.T) {
+	client, server := wsPair(t)
+	big := []byte(strings.Repeat("a", MaxHelloBytes+1))
+	go func() { _ = client.Write(context.Background(), big) }()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if _, err := server.Read(ctx); err == nil {
+		t.Fatal("a frame past MaxHelloBytes was read before the hello passed")
+	} else if ctx.Err() != nil {
+		t.Fatalf("read timed out instead of refusing the frame: %v", err)
+	}
+
+	client2, server2 := wsPair(t)
+	server2.SetReadLimit(MaxMessageBytes)
+	go func() { _ = client2.Write(context.Background(), big) }()
+	if got := read1(t, server2); len(got) != len(big) {
+		t.Fatalf("after the raise the frame came back %d bytes, want %d", len(got), len(big))
 	}
 }

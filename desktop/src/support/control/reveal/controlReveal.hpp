@@ -93,7 +93,7 @@ namespace stencil::gui {
     }
     holdBarSlot(bar);
     // `bar` is the context object: the job dies with its dialog.
-    QTimer::singleShot(CONTROL_REVEAL_OUT_MS, bar, [bar, want = std::move(want)] {
+    QTimer::singleShot(support::motionMs(CONTROL_REVEAL_OUT_MS), bar, [bar, want = std::move(want)] {
       if (!want()) closeBarSlot(bar, CONTROL_REVEAL_OUT_MS);
       else releaseBarSlot(bar);
     });

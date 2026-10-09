@@ -87,6 +87,7 @@ Real environment variables always win over `.env`; the real `bot/.env` is gitign
 | `STENCIL_BOT_UPDATE_WORKERS` | `32` | Updates handled at once; one user holds at most one |
 | `STENCIL_BOT_UPDATE_QUEUE` | `256` | Updates queued or running across all users; full ⇒ polling waits |
 | `STENCIL_BOT_MAX_PENDING_PER_USER` | `64` | Updates one user may have waiting behind their own; past it they are dropped |
+| `STENCIL_BOT_REFUSAL_WINDOW_SECONDS` | `300` | An unlisted user is told they are not allowed at most once per this window; the rest of their messages are dropped silently |
 | `STENCIL_BOT_DRAIN_TIMEOUT_SECONDS` | `10` | How long shutdown waits for in-flight updates |
 | `STENCIL_BOT_RESOLVE_TIMEOUT_SECONDS` | `5` | DNS lookup limit for a user-supplied link or server |
 | `STENCIL_BOT_PROGRESS_TICK_SECONDS` | `3` | Beat of the "Working on your request…" spinner |
@@ -117,8 +118,9 @@ being sent; without it, images up to 8 MB are attached as-is and larger ones are
 `STENCIL_BOT_ALLOWED_USERS` gates every command, button and upload except `/start` and
 `/help`, and it **fails closed**: with the list unset the bot answers nobody. Every command
 costs the operator something — `/url` fetches, every edit forks a CLI process, each `/prompt`
-spends the configured API key. An unlisted caller gets one plain sentence; the id to add is
-logged server-side. Send `/start` to the bot to learn your id.
+spends the configured API key. An unlisted caller gets one plain sentence, at most once per
+`STENCIL_BOT_REFUSAL_WINDOW_SECONDS`; the id to add is logged server-side. Send `/start` to the
+bot to learn your id.
 
 ## Chat surface
 

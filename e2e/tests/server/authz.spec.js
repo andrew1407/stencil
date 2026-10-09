@@ -1,13 +1,10 @@
 // Server access model, black-boxing the running binary: a project is a SHARED workspace — any
-// valid token may list, read and edit any project. The one guarded op is deletion, refused (409
-// CodeConflict) while two or more clients are in the project's live edit session and allowed
-// with at most one; unauthenticated callers are rejected at the door (401).
-// Mirrors server/internal/httpapi/projects.go and hub_test.go.
+// valid token may list, read, edit and delete any project; unauthenticated callers are rejected
+// at the door (401). Mirrors server/internal/httpapi/projects.go.
 import { test, expect } from '@playwright/test';
 import { issueToken, createProject, listProjects, bearer, SERVER_URL, stackEnabled } from '../../helpers/server/api.js';
-import { dialWS, join } from '../../helpers/server/wire.js';
 
-test.describe('server shared-workspace access + delete guard', () => {
+test.describe('server shared-workspace access', () => {
   test.skip(!stackEnabled, 'requires the backing stack (E2E_STACK=1)');
 
   test('any valid token can read, edit, and list a project created by another token', async ({ request }) => {
@@ -44,33 +41,9 @@ test.describe('server shared-workspace access + delete guard', () => {
     // B lists it.
     expect((await listProjects(request, tokenB)).map((r) => r.id)).toContain(p.id);
 
-    // Cleanup (no live sessions → delete allowed).
-    expect((await request.delete(`${SERVER_URL}/projects/${p.id}`, { headers: bearer(tokenA) })).status()).toBe(204);
-  });
-
-  test('delete is refused (409) while ≥2 clients are connected, allowed once ≤1 remain', async ({ request }) => {
-    const token = await issueToken(request);
-    const p = await createProject(request, token, { name: 'busy' });
-
-    // Two live clients in the project's edit session → count reaches 2.
-    const a = await dialWS();
-    const b = await dialWS();
-    await join(a, { token, projectId: p.id, clientId: 'A' });
-    await join(b, { token, projectId: p.id, clientId: 'B' });
-
-    // With two connected, delete is refused as a conflict — project survives.
-    const busy = await request.delete(`${SERVER_URL}/projects/${p.id}`, { headers: bearer(token) });
-    expect(busy.status()).toBe(409);
-    expect((await busy.json()).code).toBe('conflict');
-    expect((await request.get(`${SERVER_URL}/projects/${p.id}`, { headers: bearer(token) })).ok()).toBeTruthy();
-
-    // Drop one client; once the server observes ≤1 connection, delete succeeds.
-    b.close();
-    await expect
-      .poll(async () => (await request.delete(`${SERVER_URL}/projects/${p.id}`, { headers: bearer(token) })).status(), { timeout: 5000 })
-      .toBe(204);
-
-    a.close();
+    // Any token may delete it too, and the row is gone for everyone.
+    expect((await request.delete(`${SERVER_URL}/projects/${p.id}`, { headers: bearer(tokenB) })).status()).toBe(204);
+    expect((await request.get(`${SERVER_URL}/projects/${p.id}`, { headers: bearer(tokenA) })).status()).toBe(404);
   });
 
   test('file GET/PUT with no token is 401 unauthorized', async ({ request }) => {

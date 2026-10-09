@@ -91,7 +91,7 @@ namespace stencil::gui {
       QGraphicsOpacityEffect* fx = gui::veilBehindDust(overlay);
       if (dust) {
         auto* fade = new QPropertyAnimation(fx, "opacity", overlay);
-        fade->setDuration(POPOVER_OPEN_MS);
+        fade->setDuration(support::motionMs(POPOVER_OPEN_MS));
         fade->setKeyValueAt(0.0, 0.0);
         fade->setKeyValueAt(0.55, 0.0);
         fade->setKeyValueAt(1.0, 1.0);
@@ -99,12 +99,12 @@ namespace stencil::gui {
       } else {
         overlay->setGeometry(fromBox);
         auto* grow = new QPropertyAnimation(overlay, "geometry", overlay);
-        grow->setDuration(POPOVER_OPEN_MS);
+        grow->setDuration(support::motionMs(POPOVER_OPEN_MS));
         grow->setStartValue(fromBox);
         grow->setEndValue(box);
         grow->setEasingCurve(QEasingCurve::OutCubic);
         auto* fade = new QPropertyAnimation(fx, "opacity", overlay);
-        fade->setDuration(POPOVER_OPEN_MS);
+        fade->setDuration(support::motionMs(POPOVER_OPEN_MS));
         fade->setStartValue(0.0);
         fade->setEndValue(1.0);
         grow->start(QAbstractAnimation::DeleteWhenStopped);
@@ -172,12 +172,12 @@ namespace stencil::gui {
       }
       fx->setOpacity(1.0);
       auto* shrink = new QPropertyAnimation(overlayAlive, "geometry", overlayAlive);
-      shrink->setDuration(POPOVER_CLOSE_MS);
+      shrink->setDuration(support::motionMs(POPOVER_CLOSE_MS));
       shrink->setStartValue(overlayAlive->geometry());
       shrink->setEndValue(fromBox);
       shrink->setEasingCurve(QEasingCurve::InCubic);
       auto* fade = new QPropertyAnimation(fx, "opacity", overlayAlive);
-      fade->setDuration(POPOVER_CLOSE_MS);
+      fade->setDuration(support::motionMs(POPOVER_CLOSE_MS));
       fade->setStartValue(1.0);
       fade->setEndValue(0.0);
       connect(shrink, &QAbstractAnimation::finished, &loop, end);

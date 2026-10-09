@@ -98,7 +98,7 @@ test('an import into an occupied editor starts a NEW project — the one on scre
   assert.deepEqual(mock.stored.get('p1'), previousLines);
   // …and the image lands in a blank editor, so the loader promotes it into its OWN project
   // rather than swapping the raster of 'p1' (which would drop those lines).
-  assert.deepEqual(log.slice(0, 4), ['save', 'reset', 'promote', 'read'], 'flushed, reset, then a new project loads');
+  assert.deepEqual(log.slice(0, 4), ['save', 'reset', 'read', 'promote'], 'flushed, reset, then the decoded picture becomes a new project');
   assert.equal(mock.activeProjectId, 'p2');
   assert.equal(reads(), 1);
   assert.deepEqual(mock.stored.get('p1'), previousLines, 'p1 keeps its lines after the load settles');

@@ -21,6 +21,7 @@ public sealed class BotOptionsLimitsTests
         Assert.True(options.AllowPrivateServers);
         Assert.Equal(64L * 1024 * 1024, options.MaxServerResponseBytes);
         Assert.Equal(200, options.ProjectListLimit);
+        Assert.Equal(TimeSpan.FromMinutes(5), options.RefusalReplyWindow);
     }
 
     [Fact]
@@ -44,7 +45,9 @@ public sealed class BotOptionsLimitsTests
         withEnv("STENCIL_BOT_WORKSPACE_SWEEP_FLOOR_MINUTES", "2", o => Assert.Equal(TimeSpan.FromMinutes(2), o.WorkspaceSweepFloor));
         withEnv("STENCIL_BOT_MAX_SERVER_RESPONSE_MB", "3", o => Assert.Equal(3L * 1024 * 1024, o.MaxServerResponseBytes));
         withEnv("STENCIL_BOT_PROJECT_LIST_LIMIT", "25", o => Assert.Equal(25, o.ProjectListLimit));
+        withEnv("STENCIL_BOT_REFUSAL_WINDOW_SECONDS", "30", o => Assert.Equal(TimeSpan.FromSeconds(30), o.RefusalReplyWindow));
         withEnv("STENCIL_BOT_UPDATE_WORKERS", "0", o => Assert.Equal(32, o.UpdateWorkers));
+        withEnv("STENCIL_BOT_REFUSAL_WINDOW_SECONDS", "0", o => Assert.Equal(TimeSpan.FromMinutes(5), o.RefusalReplyWindow));
         withEnv("STENCIL_BOT_PROGRESS_TICK_SECONDS", "soon", o => Assert.Equal(TimeSpan.FromSeconds(3), o.ProgressTick));
         withEnv("STENCIL_BOT_SYNC_POLL_SECONDS", "-1", o => Assert.Equal(TimeSpan.FromSeconds(6), o.SyncPollInterval));
         withEnv("STENCIL_BOT_ALBUM_SETTLE_MS", "0", o => Assert.Equal(TimeSpan.FromSeconds(1), o.AlbumSettle));

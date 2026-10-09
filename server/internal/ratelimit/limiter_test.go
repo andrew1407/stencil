@@ -1,6 +1,7 @@
 package ratelimit
 
 import (
+	"strconv"
 	"testing"
 	"time"
 )
@@ -110,5 +111,25 @@ func TestSetIdleTTLMovesTheEvictionHorizon(t *testing.T) {
 	l.mu.Unlock()
 	if !kept {
 		t.Fatal("a bucket idle for less than the configured TTL was swept")
+	}
+}
+
+// A flood of fresh keys sweeps only when the map has doubled, so the eviction cost is amortised rather
+// than one full scan per new key.
+func TestSweepIsAmortisedOverNewKeys(t *testing.T) {
+	now := time.Unix(1_000_000, 0)
+	l := New(5)
+	l.now = func() time.Time { return now }
+	for i := 0; i < 10_000; i++ {
+		l.Allow(strconv.Itoa(i))
+	}
+	if l.sweeps > 10 {
+		t.Fatalf("10000 new keys ran %d sweeps, want one per doubling", l.sweeps)
+	}
+	before := l.sweeps
+	now = now.Add(idleTTL/2 + time.Second)
+	l.Allow("late") // half the TTL has passed: the next new key sweeps, map size aside
+	if l.sweeps != before+1 {
+		t.Fatalf("a new key after idleTTL/2 ran %d sweeps, want 1", l.sweeps-before)
 	}
 }

@@ -66,6 +66,9 @@ export const wireThumbPreview = (img, { doc = globalThis.document, caption = '',
     openPreview = box;
     const place = () => {
       if (!img.getBoundingClientRect || !box.getBoundingClientRect) return;
+      // Measured from the corner: a fixed auto-width box only gets the room right of its `left`.
+      box.style.left = '0px';
+      box.style.top = '0px';
       const r = img.getBoundingClientRect();
       const b = box.getBoundingClientRect();
       const vw = globalThis.innerWidth || 0;

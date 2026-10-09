@@ -1,13 +1,12 @@
 // ── commentPaths: does every path a code comment names still exist? ────
 // docPaths' rules applied to the comments of every tracked source file (the scanners
 // commentOnlyDiff uses, plus CSS). A comment word counts as a path only with a file extension.
-//   node tools/commentPaths.mjs [--check] [file...]   (--check exits 1 on a dead path)
-import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+//   node tools/commentPaths.mjs [--check] [file or folder...]   (--check exits 1 on a dead path)
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
 import { BUILD_OUTPUT, EXT, dropIgnored, isCandidate, makeUniverse, resolves } from './docPaths.mjs';
-import { langOf, scan } from './moveCheck.mjs';
+import { listFiles, mapLimit, readText, repoRoot, under } from './repo/io.mjs';
+import { langFor, scan } from './moveCheck.mjs';
 import { scanPy } from './commentOnlyDiff.mjs';
 
 // Words that read as paths but name something else — an example, a fixture's own file — keyed by
@@ -39,15 +38,7 @@ export const scanCss = (src) => {
   return spans;
 };
 
-const langFor = (file) => {
-  const ext = path.extname(file).toLowerCase();
-  if (ext === '.css' || ext === '.qss') return 'css';
-  if (ext === '.py') return 'py';
-  if (ext === '.ts') return 'js';
-  return langOf(file);
-};
-
-const commentsOf = (src, lang) => (lang === 'css' ? scanCss(src) : lang === 'py' ? scanPy(src) : scan(src, lang))
+export const commentsOf = (src, lang) => (lang === 'css' ? scanCss(src) : lang === 'py' ? scanPy(src) : scan(src, lang))
   .filter((s) => s.kind === 'comment');
 
 // Wrapping punctuation goes, and so does a `:line` or `#anchor` tail; a brace run stays whole.
@@ -90,23 +81,23 @@ export const deadRefs = (file, src, u) => {
 };
 
 // ── the scan ────────────────────────────────────────────────────
-const git = (root, ...args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', maxBuffer: 64 << 20 });
-
-export const scanTree = (root, only = []) => {
-  const files = git(root, 'ls-files', '-co', '--exclude-standard').split('\n')
-    .filter((f) => f && existsSync(path.join(root, f)));
+// `only` names files, or folders whose files are read.
+export const scanTree = async (root, only = []) => {
+  const files = await listFiles(root);
   const u = makeUniverse(files);
-  const sources = (only.length ? only : files).filter((f) => langFor(f) && !VENDORED.test(f));
-  const dead = sources.flatMap((file) => deadRefs(file, readFileSync(path.join(root, file), 'utf8'), u)
+  const picked = only.length ? only.flatMap((o) => (u.dirSet.has(o.replace(/\/$/, ''))
+    ? files.filter((f) => under(f, [o])) : [o])) : files;
+  const sources = picked.filter((f) => langFor(f) && !VENDORED.test(f));
+  const dead = await mapLimit(sources, async (file) => deadRefs(file, await readText(root, file), u)
     .map((ref) => ({ doc: file, file, ...ref })));
-  return dropIgnored(root, dead).map(({ doc, ...ref }) => ref);
+  return (await dropIgnored(root, dead.flat())).map(({ doc, ...ref }) => ref);
 };
 
 if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const args = process.argv.slice(2);
-  const root = git(process.cwd(), 'rev-parse', '--show-toplevel').trim();
+  const root = await repoRoot();
   const only = args.filter((a) => a !== '--check').map((a) => path.relative(root, path.resolve(a)));
-  const dead = scanTree(root, only);
+  const dead = await scanTree(root, only);
   for (const d of dead) console.log(`${d.file}:${d.line}  ${d.token}`);
   console.log(`commentPaths: ${dead.length} dead path${dead.length === 1 ? '' : 's'}`);
   process.exit(args.includes('--check') && dead.length ? 1 : 0);

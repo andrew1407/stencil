@@ -55,4 +55,4 @@ await browser.close();
 await stub.close();
 media.stop();
 server.stop();
-runner.finish();
+await runner.finish();

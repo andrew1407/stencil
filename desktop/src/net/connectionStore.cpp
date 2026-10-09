@@ -3,6 +3,7 @@
 
 #include <QJsonObject>
 #include <QSettings>
+#include <algorithm>
 
 namespace stencil::net {
 
@@ -57,6 +58,22 @@ namespace stencil::net {
     QJsonObject secrets = gui::fileStore::loadSecrets();
     secrets.insert(TOKENS_KEY, tokens);
     gui::fileStore::saveSecrets(secrets);
+  }
+
+  QVector<SavedServer> connectionStore::merged(const QVector<SavedServer>& live,
+                                               const QVector<SavedServer>& saved,
+                                               const QStringList& forgotten) {
+    QVector<SavedServer> out = live;
+    for (const SavedServer& srv : saved) {
+      const bool isLive = std::any_of(live.begin(), live.end(),
+                                      [&srv](const SavedServer& l) { return l.url == srv.url; });
+      if (!isLive && !forgotten.contains(srv.url)) out.push_back(srv);
+    }
+    return out;
+  }
+
+  void connectionStore::saveKeeping(const QVector<SavedServer>& live, const QStringList& forgotten) {
+    saveServers(merged(live, loadSavedServers(), forgotten));
   }
 
   bool connectionStore::getAutoConnect() {

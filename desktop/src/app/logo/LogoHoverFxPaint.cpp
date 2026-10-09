@@ -1,4 +1,5 @@
 #include "LogoHoverFx.hpp"
+#include "../../support/motionPrefs.hpp"
 #include "../../support/skinPrefs.hpp"
 
 #include <QPainter>
@@ -106,8 +107,8 @@ namespace stencil::gui {
     hovering = true;
     setProperty("fxActive", true);
     if (stillHover()) { update(); return; }
-    pulse->start();
-    spin->start();
+    support::startTuned(pulse, PULSE_MS);
+    support::startTuned(spin, SPIN_MS);
   }
 
   void LogoHoverFx::stop() {

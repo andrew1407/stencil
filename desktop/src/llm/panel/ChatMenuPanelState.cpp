@@ -53,6 +53,8 @@ namespace stencil::gui {
     restyleChatMoreMenu(moreRows, pal.textMain);   // the dock's own glyphs on the same rows
     splitter->setPillColors(pal.borderMain, pal.accent);
     styleSuggestionChips(suggest, pal);
+    // The tails are painted, not styled: a theme change recolours them here.
+    applyChatSwapToCards(body, rows, chatSwapSides, accent, chip, border, danger, chip);
   }
 
   void ChatMenuPanel::setChatSwapSides(bool on) {
@@ -61,7 +63,6 @@ namespace stencil::gui {
     // The flattened tail corner rides the SHARED stylesheet (chatCardStyleSheet), keyed off
     // chatSwapSides - re-issue it so every card's corner flips too, not just its alignment and tail.
     restyle(paletteCache);
-    applyChatSwapToCards(body, rows, chatSwapSides, accent, chip, border, danger, chip);
     applyChatBubbleWidths(body, scroll);
   }
 

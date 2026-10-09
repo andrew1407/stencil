@@ -107,10 +107,10 @@ namespace stencil::gui {
         holdFadeKeys(fade, DUST_IN_MS);
         // No cursor tracking mid-flight: the cloud was aimed where the tip was placed
         // (browser controlTooltip.js).
-        placeHold.setRemainingTime(DUST_IN_MS);
+        placeHold.setRemainingTime(support::motionMs(DUST_IN_MS));
       } else {
         fade->setKeyValues({});
-        fade->setDuration(FADE_MS);
+        fade->setDuration(support::motionMs(FADE_MS));
         fade->setStartValue(from);
         fade->setEndValue(1.0);
       }
@@ -118,7 +118,7 @@ namespace stencil::gui {
     }
     // The keycap nudge waits for the gather — a shake behind the motes cannot be seen.
     if (appearing && hasKeycaps(rich)) {
-      if (dusted) getShakeDelay()->start(DUST_IN_MS);
+      if (dusted) getShakeDelay()->start(support::motionMs(DUST_IN_MS));
       else shakeKeys();
     }
   }
@@ -139,7 +139,7 @@ namespace stencil::gui {
     owner.clear();
     closing = true;
     fade->setKeyValues({});
-    fade->setDuration(dusted ? DUST_HAND_OVER_MS : FADE_MS);
+    fade->setDuration(support::motionMs(dusted ? DUST_HAND_OVER_MS : FADE_MS));
     fade->setStartValue(windowOpacity());
     fade->setEndValue(0.0);
     fade->start();
@@ -173,6 +173,7 @@ namespace stencil::gui {
     }
     shake->stop();
     body->settle();
+    shake->setDuration(support::motionMs(SHAKE_MS));
     shake->start();
   }
 

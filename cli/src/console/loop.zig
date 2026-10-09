@@ -136,7 +136,22 @@ pub fn echoCommand(session: *Session, s: *screen.Screen, line: []const u8) void 
     s.skipRevealOnce(); // the echo is what you just typed, not output arriving
     const secret = commands.slashed(line) and skin.isSecret(commands.parseCommand(line).word);
     const gold = if (secret) logo.colorSeq(skin.gold) else "";
-    logo.print("{s}{s}{s}{s}{s}{s}\n", .{ logo.accentSeq(), ui.promptStr(session), logo.resetSeq(), gold, line, logo.resetSeq() });
+    const accent = logo.accentSeq();
+    const reset = logo.resetSeq();
+    // A known command word wears the accent, as it does in /help; its arguments stay plain.
+    if (!secret and isCommandWord(commands.parseCommand(line).word)) {
+        const head = std.mem.indexOfAny(u8, line, " \t") orelse line.len;
+        logo.print("{s}{s}{s}{s}{s}{s}{s}\n", .{ accent, ui.promptStr(session), reset, accent, line[0..head], reset, line[head..] });
+        return;
+    }
+    logo.print("{s}{s}{s}{s}{s}{s}\n", .{ accent, ui.promptStr(session), reset, gold, line, reset });
+}
+
+// A verb, or a word dispatch reads outside the verb table (the transforms and filters).
+fn isCommandWord(word: []const u8) bool {
+    if (commands.verbOf(word) != null) return true;
+    for (ui.completions) |c| if (std.ascii.eqlIgnoreCase(c, word)) return true;
+    return false;
 }
 
 /// The session's cancel hook: the editor's tty watch, behind an opaque pointer so session.zig

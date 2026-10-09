@@ -5,7 +5,8 @@
 // Desktop twin: OpenImageDialog's CropPreview.
 import { cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped, swapCropOrientation }
   from '../../core/parse/cropGeometry.js';
-import { tweenRect } from '../motion/rectTween.js';
+import { RECT_TWEEN_MS, tweenRect } from '../motion/rectTween.js';
+import { motionMs } from '../motion/motionPrefs.js';
 import { icon } from '../icons.js';
 import { pinWidestFace } from '../motion.js';
 
@@ -81,7 +82,7 @@ export const createCropOverlay = ({ state, els, pageDims, media, onDrag }) => {
     state.aspect = cropAspect(pageDims().width, pageDims().height, state.album);
     state.rect = swapCropOrientation(state.rect, state.aspect, state.iw, state.ih);
     render();
-    if (fly && from.width >= 1) flight = tweenRect(from, state.rect, paint);
+    if (fly && from.width >= 1) flight = tweenRect(from, state.rect, paint, motionMs(RECT_TWEEN_MS));
   };
 
   // Unlike the orientation flip, an arbitrary new aspect has no reciprocal to carry the old box

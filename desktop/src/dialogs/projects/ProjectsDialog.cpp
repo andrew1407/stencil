@@ -1,6 +1,7 @@
 #include "ProjectsDialog.hpp"
 
 #include "projectsRowChrome.hpp"
+#include "ReorderableListWidget.hpp"
 #include "guiHelpers.hpp"
 #include "fetchGuard.hpp"
 #include "iconSet.hpp"
@@ -17,6 +18,7 @@
 #include <QColor>
 #include <QPixmap>
 #include <QPushButton>
+#include <QMargins>
 #include <QVBoxLayout>
 #include <functional>
 #include <limits>
@@ -27,6 +29,27 @@
 namespace stencil::gui {
 
   namespace fetchGuard = stencil::net::fetchGuard;
+
+  namespace {
+    // The list rides the window's right edge with its bar in the gutter, as Settings' scroll body
+    // does; every other row keeps the body's padding, so the rows still line up under the search.
+    void rideRightEdge(QVBoxLayout* body, QLayout* listSlot, QWidget* batchBar, QListWidget* list) {
+      const int pad = body->contentsMargins().right();
+      const auto widen = [pad](QLayout* row) {
+        if (!row) return;
+        QMargins m = row->contentsMargins();
+        m.setRight(m.right() + pad);
+        row->setContentsMargins(m);
+      };
+      QMargins edge = body->contentsMargins();
+      edge.setRight(0);
+      body->setContentsMargins(edge);
+      for (int i = 0; i < body->count(); ++i)
+        if (QLayout* row = body->itemAt(i)->layout(); row != listSlot) widen(row);
+      if (batchBar) widen(batchBar->layout());
+      if (auto* reList = dynamic_cast<ReorderableListWidget*>(list)) reList->rideEdge(pad);
+    }
+  }  // namespace
 
   ProjectsDialog::ProjectsDialog(const std::vector<Project>& projects, long long now,
                                  stencil::net::ConnectionManager* connections,
@@ -41,10 +64,13 @@ namespace stencil::gui {
     // publishes accent + accent-2 there). Kept in the signature so callers stay untouched.
     Q_UNUSED(accentColor);
     setWindowTitle("Projects");
-    // The browser modal's footprint (app-modal width, min-height min(560px, 82vh))
-    // — the row text elides / stacks instead of demanding width.
-    setMinimumSize(MODAL_WIDTH, 420);
-    resize(MODAL_WIDTH, 560);
+    // The browser modal's footprint (projects.css: 576px wide, so the three filters keep one
+    // line; height min(82vh, 760px) of the window whatever the row count, so a filter never resizes it).
+    constexpr int PROJECTS_WIDTH = 576;
+    constexpr int PROJECTS_MIN_H = 420, PROJECTS_MAX_H = 760;
+    const int ceiling = parent ? int(parent->window()->height() * 0.82) : PROJECTS_MAX_H;
+    setMinimumSize(PROJECTS_WIDTH, PROJECTS_MIN_H);
+    resize(PROJECTS_WIDTH, std::clamp(ceiling, PROJECTS_MIN_H, PROJECTS_MAX_H));
 
     // Most-recently-updated first, matching the browser store ordering.
     std::sort(this->projects.begin(), this->projects.end(),
@@ -62,6 +88,7 @@ namespace stencil::gui {
     buildProjectList();
     wireRowGestures();
     buildFooter(chrome);
+    rideRightEdge(layout, barSlot, batch.batchBar, list);
     startRemotePolling();
   }
 

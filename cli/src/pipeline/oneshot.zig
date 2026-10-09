@@ -11,6 +11,7 @@ const report = @import("../app/report.zig");
 const page_mod = @import("../media/page.zig");
 const sources = @import("sources.zig");
 const steps_mod = @import("steps.zig");
+const output = @import("output.zig");
 const thumbnail = @import("../media/thumbnail.zig");
 
 const acquireInput = steps_mod.acquireInput;
@@ -20,9 +21,8 @@ const cropInPlace = steps_mod.cropInPlace;
 const applyRotateBy = steps_mod.applyRotateBy;
 const applyMirror = steps_mod.applyMirror;
 const applyFilterMode = steps_mod.applyFilterMode;
-const loadLayoutDoc = steps_mod.loadLayoutDoc;
 const drawLayoutDoc = steps_mod.drawLayoutDoc;
-const writeOutputLabeled = steps_mod.writeOutputLabeled;
+const writeOutputLabeled = output.writeOutputLabeled;
 
 /// The credential `url` is dialled with: `--token`, an invite link's own, then the environment's.
 fn tokenFor(opts: args.Options, url: []const u8) ?[]const u8 {
@@ -34,7 +34,7 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
     if (opts.no_clobber and opts.output != null) {
         const named = if (opts.server == null) opts.input else null;
         const fmt = (if (named) |i| image.formatOfPath(i) else null) orelse .png;
-        try steps_mod.refuseClobber(gpa, io, opts.output.?, fmt, false);
+        try output.refuseClobber(gpa, io, opts.output.?, fmt, false);
     }
 
     // 1) Acquire the source as an owned RGBA8 buffer, and note the format to fall back
@@ -118,7 +118,7 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
     //    carries are known before step 4 touches a pixel.
     var doc: ?layout_mod.Layout = null;
     defer if (doc) |*d| d.deinit();
-    if (opts.layout) |src| doc = try loadLayoutDoc(gpa, io, src);
+    if (opts.layout) |src| doc = try steps_mod.loadLayoutDoc(gpa, io, src);
 
     // 4) Filter — explicit --filter overrides the layout's filter. It runs on the picture
     //    alone; step 5 then draws the lines over it in their own colours.
@@ -135,7 +135,7 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
         report.err("no output path given\n", .{});
         return error.NoOutput;
     };
-    if (opts.confine_output) try steps_mod.refuseEscape(gpa, io, out, default_fmt);
+    if (opts.confine_output) try output.refuseEscape(gpa, io, out, default_fmt);
     // The page reported in the `wrote` line follows the effective page state: an applied
     // layout's pageSize (custom cm dims included), else a blank's picked format, else A4.
     const page_name = page_mod.effectivePageName(if (doc) |*d| d.page_size else null, if (opts.blank) |b| b.page else null);

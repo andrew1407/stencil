@@ -7,6 +7,7 @@ using Stencil.TelegramBot.Domain.Sessions;
 using Telegram.Bot;
 using Stencil.TelegramBot.Bot.Telegram.Access;
 using Stencil.TelegramBot.Bot.Telegram.Commands;
+using Stencil.TelegramBot.Bot.Telegram.Messaging;
 
 namespace Stencil.TelegramBot.Bot.Telegram.Sync;
 
@@ -70,27 +71,43 @@ public sealed class SyncWatcher : BackgroundService
         }
     }
 
+    // A busy user is skipped until the next tick, and one user's failing pull never stops the rest.
     private async Task tickAsync(CancellationToken ct)
     {
         foreach (var (userId, chatId) in _registry.Entries())
         {
-            // Hold the user's gate for the whole pull so a background refresh can't interleave with
-            // an interactive edit.
-            using IDisposable gate = await _gate.AcquireAsync(userId, ct);
-            UserSession session = await _store.GetAsync(userId, ct);
-            if (!session.SyncEnabled || session.ActiveProjectId is null)
+            using IDisposable? gate = _gate.TryAcquire(userId);
+            if (gate is null)
             {
-                _registry.Disable(userId); // stale entry — user turned sync off or dropped the project
                 continue;
             }
-            long? serverVersion = await _servers.ActiveServerVersionAsync(userId, ct);
-            if (serverVersion is null || serverVersion.Value <= session.ActiveProjectVersion)
+            try
             {
-                continue; // unreachable, or no change since our last-seen version
+                await pullAsync(userId, chatId, ct);
             }
-            await _servers.PullActiveAsync(userId, ct);
-            await _bot.SendMessage(chatId, "↺ a peer changed this project — pulled their version.", cancellationToken: ct);
-            await _handlers.RenderAndSendAsync(userId, chatId, ct, mutating: false);
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "Sync poll failed for user {UserId}", userId);
+            }
         }
+    }
+
+    // Under the user's gate, so a background refresh can't interleave with an interactive edit.
+    private async Task pullAsync(long userId, long chatId, CancellationToken ct)
+    {
+        UserSession session = await _store.GetAsync(userId, ct);
+        if (!session.SyncEnabled || session.ActiveProjectId is null)
+        {
+            _registry.Disable(userId); // stale entry — user turned sync off or dropped the project
+            return;
+        }
+        long? serverVersion = await _servers.ActiveServerVersionAsync(userId, ct);
+        if (serverVersion is null || serverVersion.Value <= session.ActiveProjectVersion)
+        {
+            return; // unreachable, or no change since our last-seen version
+        }
+        await _servers.PullActiveAsync(userId, ct);
+        await _bot.SendMessage(chatId, Replies.SyncPulled(), cancellationToken: ct);
+        await _handlers.RenderAndSendAsync(userId, chatId, ct, mutating: false);
     }
 }

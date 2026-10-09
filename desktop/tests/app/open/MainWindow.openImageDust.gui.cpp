@@ -2,27 +2,11 @@
 // away, and the rule that a cloud never outlives the tab or the window that raised it. Both
 // raise while the widget is still shown — DisintegrateFactory refuses an invisible source.
 // The crop read-out's own cloud is in MainWindow.openImageReadout.gui.cpp.
-// Shared ground in MainWindow.gui.hpp.
-#include "../../MainWindow.gui.hpp"
+// Shared ground in openImageGui.hpp.
+#include "openImageGui.hpp"
 
-#include "OpenImageDialog.hpp"
 #include "../../../src/support/motion/DisintegrateOverlay.hpp"
-#include <QCheckBox>
 #include <QLabel>
-#include <QLineEdit>
-#include <QPushButton>
-#include <QTabWidget>
-
-using stencil::gui::OpenImageDialog;
-
-namespace {
-  // The dialog's crop toggle: the one visible check with no text of its own.
-  QCheckBox* cropBox(OpenImageDialog* dlg) {
-    for (QCheckBox* c : dlg->findChildren<QCheckBox*>())
-      if (c->isVisible() && c->text().isEmpty()) return c;
-    return nullptr;
-  }
-}  // namespace
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
@@ -35,9 +19,7 @@ class MainWindowGuiTest : public QObject {
   void replacingThePreviewScattersTheOldPicture() {
     const auto motion = withMotion();
     MainWindow win(nullptr, false);
-    win.resize(1250, 980);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(showForOpenImage(win));
     // A second picture, so the swap really swaps.
     const QString other = QDir::temp().filePath(QStringLiteral("stencil_oi_swap.png"));
     QImage second(200, 300, QImage::Format_RGB32);
@@ -47,15 +29,9 @@ class MainWindowGuiTest : public QObject {
     QTimer::singleShot(0, &win, [&] {
       auto* dlg = qobject_cast<OpenImageDialog*>(QApplication::activeModalWidget());
       if (!dlg) return;
-      auto* tabs = dlg->findChild<QTabWidget*>(QStringLiteral("oiTabs"));
-      tabs->setCurrentIndex(1);
-      QWidget* page = tabs->currentWidget();
-      auto* url = page->findChild<QLineEdit*>();
-      auto* pv = page->findChild<QPushButton*>();
-      QTest::keyClicks(url, guiTestImage());
-      settle([&] { return pv->isEnabled(); }, 1000);
-      pv->click();
-      settle([&] { return !dlg->previewedImage().isNull(); }, 4000);
+      const UrlTab tab = previewByUrl(dlg, guiTestImage());
+      QLineEdit* url = tab.url;
+      QPushButton* pv = tab.preview;
       // A DIFFERENT source: the old picture must leave on a cloud of its own.
       url->clear();
       QTest::keyClicks(url, other);
@@ -80,9 +56,7 @@ class MainWindowGuiTest : public QObject {
   void leavingTakesTheCloudAlongAndLiftsItsVeil() {
     const auto motion = withMotion();
     MainWindow win(nullptr, false);
-    win.resize(1250, 980);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(showForOpenImage(win));
     // A second picture: an arrival plays once per source (animatedSources), so the close
     // has to be watched over a source that has not flown yet.
     const QString other = QDir::temp().filePath(QStringLiteral("stencil_oi_leave.png"));
@@ -136,9 +110,7 @@ class MainWindowGuiTest : public QObject {
     const auto motion = withMotion();
     bool followed = true, sawAny = false;
     MainWindow win(nullptr, false);
-    win.resize(1250, 980);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(showForOpenImage(win));
     QTimer::singleShot(0, &win, [&] {
       auto* dlg = qobject_cast<OpenImageDialog*>(QApplication::activeModalWidget());
       if (!dlg) return;
@@ -177,9 +149,7 @@ class MainWindowGuiTest : public QObject {
     const auto motion = withMotion();
     bool sawArrive = false, sawLeave = false;
     MainWindow win(nullptr, false);
-    win.resize(1250, 980);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(showForOpenImage(win));
     QTimer::singleShot(0, &win, [&] {
       auto* dlg = qobject_cast<OpenImageDialog*>(QApplication::activeModalWidget());
       if (!dlg) return;

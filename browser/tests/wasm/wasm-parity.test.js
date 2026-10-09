@@ -30,7 +30,9 @@ const CASES = {
   formula: [['x+9', 'x', 3], ['2**x', 'x', 3], ['(x-1)*4/2', 'x', 7], ['', 'x', 5], ['x +', 'x', 2],
     // Each of these once threw out of std::stod or read differently than parseFloat.
     ['.', 'x', 4], ['x*1e999', 'x', 4], ['1e-400', 'x', 4], ['1**(1/0)', 'x', 4], ['1.2.3', 'x', 4],
-    ['\u00a0x', 'x', 4], ['\u00a0', 'x', 4], ['0.5**(1/0)', 'x', 4]],
+    ['\u00a0x', 'x', 4], ['\u00a0', 'x', 4], ['0.5**(1/0)', 'x', 4],
+    // LIMITS.formulaMaxChars (1000): the longest accepted, then one past it (identity).
+    ['x' + ' '.repeat(999), 'x', 4], ['x' + ' '.repeat(1000), 'x', 4]],
   // [expr, the axis `val` binds, val] against CTX below; the last three are invalid.
   formulaCtx: [['PAGE_WIDTH', 'x', 0], ['PAGE_HEIGHT_IN', 'x', 0], ['IMAGE_WIDTH / 2', 'y', 0],
     ['x / y', 'x', 10], ['PAGE_WIDTH + PAGE_HEIGHT - x / 2', 'x', 8], ['9', 'x', 5],

@@ -5,6 +5,7 @@
 // paints is the window midline whatever a dock takes from the canvas.
 #include "accentDefaults.hpp"
 #include "colorMix.hpp"
+#include "motionPrefs.hpp"
 #include <QColor>
 #include <QPoint>
 #include <QEvent>
@@ -43,7 +44,7 @@ namespace stencil::gui {
       });
       fade.setInterval(16);
       QObject::connect(&fade, &QTimer::timeout, [this] {
-        opacity -= 16.0 / FADE_OUT_MS;
+        opacity -= fadeStep;
         if (opacity <= 0.0) { opacity = 1.0; fade.stop(); hide(); return; }
         update();
       });
@@ -75,6 +76,7 @@ namespace stencil::gui {
     void hideZones() {
       if (isHidden()) return;
       pulse.stop();
+      fadeStep = 16.0 / support::motionMs(FADE_OUT_MS);   // the speed the fade starts at holds to its end
       fade.start();
     }
     void hideZonesNow() { pulse.stop(); fade.stop(); opacity = 1.0; hide(); }
@@ -207,6 +209,7 @@ namespace stencil::gui {
     QTimer fade;
     double phase = 0.0;
     double opacity = 1.0;
+    double fadeStep = 0.0;
   };
 
 }  // namespace stencil::gui

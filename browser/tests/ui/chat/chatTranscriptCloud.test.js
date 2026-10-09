@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import { shrinkWrapWidth } from '../../../js/ui/chat/view.js';
 import { ANIMATIONS_CSS } from '../../helpers/css.js';
-import { installDustPage, rect } from '../../helpers/dustPageRig.js';
+import { installDustPage, rect } from '../../helpers/dustRig.js';
 
 test('animations.css: an arriving entry is VEILED, never faded up under its own dust', () => {
   const css = ANIMATIONS_CSS;

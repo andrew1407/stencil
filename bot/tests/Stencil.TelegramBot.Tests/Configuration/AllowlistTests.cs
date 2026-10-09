@@ -29,11 +29,11 @@ public sealed class AllowlistTests : IDisposable
     private readonly InMemorySessionStore _store = new();
 
     public AllowlistTests() =>
-        _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-allowlist-" + Guid.NewGuid().ToString("N"));
+        _dataDir = TempDirs.New("bot-allowlist");
 
     public void Dispose()
     {
-        try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
+        TempDirs.Delete(_dataDir);
     }
 
     private UpdateRouter routerFor(params long[] allowed)
@@ -44,6 +44,23 @@ public sealed class AllowlistTests : IDisposable
         return new UpdateRouter(
             handlers, new CallbackAction(handlers, _bot, _store), editing, _store, _bot,
             new UserGate(), options, _log);
+    }
+
+    // UpdateIntake's order: only an admitted update reaches the router's handlers.
+    private static async Task deliverAsync(UpdateRouter router, Message message)
+    {
+        if (router.Admit(message, CancellationToken.None))
+        {
+            await router.HandleMessageAsync(message, CancellationToken.None);
+        }
+    }
+
+    private static async Task deliverAsync(UpdateRouter router, Update update)
+    {
+        if (router.Admit(update.CallbackQuery!, CancellationToken.None))
+        {
+            await router.HandleUpdateAsync(update, CancellationToken.None);
+        }
     }
 
     private static Message textFrom(long userId, string text) =>
@@ -82,7 +99,7 @@ public sealed class AllowlistTests : IDisposable
     {
         UpdateRouter router = routerFor(_allowed);
 
-        await router.HandleMessageAsync(textFrom(_stranger, command), CancellationToken.None);
+        await deliverAsync(router, textFrom(_stranger, command));
 
         assertRefused(_stranger);
         Assert.Equal(0, _cli.EditCalls);
@@ -97,7 +114,7 @@ public sealed class AllowlistTests : IDisposable
     {
         UpdateRouter router = routerFor(_allowed);
 
-        await router.HandleMessageAsync(photoFrom(_stranger), CancellationToken.None);
+        await deliverAsync(router, photoFrom(_stranger));
 
         assertRefused(_stranger);
         Assert.Empty(_bot.Requests.OfType<GetFileRequest>());
@@ -112,7 +129,7 @@ public sealed class AllowlistTests : IDisposable
         Message member = photoFrom(_stranger);
         member.MediaGroupId = "album-1";
 
-        await router.HandleMessageAsync(member, CancellationToken.None);
+        await deliverAsync(router, member);
 
         assertRefused(_stranger);
         Assert.Empty(_bot.Requests.OfType<GetFileRequest>());
@@ -133,7 +150,7 @@ public sealed class AllowlistTests : IDisposable
             },
         };
 
-        await router.HandleUpdateAsync(update, CancellationToken.None);
+        await deliverAsync(router, update);
 
         assertRefused(_stranger);
         Assert.Equal(0, _cli.EditCalls);
@@ -145,7 +162,7 @@ public sealed class AllowlistTests : IDisposable
         // A HashSet with no entries — NOT the tests' allow-everyone default.
         UpdateRouter router = routerFor();
 
-        await router.HandleMessageAsync(textFrom(_allowed, "/crop x1=10%"), CancellationToken.None);
+        await deliverAsync(router, textFrom(_allowed, "/crop x1=10%"));
 
         Assert.Equal("🔴 This bot isn't accepting requests.", lastText(_bot));
         Assert.Equal(0, _cli.EditCalls);
@@ -158,7 +175,7 @@ public sealed class AllowlistTests : IDisposable
     {
         UpdateRouter router = routerFor(_allowed);
 
-        await router.HandleMessageAsync(textFrom(_stranger, command), CancellationToken.None);
+        await deliverAsync(router, textFrom(_stranger, command));
 
         Assert.DoesNotContain("isn't enabled", lastText(_bot));
         Assert.Empty(_log.Entries);
@@ -170,7 +187,7 @@ public sealed class AllowlistTests : IDisposable
     {
         UpdateRouter router = routerFor(_allowed);
 
-        await router.HandleMessageAsync(textFrom(_stranger, "/start c19hdHRw"), CancellationToken.None);
+        await deliverAsync(router, textFrom(_stranger, "/start c19hdHRw"));
 
         assertRefused(_stranger);
     }
@@ -180,9 +197,10 @@ public sealed class AllowlistTests : IDisposable
     {
         UpdateRouter router = routerFor(_allowed, _stranger);
 
-        await router.HandleMessageAsync(textFrom(_allowed, "/blank a4 pink"), CancellationToken.None);
+        await deliverAsync(router, textFrom(_allowed, "/blank a4 pink"));
 
         Assert.True(_cli.EditCalls > 0);
+        Assert.False(File.Exists(_cli.LastRequest!.Output)); // the sent render is deleted, not left to the janitor
         Assert.Empty(_log.Entries);
         Assert.DoesNotContain(_bot.Requests.OfType<SendMessageRequest>(), m => m.Text.Contains("isn't enabled"));
     }
@@ -195,9 +213,9 @@ public sealed class AllowlistTests : IDisposable
 
         for (int i = 0; i < 3; i++)
         {
-            await router.HandleMessageAsync(textFrom(_stranger, "/crop x1=10%"), CancellationToken.None);
+            await deliverAsync(router, textFrom(_stranger, "/crop x1=10%"));
         }
-        await router.HandleMessageAsync(textFrom(12345, "/crop x1=10%"), CancellationToken.None);
+        await deliverAsync(router, textFrom(12345, "/crop x1=10%"));
 
         Assert.Equal(2, _log.Entries.Count);
         Assert.All(_log.Entries, e => Assert.Equal(LogLevel.Warning, e.Level));

@@ -2,6 +2,10 @@
 // helpers inside it are inline copies of lib/image/pageImages.js — keep them in sync.
 // MAX_IMAGES caps what one page yields; BLOCKED_SCHEMES can never be injected into.
 export const MAX_IMAGES = 1000;
+// Elements whose computed styles are read (3 getComputedStyle each), and video frames encoded
+// (each a canvas JPEG of up to 1920 px), per frame scanned; the injected copies below match.
+export const MAX_SCAN_ELEMENTS = 10000;
+export const MAX_VIDEO_FRAMES = 8;
 export const BLOCKED_SCHEMES = Object.freeze(['chrome:', 'edge:', 'about:', 'chrome-extension:', 'view-source:']);
 
 // All-frames results → one list, deduped by src (first frame wins), capped at `limit`.
@@ -31,16 +35,16 @@ export const scanPageForImages = async (limit) => {
   // Inline mirror of lib/image/pageImages.js cssImageUrls: every url() minus bare #fragment refs.
   const cssImageUrls = (cssValue) => {
     const s = String(cssValue || '');
-    if (!s.includes('url(')) return [];   // cheap skip for none/normal/auto/gradients
+    if (!s.includes('url(')) return [];
     const re = /url\((['"]?)(.*?)\1\)/g;
-    const urls = [];
+    const out = [];
     let m;
     while ((m = re.exec(s))) {
       const u = (m[2] || '').trim();
       if (!u || u.startsWith('#')) continue;
-      urls.push(u);
+      out.push(u);
     }
-    return urls;
+    return out;
   };
   // Inline mirror of lib/image/pageImages.js srcsetUrls.
   const srcsetUrls = (srcset) => {
@@ -58,6 +62,9 @@ export const scanPageForImages = async (limit) => {
   const PSEUDOS = [null, '::before', '::after'];
   // A prefetch <link> has no `as`, so its href must look like an image.
   const IMG_EXT = /\.(png|jpe?g|gif|webp|avif|bmp|ico|cur|svg|tiff?)(?:[?#]|$)/i;
+  const MAX_SCAN_ELEMENTS = 10000;
+  const MAX_VIDEO_FRAMES = 8;
+  let framesTaken = 0;
 
   // A frameless, posterless video still lists, keyed on its media URL.
   const push = (raw, kind, w, h, alt, extra = {}) => {
@@ -130,7 +137,8 @@ export const scanPageForImages = async (limit) => {
     let frame = null;
     // Paused at time 0 the element shows its poster while drawImage grabs frame 0
     // (commonly black) — skip that case.
-    if (w && h && v.readyState >= 2 && !(v.paused && !v.currentTime)) {
+    if (w && h && v.readyState >= 2 && !(v.paused && !v.currentTime) && framesTaken < MAX_VIDEO_FRAMES) {
+      framesTaken += 1;
       try {
         // Capped so the frame's data URL cannot overflow the editor launch URL.
         const s = Math.min(1, 1920 / Math.max(w, h));
@@ -159,8 +167,9 @@ export const scanPageForImages = async (limit) => {
     push(frame || '', 'video', w, h, v.getAttribute('aria-label') || 'video', { videoUrl, hasFrame: !!frame, posterUrl: poster });
   });
 
+  let visited = 0;
   for (const el of document.querySelectorAll('*')) {
-    if (out.length >= limit) break;
+    if (out.length >= limit || visited++ >= MAX_SCAN_ELEMENTS) break;
     for (const pseudo of PSEUDOS) {
       let cs;
       try { cs = getComputedStyle(el, pseudo); } catch { continue; }

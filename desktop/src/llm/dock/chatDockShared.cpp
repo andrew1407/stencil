@@ -42,7 +42,7 @@ namespace stencil::gui::chatdock {
     const double from = fx->opacity();
     fx->setOpacity(from);
     auto* anim = new QVariantAnimation(w);
-    anim->setDuration(CHAT_LEAVE_MS);
+    anim->setDuration(support::motionMs(CHAT_LEAVE_MS));
     anim->setStartValue(from);   // continue from wherever the entrance got to
     anim->setEndValue(0.0);
     anim->setEasingCurve(QEasingCurve::OutCubic);

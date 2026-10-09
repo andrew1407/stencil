@@ -33,7 +33,7 @@ public sealed class PromptStopTests : IDisposable
 
     public PromptStopTests()
     {
-        _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-stop-" + Guid.NewGuid().ToString("N"));
+        _dataDir = TempDirs.New("bot-stop");
         BotOptions options = new() { DataDir = _dataDir, AllowedUsers = AnyUser.Instance };
         EditingService editing = new(_cli, new UserWorkspace(options), _store);
         _handlers = TestHandlers.Create(options, _store, _cli, _bot, _llm, editing: editing, cancellations: _cancellations);
@@ -45,7 +45,7 @@ public sealed class PromptStopTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
+        TempDirs.Delete(_dataDir);
     }
 
     private Task dispatch(string text) =>
@@ -54,16 +54,7 @@ public sealed class PromptStopTests : IDisposable
     /// <summary>Tap a button the way the poller does — through the router, gate and all.</summary>
     private Task tap(string data) =>
         _router.HandleUpdateAsync(
-            new Update
-            {
-                CallbackQuery = new CallbackQuery
-                {
-                    Id = "cb",
-                    From = new User { Id = _userId },
-                    Message = new Message { Chat = new Chat { Id = _chatId } },
-                    Data = data,
-                },
-            },
+            new Update { CallbackQuery = TestHandlers.Tap(_userId, _chatId, data) },
             CancellationToken.None);
 
     private IEnumerable<SendMessageRequest> Messages => _bot.Requests.OfType<SendMessageRequest>();

@@ -24,7 +24,7 @@ namespace stencil::gui {
       const int savedMax = ctl::parkMaxWidth(w);
       ctl::flyReveal(w, pm, at, /*gather=*/false, CONTROL_REVEAL_OUT_MS);
       auto* shrink = new QPropertyAnimation(w, MAX_WIDTH_PROPERTY, w);
-      shrink->setDuration(CONTROL_REVEAL_OUT_MS);
+      shrink->setDuration(support::motionMs(CONTROL_REVEAL_OUT_MS));
       shrink->setStartValue(naturalW);
       shrink->setEndValue(0);
       // Not InCubic: a strong ease-in barely moves for 200ms then snaps shut.
@@ -77,7 +77,7 @@ namespace stencil::gui {
         guard->setGraphicsEffect(nullptr);
       } else {
         auto* fade = new QPropertyAnimation(freshVeilGuard, "opacity", freshVeilGuard);
-        fade->setDuration(CONTROL_REVEAL_IN_MS);
+        fade->setDuration(support::motionMs(CONTROL_REVEAL_IN_MS));
         fade->setKeyValueAt(0.0, 0.0);
         fade->setKeyValueAt(CONTROL_REVEAL_VEIL_STOP, 0.0);
         fade->setKeyValueAt(1.0, 1.0);
@@ -87,7 +87,7 @@ namespace stencil::gui {
         fade->start(QAbstractAnimation::DeleteWhenStopped);
       }
       auto* grow = new QPropertyAnimation(guard, MAX_WIDTH_PROPERTY, guard);
-      grow->setDuration(CONTROL_REVEAL_IN_MS);
+      grow->setDuration(support::motionMs(CONTROL_REVEAL_IN_MS));
       grow->setStartValue(0);
       grow->setEndValue(naturalW);
       grow->setEasingCurve(QEasingCurve::OutCubic);
@@ -124,7 +124,7 @@ namespace stencil::gui {
     }
     fx->setOpacity(0.0);
     auto* veil = new QPropertyAnimation(fx, "opacity", fx);
-    veil->setDuration(inMs);
+    veil->setDuration(support::motionMs(inMs));
     veil->setKeyValueAt(0.0, 0.0);
     veil->setKeyValueAt(CONTROL_REVEAL_VEIL_STOP, 0.0);
     veil->setKeyValueAt(1.0, 1.0);

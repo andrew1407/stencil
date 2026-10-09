@@ -21,56 +21,29 @@ func Middleware(resolver SessionResolver, lookupTimeout time.Duration) func(http
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			token := BearerToken(req)
-			sess, err := verifyBounded(req.Context(), resolver, token, lookupTimeout)
+			ctx, cancel := clock.WithTimeout(req.Context(), lookupTimeout)
+			sess, err := Verify(ctx, resolver, token, clock.NowMs())
+			cancel()
 			if err != nil {
 				writeUnauthorized(rw)
 				return
 			}
-			ctx := context.WithValue(req.Context(), sessionKey, sess)
-			next.ServeHTTP(rw, req.WithContext(ctx))
+			next.ServeHTTP(rw, req.WithContext(context.WithValue(req.Context(), sessionKey, sess)))
 		})
 	}
 }
 
-func verifyBounded(ctx context.Context, resolver SessionResolver, token string, timeout time.Duration) (Session, error) {
-	if timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, timeout)
-		defer cancel()
-	}
-	return Verify(ctx, resolver, token, clock.NowMs())
-}
-
-// WSRoute is the one path a WebSocket upgrade is served on, so the one path a URL token is read on.
+// WSRoute is the one path a WebSocket upgrade is served on; the hello frame carries its token.
 const WSRoute = "/ws"
 
-// BearerToken extracts the token from Authorization, tolerating any case of "Bearer ". Only an upgrade on
-// WSRoute may fall back to a `token` query param; elsewhere a URL token is ignored — it would leak via logs.
+// BearerToken extracts the token from Authorization, tolerating any case of "Bearer ". A URL token is
+// never read: it would leak via logs.
 func BearerToken(req *http.Request) string {
 	h := req.Header.Get("Authorization")
-	if h != "" {
-		if len(h) >= 7 && strings.EqualFold(h[:7], "bearer ") {
-			return strings.TrimSpace(h[7:])
-		}
-		return strings.TrimSpace(h)
+	if len(h) >= 7 && strings.EqualFold(h[:7], "bearer ") {
+		return strings.TrimSpace(h[7:])
 	}
-	if req.URL.Path == WSRoute && isWebSocketUpgrade(req) {
-		return req.URL.Query().Get("token")
-	}
-	return ""
-}
-
-// isWebSocketUpgrade reports whether r is an RFC6455 upgrade handshake.
-func isWebSocketUpgrade(req *http.Request) bool {
-	if !strings.EqualFold(req.Header.Get("Upgrade"), "websocket") {
-		return false
-	}
-	for _, tok := range strings.Split(req.Header.Get("Connection"), ",") {
-		if strings.EqualFold(strings.TrimSpace(tok), "upgrade") {
-			return true
-		}
-	}
-	return false
+	return strings.TrimSpace(h)
 }
 
 // SessionFromContext returns the authenticated session attached by Middleware.

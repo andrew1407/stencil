@@ -1,4 +1,4 @@
-import { motionReduced } from '../motionPrefs.js';
+import { motionMs, motionReduced } from '../motionPrefs.js';
 import { MARK_IN_MS, MARK_LEAVING_CLASS, MARK_OUT_MS, markIn, markOut } from '../surface/marks.js';
 import { groupPainter } from '../surface/painters.js';
 import { SURFACE_FORMING_CLASS } from '../surface/motion.js';
@@ -72,7 +72,7 @@ const slideRevealSize = (el, sizeProp, from, to, ms, { defer = false, slack = 0,
       el.style[sizeProp] = '';
       el.style.removeProperty('--reveal-ms');
       el.style.removeProperty('--reveal-ease');
-    }, ms + slack);
+    }, motionMs(ms + slack));
   };
   if (!defer) { go(); return; }
   const raf = typeof requestAnimationFrame === 'function'

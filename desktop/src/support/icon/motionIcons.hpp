@@ -67,6 +67,7 @@ namespace stencil::support {
     QAbstractItemView* view;
     int hoverRow = -1;
     QElapsedTimer clock;
+    double scale = 1.0;   // motionScale() when this play began
     QTimer tick;
   };
 
@@ -86,6 +87,7 @@ namespace stencil::support {
     QComboBox* combo;
     QColor inked;      // the ink the rows' glyphs were last drawn in
     QElapsedTimer clock;
+    double scale = 1.0;   // motionScale() when this play began
     QTimer tick;
   };
 

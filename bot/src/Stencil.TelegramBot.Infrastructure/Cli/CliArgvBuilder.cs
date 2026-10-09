@@ -9,7 +9,6 @@ public static partial class CliArgvBuilder
 {
     // The exact option strings of cli/src/args.zig (cli/CONTRACT.md §1) — the peer of mcp's FLAG_*
     // consts.
-    private const string _flagServer = "--server";
     private const string _flagInput = "-i";
     private const string _flagBlank = "--blank";
     private const string _flagFrame = "-f";
@@ -20,9 +19,6 @@ public static partial class CliArgvBuilder
     private const string _flagLayout = "-l";
     private const string _flagFilter = "--filter";
     private const string _flagConfineOutput = "--confine-output";
-    private const string _flagRemoteUpdate = "--remote-update";
-    private const string _flagRemote = "--remote";
-    private const string _flagRemoteName = "--remote-name";
     public static IReadOnlyList<string> BuildArgv(EditRequest req)
     {
         bool hasInput = req.Input is not null;
@@ -34,7 +30,7 @@ public static partial class CliArgvBuilder
         if (!hasInput && !hasBlank)
         {
             throw new StencilCliException(
-                "no source — pass `input` (a path/URL), `blank`, or `server` + `input`");
+                "no source — pass `input` (a path/URL) or `blank`");
         }
         if (string.IsNullOrWhiteSpace(req.Output))
         {
@@ -49,39 +45,7 @@ public static partial class CliArgvBuilder
                 "would be parsed as a CLI flag, not the output path");
         }
 
-        // Server invariants, mirroring cli/src/pipeline.zig and mcp's Source::try_from.
-        if (req.Server is not null)
-        {
-            if (hasBlank)
-            {
-                throw new StencilCliException(
-                    "`server` fetches a project as the source — it can't be combined with `blank`");
-            }
-            if (!hasInput)
-            {
-                throw new StencilCliException(
-                    "`server` needs `input` set to the name of the project to fetch");
-            }
-        }
-        if (req.RemoteUpdate && req.Server is null)
-        {
-            throw new StencilCliException(
-                "`remote_update` writes back to a fetched project — it needs `server` (and `input`)");
-        }
-        if (req.RemoteName is not null && req.Remote is null)
-        {
-            throw new StencilCliException(
-                "`remote_name` names a `remote` upload — set `remote` (a server URL) too");
-        }
-
         List<string> argv = new();
-
-        // --server changes what -i means; the CLI parses order-independently.
-        if (req.Server is not null)
-        {
-            argv.Add(_flagServer);
-            argv.Add(req.Server);
-        }
 
         if (req.Input is not null)
         {
@@ -170,24 +134,6 @@ public static partial class CliArgvBuilder
         {
             argv.Add(_flagFilter);
             argv.Add(req.Filter);
-        }
-
-        // The result is always saved locally too (the positional output below).
-        if (req.RemoteUpdate)
-        {
-            argv.Add(_flagRemoteUpdate);
-        }
-
-        if (req.Remote is not null)
-        {
-            argv.Add(_flagRemote);
-            argv.Add(req.Remote);
-        }
-
-        if (req.RemoteName is not null)
-        {
-            argv.Add(_flagRemoteName);
-            argv.Add(req.RemoteName);
         }
 
         // The adapter forwards paths it did not author; ProcessStencilCli picks the working

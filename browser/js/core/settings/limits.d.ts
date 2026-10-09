@@ -5,6 +5,8 @@
 export declare const clampThickness: (n: number) => number;
 /** Into LIMITS.pointMin…pointMax (px). */
 export declare const clampPointSize: (n: number) => number;
+/** A stored or scripted thickness / point size: negatives become 0, nothing else moves. */
+export declare const storedSize: (n: number) => number;
 /** `min="…" max="…"` for a thickness field's markup. */
 export declare const THICKNESS_RANGE: string;
 /** `min="…" max="…"` for a point-size field's markup. */

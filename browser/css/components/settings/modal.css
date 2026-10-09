@@ -19,6 +19,7 @@
     width: 620px;
     max-width: calc(100vw - 40px);
     max-height: min(82vh, 760px);   /* the absolute cap the desktop shell also stops at (modalChrome sizeModalTall) */
+    container: modal / inline-size;   /* .app-modal's: the content follows the window's width */
     display: flex;
     flex-direction: column;
     overflow: hidden;

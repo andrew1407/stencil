@@ -9,6 +9,7 @@ const page_mod = @import("media/page.zig");
 const sources = @import("pipeline/sources.zig");
 const steps = @import("pipeline/steps.zig");
 const oneshot = @import("pipeline/oneshot.zig");
+const output = @import("pipeline/output.zig");
 
 pub const Source = steps.Source;
 pub const run = oneshot.run;
@@ -23,9 +24,9 @@ pub const applyMirror = steps.applyMirror;
 pub const loadLayoutDoc = steps.loadLayoutDoc;
 pub const drawLayoutDoc = steps.drawLayoutDoc;
 pub const applyFilterMode = steps.applyFilterMode;
-pub const writeOutputLabeled = steps.writeOutputLabeled;
-pub const refuseClobber = steps.refuseClobber;
-pub const loadLayoutBytes = sources.loadLayoutBytes;
+pub const writeOutputLabeled = output.writeOutputLabeled;
+pub const refuseClobber = output.refuseClobber;
+pub const loadText = sources.loadText;
 pub const expandHome = sources.expandHome;
 
 /// The `..` guard lives in confine.zig; re-exported for scrape.zig and the console's /save.
@@ -40,4 +41,5 @@ test {
     _ = sources;
     _ = steps;
     _ = oneshot;
+    _ = output;
 }

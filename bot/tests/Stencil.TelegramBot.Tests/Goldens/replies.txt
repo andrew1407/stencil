@@ -10,6 +10,18 @@
 == Glyph(Warning)
 🟡
 
+== AskClosed()
+That question is no longer open — just type what you want.
+
+== AskPickOne()
+Pick at least one option first.
+
+== AskTypeAnswer()
+Go ahead — type your answer.
+
+== Cancelled()
+Okay, never mind. Send /help for the command list.
+
 == ChatApiNoProfiles()
 ℹ️ This bot offers one chat API, set by its operator — there is nothing to switch between.
 
@@ -49,8 +61,17 @@ Edges: x1= x2= y1= y2= — each a % of the image, px, or cm.
 e.g. /crop x1=10% x2=90% y1=10% y2=90%
 Add 'album' to derive a missing axis from the page proportion (landscape).
 
+== DeleteNeedsProject()
+No active server project to remove — /fetch or /create one first.
+
 == DesktopLinkUnusable()
 ℹ️ Desktop links are off — STENCIL_BOT_BROWSER_URL has to be an http(s) address of the served browser app, whose launch.html page carries the hand-off.
+
+== DisconnectNone()
+No matching connection to disconnect.
+
+== Disconnected()
+Disconnected.
 
 == DrawHelp()
 Draw onto the image (coordinates are pixels, or x%,y% of the image):
@@ -60,11 +81,44 @@ Draw onto the image (coordinates are pixels, or x%,y% of the image):
 
 Style first with /color /thickness /points /style /fill — see /pen.
 
+== DrawLinePoints()
+A line needs at least two points.
+
+== DrawNeedsImage()
+Upload an image (or use /blank) before drawing.
+
+== DrawNoPoints()
+No points given.
+
+== DrawPolygonPoints()
+A polygon needs at least three points.
+
+== DrawRectPoints()
+A rectangle needs exactly two corner points: /draw rect x1,y1 x2,y2
+
 == ExpireUsage()
 Set the active project's expiry: /expire <amount>
 e.g. /expire 3 days · /expire 1 week · /expire 2 weeks · /expire 1 month · /expire 3 months
 Units: day(s), week(s), fortnight, month(s) — the number may lead or follow (e.g. "week 4").
 /expire never — keep the project forever.
+
+== ExpiryCustomAsk()
+Send a custom expiry, e.g. "3 days", "week", "2 weeks", "1 month", or "week 4".
+
+== ExpiryNeedsProject()
+Open a server project first (/fetch or /create), then set an expiry.
+
+== ExportLayoutCaption()
+Layout JSON
+
+== ExportProjectCaption()
+Stencil project
+
+== FallbackHint()
+Send a photo or an image link to edit, or /help for commands.
+
+== FetchUsage()
+Usage: /fetch <project name or id>
 
 == FilterVariants()
 Filter the image: /filter <mode>
@@ -74,6 +128,12 @@ invert — invert the colours
 contour — edge-detect outline
 none — clear the filter
 …or a colour name/#hex for a duotone tint, e.g. /filter #ff5623
+
+== FormatCustomUsage()
+Usage: /format custom <width> <height> (cm), e.g. /format custom 10 15
+
+== FrameGrabbed()
+Grabbed frame 0 — use /frame n to pick another.
 
 == HelpText()
 Stencil bot — edit images with the same core as the browser/desktop/CLI.
@@ -132,6 +192,45 @@ Server commands:
 /help — this message   /cancel — never mind
 The inline buttons mirror these commands.
 
+== ImageDropped()
+Dropped the working image. Send a photo or use /blank to start again.
+
+== LayoutCommandNeedsImage()
+Upload an image (or use /blank) before applying a layout.
+
+== LayoutFetchFailed()
+Could not fetch the layout from that link.
+
+== LayoutFileInvalid()
+That file isn't a valid Stencil layout JSON.
+
+== LayoutInvalid()
+That isn't a valid Stencil layout JSON.
+
+== LayoutNeedsImage()
+Send an image first, then upload a .json layout (or add the caption /apply).
+
+== LayoutUsage()
+Usage: /layout [combine] <layout JSON | link to a layout .json>, e.g. /layout {"imageWidth":800,"imageHeight":600,"lines":[…]} — or just upload the .json file. Add 'combine' first to keep the lines already drawn and put the new ones on top (the default replaces them).
+
+== LinkLoadedEditing()
+✏️ Loaded — now editing per your request…
+
+== LinkNeedsProject()
+No active server project to link — /fetch or /create one first (a link points at a server project, it can't carry the image itself).
+
+== NoImage()
+No working image — upload a photo or use /blank first.
+
+== NoImageToDescribe()
+No working image to describe — upload a photo or use /blank first.
+
+== NoImageToName()
+No working image to name — upload a photo or use /blank first.
+
+== NothingRunning()
+Nothing is running — that turn already finished.
+
 == PageFormatList()
 Page formats (portrait, cm) — set one with /format <name>:
 A0 (84.1×118.9 cm)
@@ -171,14 +270,51 @@ C10 (2.8×4 cm)
 Custom dims: /format custom <w> <h> (cm), e.g. /format custom 10 15.
 The chosen format is the /blank default page and rides the saved project layout.
 
+== PenColorUsage()
+Usage: /color <#hex|name>, e.g. /color #ff5623
+
+== PenFillUsage()
+Usage: /fill <#hex|name|none>, e.g. /fill #00ff00 (none clears it)
+
+== PenPointsUsage()
+Usage: /points <n> (radius in pixels; 0 hides points), e.g. /points 6
+
+== PenStyleUsage()
+Usage: /style <solid|dashed|dotted>, e.g. /style dashed
+
+== PenThicknessUsage()
+Usage: /thickness <n> (pixels, e.g. 4)
+
+== ProjectColorUsage()
+Usage: /project-color <#hex|name|clear>, e.g. /project-color #ff5623
+
+== ProjectFileInvalid()
+That file isn't a valid .stencil project.
+
+== ProjectNameUsage()
+Usage: /project-name <new name>, e.g. /project-name Poster draft
+
 == PromptStopped()
 ℹ️ Stopped. That request went unanswered — tap Retry to run it again.
 
 == PromptStopping()
 ℹ️ Stopping…
 
+== PromptUsage()
+Usage: /prompt <request>, e.g. /prompt make it black & white and crop 10% off each side
+The AI assistant plans the edit (crop/rotate/filter/draw/…) and the bot renders it with the same engine as every other command. Ask for alternatives to get several images. /p is a shortcut; a photo captioned /prompt … works too.
+
 == PromptWorking()
 Working on your request… this can take a minute.
+
+== RedoEmpty()
+Nothing to redo.
+
+== RemovalCancelled()
+Removal cancelled.
+
+== RetryStale()
+That turn is no longer pending — send the prompt again.
 
 == RotateVariants()
 Rotate by quarter-turns: /rotate <n>
@@ -186,8 +322,28 @@ Rotate by quarter-turns: /rotate <n>
 /rotate 2 — 180°
 /rotate -1 — 90° counter-clockwise
 
+== ScriptFileTooLarge()
+That .stc file is too large to run.
+
+== ScriptNeedsImage()
+There is no working image — send a photo first, or give the script an `@source <link>:` block.
+
+== ScriptUsage()
+Usage: /script <stencil script>, e.g. /script @crop 10% ; @filter bw ; @line (0,0) (100%,100%)
+Newlines work too, and `@source <link>:` starts a block that loads its own image. Send a .stc file to run it as a script; the ops apply to the working image exactly like the slash commands, so /undo walks them back.
+
 == ScriptWorking()
 Running your script…
+
+== SourceSiteUsage()
+Usage: /sourcesite <http(s) link> [count (default 5, 0 = all)] [filter=img|video|background|poster] [format=png|jpg|…] [name=<regex>] [minw=…] [maxw=…] [minh=…] [maxh=…] [group=N]
+name= is a case-insensitive regex matched on each media URL.
+e.g. /sourcesite https://example.com 6 filter=img format=png|jpg name=cat minw=200
+
+== SourceUploadUsage()
+Usage: /sourceupload <http(s) link> [index=0] [format=png|jpg|…] [name=<regex>] [minw=…] [maxw=…] [minh=…] [maxh=…]
+Scrapes the page and loads its index-th still (img/background/poster — not video) as the editable working image. name= is a case-insensitive regex on the media URL.
+e.g. /sourceupload https://example.com 2 format=png name=cat minw=200
 
 == SourcesHelp()
 Load a working image from the web — or just send a photo, or paste an image link:
@@ -195,6 +351,42 @@ Load a working image from the web — or just send a photo, or paste an image li
 /sourcesite <link> [count] [filter=img|video|…] [format=…] [name=<regex>] [group=N] — scrape a page's media into the chat
 /sourceupload <link> [index] [format=jpg|png|…] [name=<regex>] — scrape a page and load one image to edit
 e.g. /sourceupload https://example.com/gallery 0 format=jpg
+
+== SyncNeedsProject()
+Open a server project first (/fetch or /create), then /sync on.
+
+== SyncOff()
+Live sync OFF. Use /save to push changes manually.
+
+== SyncOn()
+🔄 Live sync ON — your edits upload automatically, and a peer's changes are pulled into the chat.
+
+== SyncPulled()
+↺ a peer changed this project — pulled their version.
+
+== ThisImage()
+this image
+
+== TintHelp()
+Tint with a custom colour: /filter <colour>, e.g. /filter #ff5623 or /filter teal. (B&W, Sepia, Invert and Contour have their own buttons; None clears it.)
+
+== UndoEmpty()
+Nothing to undo.
+
+== UnexpectedError()
+Sorry, something went wrong handling that. Please try again.
+
+== UnknownCommand()
+Unknown command. Send /help for the list.
+
+== UnsupportedFile()
+Unsupported file. Send an image or video to edit, a .stc script to run, a .stencil project to open, or a .json layout with caption /apply.
+
+== UrlUsage()
+Usage: /url <http(s) image link>, e.g. /url https://example.com/photo.png
+
+== Welcome()
+Welcome to Stencil. Send a photo to start editing, or tap a button below.
 
 == ChatHistoryCleared(false)
 🧹 Conversation cleared — the assistant has forgotten the previous turns.
@@ -250,4 +442,53 @@ http://localhost:8080/launch.html
 The page it opens hands the link to the desktop app. It carries no token — whoever follows it connects to the server with their own.
 
 ℹ️ It points at localhost, so it only works on this machine — set STENCIL_BOT_BROWSER_URL to a public browser app to share it.
+
+== ProjectColorSet("")
+Project colour cleared.
+
+== BlankColorCurrent("")
+This project is not a blank image.
+
+== BlankColorSet("")
+This project is not a blank image — nothing to recolour.
+
+== ProjectColorSet("#ff5623")
+Project colour set to #ff5623 🔴
+
+== BlankColorCurrent("#ff5623")
+Blank colour: #ff5623 🔴
+
+== BlankColorSet("#ff5623")
+Blank colour set to #ff5623 🔴
+
+== ProjectDescriptionSet("")
+Project description cleared.
+
+== DescriptionHeld("")
+Description cleared.
+
+== DescriptionAsk("")
+No description set yet.
+
+Send a new description (or "-" to clear it).
+
+== ProjectDescriptionSet("Poster draft")
+Project description set:
+Poster draft
+
+== DescriptionHeld("Poster draft")
+Description set (saved with the project on /create):
+Poster draft
+
+== DescriptionAsk("Poster draft")
+Current description:
+Poster draft
+
+Send a new description (or "-" to clear it).
+
+== ExpirySet(0, "")
+Expiry cleared — this project is kept forever.
+
+== ExpirySet(1767225600000, "3 days")
+Expiry set to 2026-01-01 (3 days from now).
 

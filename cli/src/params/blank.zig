@@ -21,7 +21,7 @@ pub fn parseBlank(st: *ParseState) Error!Blank {
             st.i += 1;
         }
     }
-    if (peekU32(st)) |w| {
+    if (try peekDim(st)) |w| {
         // A format token names the size, so it excludes explicit dims.
         if (b.page != null) {
             logo.err("--blank takes a page format OR explicit dims, not both\n", .{});
@@ -30,7 +30,10 @@ pub fn parseBlank(st: *ParseState) Error!Blank {
         b.width = w;
         st.i += 1;
         // A width is only meaningful with a height; require the pair together.
-        b.height = peekU32(st) orelse return Error.BadNumber;
+        b.height = (try peekDim(st)) orelse {
+            logo.err("--blank takes a width and a height, got only '{d}'\n", .{w});
+            return Error.BadNumber;
+        };
         st.i += 1;
     }
     if (st.i < st.argv.len) {
@@ -43,9 +46,15 @@ pub fn parseBlank(st: *ParseState) Error!Blank {
     return b;
 }
 
-fn peekU32(st: *ParseState) ?u32 {
+/// The next token as a page dimension: null when it is no number (so not a dim), refused when
+/// it is one but not a positive pixel count.
+fn peekDim(st: *ParseState) Error!?u32 {
     if (st.i >= st.argv.len) return null;
-    return std.fmt.parseInt(u32, st.argv[st.i], 10) catch null;
+    const tok = st.argv[st.i];
+    const n = std.fmt.parseInt(i64, tok, 10) catch return null;
+    if (n >= 1 and n <= std.math.maxInt(u32)) return @intCast(n);
+    logo.err("--blank expects a width and height of at least 1 px, got '{s}'\n", .{tok});
+    return Error.BadNumber;
 }
 
 test "parse: blank optional dims and colour" {
@@ -80,4 +89,13 @@ test "parse: blank optional page-format token" {
     // A format token and explicit dims are mutually exclusive.
     const a3 = [_][:0]const u8{ "--blank", "b5", "800", "600", "out.png" };
     try testing.expectError(Error.BadNumber, parser.parse(&a3));
+}
+
+test "parse: blank dims must be positive, and come as a pair" {
+    for ([_][:0]const u8{ "-5", "0" }) |bad| {
+        const argv = [_][:0]const u8{ "--blank", bad, bad, "out.png" };
+        try testing.expectError(Error.BadNumber, parser.parse(&argv));
+    }
+    const lone = [_][:0]const u8{ "--blank", "800", "out.png" };
+    try testing.expectError(Error.BadNumber, parser.parse(&lone));
 }

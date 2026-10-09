@@ -15,6 +15,7 @@ const extractLinesJson = @import("../session.zig").extractLinesJson;
 const layoutJson = @import("layoutJson.zig");
 const combineLinesJson = @import("../session.zig").combineLinesJson;
 const parseLayoutInto = @import("../session.zig").parseLayoutInto;
+const pointsIn = @import("state.zig").pointsIn;
 
 // editing ops (each pushes a snapshot + rebuilds)
 
@@ -84,6 +85,7 @@ pub fn setLines(self: *Session, layout_bytes: []const u8) !void {
 pub fn adoptServerLayout(self: *Session, layout_bytes: []const u8) !void {
     var st = EditState{};
     parseLayoutInto(self.gpa, layout_bytes, &st) catch {}; // partial parse still yields a valid st
+    st.points = pointsIn(self.gpa, st.lines());
     // Replace history[0] (we are right after loadImage, so cursor == 0). st is moved in.
     self.history.items[0].deinit(self.gpa);
     self.history.items[0] = st;

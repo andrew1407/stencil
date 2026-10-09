@@ -49,7 +49,7 @@ namespace stencil::gui {
       if (support::motionReduced()) { applyAt(to); return; }
       anim.setStartValue(at);
       anim.setEndValue(to);
-      anim.setDuration(int(ms * std::fabs(to - at)));
+      anim.setDuration(support::motionMs(int(ms * std::fabs(to - at))));
       anim.start();
     }
 

@@ -1,8 +1,10 @@
 // Pure, DOM-free sort/order helpers for projectsModal.js. An "item" is
-// { key, name (lowercased), date (epoch ms), isRemote (bool) }.
+// { key, name (lowercased), date (last saved, epoch ms), opened (last opened here, 0 = never), isRemote (bool) }.
 
-// name = server + local interleaved (default); manual = the per-session drag order.
-export const SORT_MODES = Object.freeze(['name', 'local', 'server', 'date-desc', 'date-asc', 'manual']);
+// opened-desc (the default) and opened-asc order by when this app last opened a project, date-* by its
+// last save; name interleaves server and local; manual is the per-session drag order.
+export const SORT_MODES = Object.freeze(['opened-desc', 'opened-asc', 'name', 'local', 'server', 'date-desc', 'date-asc', 'manual']);
+export const DEFAULT_SORT_MODE = 'opened-desc';
 
 // Stable tiebreak: name, then newest, then key.
 const cmpName = (a, b) => a.name.localeCompare(b.name) || (b.date - a.date) || a.key.localeCompare(b.key);
@@ -13,6 +15,8 @@ export const sortProjectItems = (items, mode, order = []) => {
   const arr = items.slice();
   if (mode === 'local') arr.sort((a, b) => (a.isRemote - b.isRemote) || cmpName(a, b));
   else if (mode === 'server') arr.sort((a, b) => (b.isRemote - a.isRemote) || cmpName(a, b));
+  else if (mode === 'opened-desc') arr.sort((a, b) => ((b.opened || 0) - (a.opened || 0)) || cmpName(a, b));
+  else if (mode === 'opened-asc') arr.sort((a, b) => ((a.opened || 0) - (b.opened || 0)) || cmpName(a, b));
   else if (mode === 'date-desc') arr.sort((a, b) => (b.date - a.date) || cmpName(a, b));
   else if (mode === 'date-asc') arr.sort((a, b) => (a.date - b.date) || cmpName(a, b));
   else if (mode === 'manual') {

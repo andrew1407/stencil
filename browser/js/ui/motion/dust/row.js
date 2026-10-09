@@ -1,6 +1,6 @@
 // A row arriving/leaving on the KEYWORD-CHIP recipe (tiles.js CHIP_*): the particles carry
 // the line while the row's height slides under them. Desktop twin: slideCropDims.
-import { motionReduced } from '../motionPrefs.js';
+import { motionMs, motionReduced } from '../motionPrefs.js';
 import { disintegrate } from '../disintegrate.js';
 import { speckPainter } from '../surface/painters.js';
 import { BOX_RESIZE_MS } from '../easeBoxHeight.js';
@@ -38,7 +38,7 @@ export const makeDustRow = (el, display = 'block', dustEl = () => el) => {
     const box = (h, t) => ({ height: `${h}px`, marginTop: `${h ? 0 : -gap}px`,
                              paddingTop: `${t ? padTop : 0}px`, paddingBottom: `${t ? padBottom : 0}px` });
     const f = el.animate([box(show ? 0 : full, show ? 0 : 1), box(show ? full : 0, show ? 1 : 0)],
-                         { duration: BOX_RESIZE_MS, easing: 'cubic-bezier(0.22,0.61,0.36,1)', fill: 'both' });
+                         { duration: motionMs(BOX_RESIZE_MS), easing: 'cubic-bezier(0.22,0.61,0.36,1)', fill: 'both' });
     flight = f;
     f.finished.then(() => { if (flight === f) { flight = null; f.cancel(); done(); } }, () => {});
   };
@@ -58,7 +58,7 @@ export const makeDustRow = (el, display = 'block', dustEl = () => el) => {
     if (show) {
       el.style.display = display;
       el.style.opacity = '0';   // while they fly, the motes ARE the line
-      if (cloud(true)) setTimeout(() => { el.style.opacity = ''; }, CHIP_DUST_MS);
+      if (cloud(true)) setTimeout(() => { el.style.opacity = ''; }, motionMs(CHIP_DUST_MS));
       else el.style.opacity = '';
     } else {
       cloud(false);
@@ -93,12 +93,12 @@ export const makeDustToggle = (el, display = 'inline-flex') => {
     if (show) {
       el.style.visibility = 'visible';
       el.style.opacity = '0';
-      if (cloud(true)) setTimeout(() => { el.style.opacity = ''; }, CHIP_DUST_MS);
+      if (cloud(true)) setTimeout(() => { el.style.opacity = ''; }, motionMs(CHIP_DUST_MS));
       else el.style.opacity = '';
     } else {
       cloud(false);
       el.style.opacity = '0';
-      setTimeout(() => { el.style.visibility = 'hidden'; el.style.opacity = ''; }, CHIP_DUST_MS);
+      setTimeout(() => { el.style.visibility = 'hidden'; el.style.opacity = ''; }, motionMs(CHIP_DUST_MS));
     }
   };
 };

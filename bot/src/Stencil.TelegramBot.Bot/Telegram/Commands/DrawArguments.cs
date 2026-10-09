@@ -1,5 +1,6 @@
 using System.Globalization;
 using Stencil.TelegramBot.Domain.Layout;
+using Stencil.TelegramBot.Bot.Telegram.Messaging;
 
 namespace Stencil.TelegramBot.Bot.Telegram.Commands;
 
@@ -19,7 +20,7 @@ public static class DrawArguments
         {
             if (!TryParsePoint(token, width, height, out LayoutPoint point))
             {
-                error = $"Bad point '{token}'. Use x,y (pixels) or x%,y%.";
+                error = Replies.DrawBadPoint(token);
                 points = new List<LayoutPoint>();
                 return false;
             }
@@ -27,7 +28,7 @@ public static class DrawArguments
         }
         if (points.Count == 0)
         {
-            error = "No points given.";
+            error = Replies.DrawNoPoints();
             return false;
         }
         return true;

@@ -6,6 +6,9 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <algorithm>
+#include <cmath>
+#include <vector>
 
 namespace stencil::gui {
 
@@ -168,5 +171,43 @@ namespace stencil::gui {
     });
   }
   void fileStore::flushWrites() { deferredWrite::flush(); }
+
+  QString fileStore::projectOpenedPath() { return stateDir() + "/projectOpened.json"; }
+
+  namespace {
+    // Read once per state dir; every later open stamps it in memory and re-writes it deferred.
+    QHash<QString, qint64>& openedCache() {
+      static QString loadedFrom;
+      static QHash<QString, qint64> opened;
+      const QString path = fileStore::projectOpenedPath();
+      if (loadedFrom != path) {
+        loadedFrom = path;
+        opened.clear();
+        const QJsonObject o = readJson(path).object();
+        for (auto it = o.begin(); it != o.end(); ++it)
+          if (const double at = it.value().toDouble(); std::isfinite(at) && at > 0) opened.insert(it.key(), qint64(at));
+      }
+      return opened;
+    }
+  }  // namespace
+
+  QHash<QString, qint64> fileStore::loadProjectOpened() { return openedCache(); }
+
+  void fileStore::markProjectOpened(const QString& id, qint64 now) {
+    if (id.isEmpty()) return;
+    QHash<QString, qint64>& all = openedCache();
+    all.insert(id, now);
+    if (all.size() > PROJECT_OPENED_CAP) {
+      std::vector<std::pair<qint64, QString>> byAge;
+      for (auto it = all.cbegin(); it != all.cend(); ++it) byAge.emplace_back(it.value(), it.key());
+      std::sort(byAge.begin(), byAge.end(), [](const auto& a, const auto& b) { return a.first > b.first; });
+      for (size_t i = size_t(PROJECT_OPENED_CAP); i < byAge.size(); ++i) all.remove(byAge[i].second);
+    }
+    deferredWrite::schedule(projectOpenedPath(), 600, [copy = all] {
+      QJsonObject keep;
+      for (auto it = copy.cbegin(); it != copy.cend(); ++it) keep[it.key()] = double(it.value());
+      return QJsonDocument(keep).toJson(QJsonDocument::Indented);
+    });
+  }
 }
 

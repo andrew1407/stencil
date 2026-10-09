@@ -35,7 +35,7 @@ namespace stencil::core {
     const double segSq = threshold >= 0.0 ? threshold * threshold : -1.0;
     for (std::size_t i = lines.size(); i-- > 0;) {
       const std::vector<Point>& pts = lines[i].points;
-      if (pts.empty() || farFromBox(pts, x, y, margin)) continue;
+      if (lines[i].hidden || pts.empty() || farFromBox(pts, x, y, margin)) continue;
 
       for (const Point& p : pts) {
         const double dx = p.x - x, dy = p.y - y;
@@ -55,7 +55,7 @@ namespace stencil::core {
     const double limitSq = threshold * threshold;
     for (std::size_t li = lines.size(); li-- > 0;) {
       const std::vector<Point>& pts = lines[li].points;
-      if (pts.empty() || farFromBox(pts, x, y, threshold)) continue;
+      if (lines[li].hidden || pts.empty() || farFromBox(pts, x, y, threshold)) continue;
       for (std::size_t pi = 0; pi < pts.size(); ++pi) {
         const double dx = pts[pi].x - x, dy = pts[pi].y - y;
         if (dx * dx + dy * dy < limitSq)
@@ -83,7 +83,7 @@ namespace stencil::core {
     std::optional<SegmentHit> best;
     for (std::size_t li = lines.size(); li-- > 0;) {
       const std::vector<Point>& pts = lines[li].points;
-      if (pts.empty() || farFromBox(pts, x, y, threshold)) continue;
+      if (lines[li].hidden || pts.empty() || farFromBox(pts, x, y, threshold)) continue;
       for (std::size_t j = 0; j + 1 < pts.size(); ++j) {
         const double d = distToSegmentSq(x, y, pts[j], pts[j + 1]);
         if (d < bestSq) {

@@ -73,6 +73,13 @@ namespace stencil::gui {
                            std::function<void(bool ok, qint64 newVersion, bool conflict)> cb)> put,
         std::function<void(bool ok, qint64 outVersion)> done);
 
+    // The same PUT for one project's meta: while `address`/`id` is still the link, `ownLink`
+    // patches it and the link adopts only its own version bump, all before `done`.
+    void putMetaAsync(stencil::net::ServerClient* c, const QString& address, const QString& id,
+                      std::function<void(qint64 version,
+                                         std::function<void(bool ok, qint64 newVersion, bool conflict)> cb)> put,
+                      std::function<void(RemoteLink&)> ownLink, std::function<void(bool ok, qint64 outVersion)> done);
+
    private:
     RemoteLink link;
     QString outcomeKey;

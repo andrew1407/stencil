@@ -123,4 +123,4 @@ if (runner.wanted(CLIP.name)) {
   console.log(`  ${CLIP.name}.gif`);
 }
 media.stop();
-runner.finish();
+await runner.finish();

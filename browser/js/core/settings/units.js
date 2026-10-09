@@ -93,9 +93,3 @@ export const pageFormatOptions = (unit = 'cm') =>
   Object.keys(PAGE_SIZES)
     .map((n) => `<option value="${n}">${pageFormatLabel(n, unit)}</option>`)
     .join('\n');
-
-// A relative delta (a bare number) rather than an absolute position.
-export const isDeltaToken = (token) => {
-  const t = parseLengthToken(token);
-  return !!t && t.kind === 'delta';
-};

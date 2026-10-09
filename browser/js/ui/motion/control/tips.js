@@ -1,4 +1,4 @@
-import { motionReduced } from '../motionPrefs.js';
+import { motionMs, motionReduced } from '../motionPrefs.js';
 import { SURFACE_IN_MS, dockAwayPoint, dockEdgeLane } from '../surface/motion.js';
 import { settleSurface, surfaceIn, surfaceOut } from '../surface/surfaces.js';
 import { TUNE } from '../tune.js';
@@ -65,6 +65,6 @@ export function wireHoverDust(host, popup, { inMs = 300, outMs = 200 } = {}) {
     if (!p) { settleSurface(popup); return; }
     popup.classList.add(HOVER_DUST_HOLD_CLASS);
     const played = surfaceOut(popup, p, { ms: outMs });
-    setTimeout(() => popup.classList.remove(HOVER_DUST_HOLD_CLASS), played ? HOVER_DUST_HOLD_MS : 0);
+    setTimeout(() => popup.classList.remove(HOVER_DUST_HOLD_CLASS), played ? motionMs(HOVER_DUST_HOLD_MS) : 0);
   });
 }

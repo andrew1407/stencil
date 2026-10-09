@@ -1,7 +1,7 @@
 import { isTypingInFocus } from '../../utils.js';
 import { fillAccentMenu, markSelected } from '../accent/picker.js';
 import { createModalOpenGesture } from '../tip/popover.js';
-import { surfaceIn, surfaceOut, rectCenter, motionReduced, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../motion.js';
+import { surfaceIn, surfaceOut, rectCenter, motionMs, motionReduced, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../motion.js';
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';
 import { attachMenuScrollbar } from '../control/menuScrollbar.js';
 import { growFrom } from '../control/dropdownMenu.js';
@@ -96,7 +96,7 @@ export function wireLogoAccentMenu(logo, wrap, app) {
     // can never wedge the menu open.
     menu.classList.add('dd-closing');
     dustMenu(false);
-    menuCloseTimer = setTimeout(menuCloseDone, 250);
+    menuCloseTimer = setTimeout(menuCloseDone, motionMs(250));
     menu.addEventListener('animationend', menuCloseDone);
   };
   // A machine in the glide registry (ui/tip/popover.js), like every modal icon's mini window:

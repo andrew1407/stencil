@@ -1,4 +1,5 @@
 #include "ChatPlanTarget.hpp"
+#include "SharedState.hpp"
 
 #include "MainWindow.hpp"
 #include "ChatSessionController.hpp"
@@ -165,7 +166,7 @@ namespace stencil::gui {
       w.projectList.clear();
       if (hadActive) w.parts.projects.resetToBlankEditor();   // the open one went with them
     }
-    fileStore::saveProjects(w.projectList);
+    SharedState::instance().saveProjects(&w);
     w.refreshActions();
     SiblingWindows::refreshDockMenu(w.projectList);
     w.notify->success(clearedToast(n));

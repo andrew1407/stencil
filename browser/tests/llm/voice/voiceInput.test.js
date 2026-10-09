@@ -1,38 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { createVoiceInput, isVoiceSupported } from '../../../js/llm/voice/input.js';
-import { createFakeSpeechRecognition, stubClock } from '../../helpers/speech.js';
+import { makeEngine } from '../../helpers/speech.js';
 
-// A level meter double: records start/stop, lets the test push a level.
-const fakeMeter = () => {
-  const m = { started: 0, stopped: 0, onLevel: null, fail: false };
-  m.create = () => ({
-    async start(cb) { m.started++; if (m.fail) throw new Error('mic refused'); m.onLevel = cb; },
-    stop() { m.stopped++; m.onLevel = null; },
-  });
-  return m;
-};
-
-const makeEngine = (over = {}) => {
-  const sr = createFakeSpeechRecognition(over.recognition || {});
-  const clock = stubClock();
-  const meter = fakeMeter();
-  const engine = createVoiceInput({
-    SpeechRecognition: over.unsupported ? undefined : sr.ctor,
-    createLevelMeter: meter.create,
-    setTimer: clock.setTimer,
-    clearTimer: clock.clearTimer,
-  });
-  const log = { transcripts: [], states: [], errors: [], levels: [] };
-  const session = (lang = 'en-US') => ({
-    lang,
-    onTranscript: (t) => log.transcripts.push(t),
-    onState: (s, extra) => log.states.push(extra ? [s, extra] : s),
-    onError: (e) => log.errors.push(e),
-    onLevel: (l) => log.levels.push(l),
-  });
-  return { sr, clock, meter, engine, log, session };
-};
 
 test('unsupported: supported=false, start() is false and nothing throws', () => {
   const { engine, log } = makeEngine({ unsupported: true });
@@ -40,9 +9,6 @@ test('unsupported: supported=false, start() is false and nothing throws', () => 
   assert.strictEqual(engine.start({ lang: 'en-US' }), false);
   assert.strictEqual(engine.state, 'idle');
   assert.deepStrictEqual(log.states, []);
-  assert.strictEqual(isVoiceSupported({}), false);
-  assert.strictEqual(isVoiceSupported({ webkitSpeechRecognition: class {} }), true);
-  assert.strictEqual(isVoiceSupported({ SpeechRecognition: class {} }), true);
 });
 
 test('start configures a continuous, interim, single-alternative recognizer in the session language', () => {

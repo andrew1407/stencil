@@ -1,4 +1,5 @@
 import { edgeJitter, edgeBaseOf } from '../../dust/cloud.js';
+import { bezierY } from '../../dust/flight.js';
 import { TUNE, styleCode } from '../tune.js';
 // The new palette floods out of the control that changed it: View Transitions where they
 // exist, a cross-fade elsewhere; `apply` runs exactly once, synchronously. One length across
@@ -22,17 +23,8 @@ export function swapPercent(x, y, w, h) {
            r: pc((100 * Math.SQRT2 * swapRadius(x, y, w, h)) / Math.hypot(w, h)) };
 }
 
-// The Y of the wipe's cubic-bezier at t, solved as the desktop does (ThemeSwapOverlay.hpp
-// swapEase): bisection on the monotonic X. The dust is seeded off this curve.
-export const bezierY = (t, x1, y1, x2, y2) => {
-  let lo = 0, hi = 1, u = t;
-  for (let i = 0; i < 24; i++) {
-    u = 0.5 * (lo + hi);
-    const x = 3 * (1 - u) * (1 - u) * u * x1 + 3 * (1 - u) * u * u * x2 + u * u * u;
-    if (x < t) lo = u; else hi = u;
-  }
-  return 3 * (1 - u) * (1 - u) * u * y1 + 3 * (1 - u) * u * u * y2 + u * u * u;
-};
+// The wipe's cubic-bezier, solved as the desktop does (ThemeSwapOverlay.hpp swapEase); the dust
+// is seeded off this curve.
 export const swapEase = (t) => bezierY(t, 0.4, 0.25, 0.95, 1);
 
 // The wipe's edge wears the particle style (cloud.js edgeJitter). Twins:

@@ -19,7 +19,7 @@ public sealed partial class CommandHandlers
         }
         await _bot.SendMessage(
             chatId,
-            "Welcome to Stencil. Send a photo to start editing, or tap a button below.",
+            Replies.Welcome(),
             replyMarkup: Keyboards.MainMenu(),
             cancellationToken: ct);
     }
@@ -39,8 +39,7 @@ public sealed partial class CommandHandlers
             UserSession updated = await _servers.FetchAsync(userId, projectId, serverUrl, ct);
             await _bot.SendMessage(
                 chatId,
-                Replies.Tag(Replies.Tone.SUCCESS,
-                    $"Loaded shared project '{updated.ActiveProjectName}' from {serverUrl}."),
+                Replies.Tag(Replies.Tone.SUCCESS, Replies.SharedProjectLoaded(updated.ActiveProjectName, serverUrl)),
                 cancellationToken: ct);
             await RenderAndSendAsync(userId, chatId, ct, mutating: false);
         }
@@ -48,9 +47,7 @@ public sealed partial class CommandHandlers
         {
             await _bot.SendMessage(
                 chatId,
-                Replies.Tag(Replies.Tone.ERROR,
-                    $"Couldn't open the shared project — {ex.Message}\n\n"
-                    + $"Try manually:\n/connect {serverUrl} [token]\n/fetch {projectId}"),
+                Replies.Tag(Replies.Tone.ERROR, Replies.SharedProjectFailed(ex.Message, serverUrl, projectId)),
                 cancellationToken: ct);
         }
     }
@@ -61,11 +58,7 @@ public sealed partial class CommandHandlers
         UserSession session = await _store.GetAsync(userId, ct);
         if (session.ActiveProjectId is null || session.ActiveServerUrl is null)
         {
-            await _bot.SendMessage(
-                chatId,
-                "No active server project to link — /fetch or /create one first (a link points at a "
-                + "server project, it can't carry the image itself).",
-                cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.LinkNeedsProject(), cancellationToken: ct);
             return;
         }
         string? url = DesktopLinkBuilder.TryProjectBounceUrl(
@@ -97,7 +90,7 @@ public sealed partial class CommandHandlers
         ServerConnectionInfo info = await _servers.ConnectAsync(userId, url, token, verifyTls, ct);
         await _bot.SendMessage(
             chatId,
-            Replies.Tag(Replies.Tone.SUCCESS, $"Connected to {info.Url}."),
+            Replies.Tag(Replies.Tone.SUCCESS, Replies.Connected(info.Url)),
             replyMarkup: Keyboards.MainMenu(),
             cancellationToken: ct);
     }
@@ -107,8 +100,8 @@ public sealed partial class CommandHandlers
         string? url = cmd.Args.Count == 0 ? null : cmd.Args[0];
         bool removed = await _servers.DisconnectAsync(userId, url, ct);
         string text = removed
-            ? Replies.Tag(Replies.Tone.SUCCESS, "Disconnected.")
-            : Replies.Tag(Replies.Tone.NOTICE, "No matching connection to disconnect.");
+            ? Replies.Tag(Replies.Tone.SUCCESS, Replies.Disconnected())
+            : Replies.Tag(Replies.Tone.NOTICE, Replies.DisconnectNone());
         await _bot.SendMessage(chatId, text, cancellationToken: ct);
     }
 

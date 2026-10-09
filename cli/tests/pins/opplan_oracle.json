@@ -196,6 +196,8 @@
 "239-layout-line-point-color-not-string-invalid.json": {"verdict":"invalid","error":"Invalid layout action: \"pointColor\" in lines[0] must be a string"},
 "240-copy-project-open-incognito.json": {"verdict":"valid","reply":"ok","warnings":["Skipped unknown operation \"copyProject\""],"actions":[],"variants":[],"ask":null},
 "241-copy-project-incognito-closed-invalid.json": {"verdict":"valid","reply":"ok","warnings":["Skipped unknown operation \"copyProject\""],"actions":[],"variants":[],"ask":null},
+"242-layout-negative-point-size-invalid.json": {"verdict":"invalid","error":"Invalid layout action: \"pointSize\" in lines[0] must be a number >= 0"},
+"243-layout-fractional-thickness-valid.json": {"verdict":"valid","reply":"ok","warnings":[],"actions":[{"op":"layout","lines":[{"points":[{"x":0,"y":0},{"x":10,"y":20}],"thickness":0.5,"pointSize":0}]}],"variants":[],"ask":null},
 "gen-crop-minimal.json": {"verdict":"valid","reply":"ok","warnings":[],"actions":[{"op":"crop","x1":"10%","x2":null,"y1":null,"y2":null,"aspect":null,"album":false}],"variants":[],"ask":null},
 "gen-crop-unknown-field.json": {"verdict":"invalid","error":"Invalid crop action: unknown field \"zzzCanary\""},
 "gen-crop-spec-missing.json": {"verdict":"invalid","error":"Invalid crop action: \"spec\" is required"},

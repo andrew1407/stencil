@@ -20,7 +20,6 @@ namespace stencil::gui {
     pulse = new QVariantAnimation(this);   // one 1.2s breath per loop (logoPulse)
     pulse->setStartValue(0.0);
     pulse->setEndValue(1.0);
-    pulse->setDuration(1200);
     pulse->setLoopCount(-1);
     QObject::connect(pulse, &QVariantAnimation::valueChanged, this, [this](const QVariant& v) {
       // 0 → 1 → 0 across the beat.
@@ -32,7 +31,6 @@ namespace stencil::gui {
     spin = new QVariantAnimation(this);    // one ray revolution per 8s (logoRaysSpin)
     spin->setStartValue(0.0);
     spin->setEndValue(360.0);
-    spin->setDuration(8000);
     spin->setLoopCount(-1);
     QObject::connect(spin, &QVariantAnimation::valueChanged, this, [this](const QVariant& v) {
       angle = v.toReal();

@@ -38,8 +38,6 @@ export interface CellRun { x: number; y: number; w: number; h: number; color: st
 export declare const cloudBlocks: () => CellRun[];
 /** Same-colour runs along every row of the base picture. */
 export declare const cellRuns: (grid: CellGrid) => CellRun[];
-/** The finished picture's colour at a pixel. */
-export declare const pixelColorAt: (px: number, py: number) => string;
 
 export interface WordPoint { x: number; y: number; }
 export interface WordLine {

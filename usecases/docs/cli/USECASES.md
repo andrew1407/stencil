@@ -34,15 +34,15 @@ writes the result.
 
 ## Start from a blank page and run a script
 
-`/blank a5 black` makes a page; `/script` runs `.stc` statements on it, `;`-separated,
-and `/undo` walks them back one at a time.
+`/blank a5 black` makes a page; `/script` runs `.stc` statements on it, `;`-separated, as
+one edit, so a single `/undo` takes the whole script back.
 
 ![a blank page and a script](img/term-blank.png)
 
 ## Ask the assistant
 
-With `STENCIL_LLM_*` pointing at a model (here a collaboration server's proxy), `/prompt`
-describes an edit in words; the plan runs on the working image step by step.
+With `STENCIL_LLM_*` pointing at a model, `/prompt` describes an edit in words; the plan runs
+on the working image step by step, and any variants it asks for are written beside it.
 
 ![/prompt](img/term-prompt.png)
 

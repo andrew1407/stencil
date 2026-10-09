@@ -23,7 +23,7 @@ Stencil ships as **one shared logic core with a family of front-ends and service
 | **CLI** | [`cli/`](cli/) | Zig, wraps the C++ core | [cli/README.md](cli/README.md) | [cli](usecases/docs/cli/USECASES.md) |
 | **Python** | [`pystencil/`](pystencil/) | Stdlib-only Python, drives the C++ core via ctypes | [pystencil/README.md](pystencil/README.md) | — |
 | **MCP server** | [`mcp/`](mcp/) | Rust, exposes the CLI's pipeline as MCP tools | [mcp/README.md](mcp/README.md) | — |
-| **Collaboration server** | [`server/`](server/) | Go, stores/shares projects + live multi-client edit sessions | [server/README.md](server/README.md) | — |
+| **Collaboration server** | [`server/`](server/) | Go, stores/shares projects and announces their changes on a live feed | [server/README.md](server/README.md) | — |
 | **Telegram bot** | [`bot/`](bot/) | .NET (C#), chat-driven editing over the CLI + server REST | [bot/README.md](bot/README.md) | [bot](usecases/docs/bot/USECASES.md) |
 
 A companion **Chrome extension** ([`browser-extension/`](browser-extension/)) feeds the browser editor: it

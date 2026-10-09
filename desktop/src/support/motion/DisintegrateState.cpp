@@ -112,12 +112,13 @@ namespace stencil::gui {
   // animation timer ticks 60Hz whatever the display does. The clock is linear.
   void DisintegrateOverlay::start(int ms) {
     this->ms = std::max(1, ms);
+    const int span = support::motionMs(this->ms);   // real ms; paint keeps the tuned timeline
     clock.start();
     auto* tick = new QTimer(this);
     tick->setTimerType(Qt::PreciseTimer);
     tick->setInterval(support::frameIntervalMs(this));
-    connect(tick, &QTimer::timeout, this, [this, tick] {
-      t = std::min(1.0, clock.nsecsElapsed() / 1e6 / this->ms);
+    connect(tick, &QTimer::timeout, this, [this, tick, span] {
+      t = std::min(1.0, clock.nsecsElapsed() / 1e6 / span);
       syncFollow();
       update();
       if (t >= 1.0) {

@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { declaration } from '../../tools/syncTwins.mjs';
 
 const BROWSER = fileURLToPath(new URL('../../browser/js/core/script/', import.meta.url));
 const COPIES = fileURLToPath(new URL('../src/parser/script/', import.meta.url));
@@ -72,27 +73,8 @@ for (const [name, browserPath, copyPath] of DATA) {
 }
 
 // ── The one re-composed file: src/parser/index.js drops the wasm binding ──
-// Each declaration it keeps must still match browser/js/core/script.js's, line for line.
-const declaration = (src, name) => {
-  const lines = src.split('\n');
-  const start = lines.findIndex((l) => new RegExp(`^(?:export )?(?:const|function) ${name}\\b`).test(l));
-  if (start < 0) return null;
-  let depth = 0;
-  for (let i = start; i < lines.length; i++) {
-    const line = lines[i];
-    for (let j = 0, quote = ''; j < line.length; j++) {
-      const c = line[j];
-      if (quote) { if (c === '\\') j++; else if (c === quote) quote = ''; continue; }
-      if (c === '"' || c === "'" || c === '`') { quote = c; continue; }
-      if (c === '/' && line[j + 1] === '/') break;
-      if ('([{'.includes(c)) depth++;
-      else if (')]}'.includes(c)) depth--;
-    }
-    if (depth <= 0 && /[;}]\s*$/.test(line)) return lines.slice(start, i + 1).join('\n');
-  }
-  return null;
-};
-
+// Each declaration it keeps must still match browser/js/core/script.js's, line for line, read by
+// the one declaration() tools/syncTwins.mjs re-copies with.
 test('index.js keeps script.js\'s parse composition and dump wrappers verbatim', () => {
   const original = readFileSync(`${CORE}script.js`, 'utf8');
   const copy = readFileSync(`${PARSER}index.js`, 'utf8');

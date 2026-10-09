@@ -5,7 +5,7 @@
 // the veil hides the mark alone, never the control around it.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { installDustDom, rect, boxEl, cloudKind } from '../../helpers/dustCloudRig.js';
+import { installDustDom, rect, boxEl, cloudKind } from '../../helpers/dustRig.js';
 import { ANIMATIONS_CSS } from '../../helpers/css.js';
 
 const dust = installDustDom();

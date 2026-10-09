@@ -31,7 +31,7 @@ public sealed record PromptOutcome(
 }
 
 // The /prompt engine: builds each turn per llm-contract.md and folds every action onto the same
-// IEditingService methods the slash commands use. History holds base64 images, so it stays out of the session JSON.
+// EditingService methods the slash commands use. History holds base64 images, so it stays out of the session JSON.
 public sealed partial class PromptService
 {
     // The contract's §7 history bound.
@@ -54,7 +54,7 @@ public sealed partial class PromptService
     private readonly ILlmClient _llm;
     // Judges every model plan (`--plan-check`); the bot validates none itself.
     private readonly IStencilCli _cli;
-    private readonly IEditingService _editing;
+    private readonly EditingService _editing;
     private readonly ISessionStore _store;
     private readonly LlmOptions _options;
     private readonly IStencilServerClientFactory _servers;
@@ -72,7 +72,7 @@ public sealed partial class PromptService
     public PromptService(
         ILlmClient llm,
         IStencilCli cli,
-        IEditingService editing,
+        EditingService editing,
         ISessionStore store,
         LlmOptions options,
         IStencilServerClientFactory servers,

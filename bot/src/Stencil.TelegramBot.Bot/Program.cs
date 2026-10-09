@@ -36,11 +36,9 @@ CancellationToken shutdown = app.Services.GetRequiredService<IHostApplicationLif
 
 // Handlers run off the polling loop, one lane per user on the pump — see UpdatePump for why.
 await using UpdatePump pump = new(logger, options);
-bot.OnMessage += (message, _) =>
-    pump.EnqueueAsync(UpdateRouter.LaneOf(message), () => router.HandleMessageAsync(message, shutdown));
-bot.OnUpdate += update => update.CallbackQuery is not Telegram.Bot.Types.CallbackQuery query
-    ? Task.CompletedTask
-    : pump.EnqueueAsync(UpdateRouter.LaneOf(query), () => router.HandleUpdateAsync(update, shutdown));
+UpdateIntake intake = new(pump, router, shutdown);
+bot.OnMessage += intake.OnMessageAsync;
+bot.OnUpdate += intake.OnUpdateAsync;
 bot.OnError += (exception, source) =>
 {
     logger.LogError(exception, "Telegram polling error ({Source})", source);

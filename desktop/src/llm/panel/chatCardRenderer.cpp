@@ -4,6 +4,7 @@
 
 #include <QFrame>
 #include <QLabel>
+#include <QStyle>
 #include <QVBoxLayout>
 
 // Chat card rendering shared by both chat surfaces.
@@ -50,6 +51,9 @@ namespace stencil::gui {
                         : kind == ChatCardKind::MUTED ? QStringLiteral("chatCardMuted")
                         : user ? QStringLiteral("chatCardUser")
                                : QStringLiteral("chatCardAssistant"));
+    // Named after the dock's entrance laid it out, so the role selector needs a fresh polish.
+    card->style()->unpolish(card);
+    card->style()->polish(card);
     auto* bodyLabel = makePlainLabel(text, card);
     bodyLabel->setWordWrap(true);
     bodyLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
@@ -97,8 +101,6 @@ namespace stencil::gui {
     chatSwapSides = on;
     // The flattened tail corner rides the SHARED stylesheet, keyed off chatSwapSides.
     restyleIcons(paletteCache);
-    applyChatSwapToCards(log.transcript, log.transcriptLayout, chatSwapSides, accentCache,
-                         chipCache, borderCache, dangerCache, paletteCache.bgControls);
     applyBubbleWidths();
   }
 

@@ -1,8 +1,8 @@
-//! Layout JSON parsing. The schema mirrors the browser's exported layout (browser/js/core/layout.js →
-//! buildLayoutPayload): { imageWidth, imageHeight, lines }, each line matching core models.hpp
-//! (points, color, thickness, pointSize, style, locked, fillColor). An optional "imageFilter" (legacy
-//! "filter" is still read, canonical wins) is honoured unless --filter overrides it; an optional
-//! "pageSize" is surfaced so the wrote line can report the page. Owned by an internal arena.
+//! Layout JSON parsing, mirroring the browser's exported layout (browser/js/core/layout.js →
+//! buildLayoutPayload): { imageWidth, imageHeight, lines }, each line as core models.hpp has it.
+//! "imageFilter" (legacy "filter" still read, canonical wins; "custom" takes "filterColor") is
+//! honoured unless --filter overrides it; "pageSize" is surfaced so the wrote line can report the
+//! page. Owned by an internal arena.
 const std = @import("std");
 const core = @import("../core.zig");
 const lines_mod = @import("layout/lines.zig");
@@ -10,6 +10,10 @@ const lines_mod = @import("layout/lines.zig");
 const asF64 = lines_mod.asF64;
 const fieldF64 = lines_mod.fieldF64;
 pub const lineOf = lines_mod.lineOf;
+pub const BadLine = lines_mod.BadLine;
+
+/// The browser's custom tint when a layout names none (editorState.js filterColor).
+pub const default_tint = "#7c3aed";
 
 pub const Layout = struct {
     arena: std.heap.ArenaAllocator,
@@ -20,6 +24,8 @@ pub const Layout = struct {
     custom_page_w: f64 = 0, // "customPageWidth"/"customPageHeight" in cm; 0 = unset
     custom_page_h: f64 = 0,
     lines: []core.LineDraw = &.{},
+    /// The first line a user-named layout may not carry; the drawing paths read past it.
+    bad_line: ?BadLine = null,
 
     pub fn deinit(self: *Layout) void {
         self.arena.deinit();
@@ -46,12 +52,18 @@ pub fn parseCapped(gpa: std.mem.Allocator, bytes: []const u8, caps: core.LayoutC
     if (obj.get("imageFilter") orelse obj.get("filter")) |v| {
         if (v == .string) layout.filter = try a.dupeZ(u8, v.string);
     }
+    // "custom" names its tint in "filterColor", as the browser exports it (renderer.js).
+    if (layout.filter != null and std.mem.eql(u8, layout.filter.?, "custom")) {
+        const color = if (obj.get("filterColor")) |v| (if (v == .string and v.string.len != 0) v.string else null) else null;
+        layout.filter = try a.dupeZ(u8, color orelse default_tint);
+    }
     if (obj.get("pageSize")) |v| {
         if (v == .string) layout.page_size = try a.dupeZ(u8, v.string);
     }
     layout.custom_page_w = fieldF64(obj, "customPageWidth", 0);
     layout.custom_page_h = fieldF64(obj, "customPageHeight", 0);
 
+    layout.bad_line = lines_mod.firstBadLine(obj.get("lines"));
     layout.lines = try lines_mod.readLines(a, obj.get("lines"), caps);
     return layout;
 }
@@ -172,4 +184,5 @@ fn numValue(v: f64) std.json.Value {
 
 test {
     _ = lines_mod;
+    _ = @import("layout/merge.zig");
 }

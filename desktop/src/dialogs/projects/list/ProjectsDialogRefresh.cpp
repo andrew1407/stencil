@@ -7,7 +7,8 @@
 #include <QPalette>
 #include <QSet>
 #include <QTimer>
-#include <limits>
+#include "fileStore.hpp"
+#include "projectSort.hpp"
 #include "../../../support/theme/filterFade.hpp"
 namespace stencil::gui {
 
@@ -88,7 +89,7 @@ namespace stencil::gui {
       }
       if (!arriving.isEmpty())
         // Re-found by key: another rebuild may have replaced the items in the meantime.
-        QTimer::singleShot(ROW_ARRIVE_DELAY_MS, this, [this, arriving] {
+        QTimer::singleShot(support::motionMs(ROW_ARRIVE_DELAY_MS), this, [this, arriving] {
           for (int i = 0; i < list->count(); ++i) {
             QListWidgetItem* it = list->item(i);
             if (it->isHidden() || !arriving.contains(rebuildKeyOf(it))) continue;
@@ -98,43 +99,33 @@ namespace stencil::gui {
     }
   }
 
+  void ProjectsDialog::patchServerRow(const QString& id, const QString& serverUrl, qint64 version,
+                                      const std::function<void(stencil::net::ServerProject&)>& edit) {
+    for (auto& sp : remote)
+      if (sp.id == id && sp.serverUrl == serverUrl) {
+        edit(sp);
+        sp.version = version;
+        refresh();
+        return;
+      }
+  }
+
   // Local + server interleaved by the active sort mode (browser js/ui/projects/window/projectSort.js); the pinned
   // unsaved-session row goes above all of them.
   void ProjectsDialog::buildSortedRows(const core::ProjectsStore& store) {
-    struct Entry { bool remote; int idx; QString key; QString name; long long date; };
-    std::vector<Entry> entries;
+    const QHash<QString, qint64> opened = fileStore::loadProjectOpened();
+    std::vector<ProjectSortItem> entries;
     for (int i = 0; i < static_cast<int>(projects.size()); ++i) {
       const auto& m = projects[i].meta;
-      entries.push_back({ false, i, "|" + QString::fromStdString(m.id),
-                          QString::fromStdString(m.name).toLower(), static_cast<long long>(m.updatedAt) });
+      const QString id = QString::fromStdString(m.id);
+      entries.push_back({ false, i, "|" + id, QString::fromStdString(m.name).toLower(),
+                          static_cast<long long>(m.updatedAt), opened.value(id, 0) });
     }
     for (int i = 0; i < remote.size(); ++i) {
       const auto& sp = remote[i];
-      entries.push_back({ true, i, sp.serverUrl + "|" + sp.id, sp.name.toLower(), static_cast<long long>(sp.createdAt) });
+      entries.push_back({ true, i, sp.serverUrl + "|" + sp.id, sp.name.toLower(), static_cast<long long>(sp.createdAt), 0 });
     }
-    const QString mode = g_projectsSortMode;
-    QHash<QString, int> manualPos;
-    if (mode == "manual")
-      for (int i = 0; i < g_projectsManualOrder.size(); ++i) manualPos.insert(g_projectsManualOrder[i], i);
-    auto cmpName = [](const Entry& a, const Entry& b) -> int {
-      int c = QString::localeAwareCompare(a.name, b.name);
-      if (c) return c;
-      if (a.date != b.date) return a.date > b.date ? -1 : 1;
-      return QString::compare(a.key, b.key);
-    };
-    std::stable_sort(entries.begin(), entries.end(), [&](const Entry& a, const Entry& b) {
-      if (mode == "local") { if (a.remote != b.remote) return !a.remote; return cmpName(a, b) < 0; }
-      if (mode == "server") { if (a.remote != b.remote) return a.remote; return cmpName(a, b) < 0; }
-      if (mode == "date-desc") { if (a.date != b.date) return a.date > b.date; return cmpName(a, b) < 0; }
-      if (mode == "date-asc") { if (a.date != b.date) return a.date < b.date; return cmpName(a, b) < 0; }
-      if (mode == "manual") {
-        const int pa = manualPos.value(a.key, std::numeric_limits<int>::max());
-        const int pb = manualPos.value(b.key, std::numeric_limits<int>::max());
-        if (pa != pb) return pa < pb;
-        return cmpName(a, b) < 0;
-      }
-      return cmpName(a, b) < 0;
-    });
+    sortProjectItems(entries, g_projectsSortMode, g_projectsManualOrder);
     // Inert (browser parity): no id, so no open, rename, checkbox, drag or "⋯".
     if (temporary) {
       auto* it = new QListWidgetItem(incognito ? QStringLiteral("Incognito (unsaved)")

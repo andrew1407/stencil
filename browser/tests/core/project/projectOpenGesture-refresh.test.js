@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 
 import { canRefreshList } from '../../../js/core/project/openGesture.js';
-import { projectsModalSource } from '../../helpers/projectsModalSource.js';
+import { projectsModalSource } from '../../helpers/moduleSource.js';
 
 // removing the ACTIVE project echoes straight back through onPeers and cuts the leave short.
 test('canRefreshList: open + idle only — never mid-drag, never mid-removal', () => {
@@ -23,7 +23,7 @@ test('every out-of-band trigger routes through the shared gate, held while a wip
   assert.match(src, /let removalsInFlight = 0;/, 'the hold is a counter (batch + single overlap)');
   assert.match(src, /removalsInFlight\+\+;\n\s+const held = list\.getBoundingClientRect\(\)\.height;/,
     'beginRemoval takes the hold with the height');
-  assert.match(src, /await new Promise\(\(r\) => setTimeout\(r, Math\.max\(0, wipe - arrive\)\)\);\n\s+removalsInFlight = Math\.max\(0, removalsInFlight - 1\);/,
+  assert.match(src, /await new Promise\(\(r\) => setTimeout\(r, motionMs\(Math\.max\(0, wipe - arrive\)\)\)\);\n\s+removalsInFlight = Math\.max\(0, removalsInFlight - 1\);/,
     'the hold outlives the wipe: released sooner, an out-of-band render replaced the arriving row mid-flight');
   // The four live triggers + the remote-listing settle ask mayRefresh (modal-open/dragActive/
   // removalsInFlight) rather than rendering outright; the fetch's arms share one gated `done`.

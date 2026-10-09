@@ -35,12 +35,12 @@
       QAbstractSpinBox::up-button, QAbstractSpinBox::down-button { width: 16px; border: 0; background: transparent; }
 
       /* Outlined in %UI_OUTLINE% so an accent near the surface still reads; the cursor is code. */
-      QSlider#oiFrameScrub::groove:horizontal {
+      QSlider#oiFrameScrub::groove:horizontal, QSlider#motionSpeedSlider::groove:horizontal {
         height: 5px; border-radius: 4px; background: %BORDER%; border: 1px solid %UI_OUTLINE%;
       }
       QSlider#oiFrameScrub::groove:horizontal:hover { background: %MUTED%; }
-      QSlider#oiFrameScrub::sub-page:horizontal { background: %ACCENT%; border-radius: 4px; }
-      QSlider#oiFrameScrub::handle:horizontal {
+      QSlider#oiFrameScrub::sub-page:horizontal, QSlider#motionSpeedSlider::sub-page:horizontal { background: %ACCENT%; border-radius: 4px; }
+      QSlider#oiFrameScrub::handle:horizontal, QSlider#motionSpeedSlider::handle:horizontal {
         width: 11px; height: 11px; margin: -4px 0; border-radius: 6px;
         background: %ACCENT%; border: 1px solid %UI_OUTLINE%;
       }

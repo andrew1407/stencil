@@ -37,10 +37,10 @@ public abstract class ChatPersistenceTestBase : IDisposable
 
     protected ChatPersistenceTestBase()
     {
-        _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-chatsave-" + Guid.NewGuid().ToString("N"));
+        _dataDir = TempDirs.New("bot-chatsave");
         BotOptions options = new() { DataDir = _dataDir, AllowedUsers = AnyUser.Instance };
         EditingService editing = new(_cli, new UserWorkspace(options), _store);
-        ServerService servers = new(_factory, _store, editing);
+        ServerService servers = new(_factory, _store, editing, _cli);
         _handlers = TestHandlers.Create(options, _store, _cli, _bot, _llm, servers: servers, editing: editing);
         _callbacks = new CallbackAction(_handlers, _bot, _store);
         _router = new UpdateRouter(
@@ -56,7 +56,7 @@ public abstract class ChatPersistenceTestBase : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
+        TempDirs.Delete(_dataDir);
         GC.SuppressFinalize(this);
     }
 
@@ -73,15 +73,7 @@ public abstract class ChatPersistenceTestBase : IDisposable
             CancellationToken.None);
 
     protected Task Tap(string data) =>
-        _callbacks.HandleAsync(
-            new CallbackQuery
-            {
-                Id = "cb",
-                From = new User { Id = UserId },
-                Message = new Message { Chat = new Chat { Id = ChatId } },
-                Data = data,
-            },
-            CancellationToken.None);
+        _callbacks.HandleAsync(TestHandlers.Tap(UserId, ChatId, data), CancellationToken.None);
 
     protected IEnumerable<SendMessageRequest> Messages => _bot.Requests.OfType<SendMessageRequest>();
 

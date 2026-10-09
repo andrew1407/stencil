@@ -1,4 +1,5 @@
 #include "ProjectTransferController.hpp"
+#include "SharedState.hpp"
 #include "projectTransferParts.hpp"
 #include "../../support/rowWork.hpp"
 #include "CanvasWidget.hpp"
@@ -132,7 +133,7 @@ namespace stencil::gui {
             std::remove_if(projectList->begin(), projectList->end(),
                            [&](const Project& p) { return p.meta.id == sid; }),
             projectList->end());
-        fileStore::saveProjects(*projectList);
+        SharedState::instance().saveProjects(nullptr);
         // Keep the editor open and link the live session to the new server project instead of
         // orphaning the canvas.
         if (wasActive) this->h.relinkActiveToServer(serverUrl, newId, name, localColor, newVersion);

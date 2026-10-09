@@ -16,6 +16,9 @@ if (typeof window !== 'undefined') {
 }
 export const wireThumbPreview = (img, caption = '') => {
   const place = (box) => {
+    // Measured from the corner: a fixed auto-width box only gets the room right of its `left`.
+    box.style.left = '0px';
+    box.style.top = '0px';
     const r = img.getBoundingClientRect();
     const b = box.getBoundingClientRect();
     const left = Math.max(8, Math.min(r.left, window.innerWidth - b.width - 8));

@@ -1,3 +1,4 @@
+using Stencil.TelegramBot.Domain.Editing;
 using Stencil.TelegramBot.Domain.Projects;
 using Stencil.TelegramBot.Domain.Sessions;
 
@@ -18,6 +19,9 @@ public interface IServerService
     // One connection when url is given, else every one; an unreachable server is skipped.
     Task<IReadOnlyList<ServerProjectInfo>> ListProjectsAsync(long userId, string? url, CancellationToken ct = default);
 
+    // The newest perServer projects of every connection, one page each: the assistant's context line.
+    Task<IReadOnlyList<ServerProjectInfo>> ListRecentProjectsAsync(long userId, int perServer, CancellationToken ct = default);
+
     // By id or case-insensitive name; the original becomes the base image and the project active.
     Task<UserSession> FetchAsync(long userId, string nameOrId, string? url, CancellationToken ct = default);
 
@@ -25,7 +29,7 @@ public interface IServerService
     Task<ProjectRecord> CreateProjectAsync(long userId, string? name, string? url, CancellationToken ct = default);
 
     // remoteSync.saveRemoteProject: the active project's layout plus the rendered result.
-    Task<ProjectRecord> SaveActiveProjectAsync(long userId, CancellationToken ct = default);
+    Task<ProjectRecord> SaveActiveProjectAsync(long userId, RenderResult? rendered = null, CancellationToken ct = default);
 
     // #rrggbb, or "" to clear. Returns the effective colour.
     Task<string> SetProjectColorAsync(long userId, string color, CancellationToken ct = default);

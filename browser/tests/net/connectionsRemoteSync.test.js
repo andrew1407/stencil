@@ -2,7 +2,8 @@
 // calls, track the version they get back, and flag a 409 as a conflict.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { ServerConnection, ConnectionManager } from '../../js/net/connectionManager.js';
+import { ServerConnection } from '../../js/net/serverConnection.js';
+import { ConnectionManager } from '../../js/net/connectionManager.js';
 import {
   requireConnection, createRemoteProject, saveRemoteProject, CONFLICT_MESSAGE,
 } from '../../js/net/remoteSync.js';

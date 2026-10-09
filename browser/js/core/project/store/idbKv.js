@@ -25,13 +25,19 @@ export const createIdbKv = (idb = (typeof indexedDB !== 'undefined' ? indexedDB 
     tx.oncomplete = () => resolve(req.result);
     tx.onabort = () => reject(tx.error || req.error);
   }));
+  // Keys and values from ONE transaction: two would let another tab's write between them misalign the pairs.
+  const entries = () => db().then((d) => new Promise((resolve, reject) => {
+    const store = d.transaction(PROJECTS_DB_STORE, 'readonly').objectStore(PROJECTS_DB_STORE);
+    const keys = store.getAllKeys();
+    const values = store.getAll();
+    keys.onerror = () => reject(keys.error);
+    values.onerror = () => reject(values.error);
+    values.onsuccess = () => resolve(keys.result.map((k, i) => [k, values.result[i]]));
+  }));
   return {
     get: (key) => op('readonly', (s) => s.get(key)),
     set: (key, value) => op('readwrite', (s) => s.put(value, key)),
     remove: (key) => op('readwrite', (s) => s.delete(key)),
-    entries: () => Promise.all([
-      op('readonly', (s) => s.getAllKeys()),
-      op('readonly', (s) => s.getAll()),
-    ]).then(([keys, values]) => keys.map((k, i) => [k, values[i]])),
+    entries,
   };
 };

@@ -46,7 +46,7 @@ or import nothing reads.
 | `src/script.zig` + `script/` | the `.stc` modes, including emit for another surface (`emit/`) | the core owns the language; this owns files, pixels and output |
 | `src/core.zig` + `core/`, `media/` | the core bridge, codecs, page policy, layout JSON, the ffmpeg frame grab and ffprobe read | the decoder TU stays narrowed (`STBI_NO_*`, `STBI_MAX_DIMENSIONS`) with UBSan on; `media/decodeGuard.zig` bounds what stb may read; ffmpeg and ffprobe read only a local file (`media/remoteVideo.zig`) |
 | `src/net.zig` + `net/` | the **one fetch guard** over the embedded `common/config/net/blockedRanges.json`, the pinned server dial, the bounded fan-out, the watched call | every outbound URL passes `net.zig`; nothing keeps its own address list or waits on a host without a deadline |
-| `src/safety/` | output-path confinement, the one sanitizer for untrusted text, child spawning without `STENCIL_LLM_*` or server tokens and under a deadline | `..` always refused; absolute or symlinked escapes refused under `--confine-output`; every child is killed at its deadline |
+| `src/safety/` | output-path confinement, the one capped reader for a report mode's document, the one sanitizer for untrusted text, child spawning without `STENCIL_LLM_*` or server tokens and under a deadline | `..` always refused; absolute or symlinked escapes refused under `--confine-output`; every child is killed at its deadline |
 | `src/console.zig` + `console/` | the REPL: session, `commands`, `handlers/`, `render/`, `screen/` (the TUI) | grammar is parsed in `commands.zig` and executed in `handlers/`; a model's or server's text prints through `render/inert.zig` |
 | `src/line_edit/` | the raw-mode line editor and the hidden secret read | TTY only; piped stdin takes the plain reader |
 | `src/clipboard.zig` + `clipboard/` | `/paste` + `/copy` over the per-OS shell helpers | |
@@ -54,7 +54,7 @@ or import nothing reads.
 | `src/scrape.zig` + `scrape/` | `--source-site` and `regex_shim.c` for `--source-name` | adapter-only, no `core/` involvement |
 | `src/project.zig` + `project/` | the `.stencil` codec and session bridge; the one-shot front, `--prompt` included | |
 | `src/server/` | the collaboration-server client and `tokens.zig`, which credential a URL is dialled with | follows `server/internal/protocol`; a token is never printed |
-| `src/inspect.zig` + `inspect/` | `--probe` and the project report modes | one JSON document on stdout, only on success |
+| `src/inspect.zig` + `inspect/` | `--probe`, the project report modes and `--merge-lines` | one JSON document on stdout, only on success |
 | `src/bench/` | the opt-in `zig build bench` | ratio assertions only |
 | `tests/` | suites and rigs, `config/*_drift_test.zig` cross-checks, `pins/` text goldens, `fixtures/` | a suite sits in the folder of the `src/` area it covers; `test_root.zig` names every `*_test.zig`, and `tests/test_registration_test.zig` fails on one it does not |
 | `testdata/` | the stderr goldens `mcp/` and `bot/` replay | one set of goldens for all three suites |

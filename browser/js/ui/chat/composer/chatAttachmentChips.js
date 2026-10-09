@@ -2,7 +2,7 @@
 // CHAT_ATTACHMENTS_EVENT so both surfaces repaint.
 import { ATTACH_SETTLE_STEP_MS, ATTACH_SETTLE_TRIES, chipLeave } from '../leave.js';
 import { CHAT_ATTACHMENTS_EVENT } from '../../../llm/chat/controller.js';
-import { LEAVING_CLASS, wipeDurationMs } from '../../motion.js';
+import { LEAVING_CLASS, motionMs, wipeDurationMs } from '../../motion.js';
 import { icon } from '../../icons.js';
 import { publish } from '../../../eventBus/appBus.js';
 import { wireThumbPreview } from './chatThumbPreview.js';
@@ -71,7 +71,7 @@ export const chatAttachmentChips = (container, controller) => {
   }, wait);
   if (list.length || animating()) {
     container.style.display = '';
-    if (!list.length) hideWhenSettled(wipeDurationMs() + 50, ATTACH_SETTLE_TRIES);
+    if (!list.length) hideWhenSettled(motionMs(wipeDurationMs() + 50), ATTACH_SETTLE_TRIES);
   } else {
     container.style.display = 'none';
   }

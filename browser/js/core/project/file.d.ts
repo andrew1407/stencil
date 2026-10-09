@@ -7,6 +7,10 @@ export declare const STENCIL_FILE_FORMAT: 'stencil-project';
 export declare const STENCIL_FILE_VERSION: 1;
 /** Chars ≈ bytes; matches the server's 32 MiB MaxBodyBytes. */
 export declare const MAX_PROJECT_FILE_CHARS: number;
+/** The parse error a file over MAX_PROJECT_FILE_CHARS gets. */
+export declare const PROJECT_FILE_TOO_LARGE: string;
+/** A File (or Blob) whose byte size is over the cap, judged before it is read. */
+export declare const projectFileTooLarge: (file: { size?: number } | null | undefined) => boolean;
 
 export interface ProjectFileImage { dataUrl: string; ext: string; w?: number; h?: number; }
 export interface ProjectFileTheme { mode?: 'light' | 'dark'; accent?: string; }

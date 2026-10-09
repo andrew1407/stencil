@@ -1,6 +1,7 @@
 #include "launchOptions.hpp"
 #include "deferredWrite.hpp"
 #include "MainWindow.hpp"
+#include "SiblingWindows.hpp"
 #include "tipContent.hpp"
 #include <QApplication>
 #include <QFileOpenEvent>
@@ -42,9 +43,9 @@ namespace {
       }
       if (e->type() == QEvent::KeyPress) {
         auto* ke = static_cast<QKeyEvent*>(e);
+        // Every window, held ones included; the last accepted close quits (SiblingWindows).
         if (ke->matches(QKeySequence::Quit)) {
-          closeAllWindows();
-          quit();
+          stencil::gui::SiblingWindows::closeAll();
           return true;
         }
       }
@@ -90,6 +91,10 @@ int main(int argc, char** argv) {
   QApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
   StencilApplication app(argc, argv);
   app.setApplicationName("Stencil");
+  // A close held for a pending write hides its window first, so Qt's last-window rule would quit
+  // under it, or never fire for it; the last accepted close quits instead.
+  app.setQuitOnLastWindowClosed(false);
+  stencil::gui::SiblingWindows::setQuitWhenAllClosed(true);
   app.setOrganizationName("Stencil");
   // Qt hides shortcuts in context menus by default; the browser shows its hotkey hints.
   app.setAttribute(Qt::AA_DontShowShortcutsInContextMenus, false);

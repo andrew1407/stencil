@@ -132,6 +132,7 @@ namespace stencil::gui {
       });
     }
     size.anim->stop();
+    size.anim->setDuration(support::motionMs(OI_RESIZE_MS));
     size.anim->setStartValue(start);
     size.anim->setEndValue(h);
     size.anim->start();

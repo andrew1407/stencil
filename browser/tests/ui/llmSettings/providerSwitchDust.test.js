@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createStubElement } from '../../helpers/dom.js';
-import { installDustDom, rect, cloudAim, near } from '../../helpers/dustCloudRig.js';
+import { installDustDom, rect, cloudAim, near } from '../../helpers/dustRig.js';
 import { element, faceOf } from '../../helpers/visualsModalRig.js';
 import { createMemoryStorage, installMemoryStorage } from '../../helpers/memoryStorage.js';
 

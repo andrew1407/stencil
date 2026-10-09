@@ -48,8 +48,8 @@ namespace stencil::gui {
                             : QRect();
     }();
 
-    // "Add description" — edit the row's free-text description inline (no accept()/close),
-    // mirroring the colour edit. An empty value clears.
+    // "Add description" — the row's free-text description, written by the owner window (the
+    // stay-open pattern, as a rename is). An empty value clears.
     auto editDescription = [this, rowId, rowServer, kebabGlobal] {
       const QString& id = rowId;
       const QString& server = rowServer;
@@ -70,16 +70,7 @@ namespace stencil::gui {
       if (dlg.exec() != QDialog::Accepted) return;
       const QString text = dlg.text();
       if (text == current) return;        // nothing changed
-      commitRowEdit(
-          id, server,
-          [text](Project& p) { p.meta.description = text.toStdString(); },
-          [id, text](stencil::net::ServerClient* c, qint64 version,
-                     std::function<void(bool, qint64)> done) {
-            c->updateProjectDescriptionAsync(
-                id, text, version,
-                [done](bool ok2, qint64 v, bool) { done(ok2, v); });
-          },
-          [text](stencil::net::ServerProject& sp) { sp.description = text; });
+      emit descriptionRequested(id, server, text);
     };
 
     // "Add keywords" — the row's search keywords as chips, normalized by KeywordsDialog the way the
@@ -103,19 +94,7 @@ namespace stencil::gui {
       if (dlg.exec() != QDialog::Accepted) return;
       const QStringList next = dlg.keywords();
       if (next == current) return;          // nothing changed
-      commitRowEdit(
-          id, server,
-          [next](Project& p) {
-            p.meta.keywords.clear();
-            for (const QString& k : next) p.meta.keywords.push_back(k.toStdString());
-          },
-          [id, next](stencil::net::ServerClient* c, qint64 version,
-                     std::function<void(bool, qint64)> done) {
-            c->updateProjectKeywordsAsync(
-                id, next, version,
-                [done](bool ok2, qint64 v, bool) { done(ok2, v); });
-          },
-          [next](stencil::net::ServerProject& sp) { sp.keywords = next; });
+      emit keywordsRequested(id, server, next);
     };
 
     // "Set expiration" opens the expiration editor OVER this window (browser parity: ui/base.js

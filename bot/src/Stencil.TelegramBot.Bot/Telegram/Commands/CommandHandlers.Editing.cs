@@ -16,19 +16,13 @@ public sealed partial class CommandHandlers
     {
         if (cmd.ArgumentText.Length == 0)
         {
-            await _bot.SendMessage(
-                chatId,
-                "Usage: /layout [combine] <layout JSON | link to a layout .json>, e.g. "
-                + "/layout {\"imageWidth\":800,\"imageHeight\":600,\"lines\":[…]} — "
-                + "or just upload the .json file. Add 'combine' first to keep the lines "
-                + "already drawn and put the new ones on top (the default replaces them).",
-                cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.LayoutUsage(), cancellationToken: ct);
             return;
         }
         UserSession session = await _store.GetAsync(userId, ct);
         if (!session.HasImage)
         {
-            await _bot.SendMessage(chatId, "Upload an image (or use /blank) before applying a layout.", cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.LayoutCommandNeedsImage(), cancellationToken: ct);
             return;
         }
         // A leading `combine` keeps the lines already drawn (the editors' Combine choice).
@@ -48,7 +42,7 @@ public sealed partial class CommandHandlers
             byte[]? fetched = await _layoutFetcher.FetchAsync(args[0], ct);
             if (fetched is null)
             {
-                await _bot.SendMessage(chatId, "Could not fetch the layout from that link.", cancellationToken: ct);
+                await _bot.SendMessage(chatId, Replies.LayoutFetchFailed(), cancellationToken: ct);
                 return;
             }
             bytes = fetched;
@@ -60,7 +54,7 @@ public sealed partial class CommandHandlers
         StencilLayout? layout = StencilLayoutParser.Parse(bytes);
         if (layout is null)
         {
-            await _bot.SendMessage(chatId, "That isn't a valid Stencil layout JSON.", cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.LayoutInvalid(), cancellationToken: ct);
             return;
         }
         await _editing.ApplyLayoutAsync(userId, layout, combine, ct);
@@ -114,20 +108,20 @@ public sealed partial class CommandHandlers
                 || !double.TryParse(cmd.Args[2], NumberStyles.Float, CultureInfo.InvariantCulture, out double h)
                 || w <= 0 || h <= 0)
             {
-                await _bot.SendMessage(chatId, "Usage: /format custom <width> <height> (cm), e.g. /format custom 10 15", cancellationToken: ct);
+                await _bot.SendMessage(chatId, Replies.FormatCustomUsage(), cancellationToken: ct);
                 return;
             }
             await _editing.SetPageFormatAsync(userId, "custom", w, h, ct);
-            await _bot.SendMessage(chatId, $"Page format set to custom ({PageFormats.Cm(w)}×{PageFormats.Cm(h)} cm) — saved into the project layout.", cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.FormatCustomSet(PageFormats.Cm(w), PageFormats.Cm(h)), cancellationToken: ct);
             return;
         }
         if (!PageFormats.TryGet(first, out string name, out double wcm, out double hcm))
         {
-            await _bot.SendMessage(chatId, $"Unknown page format '{first}' — type /format to list formats.", cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.FormatUnknown(first), cancellationToken: ct);
             return;
         }
         await _editing.SetPageFormatAsync(userId, name, null, null, ct);
-        await _bot.SendMessage(chatId, $"Page format set to {name} ({PageFormats.Cm(wcm)}×{PageFormats.Cm(hcm)} cm) — the /blank default, saved into the project layout.", cancellationToken: ct);
+        await _bot.SendMessage(chatId, Replies.FormatSet(name, PageFormats.Cm(wcm), PageFormats.Cm(hcm)), cancellationToken: ct);
     }
 
     private async Task cropAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
@@ -140,7 +134,10 @@ public sealed partial class CommandHandlers
             int idx = spec.LastIndexOf(cmd.Args[^1], StringComparison.OrdinalIgnoreCase);
             spec = idx >= 0 ? spec[..idx].TrimEnd() : spec;
         }
-        if (spec.Length == 0)
+        UserSession session = await _store.GetAsync(userId, ct);
+        // core refuses an edge outside the image; storing it would fail every later render.
+        if (spec.Length == 0 || (session.HasImage
+            && CropSpecResolver.Resolve(spec, session.OriginalWidth, session.OriginalHeight, album) is null))
         {
             await _bot.SendMessage(chatId, Replies.CropUsage(), cancellationToken: ct);
             return;

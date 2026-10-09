@@ -2,6 +2,7 @@ import { STYLED_CELL_SCALE } from '../../dust/cloud.js';
 import { DUST_CELL_PX, dustDelay, dustField, dustGrid } from './canvasDustGrid.js';
 import { SWIRL_MAX_PX, SWIRL_SHARE, tileNoise } from '../surface/tiles.js';
 import { TUNE, styleCode } from '../tune.js';
+import { motionMs } from '../motionPrefs.js';
 export const pinDustStage = (stage, host, baseLeft = 0, baseTop = 0) => {
   const onScroll = () => {
     stage.style.left = `${baseLeft + (host.scrollLeft || 0)}px`;
@@ -48,7 +49,8 @@ export const makeDustStage = (canvas, size = null, layers = [canvas]) => {
     sox: (vis.left - r.left) * kx, soy: (vis.top - r.top) * ky,
     dw: vis.width / cols, dh: vis.height / rows,
 // `draw(t)` per rAF frame over `ms`; the timeout covers a throttled rAF.
-    run(ms, draw) {
+    run(tuned, draw) {
+      const ms = motionMs(tuned);
       const started = performance.now();
       const step = (now) => {
         const t = (now - started) / ms;

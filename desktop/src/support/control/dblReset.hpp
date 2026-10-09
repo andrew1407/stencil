@@ -30,6 +30,8 @@ namespace stencil::support {
   inline constexpr const char* RESET_DEFAULT_PROPERTY = "resetDefault";
   // Set by captionToggles: the check a caption stands for, so its double-click resets it too.
   inline constexpr const char* CAPTION_BOX_PROPERTY = "captionBox";
+  // A settings row's title: the control it stands for, which its double-click resets (browser dblReset.js ROW_TITLE).
+  inline constexpr const char* CAPTION_FIELD_PROPERTY = "captionField";
 
   inline constexpr const char* RESET_HOOK_PROPERTY = "resetHook";
 
@@ -138,8 +140,14 @@ namespace stencil::support {
         if (auto* m = qobject_cast<QMenu*>(obj))
           pendingAction = m->actionAt(static_cast<QMouseEvent*>(ev)->position().toPoint());
         else if (auto* b = qobject_cast<QCheckBox*>(obj)) pendingCheck = b;
-        else if (auto* cap = qobject_cast<QWidget*>(obj))
+        else if (auto* cap = qobject_cast<QWidget*>(obj)) {
           pendingCheck = qobject_cast<QAbstractButton*>(cap->property(CAPTION_BOX_PROPERTY).value<QObject*>());
+          QPointer<QWidget> field = qobject_cast<QWidget*>(cap->property(CAPTION_FIELD_PROPERTY).value<QObject*>());
+          if (!pendingCheck && field) {
+            if (auto* box = qobject_cast<QAbstractButton*>(field.data())) pendingCheck = box;
+            else QTimer::singleShot(0, field, [field] { if (field) resetToDefault(field); });
+          }
+        }
         return false;
       }
       if (t == QEvent::MouseButtonRelease && pendingAction) {

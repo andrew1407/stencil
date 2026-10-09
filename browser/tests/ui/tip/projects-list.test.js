@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import {
   wipeDurationMs, FILTER_ENTERING_CLASS, MATERIALIZE_CLASS, LEAVING_CLASS, ROW_ARRIVE_MS,
-  ROW_ARRIVE_DELAY_MS, ITEM_DUST_MS,
+  ROW_ARRIVE_DELAY_MS, ITEM_DUST_MS, FILTER_DUST_MS,
 } from '../../../js/ui/motion.js';
 import { setMotionOverride } from '../../../js/ui/motion/motionPrefs.js';
 import { createRenderList } from '../../../js/ui/projects/list/renderList.js';
@@ -148,17 +148,21 @@ test('a server listing that lands inside the removal hold still replaces its ske
 });
 
 test('a real removal keeps the destructive wipe — a filter is not a delete', async (t) => {
-  // The scatter stays on the removal paths only, on the ITEM clock: a project card is read, not merely
-  // noticed, so its wipe runs half again as long as the connections list's.
+  // The removal's wipe runs on the ITEM clock: a project card is read, not merely noticed, so its wipe
+  // runs half again as long as the connections list's. A filter's dropped row only throws the light dust.
   const removed = [];
   const m = await mountProjectsModal(t, { metas: METAS, mode: 'particles',
     app: { confirm: async () => true, removeProject: (id) => removed.push(id) } });
   m.$('projects-modal-overlay').classList.add('modal-open');
   m.change('projects-filter', 'local');
   m.type('alp');
-  const clouds = () => m.doc.querySelectorAll('.disintegrate-host').map((h) => h.__cloud.flight);
-  assert.ok(clouds().includes('gather') && !clouds().includes('scatter'), 'the filter path gathers, it never scatters');
-  assert.ok(m.rows().every((r) => !r.classList.contains(LEAVING_CLASS)), 'and never plays a row out');
+  const clouds = () => m.doc.querySelectorAll('.disintegrate-host').map((h) => h.__cloud);
+  assert.ok(clouds().some((c) => c.flight === 'gather'), 'the rows left re-form');
+  assert.ok(clouds().some((c) => c.flight === 'scatter'), 'the dropped ones dissolve');
+  // (The batch bar's controls fall in on their own clock; only the rows' clouds are the filter's.)
+  assert.ok(clouds().filter((c) => c.flight !== 'fall').every((c) => c.span === FILTER_DUST_MS),
+    '…both on the filter\'s light throw, never a delete\'s wipe');
+  assert.ok(m.rows().every((r) => !r.classList.contains(LEAVING_CLASS)), 'and no row is played out like a removal');
   m.type('');
   const row = m.rows().find((r) => r.dataset.id === 'b');
   row.dispatch('contextmenu', { clientX: 5, clientY: 5 });

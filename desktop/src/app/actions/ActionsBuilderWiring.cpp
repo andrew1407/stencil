@@ -129,12 +129,12 @@ namespace stencil::gui {
     QObject::connect(w.acts.showPoints, &QAction::toggled, &w, [this](bool on) {
       w.canvas->setShowPoints(on);
       w.settings.showPoints = on;
-      fileStore::saveSettings(w.settings);
+      w.persistSettings();
     });
     QObject::connect(w.acts.showLines, &QAction::toggled, &w, [this](bool on) {
       w.canvas->setShowLines(on);
       w.settings.showLines = on;
-      fileStore::saveSettings(w.settings);
+      w.persistSettings();
     });
     QObject::connect(w.acts.theme, &QAction::triggered, &w, [this] { w.parts.theme.toggleTheme(); });
     // Panel + toolbars show/hide, animated; overlays, View menu and hotkeys all route through these actions.

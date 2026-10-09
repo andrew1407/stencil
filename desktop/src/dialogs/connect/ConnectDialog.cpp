@@ -144,7 +144,7 @@ namespace stencil::gui {
                                         CONN_ARRIVE_MS)) {
             w->setVisible(false);   // the slot stays; the motes are what the eye follows
             QPointer<QWidget> wp(w);
-            QTimer::singleShot(CONN_ARRIVE_MS, this, [wp] { if (wp) wp->setVisible(true); });
+            QTimer::singleShot(support::motionMs(CONN_ARRIVE_MS), this, [wp] { if (wp) wp->setVisible(true); });
           }
         }
       });

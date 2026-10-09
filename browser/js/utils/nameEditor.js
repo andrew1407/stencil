@@ -37,7 +37,7 @@ export const NAME_DISPLAY_CHARS = 28;
 export const shortName = (name, limit = NAME_DISPLAY_CHARS) => {
   const s = String(name ?? '');
   if (s.length <= limit) return s;
-// One char for the ellipsis; the extra char goes to the head on odd splits.
+  // One char reserved for the ellipsis; the head gets the extra char on odd splits.
   const keep = limit - 1;
   const head = Math.ceil(keep / 2);
   const tail = keep - head;

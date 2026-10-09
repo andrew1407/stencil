@@ -22,7 +22,7 @@ func requireStore(t testing.TB) *Store {
 	if err := Migrate(ctx, s.MigratePool()); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
-	if _, err := s.pool.Exec(ctx, `TRUNCATE projects, sessions, project_presence CASCADE`); err != nil {
+	if _, err := s.pool.Exec(ctx, `TRUNCATE projects, sessions CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 	t.Cleanup(s.Close)

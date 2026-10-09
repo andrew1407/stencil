@@ -56,6 +56,14 @@ public sealed class StencilServerClientFactory : IStencilServerClientFactory
             MaxResponseContentBufferSize = _options.MaxServerResponseBytes,
         };
 
+    // For a stencil-server LLM endpoint the user connected: the server clients' guarded handler.
+    public HttpClient CreateGuardedHttpClient(TimeSpan timeout) =>
+        new(_verifying.Value, disposeHandler: false)
+        {
+            Timeout = timeout,
+            MaxResponseContentBufferSize = _options.MaxServerResponseBytes,
+        };
+
     private static SocketsHttpHandler trustAnyCertificate(SocketsHttpHandler handler)
     {
         handler.SslOptions = new SslClientAuthenticationOptions

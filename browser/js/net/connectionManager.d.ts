@@ -4,12 +4,6 @@
 import type { ServerConnection, TaggedRemoteProject } from './serverConnection.js';
 import type { SavedServer } from './connectionStore.js';
 
-export {
-  REMOTE_FLAG, isLoopbackHost, normalizeUrl, parseInviteUrl, buildInviteUrl,
-  isInsecureRemote, wsUrl, isAuthStatus, isExpiredSession,
-} from './urlRules.js';
-export { ServerConnection } from './serverConnection.js';
-
 /** A URL string, an invite link, or a saved entry; arrays connect each in turn. */
 export type ConnectSpec = string | { url: string; token?: string; kind?: 'admin' | '' };
 

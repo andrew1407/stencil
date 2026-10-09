@@ -10,12 +10,12 @@ public static class ServiceCollectionExtensions
     // Stateless (per-user state lives in the session store), so singleton lifetimes are fine.
     public static IServiceCollection AddStencilApplication(this IServiceCollection services)
     {
-        services.AddSingleton<IEditingService, EditingService>();
+        services.AddSingleton<EditingService>();
         services.AddSingleton<IServerService, ServerService>();
         // Singleton on purpose: it owns the per-user in-memory LLM chat history.
         services.AddSingleton<PromptService>();
         services.AddSingleton<LlmAttachmentLoader>();
-        services.AddSingleton<IScriptService, ScriptService>();
+        services.AddSingleton<ScriptService>();
         return services;
     }
 }

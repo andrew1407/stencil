@@ -1,4 +1,5 @@
 import { TUNE } from './tune.js';
+import { motionMs } from './motionPrefs.js';
 // Rows dissolve only by the amount the scroller already clips them.
 export const REVEAL_ITEM_CLASS = 'reveal-item';
 export const REVEAL_IN_CLASS = 'reveal-in';
@@ -134,7 +135,7 @@ export function observeReveal(root, selector, { smooth = false } = {}) {
       el.style.setProperty('--dissolve', smooth ? '0' : '1');
       el.style.setProperty('--vis-start', '50%');   // assembles outward from its middle
       el.style.setProperty('--vis-end', '50%');
-      setTimeout(() => el.classList.remove(REVEAL_ENTERING_CLASS), REVEAL_ENTER_MS + 60);
+      setTimeout(() => el.classList.remove(REVEAL_ENTERING_CLASS), motionMs(REVEAL_ENTER_MS + 60));
     }
     remeasure();
   };

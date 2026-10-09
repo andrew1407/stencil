@@ -16,6 +16,7 @@ namespace stencil::gui {
     QVBoxLayout* lay = appendTranscriptCard(2);
     pendingCard = lay->parentWidget();
     pendingCard->setObjectName(QStringLiteral("chatCardAssistant"));
+    repolish(pendingCard);
     pendingRole = nullptr;  // the bubble's own tone says "assistant" (browser parity)
     // An in-flight turn shows bouncing dots; markPendingStopped swaps in the label.
     pendingBody = makePlainLabel(QString(), pendingCard);

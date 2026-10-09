@@ -49,6 +49,8 @@ public sealed class UserWorkspace : IUserWorkspace
         }
     }
 
+    public void Discard(string path) => TempFiles.TryDelete(path);
+
     public IEnumerable<long> ActiveUserIds()
     {
         if (!Directory.Exists(_options.DataDir))

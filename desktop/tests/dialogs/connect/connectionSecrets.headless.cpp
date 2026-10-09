@@ -115,6 +115,23 @@ int main(int argc, char** argv) {
           "…while a row with no url is dropped, token and all");
   }
 
+  // A server this window never reached keeps its row and its token; only a forgotten one goes.
+  {
+    store::saveServers({server("http://down.example:8090", "down-token", "admin"),
+                        server("http://gone.example:8090", "gone-token", "")});
+    store::saveKeeping({server("http://live.example:8090", "live-token", "session")},
+                       {QStringLiteral("http://gone.example:8090")});
+    const auto kept = store::loadSavedServers();
+    check(kept.size() == 2 && kept[0].url == QStringLiteral("http://live.example:8090") &&
+              kept[1].url == QStringLiteral("http://down.example:8090") &&
+              kept[1].token == QStringLiteral("down-token"),
+          "an unreachable saved server survives a save; the forgotten one is dropped");
+    const QJsonObject tokens = stencil::gui::fileStore::loadSecrets().value(QStringLiteral("serverTokens")).toObject();
+    check(!tokens.contains(QStringLiteral("http://gone.example:8090")) &&
+              tokens.value(QStringLiteral("http://down.example:8090")).toString() == QStringLiteral("down-token"),
+          "…and only the forgotten server's token leaves the secrets file");
+  }
+
   std::printf("\n%s (%d failure%s)\n", failures ? "FAILURE" : "SUCCESS", failures,
               failures == 1 ? "" : "s");
   return failures ? 1 : 0;

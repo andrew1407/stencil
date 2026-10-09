@@ -8,19 +8,15 @@ const has_posix_regex = filters.has_posix_regex;
 const max_name_pattern = filters.max_name_pattern;
 const runImpl = @import("../../src/scrape/run.zig").runImpl;
 const run_mock = @import("run_mock.zig");
-const MockIo = run_mock.MockIo;
+const Rig = run_mock.Rig;
 const mkPng = run_mock.mkPng;
 const testing = std.testing;
 
 test "run: --source-name filters candidates by URL (regex or substring)" {
-    var arena = std.heap.ArenaAllocator.init(testing.allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-    var threaded = std.Io.Threaded.init(testing.allocator, .{});
-    defer threaded.deinit();
-    const io = threaded.io();
+    var rig: Rig = undefined;
+    const a, const io, const mock = rig.open();
+    defer rig.close();
 
-    var mock = MockIo.init(a);
     try mock.serve("http://example.com/", "<img src=\"cat.png\"><img src=\"dog.jpg\"><img src=\"cat2.png\">");
     try mock.serve("http://example.com/cat.png", mkPng(a, 1, 1));
     try mock.serve("http://example.com/cat2.png", mkPng(a, 2, 2));
@@ -41,14 +37,10 @@ test "run: --source-name filters candidates by URL (regex or substring)" {
 
 test "run: --source-name honours regex metacharacters (POSIX)" {
     if (!has_posix_regex) return error.SkipZigTest;
-    var arena = std.heap.ArenaAllocator.init(testing.allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-    var threaded = std.Io.Threaded.init(testing.allocator, .{});
-    defer threaded.deinit();
-    const io = threaded.io();
+    var rig: Rig = undefined;
+    const a, const io, const mock = rig.open();
+    defer rig.close();
 
-    var mock = MockIo.init(a);
     try mock.serve("http://example.com/", "<img src=\"cat.png\"><img src=\"dog.jpg\">");
     try mock.serve("http://example.com/cat.png", mkPng(a, 1, 1));
     try mock.serve("http://example.com/dog.jpg", mkPng(a, 3, 3));
@@ -66,14 +58,10 @@ test "run: --source-name honours regex metacharacters (POSIX)" {
 }
 
 test "run: an over-long --source-name pattern is refused before regcomp" {
-    var arena = std.heap.ArenaAllocator.init(testing.allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-    var threaded = std.Io.Threaded.init(testing.allocator, .{});
-    defer threaded.deinit();
-    const io = threaded.io();
+    var rig: Rig = undefined;
+    const a, const io, const mock = rig.open();
+    defer rig.close();
 
-    var mock = MockIo.init(a);
     try mock.serve("http://example.com/", "<img src=\"cat.png\">");
 
     // A nest of counted repetitions is exactly the shape glibc's regexec backtracks on.
@@ -92,14 +80,10 @@ test "run: an over-long --source-name pattern is refused before regcomp" {
 
 test "run: --source-name invalid regex is a hard error (POSIX)" {
     if (!has_posix_regex) return error.SkipZigTest;
-    var arena = std.heap.ArenaAllocator.init(testing.allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-    var threaded = std.Io.Threaded.init(testing.allocator, .{});
-    defer threaded.deinit();
-    const io = threaded.io();
+    var rig: Rig = undefined;
+    _, const io, const mock = rig.open();
+    defer rig.close();
 
-    var mock = MockIo.init(a);
     try mock.serve("http://example.com/", "<img src=\"cat.png\">");
 
     var opts = args.Options{};

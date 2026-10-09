@@ -29,11 +29,11 @@ public sealed class ScriptDocumentTests : IDisposable
     private EditingService _editing = default!;
 
     public ScriptDocumentTests() =>
-        _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-stc-" + Guid.NewGuid().ToString("N"));
+        _dataDir = TempDirs.New("bot-stc");
 
     public void Dispose()
     {
-        try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
+        TempDirs.Delete(_dataDir);
     }
 
     private UpdateRouter makeRouter()

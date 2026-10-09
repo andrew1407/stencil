@@ -1,10 +1,10 @@
 // The mark's veil and its wiring (js/ui/control/swap.js, customSelect.js): one delegated
 // listener per checkbox, a word exchanged only on a real change, filtered rows in as sand —
-// each driven on a stub page where the clouds are really built (helpers/dustCloudRig.js).
+// each driven on a stub page where the clouds are really built (helpers/dustRig.js).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createStubElement } from '../../helpers/dom.js';
-import { installDustDom, rect, boxEl, cloudKind } from '../../helpers/dustCloudRig.js';
+import { installDustDom, rect, boxEl, cloudKind } from '../../helpers/dustRig.js';
 import { element } from '../../helpers/visualsModalRig.js';
 import { ANIMATIONS_CSS } from '../../helpers/css.js';
 

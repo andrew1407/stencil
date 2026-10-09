@@ -1,7 +1,9 @@
 //! The core bridge through the ABI: colours by name and hex, the expire vocabulary, durations,
-//! page sizes and formats, the blank fill, and the invert and contour filters.
+//! page sizes and formats, the blank fill, the invert and contour filters, the filter names and the
+//! undo caps.
 const std = @import("std");
 const core = @import("../src/core.zig");
+const session_state = @import("../src/console/session/state.zig");
 const applyContour = core.applyContour;
 const applyFilter = core.applyFilter;
 const canonicalPageFormat = core.canonicalPageFormat;
@@ -93,4 +95,16 @@ test "invert + contour filters through the ABI" {
     try testing.expectEqual(@as(u8, 255), flat[1]);
     try testing.expectEqual(@as(u8, 255), flat[2]);
     try testing.expectEqual(@as(u8, 200), flat[3]);
+}
+
+test "namedFilter answers from core's table, case-sensitively as core and renderer.js match" {
+    for ([_][]const u8{ "none", "bw", "sepia", "invert", "contour" }) |n| try testing.expectEqualStrings(n, core.namedFilter(n).?);
+    for ([_][]const u8{ "BW", "Sepia", "custom", "", "#7c3aed" }) |tint| try testing.expect(core.namedFilter(tint) == null);
+    try testing.expect(core.isFilter("#7c3aed") and !core.isFilter("BW"));
+}
+
+test "historyCaps hands out core's undo caps; the console's depth is the same value" {
+    const caps = core.historyCaps();
+    try testing.expectEqual(session_state.max_states, caps.steps);
+    try testing.expectEqual(@as(usize, 2000000), caps.points); // LIMITS.historyPointsMax
 }

@@ -58,7 +58,7 @@ pub fn apply(
                 return true;
             }
             if (std.ascii.endsWithIgnoreCase(path, ".json")) {
-                const bytes = pipeline.loadLayoutBytes(gpa, io, path) catch return true; // message printed
+                const bytes = pipeline.loadText(gpa, io, path) catch return true; // message printed
                 defer gpa.free(bytes);
                 session.addLines(bytes) catch return false;
                 ui.redraw(session);

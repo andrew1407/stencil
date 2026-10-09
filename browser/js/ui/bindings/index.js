@@ -26,6 +26,7 @@ import { wireControlState } from '../control/state.js';
 import { beginQuarterTurn } from '../motion/quarterTurn.js';
 import { beginMirrorFlip } from '../motion/mirrorFlip.js';
 import { TUNE } from '../motion/tune.js';
+import { motionMs } from '../motion/motionPrefs.js';
 
 // Wire each cohesive control group in source order: document-level listener dispatch
 // order depends on it.
@@ -51,7 +52,7 @@ export function wireControls(app) {
   wireSmoothZoom(app);
   wireTypedWords(app);
   // Both orientation flights run on the quarter turn's clock, the canvas's zoom ease held off.
-  const flight = (canvas) => ({ ms: TUNE.ROTATE_MS, easing: TUNE.ROTATE_EASING,
+  const flight = (canvas) => ({ ms: motionMs(TUNE.ROTATE_MS), easing: TUNE.ROTATE_EASING,
     onStart: () => canvas.classList.add('zoom-no-transition'),
     onEnd: () => canvas.classList.remove('zoom-no-transition') });
   app.quarterTurn = () => {

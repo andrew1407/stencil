@@ -99,9 +99,10 @@ fn color(st: *ParseState, name: []const u8) Error![:0]const u8 {
 
 fn count(st: *ParseState, name: []const u8) Error!i64 {
     const v = try state.value(st, name);
-    const n = std.fmt.parseInt(i64, v, 10) catch return Error.BadNumber;
-    if (n < 0) return Error.BadNumber;
-    return n;
+    const n = std.fmt.parseInt(i64, v, 10) catch -1;
+    if (n >= 0) return n;
+    logo.err("{s} expects a whole number of at least 0, got '{s}'\n", .{ name, v });
+    return Error.BadNumber;
 }
 
 fn asked(o: Options) u8 {

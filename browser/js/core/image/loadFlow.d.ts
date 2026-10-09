@@ -1,6 +1,6 @@
-// Loading a picture into the editor: the session bookkeeping a load does up front
-// (project promotion, filename, provenance, server linkage), then the decode; what the
-// decoded image settles is settle.js.
+// Loading a picture into the editor: the decode under the size cap, then the session
+// bookkeeping (project promotion, filename, provenance, server linkage); what the
+// decoded image settles is settle.js. The newest load per editor wins.
 import type { DrawingApp } from '../drawingApp.js';
 import type { CodecLine } from '../line/linesCodec.js';
 

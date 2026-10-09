@@ -3,11 +3,10 @@
 // in the working tree — then compares what is left, exactly. `.py` counts only `#`; a
 // docstring is a statement, kept.
 //   node tools/commentOnlyDiff.mjs <gitRef> <path...>   (exits 1 if any file CHANGED)
-import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
-import { langOf, scan, stripComments } from './moveCheck.mjs';
+import { blobsAt, listFiles, readAll, repoRoot } from './repo/io.mjs';
+import { langFor, scan, stripComments } from './moveCheck.mjs';
 
 const NL = '\u0000';                         // a newline inside a literal, parked
 
@@ -79,30 +78,32 @@ export const compare = (refSrc, headSrc, lang) => {
 };
 
 // ── git plumbing ────────────────────────────────────────────────
-const git = (...args) => execFileSync('git', args, { encoding: 'utf8', maxBuffer: 64 << 20 });
+// CSS is no language here: commentPaths reads its comments, but it has no code scanner.
+const compareLang = (f) => {
+  const lang = langFor(f);
+  return lang === 'css' ? null : lang;
+};
 
-const langFor = (f) => langOf(f) || (path.extname(f).toLowerCase() === '.py' ? 'py' : null);
-
-const run = (ref, args) => {
-  const root = git('rev-parse', '--show-toplevel').trim();
+const run = async (ref, args) => {
+  const root = await repoRoot();
   const rel = args.map((a) => path.relative(root, path.resolve(a)) || '.');
-  const files = git('-C', root, 'ls-files', '-co', '--exclude-standard', '--', ...rel)
-    .split('\n').filter((f) => f && existsSync(path.join(root, f))).sort();
+  const files = (await listFiles(root, [], rel)).sort();
+  const compared = files.filter(compareLang);
+  const [nowTexts, thenTexts] = await Promise.all([readAll(root, compared), blobsAt(root, ref, compared)]);
+  const now = new Map(compared.map((f, i) => [f, nowTexts[i]]));
 
   console.log(`commentOnlyDiff ${ref} -> working tree`);
   let changed = 0, skipped = 0;
   for (const f of files) {
-    const lang = langFor(f);
+    const lang = compareLang(f);
     if (!lang) { skipped++; continue; }
-    let refSrc;
-    try {
-      refSrc = execFileSync('git', ['show', `${ref}:${f}`], { encoding: 'utf8', maxBuffer: 64 << 20, stdio: ['ignore', 'pipe', 'ignore'] });
-    } catch {
+    const refSrc = thenTexts.get(f);
+    if (refSrc == null) {
       changed++;
       console.log(`  CHANGED  ${f}  (absent at ${ref})`);
       continue;
     }
-    const r = compare(refSrc, readFileSync(path.join(root, f), 'utf8'), lang);
+    const r = compare(refSrc, now.get(f), lang);
     if (r.same) { console.log(`  OK       ${f}`); continue; }
     changed++;
     console.log(`  CHANGED  ${f}`);
@@ -165,5 +166,5 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const args = process.argv.slice(2);
   if (args[0] === '--self-test') await selfTest();
   else if (args.length < 2) { console.error('usage: node tools/commentOnlyDiff.mjs <gitRef> <path...>   |   --self-test'); process.exit(2); }
-  else process.exit(run(args[0], args.slice(1)));
+  else process.exit(await run(args[0], args.slice(1)));
 }

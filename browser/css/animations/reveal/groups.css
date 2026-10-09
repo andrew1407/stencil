@@ -26,14 +26,14 @@
     .bar-held.bar-closing { transition: none; }
 }
 
-/* Filtering (motion.js createFilterAnimator): what stops matching has no exit; only the rows LEFT
-   arrive, behind their gathering motes. Opacity + transform only. */
+/* Filtering (motion.js createFilterAnimator): what stops matching has no CSS exit (a list that opts in
+   dissolves it in dust); the rows LEFT arrive, behind their gathering motes. Opacity + transform only. */
 .filter-entering {
     animation: rowFilterIn 0.34s cubic-bezier(0, 0, 0.6, 1) both;
 }
 @keyframes rowFilterIn {
     from { opacity: 0; transform: translateY(-4px); }
-    to   { opacity: 1; transform: none; }
+    to   { opacity: var(--rest-opacity, 1); transform: none; }
 }
 @media (prefers-reduced-motion: reduce) {
     .filter-entering { animation: none; }

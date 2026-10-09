@@ -53,7 +53,7 @@ export const mountVisuals = async (doc, modes) => {
   const app = {
     accent: 'violet', customAccent: null, color: '#000000', thickness: 2, pointSize: 4, style: 'solid',
     accents: { themeMode: 'system', setThemeMode() {}, setAccent() {} },
-    settings: { setMotion: (k, v) => calls.push([k, v]), setNotifyChannel() {}, setVisualColor() {} },
+    settings: { setMotion: (k, v) => { calls.push([k, v]); return { [k]: v }; }, setNotifyChannel() {}, setVisualColor() {} },
     renderer: { redraw() {} }, storage: { saveSoon() {} }, input: { setHoldDrawDelay() {} },
   };
   const { StencilVisualsModal } = await import('../../js/ui/visuals/modal.js');

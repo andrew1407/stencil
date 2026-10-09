@@ -2,6 +2,9 @@
 // refresh-on-open snap, promoting a temporary editor, and clearing the editor.
 import { ProjectsStore, addPeriod, DEFAULT_PERIOD } from '../project/store/projectsStore.js';
 import { getProjectsBackend } from '../project/store/projectsBackend.js';
+import { markProjectOpened } from '../project/meta/projectOpened.js';
+
+export { markProjectOpened };
 
 // Payload keys ride an IndexedDB mirror, the registry stays in localStorage
 // (projectsBackend.js); a failed async persist surfaces on the save-status line.
@@ -41,6 +44,7 @@ export const promoteTemporary = (storage) => {
   storage.activeId = storage.store.createId();
   storage.temporary = false;
   storage.app.activeProjectId = storage.activeId;
+  markProjectOpened(storage.activeId);
   return storage.activeId;
 };
 

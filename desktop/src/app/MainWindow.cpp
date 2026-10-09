@@ -8,12 +8,14 @@
 #include "RemoteSyncController.hpp"
 #include "ProjectTransferController.hpp"
 #include "StencilFileSync.hpp"
+#include "SharedState.hpp"
+#include "SiblingWindows.hpp"
 #include "../support/tip/AppTooltip.hpp"   // the fading control tooltip
 
 namespace stencil::gui {
 
   MainWindow::MainWindow(QWidget* parent, bool restoreLast)
-      : QMainWindow(parent) {
+      : QMainWindow(parent), projectList(SharedState::instance().getProjects()) {
     setWindowTitle("Stencil");
     setObjectName("stencilWindow");   // qss/app/shell.qss: the window's own separator is a hairline
     resize(1100, 760);
@@ -55,6 +57,7 @@ namespace stencil::gui {
   // QWidget deletes children BEFORE QObject drops connections: teardown slots must bail on this flag.
   MainWindow::~MainWindow() {
     tearingDown = true;
+    SiblingWindows::noteClosed(this);
     blocked.set(false);   // never leave the app-wide override pushed behind us
   }
 

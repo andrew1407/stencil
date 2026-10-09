@@ -119,6 +119,7 @@ namespace stencil::gui {
     shownRect = from;
     rectAnim->setStartValue(QRectF(from.x, from.y, from.width, from.height));
     rectAnim->setEndValue(QRectF(cropBox.x, cropBox.y, cropBox.width, cropBox.height));
+    rectAnim->setDuration(support::motionMs(CROP_TWEEN_MS));
     rectAnim->start();
   }
 

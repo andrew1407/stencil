@@ -1,6 +1,6 @@
 // MainWindow GUI e2e — The project shortcuts, incognito's promotion to a real project, and clearing one.
-// Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
-#include "../../MainWindow.gui.hpp"
+// Shared ground is in projectsHeld.gui.hpp, over MainWindow.gui.hpp.
+#include "projectsHeld.gui.hpp"
 #include "../../../src/app/project/ProjectTitleController.hpp"
 #include "../../../src/support/theme/filterFade.hpp"
 
@@ -127,9 +127,7 @@ class MainWindowGuiTest : public QObject {
     if (qApp->platformName() != QLatin1String("offscreen"))
       QSKIP("modal-dialog gestures need the offscreen platform");
     MainWindow win(nullptr, false);
-    win.resize(1100, 800);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(held::showForProjects(win));
     QImage img(40, 30, QImage::Format_RGB32);
     img.fill(Qt::darkGreen);
     const QString idA = win.parts.chatAppliers.addImageProjectEntry(img, "remove-me");
@@ -144,22 +142,12 @@ class MainWindowGuiTest : public QObject {
     bool sawRow = false, openAfterNo = false, keptAfterNo = false;
     bool openAfterYes = false, rowGone = false;
     QTimer::singleShot(0, [&] {
-      const auto bailOut = [] {
-        if (auto* d = qobject_cast<QDialog*>(QApplication::activeModalWidget())) d->reject();
-      };
-      QDialog* dlg = nullptr;
-      QListWidget* list = nullptr;
-      for (int i = 0; i < 200 && !list; ++i) {
-        dlg = qobject_cast<QDialog*>(QApplication::activeModalWidget());
-        if (dlg) list = dlg->findChild<QListWidget*>("projectsList");
-        if (!list) QTest::qWait(10);
-      }
+      const auto bailOut = &held::rejectModal;
+      const held::ProjectsWindow shown = held::projectsWindow();
+      QDialog* dlg = shown.dlg;
+      QListWidget* list = shown.list;
       if (!list) { bailOut(); return; }
-      const auto rowFor = [&list](const QString& id) -> QListWidgetItem* {
-        for (int i = 0; i < list->count(); ++i)
-          if (list->item(i)->data(Qt::UserRole).toString() == id) return list->item(i);
-        return nullptr;
-      };
+      const auto rowFor = [&list](const QString& id) { return held::rowFor(list, id); };
       QListWidgetItem* item = rowFor(idA);
       if (!item) { bailOut(); return; }
       sawRow = true;

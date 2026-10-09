@@ -45,7 +45,7 @@ namespace stencil::gui {
     auto applied = std::make_shared<bool>(false);
     auto* anim = new QVariantAnimation(btn);
     anim->setObjectName(QString::fromLatin1(FACE_SWAP_ANIM_NAME));
-    anim->setDuration(ms);
+    anim->setDuration(support::motionMs(ms));
     anim->setStartValue(0.0);
     anim->setEndValue(1.0);
     // Linear — the shaping lives in faceSwapFrame's two curves.

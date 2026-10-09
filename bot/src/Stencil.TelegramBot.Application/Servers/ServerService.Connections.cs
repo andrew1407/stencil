@@ -1,4 +1,5 @@
 using Stencil.TelegramBot.Application.Editing;
+using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Application.Servers;
@@ -66,5 +67,27 @@ public sealed partial class ServerService
     {
         var session = await _store.GetAsync(userId, ct);
         return session.Connections;
+    }
+
+    // A token re-minted after a 401 is stored, or every later call re-mints and trips the server's
+    // token limit. Re-read so the caller's own session write is kept; the saved session, or null if none.
+    private async Task<UserSession?> keepTokenAsync(long userId, IStencilServerClient client, CancellationToken ct)
+    {
+        var now = client.Session;
+        if (string.IsNullOrEmpty(now.Token) || (_issued.TryGetValue(client, out var issued) && now.Equals(issued)))
+        {
+            return null;
+        }
+        var session = await _store.GetAsync(userId, ct);
+        var stored = session.FindConnection(client.BaseUrl);
+        if (stored is null || (stored.Token == now.Token && stored.CredentialKind == now.CredentialKind))
+        {
+            return null;
+        }
+        var refreshed = stored with { Token = now.Token, CredentialKind = now.CredentialKind };
+        var connections = session.Connections.Select(c => c == stored ? refreshed : c).ToList();
+        var updated = session with { Connections = connections };
+        await _store.SaveAsync(updated, ct);
+        return updated;
     }
 }

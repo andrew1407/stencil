@@ -1,5 +1,5 @@
 // Command stencil-server is the Stencil collaboration server: it stores and
-// shares projects and runs live multi-client edit sessions over WebSocket and
+// shares projects over REST and announces their changes over WebSocket and
 // raw TCP. It is a protocol adapter (a sibling of mcp/): it persists metadata in
 // Postgres and bytes in a path-confined file store, and it never links the C++ core.
 package main
@@ -69,31 +69,20 @@ func run() error {
 	}
 	defer b.Close()
 
-	// REST + WS + TCP. The hub is built first: the REST delete guard, the expiry sweep and the presence
-	// heartbeat all ask it which projects are being edited live.
+	// REST + WS + TCP.
 	transport.Configure(transport.Timeouts{WSPing: cfg.Live.WSPing, WSPongTimeout: cfg.Live.WSPongTimeout,
 		TCPIdle: cfg.Live.TCPIdle, TCPWrite: cfg.Live.TCPWrite})
 	eventbus.SetDropWindow(cfg.Live.BusDropWarn)
 	ratelimit.SetIdleTTL(cfg.RateBucketIdle)
-	h := hub.New(rootCtx, st, b, st, hubOptions(cfg)...)
-	deps := apiDeps(cfg, st, fs, h, b)
-	expiry := service.Expiry{Store: st, Live: h, OpTimeout: cfg.OpTimeout}
+	h := hub.New(rootCtx, b, st, hubOptions(cfg)...)
+	deps := apiDeps(cfg, st, fs, b)
 
-	// Presence, the expiry reaper (filestore bytes dropped, clients notified) and the filestore reconcile
-	// run on timers; the WaitGroup lets shutdown join all three before the store/bus close.
+	// The expiry reaper (filestore bytes dropped, clients notified) and the filestore reconcile run on
+	// timers; the WaitGroup lets shutdown join both before the store/bus close.
 	var sweepWG sync.WaitGroup
-	if cfg.Presence.TTL > 0 {
-		presence, err := service.NewPresence(st, h, cfg.Presence.TTL)
-		if err != nil {
-			return err
-		}
-		deps.RemoteSessions, expiry.Remote = presence, presence
-		log.Printf("presence: instance %s, heartbeat %v, ttl %v", presence.Instance, cfg.Presence.Heartbeat, cfg.Presence.TTL)
-		startPresence(rootCtx, &sweepWG, presence, h.LiveChanged(), cfg.Presence, cfg.OpTimeout)
-	}
 	startExpirySweep(rootCtx, &sweepWG, maintenance{
-		projects: expiry,
-		drops:    service.NewProjects(st, fs, nil, b, cfg.ProjectTTL),
+		projects: service.Expiry{Store: st, OpTimeout: cfg.OpTimeout},
+		drops:    service.NewProjects(st, fs, b, cfg.ProjectTTL),
 		sessions: st,
 		batch:    cfg.Sweep.Batch,
 		workers:  cfg.Sweep.Workers,

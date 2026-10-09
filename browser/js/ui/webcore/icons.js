@@ -20,7 +20,8 @@ export const pixelRects = (rows, ink = null) => {
   return out;
 };
 
-const themeInk = (dark) => (dark ? PIXELS.paletteDark : null);   // the dark face's own ink
+// The dark face's own ink.
+const themeInk = (dark) => (dark ? PIXELS.paletteDark : null);
 
 // The mark's ring in the preset's own hex: the skin points --accent at its navy, so no var says it.
 export const pixelLogoRects = (accent, dark = false) =>

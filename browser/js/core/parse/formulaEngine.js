@@ -1,5 +1,6 @@
 import { core } from '../abi/stencilCore.js';
 import { formulaConstant, withProbeAxes } from './formulaContext.js';
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 
 // Port of core/parse/formulaParser.cpp: a recursive-descent evaluator (never `new
 // Function`/`eval`) over `+ - * / ** ( )`, a variable and the FormulaContext constants, so
@@ -7,6 +8,14 @@ import { formulaConstant, withProbeAxes } from './formulaContext.js';
 // recursion against adversarial nesting and must equal the core parser's MAX_DEPTH so wasm
 // and this fallback agree.
 const MAX_DEPTH = 256;
+
+// Longest expression parsed (core MAX_CHARS); counted in UTF-16 units here and bytes there, which
+// agree on every formula that can parse, since any non-ASCII character is invalid on both sides.
+export const FORMULA_MAX_CHARS = constants.LIMITS.formulaMaxChars;
+
+// A stored or peer formula as the editor keeps it: a string within the cap, else none (it could
+// never apply on any surface).
+export const formulaText = (v) => (typeof v === 'string' && v.length <= FORMULA_MAX_CHARS ? v : '');
 
 // ASCII whitespace, the core's set: /\s/ and trim() also take U+00A0, U+2028 and kin.
 const isSpace = (c) => c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === '\f' || c === '\v';
@@ -182,6 +191,7 @@ function isNamePart(c) {
 
 // A finite number or null.
 function evaluate(expr, varName, value, ctx) {
+  if (expr?.length > FORMULA_MAX_CHARS) return null;
   const result = new Evaluator(expr, varName, value, ctx).run();
   if (result === null || !Number.isFinite(result)) return null;
   return result;

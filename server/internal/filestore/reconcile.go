@@ -15,7 +15,7 @@ import (
 // Reconciled counts what one Reconcile pass removed.
 type Reconciled struct {
 	Orphans int // project directories no row owns
-	Temps   int // upload temp files past their age
+	Temps   int // upload temp and staged files past their age
 }
 
 // Reconcile removes what a crash or a failed removal left behind: upload temp files older than tmpMaxAge,
@@ -59,7 +59,8 @@ func (s *Store) Reconcile(ctx context.Context, owns func(ctx context.Context, id
 	return got, nil
 }
 
-// dropStaleTemps removes dir's upload temp files last written before cutoff; a live upload's is newer.
+// dropStaleTemps removes dir's upload temp and staged files last written before cutoff; a live upload's
+// is newer.
 func (s *Store) dropStaleTemps(dir string, cutoff time.Time) int {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -68,7 +69,7 @@ func (s *Store) dropStaleTemps(dir string, cutoff time.Time) int {
 	n := 0
 	for _, e := range entries {
 		info, err := e.Info()
-		if err != nil || !strings.HasPrefix(e.Name(), tmpPrefix) || !info.ModTime().Before(cutoff) {
+		if err != nil || !(strings.HasPrefix(e.Name(), tmpPrefix) || isStaged(e.Name())) || !info.ModTime().Before(cutoff) {
 			continue
 		}
 		tmp := filepath.Join(dir, e.Name())

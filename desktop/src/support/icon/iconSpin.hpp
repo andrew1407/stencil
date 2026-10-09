@@ -26,7 +26,7 @@ namespace stencil::support {
     const QIcon rest = btn->icon();   // put back exactly what it wore, themed and all
     btn->setProperty(SPINNING_PROPERTY, true);
     auto* turn = new QVariantAnimation(btn);
-    turn->setDuration(ICON_TURN_MS);
+    turn->setDuration(motionMs(ICON_TURN_MS));
     turn->setStartValue(0.0);
     turn->setEndValue(360.0);
     turn->setEasingCurve(QEasingCurve::OutCubic);

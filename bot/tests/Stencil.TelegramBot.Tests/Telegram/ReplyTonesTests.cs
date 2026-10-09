@@ -32,7 +32,7 @@ public sealed class ReplyTonesTests : IDisposable
 
     public ReplyTonesTests()
     {
-        _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-tones-" + Guid.NewGuid().ToString("N"));
+        _dataDir = TempDirs.New("bot-tones");
         BotOptions options = new() { DataDir = _dataDir, AllowedUsers = AnyUser.Instance };
         EditingService editing = new(_cli, new UserWorkspace(options), _store);
         _handlers = TestHandlers.Create(options, _store, _cli, _bot, _llm, servers: _servers, editing: editing);
@@ -49,7 +49,7 @@ public sealed class ReplyTonesTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
+        TempDirs.Delete(_dataDir);
     }
 
     /// <summary>Route a plain Telegram text message exactly as the poller would.</summary>
@@ -130,5 +130,19 @@ public sealed class ReplyTonesTests : IDisposable
         await dispatch("/disconnect https://nowhere.example.com");
 
         Assert.Equal("ℹ️ No matching connection to disconnect.", lastText());
+    }
+
+    // core refuses an edge outside the image; the bot answers with the crop help and stores nothing.
+    [Fact]
+    public async Task Should_Answer_A_Crop_Edge_Outside_The_Image_With_The_Crop_Help()
+    {
+        await send("/blank a4 pink");
+        int renders = _cli.EditCalls;
+
+        await send("/crop x1=-20 y1=0px y2=10px");
+
+        Assert.Equal(Replies.CropUsage(), lastText());
+        Assert.Equal(renders, _cli.EditCalls);
+        Assert.Null((await _store.GetAsync(_userId)).Edits.CropSpec);
     }
 }

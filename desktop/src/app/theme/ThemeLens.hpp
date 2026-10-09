@@ -34,6 +34,7 @@ namespace stencil::gui {
     double radius = RADIUS, closingFrom = -1;   // -1: not closing
     QTimer ticker;
     QElapsedTimer clock;
+    double scale = 1.0;   // support::motionScale() when this open or close began
     std::function<void()> closed;
   };
 

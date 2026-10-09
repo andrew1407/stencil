@@ -94,7 +94,8 @@ docker run --rm -p 8080:80 stencil-browser   # -> http://localhost:8080
   the logo for a one-off custom accent). Drag the theme switch to preview the other theme through
   a lens (letting go changes nothing; a click switches); drag the logo onto the canvas to clear the
   view to the bare picture (no filter, lines, points or compare). **Visuals → Motion** turns the drawing animation
-  on/off and picks the interface animation: Dust (default), Water, Fire, Sliding or None;
+  on/off, picks the interface animation: Dust (default), Water, Fire, Sliding or None, and sets
+  its **Animation speed** (0.1 slowest to 1 fastest, 0.37 the standard pace);
   the OS's `prefers-reduced-motion` always wins. **Visuals → Notifications** shows notices in
   the app (the corner toasts, the default) or as the browser's own notifications, which asks for
   the permission once and stays in the app if it is refused.
@@ -239,7 +240,7 @@ Orientation:
   and `stencil.chat` for the panel (`open()`, `dock()`, `history`, `abort()`, `clear()`). For
   Anthropic, `stencil.llm.apiKey = '…'` holds your key for this tab and reads back only as
   `'[redacted]'`; `stencil.llm.keyExpiresAt` and `stencil.llm.forgetKey()` go with it.
-- **Motion**: `stencil.drawingAnimations`, `stencil.motionMode`, `stencil.holdDrawDelay`.
+- **Motion**: `stencil.drawingAnimations`, `stencil.motionMode`, `stencil.motionSpeed`, `stencil.holdDrawDelay`.
 - **Notifications**: `stencil.notifyChannel` — `'toast'` (in the app) or `'system'`.
 
 The object is a frozen facade: reassigning a method or read-only field throws, and members
@@ -251,7 +252,7 @@ are non-enumerable so `console.log(stencil)` reads as `{}` while autocomplete st
 
 ```bash
 # from this directory (browser/)
-npm test          # or: node --test
+npm test          # node --test, half the cores (at most 6); STENCIL_TEST_CONCURRENCY=n overrides
 ```
 
 Node's built-in runner, no dependencies. `node --test` never loads wasm — it always runs the

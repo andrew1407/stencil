@@ -10,6 +10,11 @@
 
 namespace stencil::net {
 
+  namespace {
+    // A frame is tiny (id + version); a longer line, or stream without one, is a hostile peer.
+    constexpr int MAX_FRAME_BYTES = 1 << 20;  // 1 MiB
+  }  // namespace
+
   LiveFeed::LiveFeed(QObject* parent) : QObject(parent) {
     // The server only relays this id back as fromClientId; mirrors the CLI/browser client-id contract.
     clientId = QStringLiteral("desktop-") + QUuid::createUuid().toString(QUuid::WithoutBraces);
@@ -63,6 +68,7 @@ namespace stencil::net {
       connect(sock, &QTcpSocket::disconnected, this, &LiveFeed::onError);
     }
     rbuf.clear();
+    sock->setReadBufferSize(MAX_FRAME_BYTES);   // Qt's own buffer is bounded too
     sock->connectToHost(host, port);
   }
 
@@ -78,27 +84,21 @@ namespace stencil::net {
     sock->write(QJsonDocument(hello).toJson(QJsonDocument::Compact) + '\n');
   }
 
-  namespace {
-    // A frame is tiny (id + version); a longer newline-less stream is a hostile peer.
-    constexpr int MAX_BUFFER_BYTES = 1 << 20;  // 1 MiB
-  }  // namespace
-
   void LiveFeed::onReadyRead() {
     if (!sock) return;
     rbuf += sock->readAll();
     // abort() trips onError(), which schedules a reconnect; the poll backstop covers the gap.
-    if (rbuf.size() > MAX_BUFFER_BYTES && !rbuf.contains('\n')) {
+    if (!parseFrames()) {
       rbuf.clear();
       if (sock) sock->abort();
       onError();
-      return;
     }
-    parseFrames();
   }
 
-  void LiveFeed::parseFrames() {
-    int nl;
+  bool LiveFeed::parseFrames() {
+    qsizetype nl;
     while ((nl = rbuf.indexOf('\n')) >= 0) {
+      if (nl > MAX_FRAME_BYTES) return false;
       const QByteArray line = rbuf.left(nl);
       rbuf.remove(0, nl + 1);
       if (line.trimmed().isEmpty()) continue;
@@ -113,6 +113,7 @@ namespace stencil::net {
       const bool deleted = o.value(QLatin1String("event")).toString() == QLatin1String("deleted");
       emit projectUpdated(id, version, deleted);
     }
+    return rbuf.size() <= MAX_FRAME_BYTES;
   }
 
   void LiveFeed::onError() {

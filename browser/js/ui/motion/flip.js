@@ -1,4 +1,4 @@
-import { motionReduced } from './motionPrefs.js';
+import { motionMs, motionReduced } from './motionPrefs.js';
 import { TUNE } from './tune.js';
 // transform-origin for a fixed menu popping out of its open point: the click clamped
 // into the placed box, relative to its top-left.
@@ -54,5 +54,5 @@ export function flipFrom(el, from, { ms = FLIP_MS, activeClass = FLIP_ACTIVE_CLA
     el.style.transition = `transform ${ms}ms ${FLIP_EASING}`;
     el.style.transform = 'none';
   }));
-  el._flipTimer = setTimeout(clear, ms + 90);
+  el._flipTimer = setTimeout(clear, motionMs(ms + 90));
 }

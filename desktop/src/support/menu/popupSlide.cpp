@@ -1,4 +1,5 @@
 #include "popupSlide.hpp"
+#include "motionPrefs.hpp"
 
 #include <QEasingCurve>
 #include <QEvent>
@@ -48,12 +49,12 @@ namespace stencil::support {
         QEasingCurve curve(QEasingCurve::BezierSpline);
         curve.addCubicBezierSegment(QPointF(0.16, 1.0), QPointF(0.3, 1.0), QPointF(1.0, 1.0));
         auto* geo = new QPropertyAnimation(popup, "geometry", this);
-        geo->setDuration(POPUP_SLIDE_MS);
+        geo->setDuration(motionMs(POPUP_SLIDE_MS));
         geo->setStartValue(first);
         geo->setEndValue(target);
         geo->setEasingCurve(curve);
         auto* fade = new QPropertyAnimation(popup, "windowOpacity", this);
-        fade->setDuration(POPUP_SLIDE_MS);
+        fade->setDuration(motionMs(POPUP_SLIDE_MS));
         fade->setKeyValueAt(0.0, 0.0);
         fade->setKeyValueAt(POPUP_SLIDE_FADE_AT, 1.0);
         fade->setKeyValueAt(1.0, 1.0);

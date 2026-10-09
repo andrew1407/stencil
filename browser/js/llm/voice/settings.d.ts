@@ -13,8 +13,6 @@ export declare const VOICE_SETTINGS_EVENT: string;
 export declare const SILENCE_MS_DEFAULT: number;
 export declare const SILENCE_MS_MIN: number;
 export declare const SILENCE_MS_MAX: number;
-/** The settings dialog's menu as [tag, label] pairs; the facade accepts any tag. */
-export declare const VOICE_LANGUAGES: ReadonlyArray<readonly [string, string]>;
 export declare const isLanguageTag: (v: unknown) => boolean;
 export declare const clampSilenceMs: (v: unknown) => number;
 export declare const normalizeLanguage: (v: unknown) => string;

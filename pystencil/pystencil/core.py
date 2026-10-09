@@ -115,6 +115,12 @@ class Core(RasterOps):
     self._lib.stencil_cli_layoutCaps(ctypes.byref(lines), ctypes.byref(line_points), ctypes.byref(points))
     return (lines.value, line_points.value, points.value)
 
+  def history_caps(self) -> tuple[int, int]:
+    """(states, points over them) an undo history keeps: constants.json LIMITS, from core."""
+    steps, points = ctypes.c_int(), ctypes.c_int()
+    self._lib.stencil_cli_historyCaps(ctypes.byref(steps), ctypes.byref(points))
+    return (steps.value, points.value)
+
   def parse_duration(self, spec: str) -> (int | NoneType):
     """A human duration ("days 23", "fortnight", "off") in milliseconds (0 = keep forever), or
     None if invalid — the DurationParser behind the CLI's `/expire`."""

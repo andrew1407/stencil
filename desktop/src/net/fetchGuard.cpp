@@ -145,11 +145,6 @@ namespace stencil::net::fetchGuard {
     return false;
   }
 
-  bool isWebScheme(const QUrl& url) {
-    const QString scheme = url.scheme().toLower();
-    return scheme == QLatin1String("http") || scheme == QLatin1String("https");
-  }
-
   QString blockedReason(const QUrl& url, bool strict) {
     if (!isWebScheme(url)) return QStringLiteral("only http(s) URLs can be fetched");
     const QString host = url.host();

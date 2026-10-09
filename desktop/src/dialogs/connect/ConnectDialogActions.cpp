@@ -84,7 +84,7 @@ namespace stencil::gui {
     // Finalize when the dust settles: slots collapse and (only now) the empty state may
     // appear. Dies with the dialog — done() covers an early close.
     updateBatchBar();   // the count and the buttons come apart WITH the rows, not after
-    QTimer::singleShot(DisintegrateOverlay::CONN_MS, this, [this, doomedNow] {
+    QTimer::singleShot(support::motionMs(DisintegrateOverlay::CONN_MS), this, [this, doomedNow] {
       for (const QString& u : doomedNow) doomed.remove(u);
       if (doomed.isEmpty()) rebuildList();
     });

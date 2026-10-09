@@ -41,7 +41,7 @@ const stubDecode = (t, app) => {
   globalThis.FileReader = class {
     readAsDataURL(file) { app.calls.push(['load', file.name]); this.onload({ target: { result: 'data:image/png;base64,' } }); }
   };
-  globalThis.Image = class { set src(_) { app.image = { width: 1024, height: 768 }; } };
+  globalThis.Image = class { set src(_) { this.onload(); app.image = { width: 1024, height: 768 }; } };
 };
 
 const makeApp = (over = {}) => {

@@ -7,8 +7,10 @@
 #include <QDoubleSpinBox>
 #include <QPushButton>
 #include <QResizeEvent>
+#include <QTimer>
 
 #include "guiHelpers.hpp"
+#include "../../support/motionPrefs.hpp"
 #include "modalChrome.hpp"
 
 namespace stencil::gui {
@@ -48,6 +50,7 @@ namespace stencil::gui {
   }
 
   void SettingsDialog::applyLive() {
+    if (speedSettle) speedSettle->stop();   // this apply carries the speed too
     if (onChange) onChange(result());
   }
 
@@ -74,9 +77,9 @@ namespace stencil::gui {
     // Untouched, the motion rows hand back what is STORED: they were seeded from what is in
     // force, and a skin's stillness must not persist through an unrelated edit.
     s.drawingAnimations = motionTouched ? drawAnim->isChecked() : heldDrawAnim;
-    s.modalBackdrop = motionTouched ? modalBackdrop->isChecked() : heldBackdrop;
     s.multiWindow = multiWindow->isChecked();
     s.motionMode = motionTouched ? motionMode->currentData().toString() : heldMotionMode;
+    s.motionSpeed = support::clampMotionSpeed(motionSpeedSpin->value());
     s.notifyChannel = notifyChannel->currentData().toString();
     s.browserBaseUrl = browserUrl->text().trimmed();
     s.telegramBotUsername = botUsername->text().trimmed().remove(QLatin1Char('@'));

@@ -185,7 +185,7 @@ namespace stencil::gui {
 
     auto* anim = new QVariantAnimation(&w);
     w.fs.zoomAnim = anim;
-    anim->setDuration(support::flipMotion().ms);
+    anim->setDuration(support::motionMs(support::flipMotion().ms));
     anim->setEasingCurve(support::flipMotion().easing);
     anim->setStartValue(start);
     anim->setEndValue(target);

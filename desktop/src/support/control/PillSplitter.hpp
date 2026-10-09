@@ -1,6 +1,7 @@
 #pragma once
 // A QSplitter whose handle paints the browser's .chat-input-sizer pill: 44px (68px under
 // the cursor), hairline at rest and accent while hovered or dragged.
+#include "motionPrefs.hpp"
 #include <QApplication>
 #include <QColor>
 #include <QEnterEvent>
@@ -126,6 +127,7 @@ namespace stencil::gui {
       anim->stop();
       anim->setStartValue(hot);
       anim->setEndValue(target);
+      anim->setDuration(support::motionMs(PILL_MS));
       anim->start();
     }
     QVariantAnimation* anim = nullptr;

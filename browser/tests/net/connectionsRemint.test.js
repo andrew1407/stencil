@@ -2,7 +2,8 @@
 // req()): one retry with the credential, the kind it records, and the remote listing tags.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { ServerConnection, REMOTE_FLAG } from '../../js/net/connectionManager.js';
+import { ServerConnection } from '../../js/net/serverConnection.js';
+import { REMOTE_FLAG } from '../../js/net/urlRules.js';
 import { makeMockServer, StubWS } from '../helpers/connectionsRig.js';
 
 // ── Mid-session re-mint (extension parity: connections.js req()) ────────────

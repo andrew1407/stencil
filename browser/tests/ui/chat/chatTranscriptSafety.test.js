@@ -3,7 +3,7 @@
 // stay on the source, since a negative over every code path is what no fixture can reach.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { chatViewSource } from '../../helpers/chatViewSource.js';
+import { chatViewSource } from '../../helpers/moduleSource.js';
 import { descendants, makeEl, stubDom, rowsOf, textNodesOf } from '../../helpers/chatTranscriptRig.js';
 
 const SRC = chatViewSource();

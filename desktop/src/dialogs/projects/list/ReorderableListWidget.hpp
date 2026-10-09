@@ -4,6 +4,7 @@
 // an in-list drop reports (from,to) for the caller to permute and rebuild, a drop outside invokes
 // onDragOut(row). Header-only and deliberately Q_OBJECT-free (std::function callbacks, no MOC).
 // Drags start from a DragGrip handle in each row, which itemWidgets would otherwise swallow.
+#include "../../../support/scroll/smoothWheel.hpp"
 #include "../../../support/sheets/dialogSheets.hpp"
 #include <QAbstractItemView>
 #include <QByteArray>
@@ -15,6 +16,7 @@
 #include <QDropEvent>
 #include <QLabel>
 #include <QListWidget>
+#include <QScrollBar>
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QPainter>
@@ -24,7 +26,7 @@
 #include <QRect>
 #include <QString>
 #include <QWidget>
-
+#include <algorithm>
 #include <functional>
 
 namespace stencil::gui {
@@ -70,6 +72,11 @@ namespace stencil::gui {
       setDropIndicatorShown(true);
       setDefaultDropAction(Qt::MoveAction);
       setSelectionMode(QAbstractItemView::SingleSelection);
+      // By the pixel, as the browser list scrolls: per item, a wheel or trackpad snapped to row tops.
+      // 20px an arrow-key step, QScrollArea's own: left to the view it is a whole row.
+      setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+      verticalScrollBar()->setSingleStep(20);
+      new support::SmoothWheel(this);
       // A bright insertion line showing WHERE a dragged row will land (Qt's built-in indicator
       // doesn't show for our manually-handled drag). A thin click-through child of the viewport.
       dropIndicator = new QWidget(viewport());
@@ -126,7 +133,21 @@ namespace stencil::gui {
       }
     }
 
+    // Rows end `inset` px short of the list's right edge and the bar shows inside that gutter
+    // (modalChrome GutterScrollArea), so it rides the window's edge and the rows never move.
+    void rideEdge(int inset) {
+      edgeInset = inset;
+      verticalScrollBar()->installEventFilter(this);
+      fitEdge();
+    }
+
    protected:
+    bool eventFilter(QObject* o, QEvent* e) override {
+      if (edgeInset >= 0 && o == verticalScrollBar() && (e->type() == QEvent::Show || e->type() == QEvent::Hide))
+        fitEdge();
+      return QListWidget::eventFilter(o, e);
+    }
+
     // Position the insertion line at viewport-y `y` (the top or bottom edge of the target row).
     void positionDropIndicator(int y) {
       if (!dropIndicator) return;
@@ -195,6 +216,11 @@ namespace stencil::gui {
     }
 
    private:
+    void fitEdge() {
+      const int bar = verticalScrollBar()->isVisibleTo(this) ? verticalScrollBar()->sizeHint().width() : 0;
+      setViewportMargins(0, 0, std::max(0, edgeInset - bar), 0);
+    }
+    int edgeInset = -1;
     bool droppedInList = false;
     int pendingFrom = -1;
     int pendingTo = -1;

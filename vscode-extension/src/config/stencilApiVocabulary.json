@@ -441,13 +441,6 @@
       "readOnly": true,
       "example": "stencil.mainTheme = stencil.mainThemes[0];"
     },
-    "modalBackdrop": {
-      "group": "settings",
-      "signature": "stencil.modalBackdrop: boolean",
-      "summary": "Whether an open window dims and blurs what it covers.",
-      "detail": "Off while multiWindow is on: side-by-side windows dim nothing.",
-      "example": "stencil.modalBackdrop = false;"
-    },
     "motionMode": {
       "group": "settings",
       "signature": "stencil.motionMode: MotionMode",
@@ -474,11 +467,18 @@
       "summary": "Take a server project and keep it here instead.",
       "example": "const id = await stencil.moveServerProjectToLocal(remote[0]);"
     },
+    "motionSpeed": {
+      "group": "settings",
+      "signature": "stencil.motionSpeed: number",
+      "summary": "How fast windows, menus, tooltips, list rows and chat messages open and close.",
+      "detail": "0.1 is the slowest and 1 the fastest; a value outside that is clamped. The default 0.37 plays every animation at its tuned pace.",
+      "example": "stencil.motionSpeed = 0.6;"
+    },
     "multiWindow": {
       "group": "settings",
       "signature": "stencil.multiWindow: boolean",
       "summary": "Keep several windows open side by side.",
-      "detail": "Nothing is dimmed or blurred, a click outside closes none, and the editor stays usable behind them.",
+      "detail": "Nothing is dimmed or blurred, a click outside closes none, and the editor stays usable behind them. Off, one window at a time dims and blurs the page behind it.",
       "example": "stencil.multiWindow = true;"
     },
     "newEditor": {

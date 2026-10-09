@@ -43,7 +43,7 @@ namespace connectrow {
         if (e->placeholderText() == QLatin1String("(optional)")) tokenField = e;
       check(tokenField != nullptr, "finds the token field");
       if (tokenField) {
-        urlField->setText(QStringLiteral("http://u2@127.0.0.1:%1").arg(port));
+        urlField->setText(QStringLiteral("http://u2.example:%1").arg(port));
         tokenField->setFocus();
         QKeyEvent enter2(QEvent::KeyPress, Qt::Key_Return, Qt::NoModifier, QStringLiteral("\r"));
         QCoreApplication::sendEvent(tokenField, &enter2);

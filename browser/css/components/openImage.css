@@ -113,7 +113,7 @@ stencil-open-in-modal .oi-slot { justify-self: start; margin: 0; }
 .links-inline-check input:disabled + *, .links-quickcrop-controls select:disabled { opacity: .5; }
 /* The frame scrub under the picture at its exact width, accent played side and thumb outlined in
    --ui-outline. Desktop twin: QSlider#oiFrameScrub (qss/app/fields.qss). */
-.oi-scrub {
+.oi-scrub, .vs-range {
     -webkit-appearance: none;
     appearance: none;
     height: 13px;
@@ -121,7 +121,7 @@ stencil-open-in-modal .oi-slot { justify-self: start; margin: 0; }
     cursor: pointer;
     margin: 0;
 }
-.oi-scrub::-webkit-slider-runnable-track {
+.oi-scrub::-webkit-slider-runnable-track, .vs-range::-webkit-slider-runnable-track {
     height: 7px;
     box-sizing: border-box;
     border: 1px solid var(--ui-outline);
@@ -133,7 +133,7 @@ stencil-open-in-modal .oi-slot { justify-self: start; margin: 0; }
     background: linear-gradient(to right, var(--accent) 0 var(--scrub-fill, 0%),
                                           var(--text-muted) var(--scrub-fill, 0%) 100%);
 }
-.oi-scrub::-webkit-slider-thumb {
+.oi-scrub::-webkit-slider-thumb, .vs-range::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
     width: 13px;
@@ -144,13 +144,13 @@ stencil-open-in-modal .oi-slot { justify-self: start; margin: 0; }
     border-radius: 7px;
     background: var(--accent);
 }
-.oi-scrub::-moz-range-track {
+.oi-scrub::-moz-range-track, .vs-range::-moz-range-track {
     height: 7px; box-sizing: border-box; border: 1px solid var(--ui-outline);
     border-radius: 4px; background: var(--border-main);
 }
 .oi-scrub:hover::-moz-range-track { background: var(--text-muted); }
-.oi-scrub::-moz-range-progress { height: 7px; border-radius: 4px; background: var(--accent); }
-.oi-scrub::-moz-range-thumb {
+.oi-scrub::-moz-range-progress, .vs-range::-moz-range-progress { height: 7px; border-radius: 4px; background: var(--accent); }
+.oi-scrub::-moz-range-thumb, .vs-range::-moz-range-thumb {
     width: 13px; height: 13px; box-sizing: border-box; border: 1px solid var(--ui-outline);
     border-radius: 7px; background: var(--accent);
 }

@@ -168,3 +168,39 @@ TEST_CASE("resolveCropRect: invalid aspect strings fail like invalid tokens") {
   // A missing value is a structural error, same as "x1 = ".
   CHECK_FALSE(parseCropSpec("aspect = ").valid);
 }
+
+TEST_CASE("resolveCropRect: an edge outside [0, length] fails instead of mirroring") {
+  const auto p = aspectParams(100, 100);
+  for (const char* bad : {"y2 = -200%", "x2 = 101px", "x1 = -20", "x1 = 0px x2 = 150%",
+                          "y1 = -101px y2 = 50px"}) {
+    CHECK_FALSE(resolveCropRect(parseCropSpec(bad), p, false));
+  }
+  // The bounds themselves, a cm edge's float noise, and a reversed pair inside still resolve.
+  const auto edges = resolveCropRect(parseCropSpec("x1 = 0px x2 = 100% y1 = 60px y2 = 10px"), p, false);
+  REQUIRE(edges);
+  CHECK(edges->x == doctest::Approx(0.0));
+  CHECK(edges->y == doctest::Approx(10.0));
+  CHECK(edges->width == doctest::Approx(100.0));
+  CHECK(edges->height == doctest::Approx(50.0));
+  CHECK(resolveCropRect(parseCropSpec("x1 = 99px x2 = -99px y1 = 0 y2 = 10cm"), p, false));
+  auto a4 = p;
+  a4.pxPerCmX = 100.0 / 21.0;
+  CHECK(resolveCropRect(parseCropSpec("x1 = 0cm x2 = 21cm y1 = 0px y2 = 10px"), a4, false));
+}
+
+TEST_CASE("resolveCropRect: a ratio too long for a double fails, not NaN") {
+  const std::string digits(400, '9');
+  for (const std::string& ratio : {digits + ":" + digits, digits + ":1", "1:" + digits}) {
+    CHECK_FALSE(resolveCropRect(parseCropSpec("aspect = " + ratio), aspectParams(640, 480), false));
+  }
+}
+
+TEST_CASE("resolveCropRect: an edge may pass its bound by CROP_EDGE_SLACK_PX, never more") {
+  CHECK(CROP_EDGE_SLACK_PX == 1e-6);  // LIMITS.cropEdgeSlackPx in common/config/constants.json
+  CropResolveParams p;
+  p.imageW = 200; p.imageH = 200;
+  p.pxPerCmX = 10; p.pxPerCmY = 10;
+  p.pageWidth = 21; p.pageHeight = 29.7;
+  CHECK(resolveCropRect(parseCropSpec("x1 = 0px x2 = 200.0000005px"), p, false));
+  CHECK_FALSE(resolveCropRect(parseCropSpec("x1 = 0px x2 = 200.00001px"), p, false));
+}

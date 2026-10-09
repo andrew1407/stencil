@@ -18,7 +18,7 @@ public abstract class EditingServiceTestBase : IDisposable
 
     protected EditingServiceTestBase()
     {
-        _root = Path.Combine(Path.GetTempPath(), "stencil-editing-" + Guid.NewGuid().ToString("N"));
+        _root = TempDirs.New("editing");
         BotOptions options = new() { DataDir = _root };
         UserWorkspace workspace = new(options);
         _cli = new MockStencilCli();
@@ -28,10 +28,7 @@ public abstract class EditingServiceTestBase : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_root))
-        {
-            Directory.Delete(_root, recursive: true);
-        }
+        TempDirs.Delete(_root);
         GC.SuppressFinalize(this);
     }
 }

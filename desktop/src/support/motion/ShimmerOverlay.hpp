@@ -171,6 +171,7 @@ namespace stencil::gui {
       if (view) raise();   // cell widgets a row rebuild added since would otherwise cover the band
       anim->stop();
       setProgress(0.0);   // the first frame now, not at the animation's first tick
+      anim->setDuration(support::motionMs(view ? SHIMMER_ROW_MS : 325));
       anim->start();
     }
     void cancelSweep() {

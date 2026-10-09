@@ -98,7 +98,7 @@ pub fn runWith(gpa: std.mem.Allocator, io: std.Io, opts: args.Options, llm_env: 
         try sess.applyRotate(opts.rotate);
     }
     if (opts.layout) |src| {
-        const lb = try pipeline.loadLayoutBytes(gpa, io, src);
+        const lb = try pipeline.loadText(gpa, io, src);
         defer gpa.free(lb);
         if (opts.layout_frame == .source) {
             const cur = sess.current().*;

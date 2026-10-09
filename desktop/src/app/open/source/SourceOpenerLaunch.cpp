@@ -126,7 +126,7 @@ namespace stencil::gui {
     };
 
     const QUrl url = QUrl::fromUserInput(src);
-    if (url.scheme() == "http" || url.scheme() == "https") {
+    if (stencil::net::fetchGuard::isWebScheme(url)) {
       // A URL the USER named, so the loose guard: their localhost stays reachable, internal ranges do not.
       stencil::net::fetchGuard::get(&w, url, /*strict=*/false,
                                     [this, adopt](const QByteArray& b, const QString& e) {

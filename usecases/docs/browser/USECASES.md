@@ -73,9 +73,13 @@ selection bar, where colour, thickness, point size and style change for that lin
 |---|---|
 | ![a selected line and its points](img/lines-selection-light.png) | ![the same, dark](img/lines-selection-dark.png) |
 
+The **Lines** tab names each line — `Line 1`, `Line 2`… until you double-click the name and type
+your own — and its eye hides the line from the canvas, dimming its row, and shows it again.
+
 Click a line's colour swatch in the **Lines** tab to pick a new colour for it; double-click the
-swatch to put it back to the toolbar's line colour. Double-clicking the toolbar's own line colour
-resets it to the default yellow, and the selection bar's colour goes back to the toolbar's.
+swatch to put it back to the toolbar's line colour. Double-clicking any other colour swatch puts
+it back to its default — the toolbar's line colour to yellow, its point colour to the line's, the
+tint and the blank page's fill to theirs, and the selection bar's colour to the toolbar's.
 
 Each row also carries the line's thickness, its points' colour and their size. Double-click a
 number to type a new one — Enter keeps it, Escape leaves it as it was — and click the round swatch
@@ -145,12 +149,17 @@ Whatever the logo would change glows while it is over it.
 ## Change the look
 
 **Visuals & Settings** (`Alt+V`) holds the accent colour, light/dark/system appearance,
-the interface motion style (Dust, Water, Fire, Sliding, None) and the drawing defaults.
+the interface motion style (Dust, Water, Fire, Sliding, None), how fast it plays (**Animation
+speed**, 0.1 to 1) and the drawing defaults. Double-click a
+row's title to put that setting back to its default.
 Clicking the logo cycles the accent; right-click it for the full list.
 
 | Visuals & Settings | Accent picker |
 |---|---|
 | ![the visuals window](img/visuals-modal.png) | ![the accent list](img/accent-picker.png) |
+
+With **Multiple windows** on, windows like Projects or Visuals open side by side and stay open:
+nothing behind them dims, and a click outside closes none of them.
 
 The theme switch sweeps the new palette in from the button you pressed:
 
@@ -161,6 +170,13 @@ page under it in the other theme. It is a preview only: wherever you let go, or 
 closes and the theme stays as it was.
 
 ![the theme lens dragged across the page](img/theme-lens.gif)
+
+## Work in fullscreen
+
+Fullscreen (`Alt+F`) hides the toolbar so the canvas fills the screen; it slides back in when
+the pointer touches the top edge, and leaves again when the pointer moves away.
+
+![the toolbar sliding in at the top edge in fullscreen, and leaving again](img/fullscreen-strip.gif)
 
 ## Crop, flip, rotate, filter
 
@@ -178,13 +194,14 @@ window fits the picture to its new room.
 
 Open the chat with the sparkle button (`Alt+G`), describe the edit, and the model answers
 with a plan that runs through the same operations as the toolbar. Variants come back as
-cards you can open or save. The panel docks on any edge or floats. The stills below are a
-real turn through a collaboration server's proxy: the model saw the picture, framed the S
-and applied the sepia itself.
+cards you can open or save. The panel docks on any edge or floats.
 
 ![an assistant turn](img/assistant-turn.gif)
 
-| Docked right | Floating |
+The stills below are a real turn through a collaboration server's proxy: the model saw the
+picture, framed the S and applied the sepia itself.
+
+| Docked | Floating |
 |---|---|
 | ![the docked chat](img/assistant-docked.png) | ![the floating chat](img/assistant-floating.png) |
 
@@ -211,8 +228,10 @@ runs until **Run** is pressed.
 ## Projects and servers
 
 Every editor auto-saves into a local project; **Projects** (`Ctrl+Shift+P`) lists, renames,
-duplicates and expires them. **Servers** (`Ctrl+Shift+K`) connects to a collaboration
-server, after which projects can be shared by link and edited live with others.
+duplicates and expires them, the one you opened most recently first (or by name, by last edit,
+or in your own order); a project kept forever says **never expires**. **Servers** (`Ctrl+Shift+K`) connects to a collaboration
+server, after which projects can be shared by link and edited live with others; a dropped
+connection reconnects by itself.
 
 | Projects | Servers |
 |---|---|
@@ -221,7 +240,9 @@ server, after which projects can be shared by link and edited live with others.
 Drag a row **out of the list** and the window behind it turns into three drop targets: **Open
 here** on the left, **Open in a new tab** on the right, and **Remove** across the bottom. The one
 under the pointer lights up, the row rides along under the cursor, and the drop decides the
-action — dropping back on the list reorders instead.
+action — dropping back on the list reorders instead. A **⋯** beside the window's title opens that
+row's menu, and releasing over an item runs it; the window's **✕** closes the project when it is
+the one open in this tab, as **Close Current Project** (`Alt+Shift+W`) does.
 
 ![a project row dragged out over the drop zones](img/projects-dropzones.png)
 
@@ -263,11 +284,8 @@ bot. A link shared from a chat lands on the bounce page first, which forwards to
 ## Shortcuts and help
 
 Every action is rebindable in **Keyboard Shortcuts** (`Alt+K`); **Help** (`Alt+H`) lists the
-mouse and keyboard gestures. In fullscreen (`Alt+F`) the toolbar hides and slides back in
-when the pointer touches the top edge.
+mouse and keyboard gestures.
 
 | Shortcuts | Help |
 |---|---|
 | ![keyboard shortcuts](img/shortcuts-modal.png) | ![help window](img/help-modal.png) |
-
-![the toolbar sliding in at the top edge in fullscreen, and leaving again](img/fullscreen-strip.gif)

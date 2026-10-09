@@ -59,6 +59,7 @@ int main(int argc, char** argv) {
   if (batchBarVisibility(locals, mgr)) return 1;
   if (batchRemoveAndCheckboxPress(locals)) return 1;
   if (filterTransitions(locals)) return 1;
+  if (wheelScroll()) return 1;
 
   std::printf(failures ? "FAILED (%d failures)\n" : "OK\n", failures);
   return failures ? 1 : 0;

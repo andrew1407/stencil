@@ -1,3 +1,4 @@
+using Stencil.TelegramBot.Domain.Editing;
 using Stencil.TelegramBot.Application.Servers;
 using Stencil.TelegramBot.Domain.Projects;
 using Stencil.TelegramBot.Domain.Sessions;
@@ -13,9 +14,10 @@ public sealed class ThrowingServerService : IServerService
     public Task<bool> DisconnectAsync(long userId, string? url, CancellationToken ct = default) => fail<Task<bool>>();
     public Task<IReadOnlyList<ServerConnectionInfo>> ConnectionsAsync(long userId, CancellationToken ct = default) => fail<Task<IReadOnlyList<ServerConnectionInfo>>>();
     public Task<IReadOnlyList<ServerProjectInfo>> ListProjectsAsync(long userId, string? url, CancellationToken ct = default) => fail<Task<IReadOnlyList<ServerProjectInfo>>>();
+    public Task<IReadOnlyList<ServerProjectInfo>> ListRecentProjectsAsync(long userId, int perServer, CancellationToken ct = default) => fail<Task<IReadOnlyList<ServerProjectInfo>>>();
     public Task<UserSession> FetchAsync(long userId, string nameOrId, string? url, CancellationToken ct = default) => fail<Task<UserSession>>();
     public Task<ProjectRecord> CreateProjectAsync(long userId, string? name, string? url, CancellationToken ct = default) => fail<Task<ProjectRecord>>();
-    public Task<ProjectRecord> SaveActiveProjectAsync(long userId, CancellationToken ct = default) => fail<Task<ProjectRecord>>();
+    public Task<ProjectRecord> SaveActiveProjectAsync(long userId, RenderResult? rendered = null, CancellationToken ct = default) => fail<Task<ProjectRecord>>();
     public Task<string> SetProjectColorAsync(long userId, string color, CancellationToken ct = default) => fail<Task<string>>();
     public Task<string> SetProjectNameAsync(long userId, string name, CancellationToken ct = default) => fail<Task<string>>();
     public Task<string> SetProjectDescriptionAsync(long userId, string description, CancellationToken ct = default) => fail<Task<string>>();

@@ -9,6 +9,7 @@ int main(int argc, char** argv) {
   QApplication app(argc, argv);
 
   motionprefs::checkModeStorageAndStyles();
+  motionprefs::checkSpeed();
   motionprefs::checkGateAndGlyphs();
 
   return failures ? 1 : 0;

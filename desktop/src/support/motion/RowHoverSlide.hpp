@@ -87,7 +87,7 @@ namespace stencil::gui {
       }
       anim.setStartValue(0.0);
       anim.setEndValue(1.0);
-      anim.setDuration(ms);
+      anim.setDuration(support::motionMs(ms));
       anim.start();
     }
 

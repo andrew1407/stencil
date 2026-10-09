@@ -33,14 +33,18 @@ namespace stencil::gui {
       new QuarterTurnOverlay(canvas, viewport, from, dir);
     }
 
+    int spanMs() const { return span; }   // the real length this flight plays over
+
    private:
     QuarterTurnOverlay(QWidget* canvas, QWidget* viewport, const QRect& from, int dir)
         : QWidget(viewport), canvas(canvas), from(from), dir(dir), snapshot(canvas->grab()) {
+      setObjectName(QStringLiteral("quarterTurnOverlay"));
       setAttribute(Qt::WA_TransparentForMouseEvents);
       setGeometry(viewport->rect());
       veil = new QGraphicsOpacityEffect(canvas);
       veil->setOpacity(0.0);
       canvas->setGraphicsEffect(veil);
+      span = support::motionMs(quarterTurn::clock().ms);
       clockStart.start();
       ticker = new QTimer(this);
       ticker->setTimerType(Qt::PreciseTimer);
@@ -53,7 +57,7 @@ namespace stencil::gui {
 
     void tick() {
       const quarterTurn::Clock& c = quarterTurn::clock();
-      const double p = std::min(1.0, clockStart.elapsed() / double(c.ms));
+      const double p = std::min(1.0, clockStart.elapsed() / double(span));
       t = support::bezierY(p, c.bezier[0], c.bezier[1], c.bezier[2], c.bezier[3]);
       update();
       if (p >= 1.0) finish();
@@ -90,6 +94,7 @@ namespace stencil::gui {
     QPointer<QGraphicsOpacityEffect> veil;
     QTimer* ticker = nullptr;
     QElapsedTimer clockStart;
+    int span = 1;
     QRect from;
     int dir = 1;
     double t = 0;

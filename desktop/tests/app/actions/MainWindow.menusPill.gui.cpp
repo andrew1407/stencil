@@ -1,6 +1,6 @@
 // MainWindow GUI e2e — The Assistant flyout's splitter: the app's pill affordance and its resize cursor.
-// Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
-#include "../../MainWindowMenu.gui.hpp"
+// Shared ground is in menusAssistant.gui.hpp, over MainWindow.gui.hpp.
+#include "menusAssistant.gui.hpp"
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
@@ -12,27 +12,9 @@ class MainWindowGuiTest : public QObject {
   // accents on hover, restores the cursor on leave, and the size the drag lands on outlives the menu.
   void assistantComposerSplitterWearsThePill() {
     MainWindow win(nullptr, false);
-    win.resize(1200, 800);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.openPathFromOS(guiTestImage());  // a working image, so a plan has something to hit
-    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
-
-    // ── assistant ON ──
-    win.settings.llmProvider = "ollama";
-    win.settings.llmBaseUrl = "http://localhost:11434";
-    // A mock transport answers synchronously with a canned op-plan, so nothing
-    // touches the network (the same seam LlmClient.headless.cpp uses).
+    QVERIFY(showWithWorkingImage(win));
     MockChatTransport mock;
-    // A real op-plan in ollama's response shape. Built through QJsonDocument
-    // rather than a raw string literal — moc chokes on those (empty .moc).
-    mock.response = QJsonDocument(QJsonObject{
-        {"message",
-         QJsonObject{{"content",
-                      "{\"version\":1,\"reply\":\"Sepia applied\","
-                      "\"actions\":[{\"op\":\"filter\",\"mode\":\"sepia\"}]}"}}}})
-                        .toJson(QJsonDocument::Compact);
-    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    armSepiaAssistant(win.settings, win.parts.chatAppliers.llmClient, mock);
 
     bool splitterResized = false;
     QList<int> splitterSizes;
@@ -41,16 +23,13 @@ class MainWindowGuiTest : public QObject {
     double pillCenterX = -1, inputCenterX = -1, panelCenterX = -1;
     bool assistantOpened = false;
     QTimer::singleShot(0, [&] {
-      QMenu* menu = findMenu();
-      if (!menu) return;
-      QMenu* sub = openSub(menu, "Assistant");
-      assistantOpened = sub != nullptr;
-      if (!sub) { menu->close(); return; }
-      auto* panel = sub->findChild<QWidget*>("chatMenuPanel");
-      auto* input = sub->findChild<QPlainTextEdit*>("chatMenuInput");
-      auto* sendBtn = sub->findChild<QToolButton*>("chatMenuSend");
-      auto* moreBtn = sub->findChild<QToolButton*>("chatMenuMore");
-      if (!panel || !input || !sendBtn || !moreBtn) { menu->close(); return; }
+      const AssistantFlyout f = openAssistantFlyout();
+      assistantOpened = f.sub != nullptr;
+      if (!f.complete()) return;
+      QMenu* menu = f.menu;
+      QMenu* sub = f.sub;
+      QWidget* panel = f.panel;
+      QPlainTextEdit* input = f.input;
       // The splitter handle carries the app's pill affordance, theme-coloured,
       // and grows/accents on hover — not Qt's dotted nub.
       if (auto* sp0 = panel->findChild<QSplitter*>("chatMenuSplitter")) {

@@ -46,6 +46,7 @@ namespace stencil::gui {
     mutable QHash<int, double> slide;
     mutable int slideHover = -1;
     mutable QPointer<QTimer> slideTick;
+    mutable double slideStep = 0.0;
     mutable QPointer<QAbstractItemView> slideView;
 
     double hoverSlideDx(const QStyleOptionViewItem& opt, const QModelIndex& idx) const;

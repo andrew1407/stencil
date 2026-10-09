@@ -41,9 +41,7 @@ int main(int argc, char** argv) {
   over.hidden = true;
   const core::Lines lines{under, over};
   const model::ShownMarks both{true, true};
-  core::Lines scratch;
-  check(&model::hittable(core::Lines{under}, scratch) != &scratch, "none hidden: the lines themselves");
-  check(model::hittable(lines, scratch).size() == 2 && scratch[1].points.empty(), "a hidden line keeps its index");
+  check(model::lineAt(core::Lines{over, under}, both, 50, 1, 8) == 1, "a hidden line keeps its index below a shown one");
   check(model::lineAt(lines, both, 50, 1, 8) == 0, "the shown line under a hidden one answers");
   check(model::segmentAt(lines, both, 50, 1, 12)->lineIdx == 0, "…as a segment");
   check(model::pointAt(lines, both, 0, 0, 12)->lineIdx == 0, "…and as a point");

@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mountContextMenu } from '../../helpers/ctxMenuMountRig.js';
-import { rect, cloudAim, near, cloudKind } from '../../helpers/dustCloudRig.js';
+import { rect, cloudAim, near, cloudKind } from '../../helpers/dustRig.js';
 import { ANIMATIONS_CSS } from '../../helpers/css.js';
 import { SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../../../js/ui/motion.js';
 import { setMotionPrefs } from '../../../js/ui/motion/motionPrefs.js';

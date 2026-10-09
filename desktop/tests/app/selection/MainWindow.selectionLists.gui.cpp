@@ -165,6 +165,38 @@ class MainWindowGuiTest : public QObject {
     canvas->deleteSelectedLine();
     checkPanels(win, "Alt+Delete");
   }
+
+  // A project switched to takes nothing of the last one's lines: its table, list and bar are its own.
+  void switchingToAProjectWithNoLinesEmptiesThePanels() {
+    MainWindow win(nullptr, false);
+    QVERIFY(openLoaded(win)->hasImage());
+    const auto project = [](const char* id, stencil::core::Lines lines) {
+      stencil::gui::Project pr;
+      pr.meta.id = id;
+      pr.meta.name = id;
+      pr.meta.hasImage = true;
+      pr.imagePath = guiTestImage();
+      pr.lines = std::move(lines);
+      return pr;
+    };
+    win.projectList.push_back(project("drawn", {lineOf(20), lineOf(60, 4)}));
+    win.projectList.push_back(project("empty", {}));
+    const auto open = [&win](const char* id) {
+      bool done = false;
+      QVERIFY(win.loadProjectIntoCanvas(QString::fromLatin1(id), false, [&done](bool) { done = true; }));
+      QTRY_VERIFY_WITH_TIMEOUT(done, 10000);
+    };
+    open("drawn");
+    win.canvas->toggleLineSelectionByIndex(1);
+    QCOMPARE(win.findChild<QTableWidget*>("pointsTable")->rowCount(), 4);
+    checkPanels(win, "a line of the drawn project selected");
+    open("empty");
+    QVERIFY(win.canvas->getLines().empty());
+    QCOMPARE(win.canvas->selectionCount(), 0);
+    checkPanels(win, "after switching to the project with no lines");
+    open("drawn");
+    checkPanels(win, "and back");
+  }
 };
 
 QTEST_MAIN(MainWindowGuiTest)

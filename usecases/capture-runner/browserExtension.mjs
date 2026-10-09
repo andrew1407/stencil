@@ -159,4 +159,4 @@ await context.close();
 await stub.close();
 site.stop();
 app.stop();
-runner.finish();
+await runner.finish();

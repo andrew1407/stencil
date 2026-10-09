@@ -4,25 +4,17 @@ import { Emitter } from '../core/emitter.js';
 import { timeoutSignal } from './abortable.js';
 import { REMOTE_FLAG, normalizeUrl, buildInviteUrl, wsUrl, isAuthStatus, isRedirect } from './urlRules.js';
 import { MAX_ERROR_BYTES, readJsonCapped, readBlobCapped } from './cappedBody.js';
-
-// A server that keeps handing out cursors is cut off here (the cli's max_pages), never followed forever.
-export const MAX_LIST_PAGES = 1000;
-
-// The cursor a page names for the next one, '' on the last; a repeat, or one past MAX_LIST_PAGES, throws.
-const nextPageCursor = (body, seen) => {
-  const next = body && typeof body.nextCursor === 'string' ? body.nextCursor : '';
-  if (!next) return '';
-  if (seen.has(next)) throw new Error('GET /projects: the server handed back the same page cursor twice');
-  if (seen.size + 1 >= MAX_LIST_PAGES) throw new Error(`GET /projects: kept paging past ${MAX_LIST_PAGES} pages`);
-  seen.add(next);
-  return next;
-};
+import { nextPageCursor } from './listPaging.js';
+import { Redial } from './redial.js';
 
 export class ServerConnection {
   #fetch; #WS;
   #events = null;       // events-feed socket
   #bus = new Emitter(); // 'event' channel: live project-event messages
   #closing = false;
+  #resumed = false;     // a redial's socket: its open says what the feed missed while down
+  // An unexpected drop re-runs the handshake on a capped backoff until it holds or the credential is refused.
+  #redial = new Redial(() => this.#reopen());
   constructor(url, { token = '', kind = '', fetchImpl, WebSocketImpl, clientId } = {}) {
     this.url = normalizeUrl(url);
     this.token = token;
@@ -195,7 +187,9 @@ export class ServerConnection {
       const ws = new this.#WS(wsUrl(this.url));
       this.#events = ws;
       ws.addEventListener('open', () => {
+        this.#redial.opened();
         ws.send(JSON.stringify({ type: 'hello', token: this.token, clientId: this.clientId }));
+        if (this.#resumed) { this.#resumed = false; this.#emit({ type: 'feed-resumed' }); }
       });
       ws.addEventListener('message', (ev) => {
         let msg; try { msg = JSON.parse(ev.data); } catch { return; }
@@ -204,13 +198,20 @@ export class ServerConnection {
       ws.addEventListener('close', () => {
         this.#events = null;
         // An unexpected drop (not a user disconnect) → the live feed is gone; show red.
-        if (!this.#closing) { this.connected = false; this._setStatus('error'); }
+        if (!this.#closing) { this.connected = false; this._setStatus('error'); this.#redial.dropped(); }
       });
     } catch { /* events are best-effort; REST keeps working */ }
   }
 
+  #reopen() {
+    if (this.#closing) return;
+    this.#resumed = true;
+    this.handshake().catch((err) => { if (!err?.expired && !this.#closing) this.#redial.dropped(); });
+  }
+
   close() {
     this.#closing = true;
+    this.#redial.cancel();
     this.connected = false;
     this._setStatus('disconnected');
     try { this.#events?.close(); } catch { /* already closed */ }

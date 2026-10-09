@@ -42,6 +42,8 @@ namespace stencil::gui {
     // …and each row that is LEFT arrives out of sand as well as a fade — the shared
     // ListFilterFade::dustRowIn (browser js/ui/motion.js filterDust).
     filterFade->onArrive = [this](QListWidgetItem* it) { filterFade->dustRowIn(it, window()); };
+    // …and a row the change drops dissolves where it sat (browser filterDustOut).
+    filterFade->onLeave = [this](QListWidgetItem* it) { filterFade->dustRowOut(it, window()); };
     return filterFade;
   }
 

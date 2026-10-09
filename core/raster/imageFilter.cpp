@@ -38,6 +38,12 @@ namespace stencil::core {
     return lookup(FILTER_MODES, mode, FilterMode::CUSTOM);
   }
 
+  const char* filterModeName(std::string_view mode) {
+    for (const Keyed<FilterMode>& row : FILTER_MODES)
+      if (row.word == mode) return row.word.data();  // a literal, so NUL-terminated
+    return nullptr;
+  }
+
   Rgb8 filterPixel(FilterMode mode, int r, int g, int b, int tintR, int tintG,
                    int tintB) {
     switch (mode) {

@@ -3,7 +3,7 @@
 import { makeDustStage } from '../motion/dust/canvasDustStage.js';
 import { runDust } from '../motion/dust/canvasDustDraw.js';
 import { GHOST_MS } from '../motion/dust/canvasDustGrid.js';
-import { dustEnabled } from '../motion/motionPrefs.js';
+import { dustEnabled, motionMs } from '../motion/motionPrefs.js';
 
 export function createPreviewDust({ img, video, isVideo, sourceKey }) {
   // ghostIn IDENTICAL (motion/control/canvasFx.js). Plays ONCE per source ever seen this session.
@@ -29,7 +29,7 @@ export function createPreviewDust({ img, video, isVideo, sourceKey }) {
       runDust(st, GHOST_MS, gathering);
       ghostTimer = setTimeout(() => {
         ghostStage = null; ghostTimer = 0; el.style.opacity = '';
-      }, GHOST_MS);
+      }, motionMs(GHOST_MS));
     } catch { el.style.opacity = ''; }
   };
 
@@ -53,7 +53,7 @@ export function createPreviewDust({ img, video, isVideo, sourceKey }) {
   // clouds share one host and the second wipes the first off it.
   const queueArrival = (fn) => {
     clearTimeout(swapTimer);
-    swapTimer = setTimeout(() => { swapTimer = 0; fn(); }, GHOST_MS);
+    swapTimer = setTimeout(() => { swapTimer = 0; fn(); }, motionMs(GHOST_MS));
   };
 
   // The stage is a canvas over the media, so the overlay's sweepDust never reaches it: left

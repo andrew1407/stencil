@@ -3,6 +3,8 @@
 #include "captureShared.hpp"
 
 #include "CanvasWidget.hpp"
+#include "fileStore.hpp"
+#include <QDateTime>
 #include "OpenImageDialog.hpp"
 #include "ProjectDragZones.hpp"
 #include "../../../desktop/src/model/ScriptBuffer.hpp"
@@ -63,6 +65,7 @@ void MainWindowGuiTest::dialogShots(MainWindow& win, const QString& theme, const
     pr.meta.keywords = {"kitchen", "floor plan", "survey", "draft", "north wall"};
     win.projectList.push_back(pr);
     win.activeProjectId = "usecases-doc";
+    fileStore::markProjectOpened(win.activeProjectId, QDateTime::currentMSecsSinceEpoch());
     win.refreshActions();
   }
   fit(win);

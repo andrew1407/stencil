@@ -2,7 +2,8 @@
 // reconnect, the persisted snapshot, reorder, aggregated projects and the events feed.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { ServerConnection, ConnectionManager } from '../../js/net/connectionManager.js';
+import { ServerConnection } from '../../js/net/serverConnection.js';
+import { ConnectionManager } from '../../js/net/connectionManager.js';
 import { makeMockServer, StubWS } from '../helpers/connectionsRig.js';
 
 test('ConnectionManager connects multiple servers and dedupes', async () => {
@@ -169,4 +170,53 @@ test('only an all-failed batch throws, and one failure keeps its own error', asy
   await assert.rejects(() => mgr.connect('http://bad:9'), /connection refused/);
   await assert.rejects(() => mgr.connect(['http://bad:9', 'http://bad:9']), /connection refused/);
   assert.deepEqual(mgr.urls, []);
+});
+
+// Two callers connecting one URL at once (auto-connect at boot racing a server launch link).
+const gatedServer = () => {
+  const { fetchImpl } = makeMockServer();
+  let open;
+  const gate = new Promise((r) => { open = r; });
+  const sockets = [];
+  class WS extends StubWS {
+    constructor(url) { super(url); sockets.push(this); }
+    close() { this.closed = true; super.close(); }
+  }
+  return { fetchImpl: async (url, init) => { await gate; return fetchImpl(url, init); }, WS, sockets, open: () => open() };
+};
+
+test('overlapping connect() calls for one URL share one handshake and one socket', async () => {
+  const srv = gatedServer();
+  const events = [];
+  const mgr = new ConnectionManager({ fetchImpl: srv.fetchImpl, WebSocketImpl: srv.WS,
+    onChange: (c) => { if (c.type === 'event') events.push(c.message); } });
+  const first = mgr.connect('http://a:1');
+  const second = mgr.connect('https://a:1/'.replace('https', 'http'));
+  srv.open();
+  await Promise.all([first, second]);
+  assert.deepEqual(mgr.urls, ['http://a:1']);
+  assert.equal(srv.sockets.length, 1, 'one events socket, not one per caller');
+  srv.sockets[0].fire('message', { data: JSON.stringify({ type: 'project-event', event: 'updated', project: { id: 'p' } }) });
+  assert.equal(events.length, 1, 'every event arrives once');
+});
+
+test('a joined connect that fails rejects both callers', async () => {
+  const mgr = new ConnectionManager({ fetchImpl: async () => { throw new Error('down'); }, WebSocketImpl: StubWS });
+  const both = await Promise.allSettled([mgr.connect('http://a:1'), mgr.connect('http://a:1')]);
+  assert.deepEqual(both.map((r) => r.status), ['rejected', 'rejected']);
+  assert.deepEqual(mgr.urls, []);
+});
+
+test('a disconnect during the handshake: the late connection is closed, never adopted', async () => {
+  const srv = gatedServer();
+  const mgr = new ConnectionManager({ fetchImpl: srv.fetchImpl, WebSocketImpl: srv.WS });
+  const pending = mgr.connect('http://a:1');
+  mgr.disconnect('http://a:1');
+  srv.open();
+  await pending;
+  assert.deepEqual(mgr.urls, []);
+  assert.equal(srv.sockets.length, 1);
+  assert.equal(srv.sockets[0].closed, true, 'its events socket does not outlive the disconnect');
+  await mgr.connect('http://a:1');
+  assert.deepEqual(mgr.urls, ['http://a:1'], 'the URL connects afresh afterwards');
 });

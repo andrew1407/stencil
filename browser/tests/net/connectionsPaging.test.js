@@ -2,7 +2,8 @@
 // to the last page, so it sees every project as before paging existed, and a looping cursor throws.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { ServerConnection, MAX_LIST_PAGES } from '../../js/net/serverConnection.js';
+import { ServerConnection } from '../../js/net/serverConnection.js';
+import { MAX_LIST_PAGES } from '../../js/net/listPaging.js';
 
 // pages[i] answers `?after=c<i>`; `next(i)` is the cursor page i names (undefined on the last).
 const pagingFetch = (pages, next = (i) => (i + 1 < pages.length ? `c${i + 1}` : undefined)) => {

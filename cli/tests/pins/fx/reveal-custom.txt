@@ -1,13 +1,13 @@
 # /reveal-speed 0.2
 # echo
-\x01> \x1b[0m/reveal-speed 0.2\x1b[0m
-@0 342B e6723f891ecc1752
+\x01> \x1b[0m\x01/reveal-speed\x1b[0m 0.2
+@0 360B a2593254c22afd77
 \x1b7
 \x1b[12;1H\x1b[38;2;124;58;237m> \x1b[0m/theme\x1b[0m\x1b[K
 \x1b[13;1Hwrote out.png (640x480 px · A4 29.7×21cm)\x1b[0m\x1b[K
 \x1b[14;1H\x1b[1m\x1b[38;2;124;58;237mnote: \x1b[0mthe accent reaches this far\x1b[0m\x1b[K
 \x1b[15;1Himage: out.png (640x480 px · A4)\x1b[0m\x1b[K
-\x1b[16;1H\x1b[38;2;124;58;237m> \x1b[0m/reveal-speed 0.2\x1b[0m\x1b[0m\x1b[K
+\x1b[16;1H\x1b[38;2;124;58;237m> \x1b[0m\x1b[38;2;124;58;237m/reveal-speed\x1b[0m 0.2\x1b[0m\x1b[K
 \x1b[17;1H\x1b[0m\x1b[K
 \x1b[18;1H\x1b[2K
 \x1b[19;1H\x1b[2K
@@ -38,14 +38,14 @@
 \x1b7
 \x1b[17;1Hreveal speed\x1b[0m\x1b[K\x1b8
 ~wait 52
-@364 948B c45815126c3c9442
+@364 966B d4e6a047464032ee
 \x1b7
 \x1b[17;1Hreveal speed 0\x1b[0m\x1b[K
 \x1b[12;1H\x1b[38;2;124;58;237m> \x1b[0m/theme\x1b[0m\x1b[K
 \x1b[13;1Hwrote out.png (640x480 px · A4 29.7×21cm)\x1b[0m\x1b[K
 \x1b[14;1H\x1b[1m\x1b[38;2;124;58;237mnote: \x1b[0mthe accent reaches this far\x1b[0m\x1b[K
 \x1b[15;1Himage: out.png (640x480 px · A4)\x1b[0m\x1b[K
-\x1b[16;1H\x1b[38;2;124;58;237m> \x1b[0m/reveal-speed 0.2\x1b[0m\x1b[0m\x1b[K
+\x1b[16;1H\x1b[38;2;124;58;237m> \x1b[0m\x1b[38;2;124;58;237m/reveal-speed\x1b[0m 0.2\x1b[0m\x1b[K
 \x1b[17;1Hreveal speed 0.2\x1b[0m\x1b[K
 \x1b[18;1H\x1b[2K
 \x1b[19;1H\x1b[2K
@@ -55,13 +55,13 @@
 \x1b[24;1H\x1b[2K\x1b[38;2;124;58;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\x1b[2m\x1b[0m
 ~pause 2000
 # line
-@2364 361B 5126aa2fe03a5c59
+@2364 379B 74cbe06a4d6b5447
 \x1b7
 \x1b[12;1H\x1b[38;2;124;58;237m> \x1b[0m/theme\x1b[0m\x1b[K
 \x1b[13;1Hwrote out.png (640x480 px · A4 29.7×21cm)\x1b[0m\x1b[K
 \x1b[14;1H\x1b[1m\x1b[38;2;124;58;237mnote: \x1b[0mthe accent reaches this far\x1b[0m\x1b[K
 \x1b[15;1Himage: out.png (640x480 px · A4)\x1b[0m\x1b[K
-\x1b[16;1H\x1b[38;2;124;58;237m> \x1b[0m/reveal-speed 0.2\x1b[0m\x1b[0m\x1b[K
+\x1b[16;1H\x1b[38;2;124;58;237m> \x1b[0m\x1b[38;2;124;58;237m/reveal-speed\x1b[0m 0.2\x1b[0m\x1b[K
 \x1b[17;1Hreveal speed 0.2\x1b[0m\x1b[K
 \x1b[18;1H\x1b[0m\x1b[K
 \x1b[19;1H\x1b[2K
@@ -80,14 +80,14 @@
 \x1b7
 \x1b[18;1Hslower\x1b[0m\x1b[K\x1b8
 ~wait 52
-@2572 955B e7b1646594e4abd8
+@2572 973B 012a80a1fe5bcc43
 \x1b7
 \x1b[18;1Hslower n\x1b[0m\x1b[K
 \x1b[12;1H\x1b[38;2;124;58;237m> \x1b[0m/theme\x1b[0m\x1b[K
 \x1b[13;1Hwrote out.png (640x480 px · A4 29.7×21cm)\x1b[0m\x1b[K
 \x1b[14;1H\x1b[1m\x1b[38;2;124;58;237mnote: \x1b[0mthe accent reaches this far\x1b[0m\x1b[K
 \x1b[15;1Himage: out.png (640x480 px · A4)\x1b[0m\x1b[K
-\x1b[16;1H\x1b[38;2;124;58;237m> \x1b[0m/reveal-speed 0.2\x1b[0m\x1b[0m\x1b[K
+\x1b[16;1H\x1b[38;2;124;58;237m> \x1b[0m\x1b[38;2;124;58;237m/reveal-speed\x1b[0m 0.2\x1b[0m\x1b[K
 \x1b[17;1Hreveal speed 0.2\x1b[0m\x1b[K
 \x1b[18;1Hslower now\x1b[0m\x1b[K
 \x1b[19;1H\x1b[2K
@@ -97,17 +97,17 @@
 \x1b[24;1H\x1b[2K\x1b[38;2;124;58;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\x1b[2m\x1b[0m
 # /reveal-speed 0.9
 # echo
-\x01> \x1b[0m/reveal-speed 0.9\x1b[0m
-@2572 422B 03f7b08012f0db89
+\x01> \x1b[0m\x01/reveal-speed\x1b[0m 0.9
+@2572 458B 32f9eae66f1283cb
 \x1b7
 \x1b[12;1H\x1b[38;2;124;58;237m> \x1b[0m/theme\x1b[0m\x1b[K
 \x1b[13;1Hwrote out.png (640x480 px · A4 29.7×21cm)\x1b[0m\x1b[K
 \x1b[14;1H\x1b[1m\x1b[38;2;124;58;237mnote: \x1b[0mthe accent reaches this far\x1b[0m\x1b[K
 \x1b[15;1Himage: out.png (640x480 px · A4)\x1b[0m\x1b[K
-\x1b[16;1H\x1b[38;2;124;58;237m> \x1b[0m/reveal-speed 0.2\x1b[0m\x1b[0m\x1b[K
+\x1b[16;1H\x1b[38;2;124;58;237m> \x1b[0m\x1b[38;2;124;58;237m/reveal-speed\x1b[0m 0.2\x1b[0m\x1b[K
 \x1b[17;1Hreveal speed 0.2\x1b[0m\x1b[K
 \x1b[18;1Hslower now\x1b[0m\x1b[K
-\x1b[19;1H\x1b[38;2;124;58;237m> \x1b[0m/reveal-speed 0.9\x1b[0m\x1b[0m\x1b[K
+\x1b[19;1H\x1b[38;2;124;58;237m> \x1b[0m\x1b[38;2;124;58;237m/reveal-speed\x1b[0m 0.9\x1b[0m\x1b[K
 \x1b[20;1H\x1b[0m\x1b[K
 \x1b[21;1H\x1b[2K\x1b8
 ~wait 1
@@ -135,33 +135,33 @@
 \x1b7
 \x1b[20;1Hreveal speed\x1b[0m\x1b[K\x1b8
 ~wait 1
-@2579 1028B f93c0bf2a2c5d1df
+@2579 1064B bd21d18cd599adf0
 \x1b7
 \x1b[20;1Hreveal speed 0\x1b[0m\x1b[K
 \x1b[12;1H\x1b[38;2;124;58;237m> \x1b[0m/theme\x1b[0m\x1b[K
 \x1b[13;1Hwrote out.png (640x480 px · A4 29.7×21cm)\x1b[0m\x1b[K
 \x1b[14;1H\x1b[1m\x1b[38;2;124;58;237mnote: \x1b[0mthe accent reaches this far\x1b[0m\x1b[K
 \x1b[15;1Himage: out.png (640x480 px · A4)\x1b[0m\x1b[K
-\x1b[16;1H\x1b[38;2;124;58;237m> \x1b[0m/reveal-speed 0.2\x1b[0m\x1b[0m\x1b[K
+\x1b[16;1H\x1b[38;2;124;58;237m> \x1b[0m\x1b[38;2;124;58;237m/reveal-speed\x1b[0m 0.2\x1b[0m\x1b[K
 \x1b[17;1Hreveal speed 0.2\x1b[0m\x1b[K
 \x1b[18;1Hslower now\x1b[0m\x1b[K
-\x1b[19;1H\x1b[38;2;124;58;237m> \x1b[0m/reveal-speed 0.9\x1b[0m\x1b[0m\x1b[K
+\x1b[19;1H\x1b[38;2;124;58;237m> \x1b[0m\x1b[38;2;124;58;237m/reveal-speed\x1b[0m 0.9\x1b[0m\x1b[K
 \x1b[20;1Hreveal speed 0.9\x1b[0m\x1b[K
 \x1b[21;1H\x1b[2K\x1b8
 \x1b[22;1H\x1b[2K\x1b[38;2;124;58;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\x1b[2m\x1b[0m
 \x1b[24;1H\x1b[2K\x1b[38;2;124;58;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\x1b[2m\x1b[0m
 ~pause 2000
 # line
-@4579 441B febe8c1bc8a5f656
+@4579 477B 2dba70afabfc7a98
 \x1b7
 \x1b[12;1H\x1b[38;2;124;58;237m> \x1b[0m/theme\x1b[0m\x1b[K
 \x1b[13;1Hwrote out.png (640x480 px · A4 29.7×21cm)\x1b[0m\x1b[K
 \x1b[14;1H\x1b[1m\x1b[38;2;124;58;237mnote: \x1b[0mthe accent reaches this far\x1b[0m\x1b[K
 \x1b[15;1Himage: out.png (640x480 px · A4)\x1b[0m\x1b[K
-\x1b[16;1H\x1b[38;2;124;58;237m> \x1b[0m/reveal-speed 0.2\x1b[0m\x1b[0m\x1b[K
+\x1b[16;1H\x1b[38;2;124;58;237m> \x1b[0m\x1b[38;2;124;58;237m/reveal-speed\x1b[0m 0.2\x1b[0m\x1b[K
 \x1b[17;1Hreveal speed 0.2\x1b[0m\x1b[K
 \x1b[18;1Hslower now\x1b[0m\x1b[K
-\x1b[19;1H\x1b[38;2;124;58;237m> \x1b[0m/reveal-speed 0.9\x1b[0m\x1b[0m\x1b[K
+\x1b[19;1H\x1b[38;2;124;58;237m> \x1b[0m\x1b[38;2;124;58;237m/reveal-speed\x1b[0m 0.9\x1b[0m\x1b[K
 \x1b[20;1Hreveal speed 0.9\x1b[0m\x1b[K
 \x1b[21;1H\x1b[0m\x1b[K\x1b8
 ~wait 1
@@ -177,17 +177,17 @@
 \x1b7
 \x1b[21;1Hfaster\x1b[0m\x1b[K\x1b8
 ~wait 1
-@4583 1035B 3a63da6923ef525a
+@4583 1071B 0258d808a618756e
 \x1b7
 \x1b[21;1Hfaster n\x1b[0m\x1b[K
 \x1b[12;1H\x1b[38;2;124;58;237m> \x1b[0m/theme\x1b[0m\x1b[K
 \x1b[13;1Hwrote out.png (640x480 px · A4 29.7×21cm)\x1b[0m\x1b[K
 \x1b[14;1H\x1b[1m\x1b[38;2;124;58;237mnote: \x1b[0mthe accent reaches this far\x1b[0m\x1b[K
 \x1b[15;1Himage: out.png (640x480 px · A4)\x1b[0m\x1b[K
-\x1b[16;1H\x1b[38;2;124;58;237m> \x1b[0m/reveal-speed 0.2\x1b[0m\x1b[0m\x1b[K
+\x1b[16;1H\x1b[38;2;124;58;237m> \x1b[0m\x1b[38;2;124;58;237m/reveal-speed\x1b[0m 0.2\x1b[0m\x1b[K
 \x1b[17;1Hreveal speed 0.2\x1b[0m\x1b[K
 \x1b[18;1Hslower now\x1b[0m\x1b[K
-\x1b[19;1H\x1b[38;2;124;58;237m> \x1b[0m/reveal-speed 0.9\x1b[0m\x1b[0m\x1b[K
+\x1b[19;1H\x1b[38;2;124;58;237m> \x1b[0m\x1b[38;2;124;58;237m/reveal-speed\x1b[0m 0.9\x1b[0m\x1b[K
 \x1b[20;1Hreveal speed 0.9\x1b[0m\x1b[K
 \x1b[21;1Hfaster now\x1b[0m\x1b[K\x1b8
 \x1b[22;1H\x1b[2K\x1b[38;2;124;58;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\x1b[2m\x1b[0m

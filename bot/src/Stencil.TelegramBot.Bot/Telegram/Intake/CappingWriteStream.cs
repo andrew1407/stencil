@@ -1,3 +1,5 @@
+using Stencil.TelegramBot.Bot.Telegram.Messaging;
+
 namespace Stencil.TelegramBot.Bot.Telegram.Intake;
 
 // The inner stream is never closed by this wrapper (its owner disposes it), so partial output can
@@ -79,7 +81,7 @@ public sealed class CappingWriteStream : Stream
 public sealed class DownloadTooLargeException : InvalidOperationException
 {
     public DownloadTooLargeException(long limitBytes)
-        : base($"That file is too large — the bot's limit is {limitBytes / (1024 * 1024)} MB.")
+        : base(Replies.DownloadTooLarge(limitBytes / (1024 * 1024)))
     {
     }
 }

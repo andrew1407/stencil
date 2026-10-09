@@ -25,11 +25,11 @@ public sealed class DocumentDownloadTests : IDisposable
     private readonly InMemorySessionStore _store = new();
 
     public DocumentDownloadTests() =>
-        _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-download-" + Guid.NewGuid().ToString("N"));
+        _dataDir = TempDirs.New("bot-download");
 
     public void Dispose()
     {
-        try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
+        TempDirs.Delete(_dataDir);
     }
 
     [Fact]

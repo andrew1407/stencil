@@ -55,7 +55,7 @@ namespace stencil::gui {
       if (!fx) { lift(); return; }
       const auto follow = [fx, btn, host] { if (btn && host) fx->move(btn->mapTo(host, QPoint())); };
       if (size.anim) connect(size.anim, &QVariantAnimation::valueChanged, fx, follow);
-      QTimer::singleShot(int(keywordChipClocks().dustMs * FILTER_DUST_VEIL_STOP), btn, lift);
+      QTimer::singleShot(support::motionMs(int(keywordChipClocks().dustMs * FILTER_DUST_VEIL_STOP)), btn, lift);
     });
   }
 

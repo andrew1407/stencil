@@ -18,6 +18,7 @@
 #include <QVBoxLayout>
 #include <algorithm>
 #include <cmath>
+#include <tuple>
 
 namespace stencil::gui {
 
@@ -30,6 +31,18 @@ namespace stencil::gui {
     const QString LINE_HEAD = QStringLiteral("Line — its own color and thickness");
     const QString POINT_HEAD = QStringLiteral("Point — its points' color and size");
     const QString NAME_HEAD = QStringLiteral("Line name — double-click a row's to rename it");
+
+    // Everything a row shows: its style, name and eye, and how many points, never where they are.
+    auto rowLook(const core::Line& l) {
+      return std::tie(l.color, l.thickness, l.pointSize, l.style, l.locked, l.fillColor, l.pointColor, l.name, l.hidden);
+    }
+
+    bool sameRows(const core::Lines& lines, const std::vector<std::pair<core::Line, size_t>>& built) {
+      if (lines.size() != built.size()) return false;
+      for (size_t i = 0; i < lines.size(); ++i)
+        if (lines[i].points.size() != built[i].second || rowLook(lines[i]) != rowLook(built[i].first)) return false;
+      return true;
+    }
 
     QString rangeTip(const char* what, int lo, int hi) {
       return QStringLiteral("%1\nDouble-click to edit (%2–%3 px)").arg(QLatin1String(what)).arg(lo).arg(hi);
@@ -118,12 +131,20 @@ namespace stencil::gui {
   void SelectionPanel::setLines(const core::Lines& lines,
                                 const std::vector<int>& selected) {
     if (!this->lines) return;
+    // A stroke reaches here from the canvas change and again from its selection change.
+    const qint64 paletteKey = palette().cacheKey();
+    if (paletteKey == builtPalette && selected == linesSelected && sameRows(lines, builtRows)) return;
+    builtPalette = paletteKey;
+    builtRows.clear();
+    for (const core::Line& ln : lines)
+      builtRows.push_back({{{}, ln.color, ln.thickness, ln.pointSize, ln.style, ln.locked, ln.fillColor,
+                            ln.pointColor, ln.name, ln.hidden}, ln.points.size()});
     QSignalBlocker block(this->lines);
     // clear() drops the current row; carry it across, clamped, or the next keyboard Delete does
     // nothing (browser re-focuses the row too).
     const int prevCurrent = this->lines->currentRow();
     this->lines->clearSpans();
-    this->lines->setRowCount(0);
+    clearRows(this->lines);
     fitTableRows(this->lines);
     linesSelected = selected;   // styleLineRow's selection snapshot
     canvasHoverPointRow = -1;   // rebuilt rows carry no stale hover tint

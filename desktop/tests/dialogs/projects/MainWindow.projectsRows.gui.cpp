@@ -1,6 +1,6 @@
 // MainWindow GUI e2e — A removed row blanking and holding its slot, and the batch bar gliding the rows up.
-// Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
-#include "../../MainWindow.gui.hpp"
+// Shared ground is in projectsHeld.gui.hpp, over MainWindow.gui.hpp.
+#include "projectsHeld.gui.hpp"
 #include "../../../src/support/theme/filterFade.hpp"
 
 class MainWindowGuiTest : public QObject {
@@ -15,9 +15,7 @@ class MainWindowGuiTest : public QObject {
     if (qApp->platformName() != QLatin1String("offscreen"))
       QSKIP("modal-dialog gestures need the offscreen platform");
     MainWindow win(nullptr, false);
-    win.resize(1100, 800);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(held::showForProjects(win));
     QImage img(40, 30, QImage::Format_RGB32);
     img.fill(Qt::darkCyan);
     const QString id = win.parts.chatAppliers.addImageProjectEntry(img, "doomed-row");
@@ -25,20 +23,12 @@ class MainWindowGuiTest : public QObject {
 
     bool sawRow = false, blankedAtOnce = false, slotHeld = false, goneAfter = false;
     QTimer::singleShot(0, [&] {
-      const auto bailOut = [] {
-        if (auto* d = qobject_cast<QDialog*>(QApplication::activeModalWidget())) d->reject();
-      };
-      QDialog* dlg = nullptr;
-      QListWidget* list = nullptr;
-      for (int i = 0; i < 200 && !list; ++i) {
-        dlg = qobject_cast<QDialog*>(QApplication::activeModalWidget());
-        if (dlg) list = dlg->findChild<QListWidget*>("projectsList");
-        if (!list) QTest::qWait(10);
-      }
+      const auto bailOut = &held::rejectModal;
+      const held::ProjectsWindow shown = held::projectsWindow();
+      QDialog* dlg = shown.dlg;
+      QListWidget* list = shown.list;
       if (!list) { bailOut(); return; }
-      QListWidgetItem* item = nullptr;
-      for (int i = 0; i < list->count() && !item; ++i)
-        if (list->item(i)->data(Qt::UserRole).toString() == id) item = list->item(i);
+      QListWidgetItem* item = held::rowFor(list, id);
       if (!item) { bailOut(); return; }
       sawRow = true;
       list->scrollToItem(item);
@@ -91,9 +81,7 @@ class MainWindowGuiTest : public QObject {
       QSKIP("modal-dialog gestures need the offscreen platform");
     const auto motion = withMotion();   // the slide below IS the thing under test
     MainWindow win(nullptr, false);
-    win.resize(1100, 800);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(held::showForProjects(win));
     QImage img(40, 30, QImage::Format_RGB32);
     img.fill(Qt::darkCyan);
     QVERIFY(!win.parts.chatAppliers.addImageProjectEntry(img, "one").isEmpty());
@@ -102,16 +90,10 @@ class MainWindowGuiTest : public QObject {
     bool sawPinned = false, barWasUp = false, dustedOnOpen = false;
     int biggestStep = 0, travelled = 0;
     QTimer::singleShot(0, [&] {
-      const auto bailOut = [] {
-        if (auto* d = qobject_cast<QDialog*>(QApplication::activeModalWidget())) d->reject();
-      };
-      QDialog* dlg = nullptr;
-      QListWidget* list = nullptr;
-      for (int i = 0; i < 200 && !list; ++i) {
-        dlg = qobject_cast<QDialog*>(QApplication::activeModalWidget());
-        if (dlg) list = dlg->findChild<QListWidget*>("projectsList");
-        if (!list) QTest::qWait(10);
-      }
+      const auto bailOut = &held::rejectModal;
+      const held::ProjectsWindow shown = held::projectsWindow();
+      QDialog* dlg = shown.dlg;
+      QListWidget* list = shown.list;
       if (!list) { bailOut(); return; }
       QWidget* selectAll = dlg->findChild<QPushButton*>("projectsSelectAll");
       QWidget* bar = selectAll ? selectAll->parentWidget() : nullptr;

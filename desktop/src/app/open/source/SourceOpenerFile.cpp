@@ -1,9 +1,12 @@
 #include "MainWindow.hpp"
+#include "SharedState.hpp"
 #include "SourceOpener.hpp"
 #include "ChatSessionController.hpp"
 #include "Notifications.hpp"
 #include "mainWindowHelpers.hpp"
 #include "StencilFileSync.hpp"
+
+#include <memory>
 
 // Loading a source by path or URL, and the .stencil project file.
 
@@ -14,27 +17,32 @@ namespace stencil::gui {
   // project and links no file, so nothing it holds is written back.
   void SourceOpener::openProjectFile(const QString& path, std::function<void(bool)> done,
                                      bool incognito) {
-    QByteArray bytes;
-    if (!readFileBytes(path, bytes)) {
-      w.notify->error("Could not read the project file");
-      if (done) done(false);
-      return;
-    }
-    fileStore::ProjectFileData pf;
-    QString err;
-    if (!fileStore::parseProjectFile(bytes, pf, &err)) {
-      w.notify->error("Invalid .stencil file: " + err);
-      if (done) done(false);
-      return;
-    }
+    // Filled on the pool (the read, the parse and its base64, the picture), read here once it lands.
+    struct Parsed {
+      QByteArray bytes;
+      fileStore::ProjectFileData pf;
+      QString err;
+    };
+    const auto parsed = std::make_shared<Parsed>();
     w.decodeForCanvas(
-        [image = pf.imageBytes] { return QImage::fromData(image); },
-        [this, path, bytes, pf, done, incognito](const QImage& img) {
+        [path, parsed] {
+          QString why;
+          if (!readFileBytes(path, parsed->bytes)) parsed->err = QStringLiteral("Could not read the project file");
+          else if (!fileStore::parseProjectFile(parsed->bytes, parsed->pf, &why))
+            parsed->err = QStringLiteral("Invalid .stencil file: ") + why;
+          if (!parsed->err.isEmpty()) return QImage();
+          const QImage img = QImage::fromData(parsed->pf.imageBytes);
+          if (img.isNull()) parsed->err = QStringLiteral("Could not decode the project image");
+          return img;
+        },
+        [this, path, parsed, done, incognito](const QImage& img) {
           if (img.isNull()) {
-            w.notify->error("Could not decode the project image");
+            w.notify->error(parsed->err);
             if (done) done(false);
             return;
           }
+          const QByteArray& bytes = parsed->bytes;
+          const fileStore::ProjectFileData& pf = parsed->pf;
           w.activeProjectId.clear();   // an opened project file is a fresh editor (Save to Project keeps it)
           w.loadImageWithLayout(img, pf.layout, pf.imageBytes, pf.imageExt);
           w.docSource.currentSource = pf.source;
@@ -58,7 +66,7 @@ namespace stencil::gui {
             }
             if (changed) {
               w.applyTheme();
-              fileStore::saveSettings(w.settings);
+              w.persistSettings();
             }
           }
           if (!incognito) {
@@ -71,7 +79,7 @@ namespace stencil::gui {
             if (!pf.chat.isEmpty()) {
               if (Project* pr = w.findProject(w.activeProjectId.toStdString())) {
                 pr->chat = w.chatSession->buildActiveChatDoc();
-                fileStore::saveProjects(w.projectList);
+                SharedState::instance().saveProjects(&w);
               }
             }
           }

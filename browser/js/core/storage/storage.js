@@ -10,9 +10,9 @@ import { paintPageSize, paintDrawingControls, paintVisibilityChecks, paintFormul
 import { createThumbnailScheduler } from '../image/thumbnail.js';
 import { saveBlockedReason, writeActiveProject } from './save.js';
 import { attachProjectsStore, restoreProjects, autoRefreshOnOpen,
-         promoteTemporary, clearEditorState, collapseCanvas } from './session.js';
-import { applyStoredPage, applyStoredDrawing, applyStoredProvenance, applyStoredFormulas,
-         applyStoredTools, applyStoredImage, applyImagelessPayload } from './storedLayout.js';
+         promoteTemporary, clearEditorState, collapseCanvas, markProjectOpened } from './session.js';
+import { applyStoredPage, applyStoredDrawing, applyStoredProvenance, applyStoredFormulas, applyStoredTools,
+         applyStoredImage, applyImagelessPayload, refuseOversizedImage, adoptStoredLines } from './storedLayout.js';
 import { CHANGE, changed } from '../app/changes.js';
 import { settleReplacedLines } from '../line/selection.js';
 
@@ -104,12 +104,14 @@ export class Storage {
     const proj = this.store.get(id);
     if (!proj) return false;
     this.app.remoteSync?.flushResult?.();
+    this.app.remoteSync?.detach?.();
     this.saveSoon.flush();
     this.thumbs.flush();
     this.activeId = id;
     this.temporary = false;
     this.incognito = false;
     this.app.activeProjectId = id;
+    markProjectOpened(id);
     // An OPEN arrives the way a loaded file does; the cross-tab sync path shares this method
     // and stays still (a peer's edit must not dissolve the picture under the reader).
     this.loadPayloadIntoApp(proj.payload, { landing: true });
@@ -147,13 +149,13 @@ export class Storage {
         this.app.originalImage = new Image();
         this.app.originalImage.onload = () => {
           // The user may have switched projects mid-load.
-          if (this.activeId !== targetId) return;
+          if (this.activeId !== targetId || refuseOversizedImage(this, this.app.originalImage, layout)) return;
           // Rotation first: defaultCropRect and rebuild both read it.
           this.app.rotationQuarters = layout.rotationQuarters || 0;
           this.app.mirrored = layout.mirrored === true;
           this.app.cropRect = normalizeCropRect(layout.cropRect) || this.app.imageModel.defaultCropRect();
           this.app.imageModel.rebuildCroppedImage();
-          this.app.lines = layout.lines || [];
+          adoptStoredLines(this.app, layout.lines);
           // Empty lines → step -1, so a brand-new project has no phantom undo.
           this.app.history.reset(editorMemento(this.app), this.app.lines.length ? 0 : -1);
 
@@ -171,8 +173,8 @@ export class Storage {
           if (landing) playCanvasArrival(this.app.canvas, { layers: this.app.renderer.layers() });
           this.app.updateButtons();
           this.app.updateCoordStatus();
-          if (this.app.lines.length > 0)
-            this.app.coordTable.update(this.app.lines[this.app.lines.length - 1].points);
+          // The selection resets and the table lists this project's last line, or empties: it kept the last project's.
+          settleReplacedLines(this.app);
           this.showImageMissingBanner(false);
           this.app.showSaveStatus('Project loaded', 'var(--accent)', 'refresh');
         };
@@ -189,6 +191,7 @@ export class Storage {
   // would wipe the exchange that asked for the reset.
   newTemporary({ keepChat = false } = {}) {
     this.app.remoteSync?.flushResult?.();
+    this.app.remoteSync?.detach?.();
     this.saveSoon.flush(); this.thumbs.flush();
     this.activeId = null;
     this.temporary = true;

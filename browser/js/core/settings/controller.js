@@ -1,11 +1,11 @@
 import { setVal } from '../../utils.js';
 import { COMMIT_DEBOUNCE_MS } from '../../ui/control/numericInput.js';
-import { MOTION_MODES, setMotionPrefs, motionPrefs } from '../../ui/motion/motionPrefs.js';
+import { MOTION_MODES, setMotionPrefs, motionPrefs, clampMotionSpeed } from '../../ui/motion/motionPrefs.js';
 import { NOTIFY_CHANNELS, setNotifyChannel } from './notifyChannel.js';
 import {
   applyMirror, paintFormulaToggle, paintFormulaError,
   readControl, forEachControl, paintTooltipOption, paintMotionMode, paintMotionDrawing,
-  paintMotionBackdrop, paintMotionMultiWindow, paintNotifyChannel,
+  paintMotionMultiWindow, paintNotifyChannel,
 } from '../../ui/settings/settingMirrors.js';
 import { SETTINGS } from './registry.js';
 import { FilterSteps } from './filterStep.js';
@@ -13,7 +13,7 @@ import { formulaContext } from '../parse/pageMetrics.js';
 
 export { COMPARE_MODES } from './registry.js';
 // The on/off motion prefs, each with the Visuals checkbox it repaints.
-const MOTION_SWITCHES = { drawing: paintMotionDrawing, backdrop: paintMotionBackdrop, multiWindow: paintMotionMultiWindow };
+const MOTION_SWITCHES = { drawing: paintMotionDrawing, multiWindow: paintMotionMultiWindow };
 
 // `persist:false` is the live-drag (input) path that commits on the trailing change.
 export class SettingsController {
@@ -195,8 +195,10 @@ export class SettingsController {
     } else if (Object.hasOwn(MOTION_SWITCHES, key)) {
       setMotionPrefs({ [key]: !!value });
       MOTION_SWITCHES[key](value);
+    } else if (key === 'speed') {
+      setMotionPrefs({ speed: clampMotionSpeed(value) });
     } else {
-      throw new Error(`Unknown motion setting: ${key} (use mode | drawing | backdrop | multiWindow)`);
+      throw new Error(`Unknown motion setting: ${key} (use mode | drawing | multiWindow | speed)`);
     }
     return motionPrefs();
   }

@@ -1,6 +1,8 @@
 /* ── Projects modal rows ────────────────────────────────────────── */
-/* A real working height even with one row (desktop-dialog parity); the list body flexes and scrolls. */
-#projects-modal-overlay:not(.modal-popover) .app-modal { min-height: min(560px, 82vh); }
+/* 576px, not the shared 560: its three selects need 568 for one line at their longest labels, plus
+   a little for other platforms' fonts (desktop PROJECTS_WIDTH). The height is the shared ceiling,
+   whatever the row count, so a filter or a search never resizes the window; the list scrolls. */
+#projects-modal-overlay:not(.modal-popover) .app-modal { width: 576px; height: min(82vh, 760px); }
 .project-row {
     display: flex; align-items: center; gap: 12px;
     padding: 8px 10px; border: 1px solid var(--border-main); border-radius: 8px;
@@ -10,7 +12,8 @@
 .project-row.project-active { border-color: var(--text-key); }
 /* The open editor's row: "(Current)" in the accent beside the origin badge, no mark of its own. */
 .project-current-badge { color: var(--accent); font-weight: 600; }
-.project-row.project-temp { cursor: default; opacity: 0.92; border-style: dashed; }
+/* --rest-opacity: where a row's arrival veil lifts to (dust.css), so it lands without a dip. */
+.project-row.project-temp { cursor: default; --rest-opacity: 0.92; opacity: var(--rest-opacity); border-style: dashed; }
 .project-row.project-selected { border-color: var(--accent); background: var(--bg-info); }
 /* pan-y: a finger still scrolls the list while a long-press picks a row up; no selection callout. */
 .project-row, .connect-row { touch-action: pan-y; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
@@ -58,28 +61,23 @@
     /* background-color, not the shorthand: it resets the hover sweep (layout/shimmer.css). */
     background-color: var(--input-bg); color: var(--input-text); border: 1px solid var(--border-main);
 }
-/* Narrow viewports: the search bar and footer are non-wrapping rows sized for 560px; below 680px
-   both wrap, the search field and the hint each taking a full line. */
-@media (max-width: 680px) {
+/* A filter that no longer fits its row goes to the next line rather than past the window's edge. */
+.projects-filter-row { flex-wrap: wrap; }
+/* The search bar and footer are rows sized for 560px (a 520px content box still holds them). The window's own width decides (container
+   `modal`, modalShell.css), so a phone, the 420px popover and a window dragged narrower all wrap:
+   the search field and the hint each take a full line. */
+@container modal (max-width: 520px) {
     .modal-search-bar { flex-wrap: wrap; }
     .modal-search-bar .modal-search { flex: 1 1 100%; min-width: 0; }
     .modal-search-bar .modal-filter { flex: 1 1 auto; min-width: 0; max-width: 100%; }
     /* An enhanced select's .cs-dd wrap takes the native's flex slot. */
     .modal-search-bar .cs-dd { flex: 1 1 auto; min-width: 0; max-width: 100%; }
     .modal-search-bar .cs-dd .accent-dd-trigger { width: 100%; }
-    /* On a phone the hint takes the whole line, buttons under it: the 110px floor alone never wraps. */
+    /* The hint takes the whole line, buttons under it: the 110px floor alone never wraps. */
     .settings-footer .footer-hint:not(:empty) { flex: 1 1 100%; text-align: left; }
 }
-/* The popover shape squeezes the box to 420px at any width, so it wraps keyed on its class (the
-   media query never fires on a wide screen). */
-.modal-popover .modal-search-bar { flex-wrap: wrap; }
-.modal-popover .modal-search-bar .modal-search { flex: 1 1 100%; min-width: 0; }
-.modal-popover .modal-search-bar .modal-filter { flex: 1 1 auto; min-width: 0; max-width: 100%; }
-.modal-popover .modal-search-bar .cs-dd { flex: 1 1 auto; min-width: 0; max-width: 100%; }
-.modal-popover .modal-search-bar .cs-dd .accent-dd-trigger { width: 100%; }
-.modal-popover .settings-footer .footer-hint:not(:empty) { flex: 1 1 100%; text-align: left; }
 /* Three buttons overrun 420px by a few pixels; the tighter gap keeps them on one row. */
-.modal-popover .settings-footer { gap: 6px; }
+@container modal (max-width: 440px) { .settings-footer { gap: 6px; } }
 /* Touch: ≥40px tap targets, as the chat panel's compact buttons. */
 @media (hover: none) and (pointer: coarse) {
     .modal-search, .modal-filter { min-height: 40px; }

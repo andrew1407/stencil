@@ -1,6 +1,7 @@
 using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Editing;
 using Stencil.TelegramBot.Domain.Exceptions;
+using Stencil.TelegramBot.Domain.Layout;
 using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Infrastructure.Configuration;
 using Stencil.TelegramBot.Infrastructure.Processes;
@@ -121,6 +122,19 @@ public sealed class ProcessStencilCli : IStencilCli
             throw new StencilCliException(CliOutcomeParser.ExtractErrors(output.Stderr));
         }
         return CliOutcomeParser.ParsePlanCheck(output.Stdout);
+    }
+
+    // Report mode: the line sets ride stdin and nothing is written, so no --confine-output.
+    public async Task<LineMerge> MergeLinesAsync(IReadOnlyList<LayoutLine> peer, IReadOnlyList<LayoutLine> local,
+        IReadOnlyList<LayoutLine> seen, CancellationToken ct = default)
+    {
+        string input = CliArgvBuilder.BuildMergeLinesInput(peer, local, seen);
+        CliOutput output = await spawnAsync(CliArgvBuilder.BuildMergeLinesArgv(), ct, "", input).ConfigureAwait(false);
+        if (!output.Success)
+        {
+            throw new StencilCliException(CliOutcomeParser.ExtractErrors(output.Stderr));
+        }
+        return CliOutcomeParser.ParseMergeLines(output.Stdout);
     }
 
     // An input already sitting beside the script is passed as its leaf, so no workspace path can

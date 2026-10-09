@@ -27,7 +27,7 @@
 /* Touch devices: ≥40px targets for the compact icon buttons; the fiddly resize handles
    hide — the sheet/dock sizes itself. */
 @media (hover: none) and (pointer: coarse) {
-    .chat-hbtn, .chat-abtn { width: 40px; height: 40px; }
+    .chat-hbtn, .chat-abtn, .chat-result-btn { width: 40px; height: 40px; }
     .chat-resizer { display: none; }
     .chat-dock-float .chat-float-handle { display: none; }
 }

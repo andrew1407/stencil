@@ -3149,6 +3149,40 @@
    ]
   },
   {
+   "name": "layout-negative-point-size-invalid",
+   "source": "hand",
+   "results": [
+    {
+     "surfaces": [
+      "browser",
+      "desktop",
+      "cli",
+      "pystencil",
+      "bot",
+      "mcp"
+     ],
+     "json": "{\"status\":\"invalid\",\"reply\":\"\",\"actions\":[],\"variants\":[],\"ask\":null,\"warnings\":[],\"error\":{\"code\":\"E_ACTION\",\"op\":\"layout\",\"detail\":\"\\\"pointSize\\\" in lines[0] must be a number >= 0\",\"message\":\"Invalid layout action: \\\"pointSize\\\" in lines[0] must be a number >= 0\"}}"
+    }
+   ]
+  },
+  {
+   "name": "layout-fractional-thickness-valid",
+   "source": "hand",
+   "results": [
+    {
+     "surfaces": [
+      "browser",
+      "desktop",
+      "cli",
+      "pystencil",
+      "bot",
+      "mcp"
+     ],
+     "json": "{\"status\":\"valid\",\"reply\":\"ok\",\"actions\":[{\"op\":\"layout\",\"lines\":[{\"points\":[{\"x\":0,\"y\":0},{\"x\":10,\"y\":20}],\"thickness\":0.5,\"pointSize\":0}]}],\"variants\":[],\"ask\":null,\"warnings\":[],\"error\":null}"
+    }
+   ]
+  },
+  {
    "name": "gen-crop-minimal",
    "source": "generated",
    "results": [

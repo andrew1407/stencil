@@ -1,7 +1,7 @@
 // Live two-way sync between a project and its linked .stencil file (Chromium File System
 // Access only): debounced auto-save on edit + a polled watch that applies external writes
 // in place, or prompts (mine/theirs/merge) on a conflict.
-import { parseProjectFile, serializeProjectFile } from '../project/file.js';
+import { parseProjectFile, serializeProjectFile, projectFileTooLarge } from '../project/file.js';
 import constants from '../../../../common/config/constants.json' with { type: 'json' };
 import { projectFileState, applyProjectFileInPlace, chooseFileConflict, updateStencilSyncUI } from '../project/fileIO.js';
 
@@ -72,7 +72,7 @@ export class StencilSync {
     try {
       const file = await this.handle.getFile();
       this.lastMod = file.lastModified; this.lastSize = file.size;
-      return await file.text();
+      return projectFileTooLarge(file) ? null : await file.text();
     } catch { return null; }
   }
   async #ensurePermission() {
@@ -117,6 +117,7 @@ export class StencilSync {
     try { file = await this.handle.getFile(); } catch { return; }
     if (this.lastMod != null && file.lastModified === this.lastMod && file.size === this.lastSize) return;
     this.lastMod = file.lastModified; this.lastSize = file.size;
+    if (projectFileTooLarge(file)) return;
     let ext;
     try { ext = await file.text(); } catch { return; }
     if (ext === this.baseline) return;

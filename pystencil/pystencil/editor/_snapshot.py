@@ -39,6 +39,8 @@ class _Snapshot:
   filter_mode: str = ""
   filter_color: str = ""
   lines: list[Line] = field(default_factory=list)
+  #: The points ``lines`` holds, counted as the state is pushed (the history's points cap).
+  points: int = field(default=0, compare=False, repr=False)
 
   def copy(self) -> "_Snapshot":
     """A shallow-but-safe clone: the line list is copied so appends don't alias."""
@@ -49,7 +51,20 @@ class _Snapshot:
       filter_mode=self.filter_mode,
       filter_color=self.filter_color,
       lines=list(self.lines),
+      points=self.points,
     )
+
+
+def _evictions(states: list[_Snapshot], max_steps: int, max_points: int) -> int:
+  """How many edits after the pristine [0] drop off the front, oldest first: while more than
+  ``max_steps`` states stand or, the newest aside, their points exceed ``max_points`` — the
+  CLI's ``evictions``, core HistoryStack's rule."""
+  total = sum(s.points for s in states)
+  drop = 0
+  while len(states) - drop > max_steps or (len(states) - drop > 2 and total > max_points):
+    total -= states[1 + drop].points
+    drop += 1
+  return drop
 
 
 def _clean_keywords(kw) -> list[str]:

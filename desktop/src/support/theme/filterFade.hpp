@@ -1,6 +1,6 @@
 #pragma once
-// Filter transitions (browser js/ui/motion.js filterDust): an excluded row never plays
-// OUT — its slot closes at once; the rows LEFT re-form in place. Q_OBJECT-free, no MOC.
+// Filter transitions (browser js/ui/motion.js filterDust / filterDustOut): an excluded row's slot
+// closes at once (a list with onLeave dissolves it first); the rows LEFT re-form in place. No MOC.
 #include "DisintegrateOverlay.hpp"
 #include "modalReveal.hpp"
 
@@ -80,17 +80,22 @@ namespace stencil::gui {
     // `beforeFrame` suppresses whatever the container hangs off itemChanged (setData fires it).
     std::function<void()> beforeFrame, afterFrame;
     std::function<void(QListWidgetItem*)> onArrive;   // optional
+    // Optional: a shown row the change drops, called while it is still painted.
+    std::function<void(QListWidgetItem*)> onLeave;
 
     void apply(const std::function<bool(QListWidgetItem*)>& wanted);
 
     bool running() const { return timer && timer->isActive(); }
 
     void dustRowIn(QListWidgetItem* it, QWidget* host, int ms = FILTER_DUST_MS);
+    // The row dissolves where it sat (browser filterDustOut); its slot closes under the motes.
+    void dustRowOut(QListWidgetItem* it, QWidget* host, int ms = FILTER_DUST_MS);
 
     void finishNow();
 
    private:
     void write(QListWidgetItem* it, double p, double target);
+    void clipToViewport(DisintegrateOverlay* fx, QWidget* host) const;
 
     void tick();
 
@@ -99,7 +104,9 @@ namespace stencil::gui {
 
     QListWidget* list = nullptr;
     QTimer* timer = nullptr;
+    double tickStep = 0.0;   // presence per tick
     int dustBudget = 0;
+    int leaveBudget = 0;   // the dropped rows' own share, so a big drop never starves the arrivals
   };
 
   void fadeFiltered(QWidget* w, bool show);

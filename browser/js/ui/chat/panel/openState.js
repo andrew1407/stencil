@@ -5,7 +5,7 @@ import { wireModalOpenGestures } from '../../tip/popover.js';
 import { subscribe, EVENTS } from '../../../eventBus/appBus.js';
 import { modalShells } from '../../modal/registry.js';
 import {
-  surfaceIn, surfaceOut, settleSurface, sweepDust, dockAwayPoint, motionReduced, rectCenter,
+  surfaceIn, surfaceOut, settleSurface, sweepDust, dockAwayPoint, motionMs, motionReduced, rectCenter,
   CHAT_SURFACE_IN_MS, CHAT_SURFACE_OUT_MS,
 } from '../../motion.js';
 import { compactChatRect } from '../geometry.js';
@@ -105,7 +105,7 @@ export function wireOpenState(deps) {
         const next = afterClose;
         afterClose = null;
         next?.();
-      }, CLOSE_MS);
+      }, motionMs(CLOSE_MS));
       return;
     }
     if (on) setFloatOriginVars();

@@ -35,7 +35,7 @@ namespace stencil::gui {
     const bool on = !support::isWebcore();
     support::setSkin(on ? support::Skin::WEBCORE : support::Skin::DEFAULT);
     // Still lines and a still interface for the session, written to no file (browser toggle.js).
-    if (on) support::setMotionOverride({support::MotionMode::NONE, false, support::modalBackdrop()});
+    if (on) support::setMotionOverride({support::MotionMode::NONE, false});
     else support::clearMotionOverride();
     support::applyWebcoreLook(on);
     holdAutoRaise(&w, on);

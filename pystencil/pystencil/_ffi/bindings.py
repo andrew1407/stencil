@@ -35,20 +35,7 @@ def bind(lib: ctypes.CDLL) -> None:
   lib.stencil_cli_defaultBlankSizePx.argtypes = [ctypes.c_double] * 3 + [_intp, _intp]
 
   lib.stencil_cli_resolveCrop.restype = ctypes.c_int
-  lib.stencil_cli_resolveCrop.argtypes = [
-    _cstr,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_int,
-    _intp,
-    _intp,
-    _intp,
-    _intp,
-  ]
+  lib.stencil_cli_resolveCrop.argtypes = [_cstr] + [ctypes.c_double] * 6 + [ctypes.c_int] + [_intp] * 4
 
   lib.stencil_cli_cropImageRGBA.restype = None
   lib.stencil_cli_cropImageRGBA.argtypes = [_src] + [ctypes.c_int] * 6 + [_u8p]
@@ -126,6 +113,9 @@ def bind(lib: ctypes.CDLL) -> None:
 
   lib.stencil_cli_layoutCaps.restype = None
   lib.stencil_cli_layoutCaps.argtypes = [_intp, _intp, _intp]
+
+  lib.stencil_cli_historyCaps.restype = None
+  lib.stencil_cli_historyCaps.argtypes = [_intp, _intp]
 
   lib.stencil_cli_parseDuration.restype = ctypes.c_int
   lib.stencil_cli_parseDuration.argtypes = [_cstr, ctypes.POINTER(ctypes.c_longlong)]

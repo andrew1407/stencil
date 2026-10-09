@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
 // Pure image-filter math over RGB components / interleaved RGBA8 buffers. Port of
@@ -15,6 +16,9 @@ namespace stencil::core {
 
   // Any unknown non-"none" value maps to Custom (renderer.js's else branch).
   FilterMode filterModeFromString(const std::string& mode);
+
+  // The table's own spelling of a named mode, matched case-sensitively; nullptr for a tint.
+  const char* filterModeName(std::string_view mode);
 
   struct Rgb8 {
     int r = 0;

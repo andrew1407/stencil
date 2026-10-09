@@ -43,9 +43,9 @@ namespace stencil::net {
       const QString host = QUrl("http://" + s).host();
       s = (isLoopbackHost(host) ? QStringLiteral("http://") : QStringLiteral("https://")) + s;
     }
-    QUrl u(s);
-    QString origin = u.scheme() + "://" + u.authority();
-    return origin;
+    // user:pass@ would ride into QSettings, toasts and every request; the origin carries none.
+    const QUrl u = QUrl(s).adjusted(QUrl::RemoveUserInfo);
+    return u.scheme() + "://" + u.authority();
   }
 
   QString ServerClient::splitInviteToken(const QString& raw, QString& token) {
@@ -75,6 +75,21 @@ namespace stencil::net {
   }
 
   namespace {
+    // A reply past the fetch cap is aborted mid-body, as fetchGuard's own; it fails like any other.
+    void capReply(QNetworkReply* reply) {
+      QObject::connect(reply, &QNetworkReply::downloadProgress, reply, [reply](qint64 got, qint64 total) {
+        if (got > fetchGuard::MAX_FETCH_BYTES || total > fetchGuard::MAX_FETCH_BYTES) reply->abort();
+      });
+    }
+
+    // Qt's transport errors sit below 100: a reply aborted (the cap, the transfer timeout) or cut
+    // short is no answer, whatever status line came before it.
+    int replyStatus(QNetworkReply* reply) {
+      const QNetworkReply::NetworkError e = reply->error();
+      if (e != QNetworkReply::NoError && e < 100) return 0;
+      return reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    }
+
     // Browser parity (net/connectionManager.js _req): "<METHOD> <path>: <why>", <why> = the server's JSON
     // `message` or "HTTP <status>"; a request that never reached the server shows the transport's message, never "HTTP 0".
     QString restError(const QByteArray& method, const QString& path, int status,
@@ -95,6 +110,8 @@ namespace stencil::net {
     QNetworkRequest req{QUrl(base + path)};
     // Bounded so a hung/malicious server cannot wedge a transfer forever.
     req.setTransferTimeout(fetchGuard::fetchTimeoutMs());
+    // Qt re-sends raw headers on a redirect, so the bearer would follow it; a 3xx is a failure.
+    req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
     const QString& tok = bearer.isEmpty() ? token : bearer;
     if (!tok.isEmpty())
       req.setRawHeader("Authorization", "Bearer " + tok.toUtf8());
@@ -109,13 +126,13 @@ namespace stencil::net {
                                   bool retried) {
     QNetworkRequest req = buildRequest(path, contentType);
     QNetworkReply* reply = nam->sendCustomRequest(req, method, body);
+    capReply(reply);
     // Context object is nam (owned by this client): when the client dies nam goes with it, the
     // connection is severed and this slot never runs on a dangling `this`.
     QObject::connect(reply, &QNetworkReply::finished, nam,
                      [this, reply, method, path, body, contentType, retried,
                       done = std::move(done)]() mutable {
-                       const int status =
-                           reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+                       const int status = replyStatus(reply);
                        const QByteArray data = reply->readAll();
                        if (!isOkStatus(status))
                          err = restError(method, path, status, data,
@@ -171,10 +188,10 @@ namespace stencil::net {
     QNetworkRequest req = buildRequest("/auth/token", "application/json", credential);
     QNetworkReply* reply =
         nam->sendCustomRequest(req, "POST", QByteArray("{\"label\":\"invite\"}"));
+    capReply(reply);
     QObject::connect(reply, &QNetworkReply::finished, nam,
                      [this, reply, done = std::move(done)] {
-                       const int status =
-                           reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+                       const int status = replyStatus(reply);
                        const QByteArray body = reply->readAll();
                        const QString tok =
                            QJsonDocument::fromJson(body).object().value("token").toString();

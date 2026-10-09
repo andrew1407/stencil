@@ -157,7 +157,7 @@ pub fn intro() void {
     if (screen.current()) |s| {
         emit(block("intro-fullscreen"));
         // Which selection is live, and how to reach the other one (a held modifier).
-        logo.note("{s}", .{if (s.mouseOn()) block("mouse-app") else block("mouse-terminal")});
+        logo.note("{s}\n", .{if (s.mouseOn()) block("mouse-app") else block("mouse-terminal")});
         return;
     }
     emit(block("intro"));

@@ -58,10 +58,10 @@ namespace stencil::gui {
     int holdDrawDelay = defaultVisuals::table().holdDrawDelay;   // ms
     // Motion (browser js/ui/motion/motionPrefs.js; support/modal/modalReveal.hpp drives them).
     bool drawingAnimations = true;
-    bool modalBackdrop = true;
     bool multiWindow = false;   // windows side by side, non-modal (browser motionPrefs multiWindow)
     // "particles" | "water" | "fire" | "slide" | "none"; unknown reads as "particles".
     QString motionMode = "particles";
+    double motionSpeed = 0.37;   // motion.json speed.default; clamped where applied (support/motionPrefs.hpp)
     // "toast" | "system": the in-app stack or the OS notification centre (support/notify).
     QString notifyChannel = "toast";
     // Desktop-only "Open in…" targets; the browser keeps its own in browser/js/config/openInConfig.json.
@@ -213,6 +213,13 @@ namespace stencil::gui {
     // Shortcut overrides over hotkeysConfig.json (browser STORAGE_KEYS.hotkeys twin).
     QHash<QString, QString> loadHotkeys();
     void saveHotkeys(const QHash<QString, QString>& overrides);
+
+    // When this app last opened each local project (epoch ms; absent = never), behind the projects
+    // list's "Recently opened" orders. Browser twin: core/project/meta/projectOpened.js.
+    inline constexpr int PROJECT_OPENED_CAP = 500;   // the newest kept; an older one reads as never
+    QString projectOpenedPath();
+    QHash<QString, qint64> loadProjectOpened();
+    void markProjectOpened(const QString& id, qint64 now);
   }
 
 }

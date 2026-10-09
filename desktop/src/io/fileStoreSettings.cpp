@@ -70,9 +70,9 @@ namespace stencil::gui {
     s.filterColor = o.value("filterColor").toString(s.filterColor);
     s.holdDrawDelay = o.value("holdDrawDelay").toInt(s.holdDrawDelay);
     s.drawingAnimations = o.value("drawingAnimations").toBool(s.drawingAnimations);
-    s.modalBackdrop = o.value("modalBackdrop").toBool(s.modalBackdrop);
     s.multiWindow = o.value("multiWindow").toBool(s.multiWindow);
     s.motionMode = o.value("motionMode").toString(s.motionMode);
+    s.motionSpeed = o.value("motionSpeed").toDouble(s.motionSpeed);
     s.notifyChannel = o.value("notifyChannel").toString(s.notifyChannel);
     s.browserBaseUrl = o.value("browserBaseUrl").toString(s.browserBaseUrl);
     s.telegramBotUsername = o.value("telegramBotUsername").toString(s.telegramBotUsername);
@@ -126,9 +126,9 @@ namespace stencil::gui {
     o["filterColor"] = s.filterColor;
     o["holdDrawDelay"] = s.holdDrawDelay;
     o["drawingAnimations"] = s.drawingAnimations;
-    o["modalBackdrop"] = s.modalBackdrop;
     o["multiWindow"] = s.multiWindow;
     o["motionMode"] = s.motionMode;
+    o["motionSpeed"] = s.motionSpeed;
     o["notifyChannel"] = s.notifyChannel;
     o["browserBaseUrl"] = s.browserBaseUrl;
     o["telegramBotUsername"] = s.telegramBotUsername;

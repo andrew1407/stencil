@@ -149,7 +149,9 @@ if(STENCIL_CORE_BUILD_TESTS AND NOT EMSCRIPTEN)
     tests/abi/abiSharedFormula.test.cpp
     tests/abi/abiSharedEdit.test.cpp
     tests/abi/linesCodec.test.cpp
+    tests/abi/handleTable.test.cpp
     tests/geometry/hitTest.test.cpp
+    tests/geometry/hitTestHidden.test.cpp
     tests/state/holdDraw.test.cpp
     tests/color/color.test.cpp
     tests/page/pageMetrics.test.cpp

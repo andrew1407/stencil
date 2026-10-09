@@ -41,6 +41,7 @@ namespace stencil::gui {
       if (support::motionReduced() || support::isWebcore() || capCount() == 0) return;
       shake->stop();
       settle();
+      shake->setDuration(support::motionMs(AppTooltip::SHAKE_MS));
       shake->start();
     }
     void leaveEvent(QEvent* e) override {

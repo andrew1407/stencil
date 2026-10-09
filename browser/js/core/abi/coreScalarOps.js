@@ -1,6 +1,8 @@
 // The core's scalar ops over the wasm ABI: colour parsing, point-to-segment distance, the
 // formula parser, duration parsing, the zoom clamp, its bounds and the zoom-to-rect fit, and the
 // close-shape hit test.
+import { heapAlloc } from './coreMarshal.js';
+
 export const buildScalarOps = (core, { I32, I64, withCString, allocPoints }) => {
   const cParseHex       = core.cwrap('stencil_parseHex', 'number', ['string', 'number']);
   const cDist           = core.cwrap('stencil_distToSegment', 'number', ['number', 'number', 'number', 'number', 'number', 'number']);
@@ -23,7 +25,7 @@ export const buildScalarOps = (core, { I32, I64, withCString, allocPoints }) => 
 
   return {
     parseHex(hex) {
-      const out = core._malloc(3 * I32);
+      const out = heapAlloc(core, 3 * I32);
       try {
         if (cParseHex(hex, out) !== 1) return null;
         return { r: core.getValue(out, 'i32'), g: core.getValue(out + I32, 'i32'), b: core.getValue(out + 2 * I32, 'i32') };
@@ -54,7 +56,7 @@ export const buildScalarOps = (core, { I32, I64, withCString, allocPoints }) => 
 
     // ms (0 = keep forever), or null. The int64 out slot reads as two halves; exact below 2^53.
     parseDuration(spec) {
-      const out = core._malloc(I64);
+      const out = heapAlloc(core, I64);
       try {
         if (withCString(spec ?? '', (p) => cParseDuration(p, out)) !== 1) return null;
         return core.getValue(out + 4, 'i32') * 4294967296 + (core.getValue(out, 'i32') >>> 0);
@@ -76,7 +78,7 @@ export const buildScalarOps = (core, { I32, I64, withCString, allocPoints }) => 
     },
 
     rectZoom(x1, y1, rectW, rectH, availW, availH) {
-      const out = core._malloc(3 * 8);
+      const out = heapAlloc(core, 3 * 8);
       try {
         cRectZoom(x1, y1, rectW, rectH, availW, availH, out);
         return { scale: core.getValue(out, 'double'), scrollLeft: core.getValue(out + 8, 'double'),

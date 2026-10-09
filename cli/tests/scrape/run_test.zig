@@ -4,19 +4,15 @@ const std = @import("std");
 const args = @import("../../src/args.zig");
 const runImpl = @import("../../src/scrape/run.zig").runImpl;
 const run_mock = @import("run_mock.zig");
-const MockIo = run_mock.MockIo;
+const Rig = run_mock.Rig;
 const mkPng = run_mock.mkPng;
 const testing = std.testing;
 
 test "run: category+format filter, wrote grammar, dir, summary" {
-    var arena = std.heap.ArenaAllocator.init(testing.allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-    var threaded = std.Io.Threaded.init(testing.allocator, .{});
-    defer threaded.deinit();
-    const io = threaded.io();
+    var rig: Rig = undefined;
+    const a, const io, const mock = rig.open();
+    defer rig.close();
 
-    var mock = MockIo.init(a);
     // Mixed-case host to exercise the output-line lowercasing; c.jpg is an img but not png.
     const html = "<img src=\"a.png\"><img src=\"b.png\"><img src=\"c.jpg\">" ++
         "<video src=\"http://cdn.test/clip.mp4\" poster=\"p.png\"></video>";
@@ -44,14 +40,10 @@ test "run: category+format filter, wrote grammar, dir, summary" {
 }
 
 test "run: all categories, count 0 = all, unmeasured video line" {
-    var arena = std.heap.ArenaAllocator.init(testing.allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-    var threaded = std.Io.Threaded.init(testing.allocator, .{});
-    defer threaded.deinit();
-    const io = threaded.io();
+    var rig: Rig = undefined;
+    const a, const io, const mock = rig.open();
+    defer rig.close();
 
-    var mock = MockIo.init(a);
     const html = "<img src=\"a.png\"><video src=\"http://cdn.test/clip.mp4\" poster=\"p.png\"></video>";
     try mock.serve("http://example.com/", html);
     try mock.serve("http://example.com/a.png", mkPng(a, 10, 20));
@@ -75,14 +67,10 @@ test "run: all categories, count 0 = all, unmeasured video line" {
 }
 
 test "run: group/count windows the filtered list, fetching only the window" {
-    var arena = std.heap.ArenaAllocator.init(testing.allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-    var threaded = std.Io.Threaded.init(testing.allocator, .{});
-    defer threaded.deinit();
-    const io = threaded.io();
+    var rig: Rig = undefined;
+    const a, const io, const mock = rig.open();
+    defer rig.close();
 
-    var mock = MockIo.init(a);
     try mock.serve("http://example.com/", "<img src=\"a.png\"><img src=\"b.png\"><img src=\"c.png\">");
     try mock.serve("http://example.com/a.png", mkPng(a, 1, 1));
     try mock.serve("http://example.com/b.png", mkPng(a, 2, 2));
@@ -104,14 +92,10 @@ test "run: group/count windows the filtered list, fetching only the window" {
 }
 
 test "run: no matching media is a hard error" {
-    var arena = std.heap.ArenaAllocator.init(testing.allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-    var threaded = std.Io.Threaded.init(testing.allocator, .{});
-    defer threaded.deinit();
-    const io = threaded.io();
+    var rig: Rig = undefined;
+    const a, const io, const mock = rig.open();
+    defer rig.close();
 
-    var mock = MockIo.init(a);
     try mock.serve("http://example.com/", "<img src=\"a.png\">");
     try mock.serve("http://example.com/a.png", mkPng(a, 10, 20));
 
@@ -128,14 +112,10 @@ test "run: no matching media is a hard error" {
 }
 
 test "run: --confine-output keeps the destination dir inside the cwd; default allows it" {
-    var arena = std.heap.ArenaAllocator.init(testing.allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-    var threaded = std.Io.Threaded.init(testing.allocator, .{});
-    defer threaded.deinit();
-    const io = threaded.io();
+    var rig: Rig = undefined;
+    const a, const io, const mock = rig.open();
+    defer rig.close();
 
-    var mock = MockIo.init(a);
     try mock.serve("http://example.com/", "<img src=\"cat.png\">");
     try mock.serve("http://example.com/cat.png", mkPng(a, 1, 1));
 

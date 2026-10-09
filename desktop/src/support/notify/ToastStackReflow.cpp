@@ -47,13 +47,13 @@ namespace stencil::gui {
     }
     const bool dusted = dustToastOut(toast, host, leftInset);
     auto* fadeOut = new QPropertyAnimation(fx, "opacity", toast);
-    fadeOut->setDuration(FADE_OUT_MS);
+    fadeOut->setDuration(support::motionMs(FADE_OUT_MS));
     fadeOut->setStartValue(fx->opacity());
     fadeOut->setEndValue(0.0);
     fadeOut->setEasingCurve(QEasingCurve::InCubic);
     if (!dusted) {
       auto* dropOut = new QPropertyAnimation(toast, "geometry", toast);
-      dropOut->setDuration(FADE_OUT_MS);
+      dropOut->setDuration(support::motionMs(FADE_OUT_MS));
       dropOut->setStartValue(toast->geometry());
       dropOut->setEndValue(toast->geometry().translated(0, SLIDE_PX));
       dropOut->setEasingCurve(QEasingCurve::InCubic);

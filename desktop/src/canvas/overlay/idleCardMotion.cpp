@@ -24,6 +24,7 @@ namespace stencil::gui {
     enterAnim->setStartValue(0.0);
     enterAnim->setEndValue(1.0);
     enterT = 0.0;
+    enterAnim->setDuration(support::motionMs(IDLE_CARD_ARRIVE_MS));
     enterAnim->start();
   }
 
@@ -46,6 +47,7 @@ namespace stencil::gui {
     // Start from wherever the previous run got to, so a quick in-out doesn't jump.
     hoverAnim->setStartValue(hoverT);
     hoverAnim->setEndValue(on ? 1.0 : 0.0);
+    hoverAnim->setDuration(support::motionMs(200));
     hoverAnim->start();
 
     // The glyph's own settle (iconMotion.json "image"). Restarted from 0 on every enter and LEFT TO
@@ -63,6 +65,7 @@ namespace stencil::gui {
                 [this] { glyphMs = -1.0; host->update(); });
       }
       glyphAnim->stop();
+      glyphAnim->setDuration(support::motionMs(int(IDLE_GLYPH_PLAY_MS)));
       glyphAnim->start();
     }
 
@@ -89,6 +92,7 @@ namespace stencil::gui {
     }
     shimmerAnim->stop();
     shimmerT = 0.0;
+    shimmerAnim->setDuration(support::motionMs(750));
     shimmerAnim->start();
   }
 

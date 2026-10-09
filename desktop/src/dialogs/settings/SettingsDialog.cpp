@@ -77,13 +77,14 @@ namespace stencil::gui {
              {theme, d.themeMode}, {accent, QString(DEF_ACCENT)}, {nativeMenuBar, d.nativeMenuBar},
              {autosave, d.autosave}, {showPoints, d.showPoints}, {showLines, d.showLines},
              {style, d.defaultStyle}, {page, d.pageSize}, {drawAnim, DEF_DRAW_ANIM},
-             {modalBackdrop, d.modalBackdrop}, {multiWindow, d.multiWindow},
+             {multiWindow, d.multiWindow},
              {motionMode, QString(DEF_MOTION_MODE)},
-             {notifyChannel, QString(DEF_NOTIFY_CHANNEL)}})
+             {notifyChannel, QString(DEF_NOTIFY_CHANNEL)}, {thickness, d.defaultThickness},
+             {pointSize, d.defaultPointSize}, {holdDelay, d.holdDrawDelay}, {customW, d.customPageWidth},
+             {customH, d.customPageHeight}, {browserUrl, d.browserBaseUrl}, {botUsername, d.telegramBotUsername}})
       support::setResetDefault(w, v);
 
-    connect(search, &QLineEdit::textChanged, this,
-            [this](const QString& q) { applyFilter(q); });
+    connect(search, &QLineEdit::textChanged, this, [this](const QString& q) { applyFilter(q); });
     // The browser's max-height: 82vh shell; the sections scroll inside it.
     sizeModalTall(this, MODAL_WIDTH);
   }
@@ -103,8 +104,10 @@ namespace stencil::gui {
       columnFields.push_back(field);
     }
     QWidget* w = modalRow(r.host, label, field, /*grow=*/false);
-    if (auto* caption = w->findChild<QLabel*>())   // its row's tip, as the browser label's data-title
+    if (auto* caption = w->findChild<QLabel*>()) {   // the row's tip, as the browser label's data-title
       caption->setToolTip(field->toolTip());
+      caption->setProperty(support::CAPTION_FIELD_PROPERTY, QVariant::fromValue<QObject*>(field));
+    }
     r.col->addWidget(w);
     groups.last().rows.push_back({label, w});
   }
@@ -205,9 +208,7 @@ namespace stencil::gui {
     holdDelay->setValue(def.holdDrawDelay);
     style->setCurrentIndex(qMax(0, style->findData(def.style)));
     accent->setCurrentIndex(qMax(0, accent->findData(DEF_ACCENT)));
-    drawAnim->setChecked(DEF_DRAW_ANIM);
-    multiWindow->setChecked(Settings().multiWindow);
-    motionMode->setCurrentIndex(qMax(0, motionMode->findData(QLatin1String(DEF_MOTION_MODE))));
+    resetMotionRows();
     notifyChannel->setCurrentIndex(qMax(0, notifyChannel->findData(QLatin1String(DEF_NOTIFY_CHANNEL))));
     motionTouched = true;   // a reset is the user's own pick: it ends a skin's session override
     support::clearMotionOverride();

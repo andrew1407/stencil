@@ -1,12 +1,15 @@
-// A filter change as a question re-answered: the excluded row is gone at once and the matching one
-// re-forms out of the filter's own light sand. Then a re-list landing mid-flight, and the footer row.
+// A filter change as a question re-answered: the excluded row's slot closes at once as it dissolves,
+// and the matching one re-forms out of the filter's own light sand. Then a re-list landing mid-flight, and the footer row.
 #include "ProjectsBatchBarParts.hpp"
+#include "ReorderableListWidget.hpp"
+#include <QScrollBar>
+#include <QWheelEvent>
 
 int filterTransitions(const std::vector<Project>& locals) {
   // Filter transitions: a row the SEARCH excludes fades and collapses out (support/filterFade), never
   // with the scatter a removal uses, and comes back the same way round. Local-only: no server poll.
   {
-    std::printf("filter transitions (the answer arrives; nothing plays out):\n");
+    std::printf("filter transitions (the dropped row dissolves; the answer arrives):\n");
     ProjectsDialog dlg(locals, 5000);
     dlg.show();
     pumpFor(50);
@@ -14,6 +17,10 @@ int filterTransitions(const std::vector<Project>& locals) {
     auto* search = dlg.findChild<QLineEdit*>();
     check(list && search, "finds the projects list and its search box");
     if (!list || !search) return 1;
+    check(list->verticalScrollMode() == QAbstractItemView::ScrollPerPixel,
+          "the list scrolls by the pixel, never snapping to a row top");
+    check(list->verticalScrollBar()->singleStep() == 20,
+          "…20px an arrow-key step, as every other scrolled window, not a row");
     auto keep = [&] { return rowById(list, "l1", false); };   // "alpha" — matches "alp"
     auto drop = [&] { return rowById(list, "l2", false); };   // "beta"  — does not
     auto rowH = [&](QListWidgetItem* it) { return it ? list->visualItemRect(it).height() : -1; };
@@ -21,11 +28,24 @@ int filterTransitions(const std::vector<Project>& locals) {
     if (!keep() || !drop()) { dlg.reject(); return 1; }
     const int fullH = rowH(keep());
     check(fullH > 0 && rowH(drop()) == fullH, "a settled row occupies its whole slot");
+    const QRect dropAt(list->viewport()->mapTo(&dlg, list->visualItemRect(drop()).topLeft()),
+                       list->visualItemRect(drop()).size());
 
     search->setText("alp");
-    // A filter DROPS nothing: the excluded row is out of the answer, and out of the view,
-    // the moment the answer changes. There is no exit to watch.
-    check(drop()->isHidden() && rowH(drop()) == 0, "an excluded row is gone at once");
+    // The excluded row is out of the answer, and out of the view, the moment the answer changes;
+    // what is seen of it is its own dust, scattering from where it sat (browser filterDustOut).
+    check(drop()->isHidden() && rowH(drop()) == 0, "an excluded row's slot closes at once");
+    bool dissolves = false;
+    for (QWidget* fx : dlg.findChildren<QWidget*>(QString::fromLatin1(FILTER_DUST_OBJECT_NAME)))
+      // Clipped to the viewport, so a few pixels narrower than the item's nominal rect.
+      dissolves = dissolves || (fx->geometry().topLeft() == dropAt.topLeft()
+                                && fx->height() == dropAt.height() && fx->width() <= dropAt.width());
+    check(dissolves, "…dissolving where it sat, in the filter's light dust");
+    const QRect view(list->viewport()->mapTo(&dlg, QPoint(0, 0)), list->viewport()->size());
+    bool clipped = true;
+    for (QWidget* fx : dlg.findChildren<QWidget*>(QString::fromLatin1(FILTER_DUST_OBJECT_NAME)))
+      clipped = clipped && static_cast<DisintegrateOverlay*>(fx)->getPaintClip() == view;
+    check(clipped, "…its motes painted over the list alone, never the header or footer");
     check(!filteredIn(drop()), "…and has left the filtered set");
     check(filteredIn(keep()), "…while the matching row is still in it");
     check(dlg.findChild<QWidget*>(DisintegrateOverlay::OBJECT_NAME) == nullptr,
@@ -126,5 +146,33 @@ int filterTransitions(const std::vector<Project>& locals) {
     }
     QApplication::setFont(appFont);
   }
+  return 0;
+}
+
+// The list scrolls as the browser's does (support/scroll/smoothWheel.hpp): a trackpad by its own
+// pixels, a wheel notch by Chrome's 100px, eased, with quick notches adding up.
+int wheelScroll() {
+  std::printf("wheel and trackpad scrolling:\n");
+  stencil::gui::ReorderableListWidget list;
+  for (int i = 0; i < 60; ++i) list.addItem(QString("row %1").arg(i));
+  list.resize(300, 200);
+  list.show();
+  pumpFor(30);
+  QScrollBar* bar = list.verticalScrollBar();
+  check(bar->maximum() > 400, "the list has room to scroll");
+  const auto wheel = [&](QPoint pixels, QPoint angle) {
+    const QPointF at(20, 20);
+    QWheelEvent e(at, list.viewport()->mapToGlobal(at.toPoint()), pixels, angle, Qt::NoButton,
+                  Qt::NoModifier, Qt::NoScrollPhase, false);
+    QCoreApplication::sendEvent(list.viewport(), &e);
+  };
+  wheel(QPoint(0, -37), QPoint(0, -37 * 8));
+  check(bar->value() == 37, "a trackpad moves it by exactly the pixels it reports");
+  wheel(QPoint(0, 37), QPoint(0, 37 * 8));
+  check(bar->value() == 0, "…both ways");
+  wheel(QPoint(), QPoint(0, -120));
+  wheel(QPoint(), QPoint(0, -120));
+  pumpUntil([&] { return bar->value() == 200; });
+  check(bar->value() == 200, "two quick wheel notches land 100px each, added up");
   return 0;
 }

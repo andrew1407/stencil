@@ -2,7 +2,7 @@
 // row gathers in on the list's removal hold, so the connections echo cannot rebuild it.
 // Desktop twin: ConnectDialog::doConnect (dialogs/connect/ConnectDialogActions.cpp).
 import { notify } from '../../utils.js';
-import { normalizeUrl, isInsecureRemote } from '../../net/connectionManager.js';
+import { normalizeUrl, isInsecureRemote } from '../../net/urlRules.js';
 import { materialize, rowDustGrid } from '../motion.js';
 import { batchNote } from './rules.js';
 

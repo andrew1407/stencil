@@ -119,7 +119,7 @@ int main(int argc, char** argv) {
     check(styleOf("makeItSmall") == int(ParticleStyle::WATER), "…and follows the style in use");
     setMotionMode(MotionMode::NONE);
     check(styleOf("makeItSmall") == int(ParticleStyle::DUST), "particles off: a show still wears dust");
-    setMotionOverride({MotionMode::NONE, false, false});
+    setMotionOverride({MotionMode::NONE, false});
     check(styleOf("makeItSmall") == int(ParticleStyle::DUST) && motionOverridden(),
           "…and a skin's stillness never reaches it");
     clearMotionOverride();

@@ -25,6 +25,12 @@ export const { context, background, extId } = await launchExtension();
 const sw = await background();
 await sw.evaluate((editorUrl) => new Promise((done) => chrome.storage.sync.set({ editorUrl }, done)), app.url);
 
+// The editor tabs the extension opens load with motion off, so a picture never lands mid-arrival.
+const seed = await context.newPage();
+await seed.goto(app.url);
+await seed.evaluate(() => localStorage.setItem('drawingApp_motion', JSON.stringify({ mode: 'none' })));
+await seed.close();
+
 export const host = await context.newPage();
 await host.setViewportSize(VIEWS.site);
 await host.goto(site.url);

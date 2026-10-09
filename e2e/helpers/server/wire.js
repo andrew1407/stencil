@@ -1,18 +1,12 @@
-// Live-edit protocol clients mirroring server/internal/protocol (WSMessage envelope)
-// and the hello→subscribe→welcome→edit/save handshake from server/internal/hub/hub_test.go.
-// WS uses the `ws` lib (one JSON text frame per message); raw TCP uses NDJSON (one
-// compact-JSON record per line) over Node's built-in net.
+// Feed clients mirroring server/internal/protocol (WSMessage envelope): a hello, then the
+// project-event stream. WS uses the `ws` lib (one JSON text frame per message); raw TCP uses
+// NDJSON (one compact-JSON record per line) over Node's built-in net.
 import WebSocket from 'ws';
 import net from 'node:net';
 import { SERVER_WS, SERVER_TCP_PORT } from './api.js';
 
 // WS message type constants (protocol.go).
-export const T = {
-  hello: 'hello', subscribe: 'subscribe', edit: 'edit', save: 'save', ping: 'ping',
-  cursor: 'cursor', presence: 'presence',
-  welcome: 'welcome', peerJoin: 'peer-join', peerLeave: 'peer-leave', synced: 'synced',
-  error: 'error', pong: 'pong', projectEvent: 'project-event',
-};
+export const T = { hello: 'hello', error: 'error', projectEvent: 'project-event' };
 
 // One shape over both WS and TCP: `readUntil` resolves the first frame of a wanted type.
 class Client {
@@ -25,7 +19,7 @@ class Client {
   send(msg) { this._send(JSON.stringify(msg)); return this; }
   readUntil(type, timeoutMs = 4000) { return this.readWhere(type, () => true, timeoutMs); }
   // Like readUntil, but only resolves a frame of `type` that also satisfies `match`
-  // (e.g. a peer-join for a SPECIFIC client — the server also emits a self peer-join).
+  // (e.g. the project-event about a SPECIFIC project).
   readWhere(type, match, timeoutMs = 4000) {
     const hit = this._q.findIndex((m) => m.type === type && match(m));
     if (hit >= 0) return Promise.resolve(this._q.splice(hit, 1)[0]);
@@ -39,6 +33,15 @@ class Client {
       this._waiters.push({ type, match, resolve: wrapped });
     });
   }
+  // Resolves once the peer has closed the socket.
+  closed(timeoutMs = 4000) {
+    return new Promise((resolve, reject) => {
+      if (this._isClosed) return resolve();
+      const timer = setTimeout(() => reject(new Error('the peer did not close')), timeoutMs);
+      this._onClose = () => { clearTimeout(timer); resolve(); };
+    });
+  }
+  _markClosed() { this._isClosed = true; this._onClose?.(); }
   close() { this._close(); }
 }
 
@@ -49,6 +52,7 @@ export function dialWS() {
   c._raw = ws;                       // exposed so a test can abruptly terminate() a peer
   c.terminate = () => ws.terminate();
   ws.on('message', (data) => { try { c._push(JSON.parse(data.toString())); } catch { /* ignore */ } });
+  ws.on('close', () => c._markClosed());
   return new Promise((resolve, reject) => {
     ws.on('open', () => resolve(c));
     ws.on('error', reject);
@@ -68,15 +72,9 @@ export function dialTCP(port = SERVER_TCP_PORT) {
       if (line.trim()) { try { c._push(JSON.parse(line)); } catch { /* ignore */ } }
     }
   });
+  sock.on('close', () => c._markClosed());
   return new Promise((resolve, reject) => {
     sock.on('connect', () => resolve(c));
     sock.on('error', reject);
   });
-}
-
-// Join a project session over a freshly dialed client: hello + subscribe, await welcome.
-export async function join(client, { token, projectId, clientId }) {
-  client.send({ type: T.hello, token, projectId, clientId });
-  client.send({ type: T.subscribe });
-  return client.readUntil(T.welcome);
 }

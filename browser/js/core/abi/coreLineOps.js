@@ -3,6 +3,7 @@
 // linesCodec.js pair, a point list as one flat [x0,y0,…] array.
 import constants from '../../../../common/config/constants.json' with { type: 'json' };
 import { encodeLines } from '../line/linesCodec.js';
+import { heapAllocAll } from './coreMarshal.js';
 
 const { layoutLinesMax, layoutLinePointsMax, layoutPointsMax } = constants.LIMITS;
 
@@ -28,7 +29,7 @@ export const buildLineOps = (core, { F64, I32 }) => {
 
   // Every buffer _malloc'd for the call and freed after; a zero-length one still gets a byte.
   const withHeap = (bytes, use) => {
-    const ptrs = bytes.map((n) => core._malloc(Math.max(1, n)));
+    const ptrs = heapAllocAll(core, bytes.map((n) => Math.max(1, n)));
     try { return use(ptrs); } finally { ptrs.forEach((p) => core._free(p)); }
   };
   const flat = (points) => points.flatMap((p) => [p.x, p.y]);

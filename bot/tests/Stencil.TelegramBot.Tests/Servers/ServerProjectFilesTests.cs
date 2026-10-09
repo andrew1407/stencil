@@ -1,4 +1,5 @@
 using Stencil.TelegramBot.Application.Servers;
+using Stencil.TelegramBot.Domain.Editing;
 using Stencil.TelegramBot.Domain.Exceptions;
 using Stencil.TelegramBot.Domain.Projects;
 using Stencil.TelegramBot.Domain.Sessions;
@@ -64,18 +65,39 @@ public sealed class ServerProjectFilesTests : ServerServiceTestBase
     }
 
     [Fact]
-    public async Task Should_Surface_A_Conflict_On_Save_Active_Project()
+    public async Task Should_Surface_A_Conflict_Once_Six_Tries_Have_Lost_On_Save_Active_Project()
     {
         await SeedWorkingImageAsync();
         await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
-        ProjectRecord created = await _service.CreateProjectAsync(UserId, "Doc", url: null);
-        // Another writer bumps the server version, so our stored version is now stale.
-        _factory.ClientFor(ServerA).BumpVersion(created.Id);
+        await _service.CreateProjectAsync(UserId, "Doc", url: null);
+        // A peer saves ahead of every one of our writes, so no merge pass ever lands.
+        MockStencilServerClient client = _factory.ClientFor(ServerA);
+        client.BeforeUpdate = client.BumpVersion;
 
         ServerException ex = await Assert.ThrowsAsync<ServerException>(
             () => _service.SaveActiveProjectAsync(UserId));
 
         Assert.True(ex.IsConflict);
+        Assert.Contains("This project was edited elsewhere — reload it from the server before saving again.", ex.Message);
+        Assert.Equal(5, _cli.Merges.Count); // a merge between each pair of the six tries
+        Assert.DoesNotContain(client.Puts, p => p.Kind == ProjectFileKind.RESULT);
+    }
+
+    [Fact]
+    public async Task Should_Keep_The_Layouts_Version_When_A_Peer_Saves_Before_The_Upload_Re_Read()
+    {
+        await SeedWorkingImageAsync();
+        await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
+        ProjectRecord created = await _service.CreateProjectAsync(UserId, "Doc", url: null);
+        MockStencilServerClient client = _factory.ClientFor(ServerA);
+        client.AfterPut = client.BumpVersion;
+
+        ProjectRecord saved = await _service.SaveActiveProjectAsync(UserId);
+
+        // The layout write named created+1; the upload and the peer moved the server two past it.
+        Assert.Equal(created.Version + 1, saved.Version);
+        Assert.Equal(created.Version + 1, (await _store.GetAsync(UserId)).ActiveProjectVersion);
+        Assert.Equal(created.Version + 3, (await client.GetProjectAsync(created.Id)).Project.Version);
     }
 
     [Fact]
@@ -106,4 +128,21 @@ public sealed class ServerProjectFilesTests : ServerServiceTestBase
         await Assert.ThrowsAsync<InvalidOperationException>(() => _service.DeleteActiveProjectAsync(UserId));
     }
 
+    [Fact]
+    public async Task Should_Reuse_A_Callers_Render_And_Delete_Only_Its_Own()
+    {
+        await SeedWorkingImageAsync();
+        await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
+        await _service.CreateProjectAsync(UserId, "Doc", url: null);
+        Assert.False(File.Exists(_cli.LastRequest!.Output)); // create's render, uploaded then deleted
+
+        await _service.SaveActiveProjectAsync(UserId);
+        Assert.False(File.Exists(_cli.LastRequest!.Output));
+
+        int renders = _cli.EditCalls;
+        RenderResult mine = await _editing.RenderAsync(UserId);
+        await _service.SaveActiveProjectAsync(UserId, mine);
+        Assert.Equal(renders + 1, _cli.EditCalls); // a synced edit renders once, not twice
+        Assert.True(File.Exists(mine.Path));
+    }
 }

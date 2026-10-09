@@ -44,13 +44,6 @@ func (f *MemStore) GetProject(_ context.Context, id string) (protocol.ProjectRec
 	return f.read(id)
 }
 
-// GetProjectSnapshot mirrors the live-session read: the same full row.
-func (f *MemStore) GetProjectSnapshot(_ context.Context, id string) (protocol.ProjectRecord, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return f.read(id)
-}
-
 // GetProjectMeta mirrors the metadata-only read.
 func (f *MemStore) GetProjectMeta(_ context.Context, id string) (protocol.ProjectRecord, error) {
 	f.mu.Lock()

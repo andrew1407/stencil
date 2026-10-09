@@ -78,12 +78,18 @@ namespace stencil::gui {
         (support::isWebcore() ? QString() : support::chatDockSheet(pal))
         // The bubbles come from the SHARED sheet the context menu's panel applies too.
         + support::chatCardStyleSheet(pal, chatSwapSides));
+    // The tails are painted, not styled: a theme change recolours them here.
+    applyChatSwapToCards(log.transcript, log.transcriptLayout, chatSwapSides, accentCache,
+                         chipCache, borderCache, dangerCache, pal.bgControls);
     const QColor onAccent = pal.onAccent;
     cmp.send->setIcon(themedIcon(isBusy() ? "stop" : "send", onAccent, ACCENT_ICON));
     cmp.attach->setIcon(themedIcon("image", onAccent, ACCENT_ICON));
     cmp.gear->setIcon(themedIcon("gear", onAccent, ACCENT_ICON));
     chrome.clearBtn->setIcon(themedIcon("trash", onAccent, ACCENT_ICON));
     if (cmp.more) cmp.more->setIcon(themedIcon("dots", onAccent, ACCENT_ICON));
+    for (QToolButton* b : findChildren<QToolButton*>())
+      if (const QString name = b->property(RESULT_ICON_PROPERTY).toString(); !name.isEmpty())
+        b->setIcon(themedIcon(name, onAccent, RESULT_ICON));
     restyleChatMoreMenu(moreRows, pal.textMain);
     chrome.closeBtn->setIcon(themedIcon("x", pal.textMain, 14));
     // A layout does not see a QSS border: qss/webcore/chat.qss's raised chatBody sides stay uncovered.

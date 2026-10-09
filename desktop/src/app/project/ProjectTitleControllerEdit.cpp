@@ -67,20 +67,17 @@ namespace stencil::gui {
       if (!newName.isEmpty() && newName != remote.session->getLink().name && c) {
         QPointer<ProjectTitleController> self(this);
         const QString id = remote.session->getLink().id;
-        remote.session->putVersionGuardedAsync(
-            c, id,
+        remote.session->putMetaAsync(
+            c, remote.session->getLink().address, id,
             [c, id, newName](qint64 version, std::function<void(bool, qint64, bool)> cb) {
               c->updateProjectNameAsync(id, newName, version, cb);
             },
-            [this, self, c, newName](bool ok, qint64 newVersion) {
+            // The editor may hold another project by now: that link is left alone.
+            [newName](RemoteLink& link) { link.name = newName; },
+            [this, self, c, newName](bool ok, qint64) {
               if (!self) return;
-              if (ok) {
-                remote.session->getLink().name = newName;
-                remote.session->getLink().version = newVersion;
-                notify->success(QString("Renamed to \"%1\"").arg(newName));
-              } else {
-                notify->error(QString("Rename failed: %1").arg(c->lastError()));
-              }
+              if (ok) notify->success(QString("Renamed to \"%1\"").arg(newName));
+              else notify->error(QString("Rename failed: %1").arg(c->lastError()));
               updateProjectTitle();   // reflect the stored name (renamed, or reverted on failure)
             });
       }

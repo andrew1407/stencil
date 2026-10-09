@@ -8,7 +8,7 @@ namespace Stencil.TelegramBot.Application.Llm;
 
 // `/script` and the `.stc` upload: the CLI lowers the script to op-plan JSON, core judges each chunk
 // as it judges a model plan, and it runs through the same mapper, pre-flight and executor.
-public sealed class ScriptService : IScriptService
+public sealed class ScriptService
 {
     // Far above any hand-written script and far under IBotPolicy.MaxDocumentBytes.
     public const int MAX_SCRIPT_CHARS = 64 * 1024;
@@ -23,14 +23,14 @@ public sealed class ScriptService : IScriptService
     private readonly IStencilCli _cli;
     private readonly IUserWorkspace _workspace;
     private readonly ISessionStore _store;
-    private readonly IEditingService _editing;
+    private readonly EditingService _editing;
     private readonly PromptService _prompts;
 
     public ScriptService(
         IStencilCli cli,
         IUserWorkspace workspace,
         ISessionStore store,
-        IEditingService editing,
+        EditingService editing,
         PromptService prompts)
     {
         _cli = cli;
@@ -40,6 +40,7 @@ public sealed class ScriptService : IScriptService
         _prompts = prompts;
     }
 
+    // Lowers the script through the CLI and applies the result to the user's working image.
     public async Task<ScriptOutcome> RunAsync(long userId, string scriptText, CancellationToken ct = default)
     {
         if (scriptText.Trim().Length == 0)

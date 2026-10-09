@@ -196,6 +196,8 @@
 "239-layout-line-point-color-not-string-invalid.json": {"error":"Invalid layout action: \"pointColor\" in lines[0] must be a string","verdict":"invalid"},
 "240-copy-project-open-incognito.json": {"actions":[{"incognito":true,"local":true,"op":"copyProject","open":"newtab","what":"layout"}],"reply":"ok","variants":[],"verdict":"valid","warnings":[]},
 "241-copy-project-incognito-closed-invalid.json": {"error":"Invalid copyProject action: \"incognito\" only applies with \"open\" \"here\" or \"newtab\"","verdict":"invalid"},
+"242-layout-negative-point-size-invalid.json": {"error":"Invalid layout action: \"pointSize\" in lines[0] must be a number >= 0","verdict":"invalid"},
+"243-layout-fractional-thickness-valid.json": {"actions":[{"lines":[{"color":"#FFFF00","fillColor":"transparent","locked":false,"pointColor":"","pointSize":0,"points":[[0,0],[10,20]],"style":"solid","thickness":0.5}],"op":"layout"}],"reply":"ok","variants":[],"verdict":"valid","warnings":[]},
 "gen-accent-color-grammar-bogus.json": {"error":"Invalid accent action: \"color\" must be #rrggbb","verdict":"invalid"},
 "gen-accent-color-wrong-type.json": {"error":"Invalid accent action: \"color\" must be a string","verdict":"invalid"},
 "gen-accent-forms-both.json": {"error":"Invalid accent action: exactly one of \"color\" / \"preset\" is required","verdict":"invalid"},

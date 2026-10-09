@@ -83,7 +83,6 @@ stencil-chat-panel.chat-dock-float  { border-radius: 10px; }
     background: transparent;
     cursor: not-allowed;
 }
-a.chat-hbtn { text-decoration: none; }
 /* Input-row action buttons (send / attach / gear): the app's standard accent
    btn-icon treatment — order is send first, then media, then settings. */
 .chat-abtn, .ctx-assist-abtn { width: 34px; height: 34px; padding: 0; flex: 0 0 auto; border-radius: 6px; }

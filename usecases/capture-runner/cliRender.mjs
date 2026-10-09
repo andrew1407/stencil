@@ -37,4 +37,4 @@ const STEPS = Object.freeze(files.map((file) => ({
 console.log('cli listings');
 await runner.play(STEPS);
 await browser.close();
-runner.finish();
+await runner.finish();

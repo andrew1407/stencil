@@ -1,6 +1,8 @@
 // Batch remove: the confirm answered in-dialog, one dust cloud per VISIBLE checked row and none for
 // the scrolled-out ones, every checked id retired in place. Then the checkbox strip, which selects.
 #include "ProjectsBatchBarParts.hpp"
+#include <QScrollBar>
+#include <cstdlib>
 
 int batchRemoveAndCheckboxPress(const std::vector<Project>& locals) {
   // ── Batch remove: every checked row resolves; visible rows scatter inside the list ──
@@ -28,6 +30,13 @@ int batchRemoveAndCheckboxPress(const std::vector<Project>& locals) {
     check(expectedOverlays > 0, "some checked rows are on screen");
     check(expectedOverlays < list->count(), "some checked rows are scrolled out of view");
     const QRect viewInDlg(list->viewport()->mapTo(&dlg, QPoint(0, 0)), view.size());
+    // Settings parity: the bar rides the window's edge, and the rows still end under the search box.
+    QScrollBar* vbar = list->verticalScrollBar();
+    auto* search = dlg.findChild<QLineEdit*>();
+    const int barRight = vbar->mapTo(&dlg, QPoint(vbar->width(), 0)).x();
+    check(vbar->isVisible() && dlg.width() - barRight <= 2, "the scrollbar rides the window's right edge");
+    check(search && std::abs(viewInDlg.right() - search->mapTo(&dlg, QPoint(search->width() - 1, 0)).x()) <= 1,
+          "…while the rows end where the search box does");
 
     QPushButton* removeBtn = btnByText(&dlg, QStringLiteral("Remove selected"));
     check(removeBtn && removeBtn->isVisible(), "batch Remove available with 14 checked");

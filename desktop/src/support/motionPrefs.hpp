@@ -2,10 +2,16 @@
 // The switches every animation asks before it plays. Header-only on purpose: the motion
 // helpers sit in different link targets, and a gate they all consult must not drag a .cpp.
 #include <QColor>
+#include <QFile>
 #include <QGuiApplication>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QLatin1String>
 #include <QString>
 #include <QtGlobal>
+#include <QVariantAnimation>
+#include <algorithm>
+#include <cmath>
 #include <optional>
 
 namespace stencil::support {
@@ -17,11 +23,10 @@ namespace stencil::support {
   // Browser dust/cloud.js PARTICLE_STYLES.
   enum class ParticleStyle { DUST, WATER, FIRE };
 
-  // The three switches together, so a skin can lay its own set over the stored ones.
+  // The switches together, so a skin can lay its own set over the stored ones.
   struct MotionSwitches {
     MotionMode mode = MotionMode::PARTICLES;
     bool drawing = true;
-    bool backdrop = true;   // browser list/prefs.js DEFAULT_MODAL_BACKDROP
   };
 
   namespace detail {
@@ -98,15 +103,70 @@ namespace stencil::support {
   inline bool drawingAnimations() { return detail::live().drawing; }
   inline void setDrawingAnimations(bool on) { detail::storedState().drawing = on; }
 
-  // Whether an open window dims and blurs what is behind it (support/ModalBackdrop).
-  // Browser twin: list/prefs.js modalBackdrop().
-  inline bool modalBackdrop() { return detail::live().backdrop; }
-  inline void setModalBackdrop(bool on) { detail::storedState().backdrop = on; }
 
   // Windows open side by side, non-modal and undimmed; off, one window at a time.
   // Browser twin: motionPrefs.js multiWindow().
   inline bool multiWindow() { return detail::multiWindowState(); }
   inline void setMultiWindow(bool on) { detail::multiWindowState() = on; }
+
+  // Whether an open window dims and blurs what is behind it (support/ModalBackdrop): one window at a
+  // time does, side by side does not. Browser twin: motionPrefs.js data-modal-backdrop.
+  inline bool modalBackdrop() { return !multiWindow(); }
+
+  // The Visuals "Animation speed": common/config/motion.json `speed`, read once.
+  struct MotionSpeedRange {
+    double min = 0.1;
+    double max = 1.0;
+    double def = 0.37;
+    double step = 0.01;
+  };
+  inline const MotionSpeedRange& motionSpeedRange() {
+    static const MotionSpeedRange r = [] {
+      MotionSpeedRange out;
+      QFile f(QStringLiteral(":/config/motion.json"));
+      if (!f.open(QIODevice::ReadOnly)) return out;
+      const QJsonObject s = QJsonDocument::fromJson(f.readAll()).object().value(QLatin1String("speed")).toObject();
+      out.min = s.value(QLatin1String("min")).toDouble(out.min);
+      out.max = s.value(QLatin1String("max")).toDouble(out.max);
+      out.def = s.value(QLatin1String("default")).toDouble(out.def);
+      out.step = s.value(QLatin1String("step")).toDouble(out.step);
+      return out;
+    }();
+    return r;
+  }
+  // Browser twin: motionPrefs.js clampMotionSpeed — NaN is the default, hundredths otherwise.
+  inline double clampMotionSpeed(double v) {
+    const MotionSpeedRange& r = motionSpeedRange();
+    if (!std::isfinite(v)) return r.def;
+    return std::round(std::clamp(v, r.min, r.max) * 100.0) / 100.0;
+  }
+  namespace detail {
+    inline double& motionSpeedState() {
+      static double s = motionSpeedRange().def;
+      return s;
+    }
+  }  // namespace detail
+  inline double motionSpeed() { return detail::motionSpeedState(); }
+  inline void setMotionSpeed(double v) { detail::motionSpeedState() = clampMotionSpeed(v); }
+  // Duration multiplier: exactly 1 at the default, so every tuned length plays as tuned.
+  inline double motionScale() { return motionSpeedRange().def / motionSpeed(); }
+  inline int motionMs(int ms) {
+    const double k = motionScale();
+    if (k == 1.0 || ms <= 0) return ms;
+    return std::max(1, int(std::lround(ms * k)));
+  }
+  // An elapsed real clock read on the tuned timeline, for painters that drive their own frames: a
+  // play keeps the scale it started with, so a change mid-flight never jumps it.
+  inline qint64 motionElapsed(qint64 realMs, double scale) {
+    return scale == 1.0 ? realMs : qint64(std::llround(double(realMs) / scale));
+  }
+  inline qint64 motionElapsed(qint64 realMs) { return motionElapsed(realMs, motionScale()); }
+  // An animation started at its tuned length, scaled by the speed in force as it starts.
+  inline void startTuned(QVariantAnimation* anim, int ms,
+                         QAbstractAnimation::DeletionPolicy policy = QAbstractAnimation::KeepWhenStopped) {
+    anim->setDuration(motionMs(ms));
+    anim->start(policy);
+  }
 
   // Qt has no portable reduce-motion hint; this env var is the opt-out that overrides the mode.
   inline bool motionReduced() {

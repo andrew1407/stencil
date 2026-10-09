@@ -5,7 +5,10 @@
 import { createEditorState } from '../../core/editorState.js';
 import { DEFAULT_PERIOD } from '../../core/project/meta/projectPeriods.js';
 import { defaultSettings as llmDefaults } from '../../llm/settings.js';
-import { DEFAULT_DRAWING_ANIMATIONS, DEFAULT_MODAL_BACKDROP, DEFAULT_MOTION_MODE } from '../motion/motionPrefs.js';
+import { DEFAULT_DRAWING_ANIMATIONS, DEFAULT_MOTION_MODE, DEFAULT_MOTION_SPEED,
+  DEFAULT_MULTI_WINDOW } from '../motion/motionPrefs.js';
+import { DEFAULT_SORT_MODE } from '../projects/window/projectSort.js';
+import { SILENCE_MS_DEFAULT } from '../../llm/voice/settings.js';
 import { DEFAULT_NOTIFY_CHANNEL } from '../../core/settings/notifyChannel.js';
 import { normalizeHex } from '../../core/settings/accents.js';
 import { dragsStarted } from '../drag/iconDrag.js';
@@ -24,13 +27,16 @@ const DEFAULTS = Object.freeze({
   'line-style': editor('style'), 'compare-mode': editor('compareMode'), 'show-points': editor('showPoints'),
   'show-lines': editor('showLines'), 'allow-formulas': editor('allowFormulas'),
   'vs-appearance': () => 'system', 'vs-style': editor('style'), 'vs-motion-mode': () => DEFAULT_MOTION_MODE,
-  'vs-draw-anim': () => DEFAULT_DRAWING_ANIMATIONS, 'vs-modal-backdrop': () => DEFAULT_MODAL_BACKDROP,
-  'vs-notify-channel': () => DEFAULT_NOTIFY_CHANNEL,
+  'vs-draw-anim': () => DEFAULT_DRAWING_ANIMATIONS,
+  'vs-notify-channel': () => DEFAULT_NOTIFY_CHANNEL, 'vs-multi-window': () => DEFAULT_MULTI_WINDOW,
+  'vs-motion-speed-value': () => DEFAULT_MOTION_SPEED.toFixed(2), 'vs-motion-speed': () => DEFAULT_MOTION_SPEED,
+  'vs-thickness': editor('thickness'), 'vs-point': editor('pointSize'),
+  'vs-hold-delay': () => constants.HOLD_DRAW.delayMs, 'vs-voice-silence': () => SILENCE_MS_DEFAULT,
   'chat-provider': () => llmDefaults().provider, 'chat-save-chats': () => llmDefaults().saveChats,
   // openImage/modal.js onOpen and cropRows.js state these as literals.
   'open-image-incognito': () => false, 'open-image-rename': () => false, 'open-image-keep': () => true,
   'open-image-crop-toggle': () => false, 'open-image-crop-size': () => 'page',
-  'projects-filter': () => 'all', 'projects-sort': () => 'name', 'projects-search-mode': () => 'common',
+  'projects-filter': () => 'all', 'projects-sort': () => DEFAULT_SORT_MODE, 'projects-search-mode': () => 'common',
   'connect-autoconnect': () => true, 'connect-sync': () => true, 'connect-filter': () => 'all',
   'expiration-period': () => DEFAULT_PERIOD, 'expiration-auto': () => true, 'expiration-keep': () => false,
   'sel-style': () => 'solid', 'fs-sel-style': () => 'solid', 'open-in-incognito': () => false,
@@ -61,9 +67,19 @@ const SKIP = '.project-row, .connect-row, .lines-row, .coordinates-table, [data-
 // A colour field has no markup default worth returning to, so only a stated one opts it in.
 const hasStatedDefault = (el) => !!DEFAULTS[el.id] || el.dataset.default !== undefined;
 
+// A settings row's title stands for its control (desktop: the caption's CAPTION_FIELD_PROPERTY).
+const ROW_TITLE = '.vs-row > label:first-child';
+const rowControl = (title) => {
+  const el = title.closest('.vs-row')?.querySelector('.vs-ctrl select, .vs-ctrl input');
+  if (!el) return null;
+  return el.tagName === 'SELECT' || el.type === 'checkbox' || hasStatedDefault(el) ? el : null;
+};
+
 /** The control a double-click on `target` resets: a select behind its custom trigger, a checkbox, a colour field with a stated default, or a mirrored menu row. */
 export const resetTarget = (target) => {
   if (!(target instanceof Element) || target.closest(SKIP)) return null;
+  const title = target.closest(ROW_TITLE);
+  if (title) return rowControl(title);
   const row = target.closest(MIRROR_SELECTOR);
   if (row) return row;
   const trigger = target.closest('.accent-dd-trigger');
@@ -115,6 +131,7 @@ const TAKE = Object.freeze({
     el.value = String(want);
     return true;
   },
+  range: (el, want) => TAKE.number(el, want),
   text: (el, want) => {
     if (el.value === want) return false;
     el.value = want;

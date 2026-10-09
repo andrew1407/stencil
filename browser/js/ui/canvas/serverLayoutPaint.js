@@ -1,5 +1,6 @@
 import { setVal, setRadioGroup, cmToUnit } from '../../utils.js';
 import { normalizePageSize } from '../../core/settings/units.js';
+import { formulaText } from '../../core/parse/formulaEngine.js';
 import { revealControls } from '../motion.js';
 
 // ── Adopting a peer's (or the server's) layout onto the controls ─────────────
@@ -49,8 +50,8 @@ export const adoptServerFormulas = (app, layout) => {
   const cb = document.getElementById('allow-formulas');
   if (cb) cb.checked = allow;
   app.settings.syncFormulaUI(allow);
-  const fx = layout && typeof layout.formulaX === 'string' ? layout.formulaX : '';
-  const fy = layout && typeof layout.formulaY === 'string' ? layout.formulaY : '';
+  const fx = formulaText(layout?.formulaX);
+  const fy = formulaText(layout?.formulaY);
   app.formulaX = fx;
   app.formulaY = fy;
   setVal('formula-x', app.formulaX);

@@ -9,6 +9,10 @@
 
 class QWidget;
 
+namespace stencil::net {
+  class ServerClient;
+}
+
 namespace stencil::gui {
 
   // What removing `n` projects says, from the projects window or the assistant (browser
@@ -45,6 +49,8 @@ namespace stencil::gui {
     void closeActiveProject(QWidget* over = nullptr, const QRect& from = QRect(), bool ask = true);
     // The projects list's drag targets here: the window's zones, and Close for the open project.
     void wireProjectsDrag(ProjectsDialog& dlg, const std::function<bool()>& unsavedSession);
+    // Its stay-open requests: the dialog confirms in place, the window acts and repaints it.
+    void wireProjectsRequests(ProjectsDialog& dlg, const std::function<bool()>& unsavedSession);
     void resetToBlankEditor();
     void openServerProject(const QString& serverUrl, const QString& id, bool silent = false,
                            bool link = true);
@@ -79,11 +85,24 @@ namespace stencil::gui {
     void setActiveBlankColor();
     void applyBlankColor(const QColor& c);
     bool renameProjectById(const QString& id, const QString& name);
+    // The Projects row menu's edits; `serverUrl` empty for a local row, whose `landed` never runs.
+    using MetaLanded = std::function<void(bool ok, qint64 version)>;
+    void setProjectDescriptionById(const QString& id, const QString& serverUrl, const QString& text,
+                                   MetaLanded landed = {});
+    void setProjectKeywordsById(const QString& id, const QString& serverUrl, const QStringList& keywords,
+                                MetaLanded landed = {});
     void setProjectColorById(const QString& id, const QString& serverUrl, const QString& color,
                              std::function<void(bool ok)> done = {});
     std::optional<QString> normalizeProjectColor(const QString& color) const;
 
    private:
+    using MetaPut = std::function<void(stencil::net::ServerClient*, qint64, std::function<void(bool, qint64, bool)>)>;
+    // A local row's store edit, or a server row's PUT; `what` names the toasts.
+    void setProjectMetaById(const QString& id, const QString& serverUrl, const QString& what, bool cleared,
+                            const std::function<bool()>& applyLocal, MetaPut put, MetaLanded landed);
+    // The server row's PUT, version-guarded with the meta retries; `saved` overrides "<what> saved".
+    void putServerMeta(const QString& serverUrl, const QString& id, const QString& what, MetaPut put,
+                       const QString& saved = {}, MetaLanded landed = {});
     MainWindow& w;
   };
 

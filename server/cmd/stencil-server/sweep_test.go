@@ -70,7 +70,7 @@ func sweepDrops(fs service.ProjectFiles) *service.ProjectService {
 }
 
 func sweepDropsOn(fs service.ProjectFiles, b eventbus.Bus) *service.ProjectService {
-	return service.NewProjects(nil, fs, nil, b, 0)
+	return service.NewProjects(nil, fs, b, 0)
 }
 
 // fakeRemover records which project directories were dropped and how many removals ran at once (the sweep

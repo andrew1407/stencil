@@ -1,5 +1,4 @@
-using System.Text.Json;
-using Stencil.TelegramBot.Domain.Editing;
+using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Exceptions;
 using Stencil.TelegramBot.Domain.Projects;
 using Stencil.TelegramBot.Domain.Sessions;
@@ -8,81 +7,40 @@ namespace Stencil.TelegramBot.Application.Servers;
 
 public sealed partial class ServerService
 {
-    public async Task<IReadOnlyList<ServerProjectInfo>> ListProjectsAsync(long userId, string? url, CancellationToken ct = default)
+    public Task<IReadOnlyList<ServerProjectInfo>> ListProjectsAsync(long userId, string? url, CancellationToken ct = default) =>
+        listEachAsync(userId, url, (client, token) => client.ListProjectsAsync(token), ct);
+
+    public Task<IReadOnlyList<ServerProjectInfo>> ListRecentProjectsAsync(long userId, int perServer, CancellationToken ct = default) =>
+        listEachAsync(userId, null, (client, token) => client.ListFirstProjectsAsync(perServer, token), ct);
+
+    private async Task<IReadOnlyList<ServerProjectInfo>> listEachAsync(long userId, string? url,
+        Func<IStencilServerClient, CancellationToken, Task<IReadOnlyList<ProjectRecord>>> list, CancellationToken ct)
     {
         var session = await _store.GetAsync(userId, ct);
         var targets = targetConnections(session, url);
+        var clients = targets.Select(clientFor).ToList();
         // Answers are stitched back in connection order, not reply order.
-        var answers = await Task.WhenAll(targets.Select(connection => listOneAsync(connection, ct)));
+        var answers = await Task.WhenAll(targets.Select((connection, i) => listOneAsync(connection, clients[i], list, ct)));
+        foreach (var client in clients)
+        {
+            await keepTokenAsync(userId, client, ct);
+        }
         return [.. answers.SelectMany(a => a)];
     }
 
-    private async Task<IReadOnlyList<ServerProjectInfo>> listOneAsync(ServerConnectionInfo connection, CancellationToken ct)
+    private static async Task<IReadOnlyList<ServerProjectInfo>> listOneAsync(ServerConnectionInfo connection,
+        IStencilServerClient client, Func<IStencilServerClient, CancellationToken, Task<IReadOnlyList<ProjectRecord>>> list,
+        CancellationToken ct)
     {
         try
         {
-            var records = await clientFor(connection).ListProjectsAsync(ct);
+            var records = await list(client, ct);
             return [.. records.Select(record => new ServerProjectInfo(record, connection.Url))];
         }
         catch
         {
             return [];
         }
-    }
-
-    public async Task<UserSession> FetchAsync(long userId, string nameOrId, string? url, CancellationToken ct = default)
-    {
-        var session = await _store.GetAsync(userId, ct);
-        var targets = targetConnections(session, url);
-        foreach (var connection in targets)
-        {
-            var client = clientFor(connection);
-            ProjectRecord? match;
-            try
-            {
-                var records = await client.ListProjectsAsync(ct);
-                match = records.FirstOrDefault(r =>
-                    r.Id == nameOrId ||
-                    string.Equals(r.Name, nameOrId, StringComparison.OrdinalIgnoreCase));
-            }
-            catch
-            {
-                continue;
-            }
-            if (match is null)
-            {
-                continue;
-            }
-            var full = await client.GetProjectAsync(match.Id, ct);
-            var bytes = await client.GetFileAsync(match.Id, ProjectFileKind.ORIGINAL, ct);
-            var path = await _editing.StoreOriginalBytesAsync(userId, bytes, ".png", ct);
-            // Rebuild the edit state from the layout so re-rendering reproduces what other clients
-            // show.
-            var edits = full.Layout is JsonElement layout
-                ? ProjectLayoutMapper.ToEditState(layout, full.Project.ImageW, full.Project.ImageH)
-                : new EditState();
-            var updated = session with
-            {
-                OriginalImagePath = path,
-                OriginalWidth = full.Project.ImageW,
-                OriginalHeight = full.Project.ImageH,
-                ImageLabel = full.Project.Name,
-                Edits = edits,
-                EditHistory = [],
-                EditRedo = [],
-                ActiveServerUrl = connection.Url,
-                ActiveProjectId = full.Project.Id,
-                ActiveProjectName = full.Project.Name,
-                ActiveProjectDescription = full.Project.Description ?? "",
-                ActiveProjectCreatedAt = full.Project.CreatedAt,
-                ActiveProjectExpiresAt = full.Project.ExpiresAt,
-                ActiveProjectVersion = full.Project.Version,
-                ActiveProjectLayoutJson = full.Layout?.GetRawText(),
-            };
-            await _store.SaveAsync(updated, ct);
-            return updated;
-        }
-        throw new InvalidOperationException($"Project '{nameOrId}' not found");
     }
 
     public async Task<ProjectRecord> CreateProjectAsync(long userId, string? name, string? url, CancellationToken ct = default)
@@ -108,9 +66,10 @@ public sealed partial class ServerService
         };
         var record = await client.CreateProjectAsync(request, ct);
         await client.PutFileAsync(record.Id, ProjectFileKind.ORIGINAL, bytes, "png", render.Width, render.Height, ct);
+        _editing.Discard(render);
         // The original upload bumps the version but the file-write response carries none: re-read
         // it or the next version-guarded write would 409 (remoteSync.js createRemoteProject).
-        var version = await currentVersionAsync(client, record.Id, record.Version, ct);
+        var version = await versionAfterWriteAsync(client, record.Id, record.Version, ct);
         var updated = session with
         {
             ActiveServerUrl = connection.Url,
@@ -123,6 +82,7 @@ public sealed partial class ServerService
             ActiveProjectLayoutJson = null, // bot-created: no prior layout to preserve
         };
         await _store.SaveAsync(updated, ct);
+        await keepTokenAsync(userId, client, ct);
         return record with { Version = version };
     }
     public async Task<string> DeleteActiveProjectAsync(long userId, CancellationToken ct = default)

@@ -36,7 +36,7 @@ namespace stencil::gui {
     radius = 0;
     connect(&ticker, &QTimer::timeout, this, [this] {
       if (closingFrom >= 0) {
-        radius = closingFrom * (1 - radiusAt(clock.elapsed() * double(GROW_MS) / CLOSE_MS) / RADIUS);
+        radius = closingFrom * (1 - radiusAt(support::motionElapsed(clock.elapsed(), scale) * double(GROW_MS) / CLOSE_MS) / RADIUS);
         if (radius <= 0) {
           ticker.stop();
           hide();
@@ -45,7 +45,7 @@ namespace stencil::gui {
           return;
         }
       } else {
-        radius = radiusAt(clock.elapsed());
+        radius = radiusAt(support::motionElapsed(clock.elapsed(), scale));
         if (radius >= RADIUS) ticker.stop();
       }
       update();
@@ -58,6 +58,7 @@ namespace stencil::gui {
     raise();
     if (!isVisible() && radius < RADIUS) {
       clock.start();
+      scale = support::motionScale();
       ticker.start(FRAME_MS);
     }
     show();
@@ -73,6 +74,7 @@ namespace stencil::gui {
     closed = std::move(done);
     closingFrom = radius;
     clock.restart();
+    scale = support::motionScale();
     ticker.start(FRAME_MS);
   }
 

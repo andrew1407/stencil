@@ -85,7 +85,7 @@ namespace stencil::gui {
     anim->setStartValue(from);
     anim->setEndValue(target);
     // Linear: the shaping lives per part, in poseAt()'s easings.
-    anim->setDuration(std::max(1, int(std::abs(target - from))));
+    anim->setDuration(std::max(1, support::motionMs(int(std::abs(target - from)))));
     anim->start();
   }
 
@@ -96,7 +96,7 @@ namespace stencil::gui {
     if (qFuzzyCompare(from + 1, target + 1)) { paint(target); return; }
     anim->setStartValue(from);
     anim->setEndValue(target);
-    anim->setDuration(std::max(1, int(std::abs(target - from))));
+    anim->setDuration(std::max(1, support::motionMs(int(std::abs(target - from)))));
     anim->start();
   }
 

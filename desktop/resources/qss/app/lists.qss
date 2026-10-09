@@ -14,6 +14,10 @@
       }
       /* Rows are cards (browser .project-row), the list frameless. */
       QListWidget#projectsList { border: none; background: transparent; }
+      /* The bar keeps the shared 8px handle, 6px clear of the row cards. */
+      QListWidget#projectsList QScrollBar:vertical, QListWidget#connList QScrollBar:vertical {
+        width: 16px; margin: 1px 1px 1px 7px;
+      }
       /* 3px under the browser's 8px 10px: Qt's item metrics add slack (user decision). */
       QListWidget#projectsList::item {
         background: %INPUT_BG%; border-radius: 8px; padding: 5px 7px;

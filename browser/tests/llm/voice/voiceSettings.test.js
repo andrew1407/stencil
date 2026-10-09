@@ -7,7 +7,7 @@ const mem = installMemoryStorage()._map;
 const {
   defaultVoiceSettings, loadVoiceSettings, saveVoiceSettings,
   clampSilenceMs, normalizeLanguage, recognitionLang, isLanguageTag,
-  SILENCE_MS_DEFAULT, SILENCE_MS_MIN, SILENCE_MS_MAX, VOICE_SETTINGS_EVENT, VOICE_LANGUAGES,
+  SILENCE_MS_DEFAULT, SILENCE_MS_MIN, SILENCE_MS_MAX, VOICE_SETTINGS_EVENT,
 } = await import('../../../js/llm/voice/settings.js');
 
 test('defaults: 1000 ms of silence, the default (English) language', () => {
@@ -15,9 +15,11 @@ test('defaults: 1000 ms of silence, the default (English) language', () => {
   assert.deepStrictEqual(defaultVoiceSettings(), { silenceMs: 1000, language: 'default' });
   assert.strictEqual(SILENCE_MS_DEFAULT, 1000);
   assert.deepStrictEqual(loadVoiceSettings(), defaultVoiceSettings());
-  // The dialog's menu starts with the default row and only lists real tags.
-  assert.strictEqual(VOICE_LANGUAGES[0][0], 'default');
-  for (const [tag] of VOICE_LANGUAGES.slice(1)) assert.ok(isLanguageTag(tag), tag);
+});
+
+test('isLanguageTag: BCP-47-looking tags only', () => {
+  for (const tag of ['en-US', 'uk-UA', 'zh-Hans-CN', 'de']) assert.ok(isLanguageTag(tag), tag);
+  for (const bad of ['', 'english', 'en_US', 'e', 42, null]) assert.ok(!isLanguageTag(bad), String(bad));
 });
 
 test('clampSilenceMs: range 500..10000, garbage → the default, rounding', () => {

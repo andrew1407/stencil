@@ -7,7 +7,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { deadRefs, dropIgnored, extractRefs, isCandidate, makeUniverse, resolves } from './docPaths.mjs';
+import { deadRefs, dropIgnored, extractRefs, isCandidate, makeUniverse, resolves, scan } from './docPaths.mjs';
 
 const u = makeUniverse([
   'browser/js/ui/tip/controlTooltip.js',
@@ -80,26 +80,21 @@ test('build output and the declared non-paths pass', () => {
   assert.deepEqual(dead('.claude/rules/architecture.md', '`parts/` `misc/`'), []);
 });
 
-test('a gitignored directory absent from disk is no dead path', () => {
+test('a gitignored directory absent from disk is no dead path', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'docPaths-'));
   try {
     execFileSync('git', ['init', '-q', root]);
     writeFileSync(path.join(root, '.gitignore'), 'build-asan/\nsrv/vendor/\n');
     const dead = [{ doc: 'core/README.md', token: 'core/build-asan' }, { doc: 'srv/README.md', token: 'vendor/' },
       { doc: 'srv/README.md', token: 'gone.go' }];
-    assert.deepEqual(dropIgnored(root, dead).map((d) => d.token), ['gone.go']);
+    assert.deepEqual((await dropIgnored(root, dead)).map((d) => d.token), ['gone.go']);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });
 
-test('the repo has no dead doc path', () => {
-  const tool = fileURLToPath(new URL('./docPaths.mjs', import.meta.url));
-  let out = '';
-  try {
-    out = execFileSync(process.execPath, [tool, '--check'], { encoding: 'utf8' });
-  } catch (err) {
-    assert.fail(`dead paths in the docs — fix the path, or declare a non-path in ALLOW:\n${err.stdout}`);
-  }
-  assert.match(out, /docPaths: 0 dead paths/);
+test('the repo has no dead doc path', async () => {
+  const dead = await scan(fileURLToPath(new URL('..', import.meta.url)));
+  assert.deepEqual(dead.map((d) => `${d.doc}:${d.line}  ${d.kind === 'link' ? 'link' : 'path'}  ${d.token}`), [],
+    'dead paths in the docs — fix the path, or declare a non-path in ALLOW');
 });

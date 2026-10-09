@@ -1,4 +1,4 @@
-import { motionReduced } from '../motionPrefs.js';
+import { motionMs, motionReduced } from '../motionPrefs.js';
 import { spawnSwapDust, swapDustPaint } from '../dust/swapDust.js';
 import { THEME_INSTANT_CLASS, THEME_SWAP_CLASS, THEME_SWAP_MS, swapEdgePolygon, swapPercent } from './themeSwap.js';
 export function themeSwap(apply, origin = null) {
@@ -13,7 +13,7 @@ export function themeSwap(apply, origin = null) {
     root.classList.add(THEME_SWAP_CLASS);
     clearTimeout(root._themeSwapTimer);
     apply();
-    root._themeSwapTimer = setTimeout(() => root.classList.remove(THEME_SWAP_CLASS), THEME_SWAP_MS);
+    root._themeSwapTimer = setTimeout(() => root.classList.remove(THEME_SWAP_CLASS), motionMs(THEME_SWAP_MS));
     return;
   }
 
@@ -33,7 +33,7 @@ export function themeSwap(apply, origin = null) {
     root.style.setProperty('--swap-x', `${x}%`);
     root.style.setProperty('--swap-y', `${y}%`);
     root.style.setProperty('--swap-r', `${r}%`);
-    root.style.setProperty('--swap-ms', `${THEME_SWAP_MS}ms`);
+    root.style.setProperty('--swap-ms', `${motionMs(THEME_SWAP_MS)}ms`);
     const from = last && swapEdgePolygon(last.x, last.y, last.w, last.h, 0);
     if (from) {
       root.style.setProperty('--swap-clip-from', from);

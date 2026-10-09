@@ -15,14 +15,18 @@ namespace stencil::model {
     static ScriptBuffer& instance();
 
     const QString& getText() const { return text; }
-    // No-op when the text is unchanged, so a host echoing its own write starts no loop.
-    void setText(const QString& text);
+    // No-op when the text is unchanged, so a host echoing its own write starts no loop and keeps
+    // the origin; any other text replaces it, a link's or the user's.
+    void setText(const QString& text, bool fromLink = false);
+    // The text is still the script a stencil:// link delivered: it may read web images only.
+    bool isFromLink() const { return fromLink; }
 
    signals:
     void changed(const QString& text);
 
    private:
     QString text;
+    bool fromLink = false;
   };
 
 }  // namespace stencil::model

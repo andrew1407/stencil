@@ -114,7 +114,7 @@ namespace stencil::gui {
     if (ms <= 0 || support::motionReduced()) { paint(toDeg); return; }
     auto* anim = new QVariantAnimation(btn);
     anim->setObjectName(ICON_SPIN);
-    anim->setDuration(ms);
+    anim->setDuration(support::motionMs(ms));
     anim->setEasingCurve(QEasingCurve::OutCubic);   // the extent slides' curve
     anim->setStartValue(fromDeg);
     anim->setEndValue(toDeg);

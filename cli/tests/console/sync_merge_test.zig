@@ -15,18 +15,23 @@ const mine = "{\"points\":[{\"x\":3,\"y\":7},{\"x\":7,\"y\":7}],\"color\":\"#0f0
 
 const Fake = struct {
     var puts: usize = 0;
+    var conflicts: usize = 1;
+    var gets: usize = 0;
     var put_body: std.ArrayList(u8) = .empty;
     var project: []const u8 = "";
+    var later: []const u8 = ""; // what every GET after the first reads, when set
 };
 
 fn transport(gpa: std.mem.Allocator, _: std.Io, _: []const u8, method: std.http.Method, payload: ?[]const u8, _: []const std.http.Header) server.TransportError![]u8 {
     if (method == .PUT) {
         Fake.puts += 1;
-        if (Fake.puts == 1) return server.Error.Conflict;
+        if (Fake.puts <= Fake.conflicts) return server.Error.Conflict;
         Fake.put_body.clearRetainingCapacity();
         try Fake.put_body.appendSlice(testing.allocator, payload orelse "");
     }
-    return gpa.dupe(u8, if (method == .GET) Fake.project else "{}");
+    if (method != .GET) return gpa.dupe(u8, "{}");
+    Fake.gets += 1;
+    return gpa.dupe(u8, if (Fake.gets > 1 and Fake.later.len != 0) Fake.later else Fake.project);
 }
 
 /// A blank session linked to project p1 at version 3, drawing `lines`, its server faked.
@@ -47,6 +52,9 @@ fn linked(a: std.mem.Allocator, io: std.Io, lines: []const u8) !console.Session 
     try session.setLines(lines);
     session.remote_version = 3;
     Fake.puts = 0;
+    Fake.conflicts = 1;
+    Fake.gets = 0;
+    Fake.later = "";
     return session;
 }
 
@@ -155,4 +163,23 @@ test "sync: a 409 keeps our filter when it changed since the last push, and the 
     try testing.expectEqualStrings("[" ++ peer ++ "," ++ mine ++ "]", session.state().lines());
     try testing.expect(put("\"imageFilter\":\"sepia\""));
     try testing.expect(!session.filter_dirty);
+}
+
+test "sync: a line one pass adopted is the peer's, so their delete before the next pass holds" {
+    const a = testing.allocator;
+    var rig: Rig = undefined;
+    rig.start(a);
+    defer rig.stop();
+
+    Fake.project = "{\"project\":{\"id\":\"p1\",\"version\":5},\"layout\":{\"lines\":[" ++ peer ++ "]}}";
+    var session = try linked(a, rig.threaded.io(), "{\"lines\":[" ++ mine ++ "]}");
+    defer session.deinit();
+    Fake.conflicts = 2;
+    Fake.later = "{\"project\":{\"id\":\"p1\",\"version\":6},\"layout\":{\"lines\":[]}}";
+
+    remoteEvents.pushResult(&session);
+    try testing.expectEqual(@as(usize, 3), Fake.puts);
+    try testing.expectEqualStrings("[" ++ mine ++ "]", session.state().lines());
+    try testing.expect(!put(peer));
+    try testing.expect(std.mem.endsWith(u8, Fake.put_body.items, "\"version\":6}"));
 }

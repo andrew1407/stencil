@@ -22,13 +22,23 @@ static void check(bool ok, const char* msg) {
 int main(int argc, char** argv) {
   QCoreApplication app(argc, argv);
 
+  // ── a link given as the positional argument keeps its script, and says when one was dropped ──
+  {
+    stencil::gui::LaunchOptions o;
+    adoptLinkOptions(o, parseStencilUrl(QUrl(QStringLiteral("stencil://open?script=%40filter%20bw"))));
+    check(o.script == QStringLiteral("@filter bw") && !o.empty(), "a cold launch keeps the link's script");
+    stencil::gui::LaunchOptions over;
+    adoptLinkOptions(over, parseStencilUrl(QUrl(QStringLiteral("stencil://open?script=") +
+                                                QString(stencil::gui::launchScriptMaxChars() + 1, QLatin1Char('a')))));
+    check(over.scriptDropped && over.script.isEmpty(), "…and says when it was over the cap");
+  }
+
   // ── parseStencilUrl grammar ──
   {
     const LaunchOptions o = parseStencilUrl(QUrl(
         "stencil://open?server=http%3A%2F%2Flocalhost%3A8090&id=p_1a2b3c_x1&version=7&incognito=1"));
     check(o.serverUrl == "http://localhost:8090", "server url decoded");
     check(o.serverProjectId == "p_1a2b3c_x1", "project id decoded");
-    check(o.serverVersion == 7, "version decoded");
     check(o.incognito, "incognito flag decoded");
     check(o.src.isEmpty(), "server+id: no src");
     check(!o.empty(), "server link is not empty()");

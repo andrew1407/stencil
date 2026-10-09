@@ -23,7 +23,7 @@ export function createRowMeta(store) {
   const expiryLabel = meta => {
     if (store.isExpired(meta)) return { text: 'EXPIRED', expired: true, soon: false };
     const at = store.expiresAt(meta);
-    if (at == null) return { text: '', expired: false, soon: false };
+    if (at == null) return { text: 'never expires', expired: false, soon: false };
     const days = Math.max(0, Math.ceil((at - Date.now()) / (24 * 60 * 60 * 1000)));
     return {
       text: days <= 1 ? 'expires in 1 day' : `expires in ${days} days`,

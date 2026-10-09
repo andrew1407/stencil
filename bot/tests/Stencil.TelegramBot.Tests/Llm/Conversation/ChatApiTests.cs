@@ -51,7 +51,7 @@ public sealed class ChatApiTests : IDisposable
 
     public ChatApiTests()
     {
-        _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-chatapi-" + Guid.NewGuid().ToString("N"));
+        _dataDir = TempDirs.New("bot-chatapi");
         BotOptions options = new() { DataDir = _dataDir, LlmProfiles = [_local, _studio] };
         _handlers = TestHandlers.Create(options, _store, _cli, _bot, _llm, profiles: [_local, _studio]);
         _callbacks = new CallbackAction(_handlers, _bot, _store);
@@ -59,22 +59,14 @@ public sealed class ChatApiTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
+        TempDirs.Delete(_dataDir);
     }
 
     private Task dispatch(string text) =>
         _handlers.DispatchAsync(_userId, _chatId, CommandParser.Parse(text), CancellationToken.None);
 
     private Task tap(string data) =>
-        _callbacks.HandleAsync(
-            new CallbackQuery
-            {
-                Id = "cb",
-                From = new User { Id = _userId },
-                Message = new Message { Chat = new Chat { Id = _chatId } },
-                Data = data,
-            },
-            CancellationToken.None);
+        _callbacks.HandleAsync(TestHandlers.Tap(_userId, _chatId, data), CancellationToken.None);
 
     private IEnumerable<SendMessageRequest> Messages => _bot.Requests.OfType<SendMessageRequest>();
 

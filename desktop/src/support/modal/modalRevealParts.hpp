@@ -127,12 +127,12 @@ namespace stencil::support {
     }
 
     auto* geo = new QPropertyAnimation(ghost, "geometry", ghost);
-    geo->setDuration(ms);
+    geo->setDuration(motionMs(ms));
     geo->setStartValue(from);
     geo->setEndValue(to);
     geo->setEasingCurve(easing);
     auto* fade = new QPropertyAnimation(fadeTarget, own ? "windowOpacity" : "opacity", ghost);
-    fade->setDuration(ms);
+    fade->setDuration(motionMs(ms));
     fade->setStartValue(fromOpacity);
     fade->setEndValue(toOpacity);
     fade->setEasingCurve(easing);

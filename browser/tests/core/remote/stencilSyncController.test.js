@@ -4,6 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { StencilSync } from '../../../js/core/remote/stencilSync.js';
+import { MAX_PROJECT_FILE_CHARS } from '../../../js/core/project/file.js';
 import { installDom, createStubElement } from '../../helpers/dom.js';
 
 // Node has no localStorage; give the controller an in-memory one so liveSync persists.
@@ -20,7 +21,9 @@ function stubHandle(initial) {
   let content = initial, mtime = 1;
   return {
     name: 'demo.stencil',
-    async getFile() { return { text: async () => content, lastModified: mtime }; },
+    reads: 0,
+    size: null,
+    async getFile() { const h = this; return { text: async () => { h.reads++; return content; }, lastModified: mtime, size: h.size ?? content.length }; },
     async createWritable() { return { write: async (t) => { content = t; }, close: async () => { mtime++; } }; },
     async queryPermission() { return 'granted'; },
     async requestPermission() { return 'granted'; },
@@ -125,4 +128,19 @@ test('merge choice unions lines and writes the merged result back', async (t) =>
   assert.deepEqual(app.applied[0].lines, [{ x: 9, y: 9 }, ...[0, 1, 2, 3].map((i) => localLine(i).points[0])], 'merge requested');
   // after merge the controller writes the merged current state back to the file
   assert.match(h._read(), /"format": "stencil-project"/);
+});
+
+test('a linked file grown past the cap is not read by the watch', async (t) => {
+  const app = stubApp();
+  const s = syncFor(app);
+  t.after(() => s.unlink());
+  const h = stubHandle('{}');
+  s.liveSync = true;
+  await s.link(h, 'demo.stencil');
+  const before = h.reads;
+  h._extWrite('{"huge": true}');
+  h.size = MAX_PROJECT_FILE_CHARS + 1;
+  await s.check();
+  assert.equal(h.reads, before, 'the contents are never pulled into memory');
+  assert.equal(app.applied.length, 0);
 });

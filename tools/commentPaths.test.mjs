@@ -2,10 +2,9 @@
 // Run: node --test tools/commentPaths.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { makeUniverse } from './docPaths.mjs';
-import { deadRefs, refsOf, scanCss, wordOf } from './commentPaths.mjs';
+import { deadRefs, refsOf, scanCss, scanTree, wordOf } from './commentPaths.mjs';
 
 const u = makeUniverse([
   'browser/js/ui/motion/motionPrefs.js',
@@ -51,13 +50,8 @@ test('a folder, a glob and a whole placeholder resolve; prose and half placehold
   assert.deepEqual(dead('cli/src/x.zig', '// "<dir path>/<name>.json" and/or w/h\n'), []);
 });
 
-test('the repo has no dead comment path', () => {
-  const tool = fileURLToPath(new URL('./commentPaths.mjs', import.meta.url));
-  let out = '';
-  try {
-    out = execFileSync(process.execPath, [tool, '--check'], { encoding: 'utf8' });
-  } catch (err) {
-    assert.fail(`dead paths in code comments — fix the path, or declare a non-path in ALLOW:\n${err.stdout}`);
-  }
-  assert.match(out, /commentPaths: 0 dead paths/);
+test('the repo has no dead comment path', async () => {
+  const dead = await scanTree(fileURLToPath(new URL('..', import.meta.url)));
+  assert.deepEqual(dead.map((d) => `${d.file}:${d.line}  ${d.token}`), [],
+    'dead paths in code comments — fix the path, or declare a non-path in ALLOW');
 });

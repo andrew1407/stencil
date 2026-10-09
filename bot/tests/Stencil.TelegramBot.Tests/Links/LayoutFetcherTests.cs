@@ -67,4 +67,16 @@ public sealed class LayoutFetcherTests
             () => fetcher.FetchAsync("https://93.184.216.34/a.json"));
         Assert.Contains("private or local address", ex.Message);
     }
+
+    [Fact]
+    public async Task Should_Refuse_A_Link_That_Never_Answers_With_A_Sentence()
+    {
+        CannedHttpMessageHandler hang = new((_, _) => CannedHttpMessageHandler.Json("{}")) { Hang = true };
+        using LayoutFetcher fetcher = new(new BotOptions { ServerHttpTimeout = TimeSpan.FromMilliseconds(50) }, hang);
+
+        InvalidOperationException ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => fetcher.FetchAsync("https://layouts.example/slow.json"));
+
+        Assert.StartsWith("The layout link didn't answer", ex.Message);
+    }
 }

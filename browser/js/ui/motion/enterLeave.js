@@ -1,5 +1,5 @@
-import { dustEnabled, motionReduced } from './motionPrefs.js';
-import { disintegrate } from './disintegrate.js';
+import { dustEnabled, motionMs, motionReduced } from './motionPrefs.js';
+import { disintegrate, scrollerOf } from './disintegrate.js';
 import { flipFrom } from './flip.js';
 import { speckPainter } from './surface/painters.js';
 import { DISINTEGRATE_MS, MOTE_PX, TILE_GATHER_SHARE, scatterGridFor } from './surface/tiles.js';
@@ -52,9 +52,9 @@ export function leaveThenRemove(el, done = () => {}, { ms = LEAVE_MS, cols, rows
 // cols === 0 is the budget's "fade only" (scatterGridFor past SCATTER_MAX_ROWS).
   if (cols !== 0) disintegrate(el, { ...(cols ? { cols } : {}), ...(rows ? { rows } : {}),
                                     ...(dustMs ? { ms: dustMs } : {}), ...(px ? { px } : {}),
-                                    ...(drift === 1 ? {} : { drift }) });
+                                    ...(drift === 1 ? {} : { drift }), clip: true });
   el.classList.add(LEAVING_CLASS);
-  return new Promise((resolve) => setTimeout(() => { finish(); resolve(); }, ms));
+  return new Promise((resolve) => setTimeout(() => { finish(); resolve(); }, motionMs(ms)));
 }
 
 // The particles fall past the short collapse, so a caller swapping in a placeholder waits for the
@@ -102,6 +102,10 @@ export const ROW_ARRIVE_MS = Math.round(FILTER_DUST_MS / 1.5);
 // far short of the whole DISINTEGRATE_MS wipe, or the arrival's motes are lost in it.
 export const ROW_ARRIVE_DELAY_MS = Math.round(DISINTEGRATE_MS * TILE_GATHER_SHARE);
 export const FILTER_DUST_DRIFT = TUNE.FILTER_DUST_DRIFT;
+// A row its motes gather into is veiled until the first are home and whole by the last: the classes
+// control/chatFx.js materialize wears (dust.css).
+const VEIL_CLASS = 'materialize-veil';
+const VEIL_LIFT_CLASS = 'materialize-lift';
 // `index`/`count` share one mesh budget across the rows (scatterGridFor); `box` is an
 // optional pre-measured rect so a burst is measured in one read pass.
 export const filterDust = (el, index = 0, count = 1, box = null) => {
@@ -109,7 +113,18 @@ export const filterDust = (el, index = 0, count = 1, box = null) => {
   if (!cols || !el?.getBoundingClientRect || motionReduced()) return false;
   return disintegrate(el, {
     cols, rows, gather: true, ms: FILTER_DUST_MS, drift: FILTER_DUST_DRIFT, px: MOTE_PX,
-    toBody: true, hostClass: 'dust-forming', paintTile: speckPainter(el), box,
+    toBody: true, hostClass: 'dust-forming', paintTile: speckPainter(el), box, clip: true,
+  });
+};
+
+// The same light throw, scattering: a row a filter drops dissolves where it sat. The cloud is a
+// copy on <body>, so the row itself goes with the re-render that drops it.
+export const filterDustOut = (el, index = 0, count = 1, box = null) => {
+  const { cols, rows } = scatterGridFor(count, index);
+  if (!cols || !el?.getBoundingClientRect || motionReduced()) return false;
+  return disintegrate(el, {
+    cols, rows, ms: FILTER_DUST_MS, drift: FILTER_DUST_DRIFT, px: MOTE_PX,
+    toBody: true, paintTile: speckPainter(el), box, clip: true,
   });
 };
 
@@ -126,33 +141,61 @@ export const filterDelta = (before = [], after = []) => {
   };
 };
 
-// render() runs exactly once per call, first and synchronously, so a burst of keystrokes
-// never leaves a stale set; what plays is the arrival of every row that is left.
+// render() runs exactly once per call, synchronously, so a burst of keystrokes never leaves a
+// stale set; what plays is the arrival of every row that is left, and with `leave` the rows dropped
+// dissolve first (measured before the render takes them).
 export const createFilterAnimator = ({
   keys = () => [], next = () => [], render = () => {}, find = () => null,
   enterMs = FILTER_ENTER_MS, max = FILTER_MAX_ANIMATED,
-  setTimer = setTimeout, reduced = motionReduced,
+  setTimer = setTimeout, reduced = motionReduced, leave = false, dustOut = filterDustOut,
 } = {}) => {
-  const rowsFor = (keyList) => keyList.slice(0, max).map((k) => find(k)).filter((el) => el?.classList);
+  // Only the rows in the list's view play, so the mesh budget goes to what can be seen.
+  const rowsFor = (keyList) => {
+    const els = keyList.map((k) => find(k)).filter((el) => el?.classList);
+    const view = els.length ? scrollerOf(els[0])?.getBoundingClientRect?.() : null;
+    const seen = view ? els.filter((el) => {
+      const r = el.getBoundingClientRect?.();
+      return !r || (r.bottom > view.top && r.top < view.bottom);
+    }) : els;
+    return seen.slice(0, max);
+  };
 
+  // A row its motes gather into stays veiled under them; one with no motes (past the budget,
+  // or a mode that flies none) fades up on the CSS entrance instead.
+  const veil = (el) => {
+    const lift = Math.round(FILTER_DUST_MS * TILE_GATHER_SHARE);
+    el.classList.add(VEIL_CLASS);
+    el.style?.setProperty?.('--veil-fade', `${Math.max(1, FILTER_DUST_MS - lift)}ms`);
+    setTimer(() => el.classList.add(VEIL_LIFT_CLASS), motionMs(lift));
+    setTimer(() => {
+      el.classList.remove(VEIL_CLASS, VEIL_LIFT_CLASS);
+      el.style?.removeProperty?.('--veil-fade');
+    }, motionMs(FILTER_DUST_MS) + 60);
+  };
   const playEnter = (rows) => {
 // One read pass, then one write pass: interleaving forced a layout per row.
     const boxes = rows.map((el) => el.getBoundingClientRect?.() || null);
     rows.forEach((el, i) => {
+      if (filterDust(el, i, rows.length, boxes[i])) { veil(el); return; }
       const delay = i * FILTER_STAGGER_MS;
       if (el.style) el.style.animationDelay = `${delay}ms`;
-      filterDust(el, i, rows.length, boxes[i]);
       el.classList.add(FILTER_ENTERING_CLASS);
       setTimer(() => {
         el.classList.remove(FILTER_ENTERING_CLASS);
         if (el.style) el.style.animationDelay = '';
-      }, enterMs + delay + 60);
+      }, motionMs(enterMs + delay) + 60);
     });
+  };
+
+  const playLeave = (rows) => {
+    const boxes = rows.map((el) => el.getBoundingClientRect?.() || null);
+    rows.forEach((el, i) => dustOut(el, i, rows.length, boxes[i]));
   };
 
   return () => {
     const after = [...next()];
     const { leaving, entering, moved } = filterDelta(keys(), after);
+    if (leave && leaving.length && !reduced()) playLeave(rowsFor(leaving));
     render();
 // Only a change that really moved the answer replays the list.
     const arriving = (leaving.length || entering.length || moved) ? after : [];
@@ -175,5 +218,5 @@ export function flashLanding(el, cls = 'drop-landing', ms = 700) {
   el.classList.remove(cls);
   void el.offsetWidth;   // force a reflow so re-adding the class restarts it
   el.classList.add(cls);
-  timers[cls] = setTimeout(() => el.classList.remove(cls), ms);
+  timers[cls] = setTimeout(() => el.classList.remove(cls), motionMs(ms));
 }

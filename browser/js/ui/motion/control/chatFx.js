@@ -1,4 +1,4 @@
-import { dustEnabled, motionReduced } from '../motionPrefs.js';
+import { dustEnabled, motionMs, motionReduced } from '../motionPrefs.js';
 import { disintegrate } from '../disintegrate.js';
 import { FILTER_DUST_DRIFT, FILTER_DUST_MS, LEAVE_MS, flashLanding, wipeDurationMs } from '../enterLeave.js';
 import { speckPainter } from '../surface/painters.js';
@@ -31,13 +31,13 @@ export function materialize(el, { ms = LEAVE_MS, cols, rows, dustMs = FILTER_DUS
     el.classList.add(MATERIALIZE_VEIL_CLASS);
     const lift = Math.round(dustMs * TILE_GATHER_SHARE);
     el.style?.setProperty?.('--veil-fade', `${Math.max(1, dustMs - lift)}ms`);
-    setTimeout(() => el.classList.add(MATERIALIZE_LIFT_CLASS), lift);
+    setTimeout(() => el.classList.add(MATERIALIZE_LIFT_CLASS), motionMs(lift));
   }
   return new Promise((resolve) => setTimeout(() => {
     el.classList.remove(MATERIALIZE_CLASS, MATERIALIZE_VEIL_CLASS, MATERIALIZE_LIFT_CLASS);
     el.style?.removeProperty?.('--veil-fade');
     resolve();
-  }, dusted ? wipeDurationMs(dustMs) : ms));
+  }, motionMs(dusted ? wipeDurationMs(dustMs) : ms)));
 }
 
 // A fixed fraction of the row's flight, so shortening DISINTEGRATE_MS shortens this with it.
@@ -89,10 +89,11 @@ const trackDust = (el, ms, onDrop = () => {}) => {
   let raf = 0;
   let live = true;
   const started = Date.now();
+  const span = motionMs(ms);
   const shot = el.getBoundingClientRect?.();   // the box the cloud was photographed at
   const step = () => {
     if (!live) return;
-    if (Date.now() - started >= ms) return;
+    if (Date.now() - started >= span) return;
 // Both rects read once per tick; interleaved reads and writes forced a layout per frame.
     const r = el.getBoundingClientRect?.();
     const s = el.parentElement?.getBoundingClientRect?.();
@@ -149,7 +150,7 @@ export function chatIn(el, count = 1, index = 0) {
 // period the layer is an exact second copy over the real entry.
         stop();
         handOver();
-      }, CHAT_ENTER_MS);
+      }, motionMs(CHAT_ENTER_MS));
     });
     if (ready?.then) ready.then(go, go); else go();
   });

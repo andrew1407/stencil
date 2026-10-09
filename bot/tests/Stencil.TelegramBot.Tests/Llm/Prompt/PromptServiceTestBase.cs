@@ -14,11 +14,11 @@ namespace Stencil.TelegramBot.Tests.Llm.Prompt;
 public sealed class PromptServiceFixture : IDisposable
 {
     public string DataDir { get; } =
-        Path.Combine(Path.GetTempPath(), "stencil-bot-prompt-" + Guid.NewGuid().ToString("N"));
+        TempDirs.New("bot-prompt");
 
     public void Dispose()
     {
-        try { Directory.Delete(DataDir, recursive: true); } catch { /* best effort */ }
+        TempDirs.Delete(DataDir);
     }
 }
 

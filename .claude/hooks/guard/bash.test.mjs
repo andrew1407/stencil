@@ -88,6 +88,20 @@ test('redirect outside the repo soft-asks; inside is allowed', () => {
   assert.equal(bash('echo hi > /etc/hosts').decision, 'ask');
   assert.equal(bash('echo hi > out.txt').decision, 'allow');
   assert.equal(bash('echo hi > /dev/null').decision, 'allow');
+  assert.equal(bash('echo hi > $HOME/notes.txt').decision, 'ask');
+});
+
+test('a copy, move, link, tee or dd out of the repo soft-asks; into the repo or tmp is allowed', () => {
+  for (const c of ['cp README.md ~/Desktop/x.md', 'mv out.png /Users/me/x.png', 'tee ~/x.txt < README.md',
+    'cat a | tee -a b.txt /etc/x', 'install -m 644 a /usr/local/bin/', 'ln -s ../x ~/link',
+    'cp -t ~/dest a b', 'dd if=a.img of=$HOME/a.img', 'cd x && cp a ${HOME}/b']) {
+    assert.equal(bash(c).decision, 'ask', c);
+  }
+  for (const c of ['cp ~/Downloads/pic.png browser/tests/fixture.png', 'mv a.txt b.txt', 'git mv a b',
+    'cp -r build/ /tmp/x', 'tee out.log', 'echo x | tee /dev/null', 'ln -s /opt/x ./link',
+    'dd if=/dev/zero of=scratch.bin count=1', 'npm test', 'cp a']) {
+    assert.equal(bash(c).decision, 'allow', c);
+  }
 });
 
 test('a secret-looking identifier inside a one-liner is not a path', () => {

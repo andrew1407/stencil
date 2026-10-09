@@ -10,7 +10,7 @@ namespace connectrow {
     ConnectionManager many;
     QString e;
     for (int i = 0; i < 8; ++i)
-      stencil::test::connectNow(many, QStringLiteral("http://row%1@127.0.0.1:%2").arg(i).arg(port), QString(), e);
+      stencil::test::connectNow(many, QStringLiteral("http://row%1.example:%2").arg(i).arg(port), QString(), e);
     ConnectDialog tall(&many);
     // Shorter than eight rows, so the list has to scroll — but tall enough that a few
     // fit whole below the modal chrome (header pill + footer hint) the dialog now wears.

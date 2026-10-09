@@ -1,6 +1,8 @@
 // The single import point for the motion layer (mirror of browser/js/ui/motion.js); the
 // sections live one per file under motion/. CSS owns the keyframes — this only toggles classes.
 export { prefersReducedMotion, motionMode, motionReduced, dustEnabled, particleStyle } from './prefs/motionPrefs.js';
+// The extension offers no Animation speed: its pages run at the tuned pace (browser motionPrefs.js motionMs).
+export const motionMs = (ms) => ms;
 export * from './motion/reveal.js';
 export * from './motion/tiles.js';
 export * from './motion/painters.js';

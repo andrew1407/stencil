@@ -75,7 +75,7 @@ public sealed class CallbackAction
         }
         if (data == "tinthelp")
         {
-            await _bot.SendMessage(chatId, "Tint with a custom colour: /filter <colour>, e.g. /filter #ff5623 or /filter teal. (B&W, Sepia, Invert and Contour have their own buttons; None clears it.)", cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.TintHelp(), cancellationToken: ct);
             return;
         }
         // The next plain message is consumed as the name (see UpdateRouter).
@@ -86,13 +86,13 @@ public sealed class CallbackAction
             {
                 await _bot.SendMessage(
                     chatId,
-                    Replies.Tag(Replies.Tone.ERROR, "No working image to name — upload a photo or use /blank first."),
+                    Replies.Tag(Replies.Tone.ERROR, Replies.NoImageToName()),
                     cancellationToken: ct);
                 return;
             }
             await _store.SaveAsync(session with { PendingInput = PendingInputs.PROJECT_NAME }, ct);
-            string current = session.ActiveProjectName ?? session.ImageLabel ?? "this image";
-            await _bot.SendMessage(chatId, $"Send the new name for '{current}'.", cancellationToken: ct);
+            string current = session.ActiveProjectName ?? session.ImageLabel ?? Replies.ThisImage();
+            await _bot.SendMessage(chatId, Replies.NameAsk(current), cancellationToken: ct);
             return;
         }
         // The next plain message is the description (held locally for an unsaved image, uploaded on
@@ -104,17 +104,14 @@ public sealed class CallbackAction
             {
                 await _bot.SendMessage(
                     chatId,
-                    Replies.Tag(Replies.Tone.ERROR, "No working image to describe — upload a photo or use /blank first."),
+                    Replies.Tag(Replies.Tone.ERROR, Replies.NoImageToDescribe()),
                     cancellationToken: ct);
                 return;
             }
             await _store.SaveAsync(session with { PendingInput = PendingInputs.PROJECT_DESCRIPTION }, ct);
             // Echoing the current description doubles as "view it" — the only place it is visible
             // besides /status.
-            string currentDesc = string.IsNullOrEmpty(session.ActiveProjectDescription)
-                ? "No description set yet."
-                : $"Current description:\n{session.ActiveProjectDescription}";
-            await _bot.SendMessage(chatId, $"{currentDesc}\n\nSend a new description (or \"-\" to clear it).", cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.DescriptionAsk(session.ActiveProjectDescription), cancellationToken: ct);
             return;
         }
         // Submenu navigation swaps the keyboard in place; the main menu re-reads the session for
@@ -152,7 +149,7 @@ public sealed class CallbackAction
                 chatId,
                 _cancellations.Cancel(userId)
                     ? Replies.PromptStopping()
-                    : Replies.Tag(Replies.Tone.NOTICE, "Nothing is running — that turn already finished."),
+                    : Replies.Tag(Replies.Tone.NOTICE, Replies.NothingRunning()),
                 cancellationToken: ct);
             return;
         }
@@ -162,10 +159,7 @@ public sealed class CallbackAction
             UserSession session = await _store.GetAsync(userId, ct);
             if (session.LastRetryablePrompt is not { Length: > 0 } pending)
             {
-                await _bot.SendMessage(
-                    chatId,
-                    "That turn is no longer pending — send the prompt again.",
-                    cancellationToken: ct);
+                await _bot.SendMessage(chatId, Replies.RetryStale(), cancellationToken: ct);
                 return;
             }
             await _handlers.DispatchAsync(userId, chatId, CommandParser.Prompt(pending), ct);
@@ -181,7 +175,7 @@ public sealed class CallbackAction
         // The destructive del:confirm falls through to the /delete command below.
         if (data == "del:cancel")
         {
-            await _bot.EditMessageText(chatId, query.Message.MessageId, "Removal cancelled.", cancellationToken: ct);
+            await _bot.EditMessageText(chatId, query.Message.MessageId, Replies.RemovalCancelled(), cancellationToken: ct);
             return;
         }
         // §10: a declined confirm is a note, never a failed plan; Yes rides the same /chat clear

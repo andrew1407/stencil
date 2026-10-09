@@ -5,7 +5,7 @@
 // them); anything per-surface lives in surface.js. fetch is injected for `node --test`.
 import PROVIDERS_ASSET from '../config/providers.json' with { type: 'json' };
 import { ASSISTANT_OFF_TEXT, defaultGetToken, isLoopbackHost } from './surface.js';
-import { LlmError, NO_REDIRECT, getInfo, keyedInit, postJson, readReply, upstreamFailure } from './http.js';
+import { LlmError, getInfo, keyedInit, postJson, upstreamFailure } from './http.js';
 export { LlmError, sanitizeProviderText } from './http.js';
 
 // Endpoint paths, display names and the probe timeout come from config providers.json (the
@@ -174,15 +174,6 @@ export const createLlmClient = ({ settings, fetchImpl = globalThis.fetch?.bind(g
   };
 
   return { chat };
-};
-
-// GET {serverUrl}/llm/info → { enabled, model } so the settings UI can render
-// "via server X (model)". Errors propagate (the caller shows "unreachable").
-export const fetchLlmInfo = async (serverUrl, { token = '', fetchImpl = globalThis.fetch?.bind(globalThis) } = {}) => {
-  if (!fetchImpl) throw LlmError.http('no fetch implementation available');
-  const resp = await fetchImpl(`${serverUrl}${PROVIDER_INFO['stencil-server'].infoPath}`, { headers: { Authorization: 'Bearer ' + token }, redirect: NO_REDIRECT });
-  if (!resp.ok) throw LlmError.http(`HTTP ${resp.status}`);
-  return readReply(resp);
 };
 
 // The wire's auth headers outside a chat, where an absent getToken means no token.

@@ -163,7 +163,7 @@ class MainWindowGuiTest : public QObject {
       QCOMPARE(dlg.findChild<QComboBox*>("motionModeCombo")->currentData().toString(), QString("none"));
       const stencil::gui::Settings out = dlg.result();
       QCOMPARE(out.motionMode, QString("water"));   // untouched rows write back what is stored
-      QVERIFY(out.drawingAnimations && out.modalBackdrop);
+      QVERIFY(out.drawingAnimations);
     }
     QCOMPARE(settingsBytes(), stored);
     type(win, QStringLiteral("webcore"));

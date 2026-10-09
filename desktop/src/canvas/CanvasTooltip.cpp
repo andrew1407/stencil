@@ -94,7 +94,7 @@ namespace stencil::gui {
       holdFadeKeys(fade, TOOLTIP_DUST_IN_MS);
     } else {
       fade->setKeyValues({});
-      fade->setDuration(FADE_MS);
+      fade->setDuration(support::motionMs(FADE_MS));
       fade->setKeyValueAt(0.0, 0.0);
       fade->setKeyValueAt(1.0, 1.0);
     }
@@ -110,7 +110,7 @@ namespace stencil::gui {
     const bool dusted = dust(false);
     closing = true;
     fade->setKeyValues({});
-    fade->setDuration(dusted ? gui::TOOLTIP_HAND_OVER_MS : FADE_MS);
+    fade->setDuration(support::motionMs(dusted ? gui::TOOLTIP_HAND_OVER_MS : FADE_MS));
     fade->setKeyValueAt(0.0, windowOpacity());
     fade->setKeyValueAt(1.0, 0.0);
     fade->start();

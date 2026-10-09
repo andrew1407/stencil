@@ -20,5 +20,7 @@ public sealed record ProjectRecord
     public string? Description { get; init; }
     // #rrggbb; "" means an ordinary image project, not a blank.
     public string? BlankColor { get; init; }
+    // The original image's content hash; "" when the server keeps none.
+    public string? OriginalHash { get; init; }
     public long Version { get; init; }
 }

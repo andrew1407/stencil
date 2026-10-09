@@ -4,6 +4,7 @@ import {
   wipeDurationMs, materialize, filterDelta, rowDustGrid, ROW_ARRIVE_MS, ROW_ARRIVE_DELAY_MS,
 } from '../../motion.js';
 import { releaseHeldHeight } from '../../motion/easeBoxHeight.js';
+import { motionMs } from '../../motion/motionPrefs.js';
 import { showsRemoteSkeletons } from '../../../core/remote/listing.js';
 import { makeSkeletonRow, emptyLabelFor } from '../row/placeholderRows.js';
 
@@ -88,7 +89,7 @@ export function createRenderList(ctx) {
       // showing plain and being veiled again; a mode that flies nothing has no ash (wipe 0).
       const wipe = wipeDurationMs();
       const arrive = Math.min(ROW_ARRIVE_DELAY_MS, wipe);
-      if (arrive) await new Promise((r) => setTimeout(r, arrive));
+      if (arrive) await new Promise((r) => setTimeout(r, motionMs(arrive)));
       render();
       // Only rows the settle ADDED materialize, on the arrival clock (desktop: dustRowIn).
       const { entering } = filterDelta(before, shownKeys);
@@ -97,7 +98,7 @@ export function createRenderList(ctx) {
         if (el) materialize(el, { ...rowDustGrid(entering.length, i), dustMs: ROW_ARRIVE_MS });
       });
       // The hold outlives the arrival, or a refresh re-renders the row out from under its motes.
-      await new Promise((r) => setTimeout(r, Math.max(0, wipe - arrive)));
+      await new Promise((r) => setTimeout(r, motionMs(Math.max(0, wipe - arrive))));
       removalsInFlight = Math.max(0, removalsInFlight - 1);
       letGo = releaseHeldHeight(list, held);
       // A listing that landed inside the hold had its re-render refused (canRefreshList).

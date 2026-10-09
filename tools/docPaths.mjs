@@ -1,11 +1,11 @@
 // ── docPaths: does every path a doc names still exist? ────
 // Reads the backticked paths and relative links of every tracked (or would-be-tracked) .md and
 // resolves each against the repo root, the doc's folder, its surface root and that root's js/ + src/.
-//   node tools/docPaths.mjs [--check] [doc.md...]   (--check exits 1 on a dead path)
-import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+//   node tools/docPaths.mjs [--check] [doc.md or folder...]   (--check exits 1 on a dead path)
+import { execFile } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
+import { listFiles, mapLimit, readText, repoRoot, under } from './repo/io.mjs';
 
 export const EXT = /\.(js|mjs|cjs|ts|json|md|cpp|cc|hpp|h|c|mm|zig|py|rs|go|cs|csproj|slnx|txt|qss|css|html|svg|png|gif|yml|yaml|toml|stc|stcjs|pystc|cmake|qrc|sh|ps1|lock|mod|sum|ico|vsix|plist|nsi|rc)$/i;
 const MIME = /^(application|image|text|video|audio|font|multipart|model)\/[\w.+-]+$/;
@@ -143,17 +143,12 @@ const linkResolves = (token, doc, u) => {
 };
 
 // ── the scan ────────────────────────────────────────────────────
-const git = (root, ...args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', maxBuffer: 64 << 20 });
-
-const ignoredByGit = (root, paths) => {
-  if (!paths.length) return new Set();
-  try {
-    return new Set(execFileSync('git', ['-C', root, 'check-ignore', '--no-index', '--stdin'],
-      { input: paths.join('\n'), encoding: 'utf8' }).split('\n').filter(Boolean));
-  } catch (err) {
-    return new Set(String(err.stdout || '').split('\n').filter(Boolean)); // exit 1: none ignored
-  }
-};
+// Exit 1 means none ignored, so stdout is read whatever the exit code.
+const ignoredByGit = (root, paths) => (!paths.length ? Promise.resolve(new Set()) : new Promise((resolve, reject) => {
+  const child = execFile('git', ['-C', root, 'check-ignore', '--no-index', '--stdin'], { encoding: 'utf8', maxBuffer: 64 << 20 },
+    (err, stdout) => (err && typeof err.code !== 'number' ? reject(err) : resolve(new Set(stdout.split('\n').filter(Boolean)))));
+  child.stdin.end(paths.join('\n'));
+}));
 
 export const deadRefs = (doc, md, u) => extractRefs(md).filter(({ token, kind }) => {
   if ((ALLOW[doc] || []).includes(token)) return false;
@@ -161,29 +156,32 @@ export const deadRefs = (doc, md, u) => extractRefs(md).filter(({ token, kind })
   return isCandidate(token, doc, u) && !resolves(token, doc, u) && !BUILD_OUTPUT.test(token);
 });
 
-export const scan = (root, only = []) => {
-  const files = git(root, 'ls-files', '-co', '--exclude-standard').split('\n')
-    .filter((f) => f && existsSync(path.join(root, f)));
+const listUnder = (files, dir) => files.filter((f) => f.endsWith('.md') && under(f, [dir]));
+
+// `only` names docs, or folders whose docs are read.
+export const scan = async (root, only = []) => {
+  const files = await listFiles(root);
   const u = makeUniverse(files);
-  const docs = only.length ? only : files.filter((f) => f.endsWith('.md'));
-  return dropIgnored(root, docs.flatMap((doc) => deadRefs(doc, readFileSync(path.join(root, doc), 'utf8'), u)
-    .map((ref) => ({ doc, ...ref }))));
+  const docs = only.length ? only.flatMap((o) => (u.dirSet.has(o.replace(/\/$/, '')) ? listUnder(files, o) : [o]))
+    : files.filter((f) => f.endsWith('.md'));
+  const dead = await mapLimit(docs, async (doc) => deadRefs(doc, await readText(root, doc), u).map((ref) => ({ doc, ...ref })));
+  return dropIgnored(root, dead.flat());
 };
 
 // A dead path that names something git ignores (a local secret, a recording) is no dead path.
 // Each is asked with a trailing slash too: a `dir/` pattern never matches a directory not on disk.
-export const dropIgnored = (root, dead) => {
+export const dropIgnored = async (root, dead) => {
   const under = (d) => basesOf(d.doc).map((b) => join(b, cleanOf(d.token))).filter(Boolean)
     .flatMap((p) => [p, `${p}/`]);
-  const ignored = ignoredByGit(root, [...new Set(dead.flatMap(under))]);
+  const ignored = await ignoredByGit(root, [...new Set(dead.flatMap(under))]);
   return dead.filter((d) => !under(d).some((p) => ignored.has(p)));
 };
 
 if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const args = process.argv.slice(2);
-  const root = git(process.cwd(), 'rev-parse', '--show-toplevel').trim();
+  const root = await repoRoot();
   const only = args.filter((a) => a !== '--check').map((a) => path.relative(root, path.resolve(a)));
-  const dead = scan(root, only);
+  const dead = await scan(root, only);
   for (const d of dead) console.log(`${d.doc}:${d.line}  ${d.kind === 'link' ? 'link' : 'path'}  ${d.token}`);
   console.log(`docPaths: ${dead.length} dead path${dead.length === 1 ? '' : 's'}`);
   process.exit(args.includes('--check') && dead.length ? 1 : 0);

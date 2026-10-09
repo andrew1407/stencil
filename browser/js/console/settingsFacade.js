@@ -84,13 +84,13 @@ export const createSettingsFacade = ({ app, guard }) => {
     get motionMode() { return motionPrefs().mode; },
     set motionMode(v) { app.settings.setMotion('mode', v); },
     get motionModes() { return MOTION_MODES.slice(); },
-    // Whether an open window dims and blurs what it covers. Desktop twin: the same row in
-    // its Visuals dialog (support/motionPrefs.hpp modalBackdrop).
-    get modalBackdrop() { return motionPrefs().backdrop; },
-    set modalBackdrop(v) { app.settings.setMotion('backdrop', !!v); },
-    // Many windows open at once, no backdrop, no outside-click close (support/motionPrefs.hpp multiWindow()).
+    // Many windows open at once, no dim or blur behind them, no outside-click close; off, one window at
+    // a time over a dimmed, blurred page (support/motionPrefs.hpp multiWindow()).
     get multiWindow() { return motionPrefs().multiWindow; },
     set multiWindow(v) { app.settings.setMotion('multiWindow', !!v); },
+    // The interface's animation speed, clamped 0.1–1 (motion.json speed); the default 0.37 is the tuned pace.
+    get motionSpeed() { return motionPrefs().speed; },
+    set motionSpeed(v) { app.settings.setMotion('speed', v); },
     // Where a notice shows: 'toast' (in the app) | 'system' (the browser's own, once granted).
     get notifyChannel() { return notifyChannel(); },
     set notifyChannel(v) { app.settings.setNotifyChannel(v); },

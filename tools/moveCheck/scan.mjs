@@ -8,6 +8,14 @@ const LANG_BY_EXT = Object.freeze({
   '.cpp': 'cpp', '.hpp': 'cpp', '.h': 'cpp', '.c': 'cpp',
 });
 export const langOf = (file) => LANG_BY_EXT[path.extname(file).toLowerCase()] || null;
+// langOf plus the languages only the comment tools read: CSS (block comments), Python, TypeScript.
+export const langFor = (file) => {
+  const ext = path.extname(file).toLowerCase();
+  if (ext === '.css' || ext === '.qss') return 'css';
+  if (ext === '.py') return 'py';
+  if (ext === '.ts') return 'js';
+  return langOf(file);
+};
 
 export const WORD = /[A-Za-z0-9_$]/;
 // A `/` right after one of these words opens a regex, not a division.

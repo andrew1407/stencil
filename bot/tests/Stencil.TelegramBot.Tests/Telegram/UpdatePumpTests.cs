@@ -1,6 +1,10 @@
 using Stencil.TelegramBot.Bot;
+using Stencil.TelegramBot.Bot.Telegram;
 using Stencil.TelegramBot.Infrastructure.Configuration;
+using Stencil.TelegramBot.Infrastructure.Sessions;
 using Stencil.TelegramBot.Tests.Doubles;
+using Stencil.TelegramBot.Tests.Telegram.Access;
+using Telegram.Bot.Types.Enums;
 
 namespace Stencil.TelegramBot.Tests.Telegram;
 
@@ -131,5 +135,50 @@ public sealed class UpdatePumpTests
 
         Assert.Equal(20, ran);
         Assert.False(await pump.EnqueueAsync(1, () => Task.CompletedTask)); // closed
+    }
+
+    [Fact]
+    public async Task Should_Keep_An_Unlisted_Flood_Out_Of_Every_Pump_Slot()
+    {
+        string dataDir = TempDirs.New("bot-flood");
+        MockBotClient bot = new();
+        UpdateRouter router = AccessAdmissionTests.RouterFor(dataDir, new InMemorySessionStore(), new MockStencilCli(), bot, null, 1);
+        // Two slots, one held by a listed user's running update: a single enqueued stranger would fill
+        // the other, and the third would block the poller.
+        await using UpdatePump pump = new(_logger, new BotOptions { UpdateWorkers = 1, UpdateQueueCapacity = 2 });
+        UpdateIntake intake = new(pump, router, CancellationToken.None);
+        TaskCompletionSource release = signal();
+        TaskCompletionSource started = signal();
+        await pump.EnqueueAsync(1, blockUntil(started, release));
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+        for (int i = 0; i < 100; i++)
+        {
+            await intake.OnMessageAsync(AccessAdmissionTests.TextFrom(999 + (i % 4), "/crop x1=10%"))
+                .WaitAsync(TimeSpan.FromSeconds(10));
+        }
+
+        Assert.True(await pump.EnqueueAsync(1, () => Task.CompletedTask).WaitAsync(TimeSpan.FromSeconds(10)));
+        Assert.Equal(4, bot.Requests.Count); // one refusal per stranger
+        release.SetResult();
+        TempDirs.Delete(dataDir);
+    }
+
+    [Fact]
+    public async Task Should_Not_Rerun_An_Edited_Message()
+    {
+        string dataDir = TempDirs.New("bot-edited");
+        MockBotClient bot = new();
+        MockStencilCli cli = new();
+        UpdateRouter router = AccessAdmissionTests.RouterFor(dataDir, new InMemorySessionStore(), cli, bot, null, 1);
+        UpdatePump pump = new(_logger, new BotOptions());
+        UpdateIntake intake = new(pump, router, CancellationToken.None);
+
+        await intake.OnMessageAsync(AccessAdmissionTests.TextFrom(1, "/blank a4 pink"), UpdateType.EditedMessage);
+        await pump.DisposeAsync();
+
+        Assert.Equal(0, cli.EditCalls);
+        Assert.Empty(bot.Requests);
+        TempDirs.Delete(dataDir);
     }
 }

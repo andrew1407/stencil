@@ -1,4 +1,4 @@
-import { surfaceIn, surfaceOut, settleSurface, SURFACE_OUT_MS, motionReduced, originOf } from '../motion.js';
+import { surfaceIn, surfaceOut, settleSurface, SURFACE_OUT_MS, motionMs, motionReduced, originOf } from '../motion.js';
 
 // A window forms from motes streaming out of the control that opened it and pours back
 // into it. Shared with the confirm dialog, which has no opener button. The `--modal-*` vars
@@ -66,7 +66,7 @@ export const createModalFlight = (overlay, boxOf) => {
     overlay.classList.add('modal-closing');
     playDust(false);
     if (closeTimer) clearTimeout(closeTimer);
-    closeTimer = setTimeout(() => { closeTimer = null; finishClose(); }, MODAL_CLOSE_MS);
+    closeTimer = setTimeout(() => { closeTimer = null; finishClose(); }, motionMs(MODAL_CLOSE_MS));
   };
   return { reducedMotion, setOrigin, finishClose, playDust, playClosing,
            settle: () => settleSurface(boxOf()) };

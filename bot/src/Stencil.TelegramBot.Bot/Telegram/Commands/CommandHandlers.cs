@@ -24,7 +24,7 @@ namespace Stencil.TelegramBot.Bot.Telegram.Commands;
 // over Telegram.
 public sealed partial class CommandHandlers
 {
-    private readonly IEditingService _editing;
+    private readonly EditingService _editing;
     private readonly IServerService _servers;
     private readonly ISessionStore _store;
     private readonly ITelegramBotClient _bot;
@@ -32,13 +32,13 @@ public sealed partial class CommandHandlers
     private readonly SyncRegistry _sync;
     private readonly LayoutFetcher _layoutFetcher;
     private readonly PromptService _prompts;
-    private readonly IScriptService _script;
+    private readonly ScriptService _script;
     private readonly LlmAttachmentLoader _attachments;
     private readonly PromptCancellations _cancellations;
     private readonly ILogger<CommandHandlers> _logger;
 
     public CommandHandlers(
-        IEditingService editing,
+        EditingService editing,
         IServerService servers,
         ISessionStore store,
         ITelegramBotClient bot,
@@ -46,7 +46,7 @@ public sealed partial class CommandHandlers
         SyncRegistry sync,
         LayoutFetcher layoutFetcher,
         PromptService prompts,
-        IScriptService script,
+        ScriptService script,
         LlmAttachmentLoader attachments,
         PromptCancellations cancellations,
         ILogger<CommandHandlers> logger)
@@ -88,10 +88,7 @@ public sealed partial class CommandHandlers
         UserSession session = await _store.GetAsync(userId, ct);
         if (!session.HasImage)
         {
-            await _bot.SendMessage(
-                chatId,
-                "No working image — upload a photo or use /blank first.",
-                cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.NoImage(), cancellationToken: ct);
             return;
         }
         string json = _editing.ExportLayoutJson(session);
@@ -99,7 +96,7 @@ public sealed partial class CommandHandlers
         string fileName = $"{safeLabel(session.ImageLabel)}.json";
         using MemoryStream stream = new(bytes);
         InputFileStream document = InputFile.FromStream(stream, fileName);
-        await _bot.SendDocument(chatId, document, caption: "Layout JSON", cancellationToken: ct);
+        await _bot.SendDocument(chatId, document, caption: Replies.ExportLayoutCaption(), cancellationToken: ct);
     }
 
     private async Task projectAsync(long userId, long chatId, CancellationToken ct)
@@ -107,17 +104,14 @@ public sealed partial class CommandHandlers
         UserSession session = await _store.GetAsync(userId, ct);
         if (!session.HasImage)
         {
-            await _bot.SendMessage(
-                chatId,
-                "No working image — upload a photo or use /blank first.",
-                cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.NoImage(), cancellationToken: ct);
             return;
         }
         byte[] bytes = await _editing.ExportProjectFileAsync(userId, ct);
         string fileName = $"{safeLabel(session.ImageLabel)}.stencil";
         using MemoryStream stream = new(bytes);
         InputFileStream document = InputFile.FromStream(stream, fileName);
-        await _bot.SendDocument(chatId, document, caption: "Stencil project", cancellationToken: ct);
+        await _bot.SendDocument(chatId, document, caption: Replies.ExportProjectCaption(), cancellationToken: ct);
     }
 
     private async Task statusAsync(long userId, long chatId, CancellationToken ct)
@@ -131,10 +125,10 @@ public sealed partial class CommandHandlers
     }
 
     private Task cancelAsync(long chatId, CancellationToken ct) =>
-        _bot.SendMessage(chatId, "Okay, never mind. Send /help for the command list.", cancellationToken: ct);
+        _bot.SendMessage(chatId, Replies.Cancelled(), cancellationToken: ct);
 
     private Task unknownAsync(long chatId, CancellationToken ct) =>
-        _bot.SendMessage(chatId, "Unknown command. Send /help for the list.", cancellationToken: ct);
+        _bot.SendMessage(chatId, Replies.UnknownCommand(), cancellationToken: ct);
 
     // Shared by the mutating commands and by UpdateRouter after a fresh upload or layout apply.
     public async Task RenderAndSendAsync(long userId, long chatId, CancellationToken ct, bool mutating = true)
@@ -149,31 +143,33 @@ public sealed partial class CommandHandlers
         }
         await _bot.SendChatAction(chatId, ChatAction.UploadPhoto, cancellationToken: ct);
         RenderResult result = await _editing.RenderAsync(userId, ct);
-        UserSession session = await _store.GetAsync(userId, ct);
-        await sendResultPhotoAsync(chatId, result.Path, buildCaption(session, result),
-            Keyboards.EditMenu(session.ActiveProjectId is not null), ct);
-        // Live sync: a mutating edit on a synced active project auto-uploads so peers see it.
-        if (mutating && session.SyncEnabled && session.ActiveProjectId is not null)
+        try
         {
-            await autoSyncAsync(userId, chatId, ct);
+            UserSession session = await _store.GetAsync(userId, ct);
+            await sendResultPhotoAsync(chatId, result.Path, buildCaption(session, result),
+                Keyboards.EditMenu(session.ActiveProjectId is not null), ct);
+            // Live sync: a mutating edit on a synced active project auto-uploads the same render.
+            if (mutating && session.SyncEnabled && session.ActiveProjectId is not null)
+            {
+                await autoSyncAsync(userId, chatId, result, ct);
+            }
+        }
+        finally
+        {
+            _editing.Discard(result);
         }
     }
 
-    private async Task autoSyncAsync(long userId, long chatId, CancellationToken ct)
+    private async Task autoSyncAsync(long userId, long chatId, RenderResult result, CancellationToken ct)
     {
         try
         {
-            ProjectRecord record = await _servers.SaveActiveProjectAsync(userId, ct);
-            // The ↑ already marks it; Tag keeps the line to one glyph.
-            await _bot.SendMessage(
-                chatId,
-                Replies.Tag(Replies.Tone.SUCCESS, $"↑ synced to '{record.Name}' (v{record.Version})."),
-                cancellationToken: ct);
+            ProjectRecord record = await _servers.SaveActiveProjectAsync(userId, result, ct);
+            await _bot.SendMessage(chatId, Replies.SyncSaved(record.Name, record.Version), cancellationToken: ct);
         }
         catch (ServerException ex)
         {
-            await _bot.SendMessage(
-                chatId, Replies.Tag(Replies.Tone.ERROR, $"Couldn't sync: {ex.Message}"), cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.SyncFailed(ex.Message), cancellationToken: ct);
         }
     }
 
@@ -184,7 +180,7 @@ public sealed partial class CommandHandlers
         // Show where the image came from (Telegram auto-links the URL, so it's tappable).
         if (session.SourceUrl is string src)
         {
-            caption += $"\nSource: {src}";
+            caption += Replies.CaptionSource(src);
         }
         return caption;
     }

@@ -2,11 +2,12 @@
 
 namespace stencil::gui {
 
-  // An excluded row is gone at once; the rows LEFT arrive. A row the filter has never
-  // seen (a fresh list) jumps to the end state.
+  // An excluded row's slot closes at once (onLeave dissolves it first); the rows LEFT arrive. A row
+  // the filter has never seen (a fresh list) jumps to the end state.
   void ListFilterFade::apply(const std::function<bool(QListWidgetItem*)>& wanted) {
     if (!list) return;
     dustBudget = 0;
+    leaveBudget = 0;
     const bool instant = support::motionReduced();
     if (beforeFrame) beforeFrame();
     // A re-list landing on the same set must not replay, or every refresh flashes the list.
@@ -26,6 +27,9 @@ namespace stencil::gui {
                            ? target
                            : it->data(FILTER_PRESENCE_ROLE).toDouble();
       if (onArrive && !instant && known && changed && target > 0.5) onArrive(it);
+      if (onLeave && !instant && known && changed && target < 0.5 && !it->isHidden()
+          && it->data(FILTER_PRESENCE_ROLE).toDouble() > 0.5)
+        onLeave(it);
       write(it, p, target);
       if (p != target) moving = true;
     }
@@ -33,6 +37,26 @@ namespace stencil::gui {
     if (moving) startTicking(); else stopTicking();
   }
 
+
+  // Motes are painted only over the list's own viewport (browser disintegrate `clip`).
+  void ListFilterFade::clipToViewport(DisintegrateOverlay* fx, QWidget* host) const {
+    if (!fx || !list || !host) return;
+    fx->setPaintClip(QRect(list->viewport()->mapTo(host, QPoint(0, 0)), list->viewport()->size()));
+  }
+
+  void ListFilterFade::dustRowOut(QListWidgetItem* it, QWidget* host, int ms) {
+    if (!it || !list || !host || !host->isVisible() || support::motionReduced()) return;
+    if (leaveBudget >= FILTER_DUST_MAX_ROWS) return;
+    const QRect r = list->visualItemRect(it);
+    if (r.width() < 8 || r.height() < 8 || !list->viewport()->rect().intersects(r)) return;
+    ++leaveBudget;
+    auto* fx = DisintegrateOverlay::overRect(list->viewport(), r.intersected(list->viewport()->rect()), host,
+                                             DisintegrateOverlay::Sweep::ROWS, /*dust=*/true,
+                                             FILTER_DUST_ROW_CELLS, ms);
+    if (!fx) return;
+    fx->setObjectName(QString::fromLatin1(FILTER_DUST_OBJECT_NAME));
+    clipToViewport(fx, host);
+  }
 
   // Browser js/ui/motion.js filterDust: the row is veiled (FILTER_DUST_ROLE, honoured by
   // a delegate through filterInk) while its motes gather over its rect.
@@ -62,7 +86,9 @@ namespace stencil::gui {
         if (self->afterFrame) self->afterFrame();
       };
       const QRect r = list->visualItemRect(row);
-      if (r.width() < 8 || r.height() < 8 || !hostP->isVisible()) { unveil(); return; }
+      // A row scrolled out of view simply appears: its motes would fly over the header and footer.
+      if (r.width() < 8 || r.height() < 8 || !hostP->isVisible()
+          || !list->viewport()->rect().intersects(r)) { unveil(); return; }
       // The veil is lifted for the photograph alone (grab() never reaches the screen):
       // a veiled row photographs as bare background.
       const auto setVeil = [&](double v) {
@@ -79,12 +105,13 @@ namespace stencil::gui {
                                                QColor(), shot);
       if (!fx) { unveil(); return; }
       fx->setObjectName(QString::fromLatin1(FILTER_DUST_OBJECT_NAME));
+      self->clipToViewport(fx, hostP);
       // Browser markForm stop.
-      QTimer::singleShot(int(ms * FILTER_DUST_VEIL_STOP), self, unveil);
+      QTimer::singleShot(support::motionMs(int(ms * FILTER_DUST_VEIL_STOP)), self, unveil);
     };
     // A row being revealed has no box yet: wait out the slot opening.
     if (list->visualItemRect(it).height() >= 8) fly();
-    else QTimer::singleShot(FILTER_FADE_MS, this, fly);
+    else QTimer::singleShot(support::motionMs(FILTER_FADE_MS), this, fly);
   }
 
 
@@ -112,7 +139,6 @@ namespace stencil::gui {
 
   void ListFilterFade::tick() {
     if (!list) { stopTicking(); return; }
-    const double step = double(FILTER_FADE_TICK_MS) / FILTER_FADE_MS;
     if (beforeFrame) beforeFrame();
     bool moving = false;
     for (int i = 0; i < list->count(); ++i) {
@@ -122,7 +148,7 @@ namespace stencil::gui {
       const double target = t.toDouble();
       double p = it->data(FILTER_PRESENCE_ROLE).toDouble();
       if (p == target) continue;
-      p = p < target ? std::min(target, p + step) : std::max(target, p - step);
+      p = p < target ? std::min(target, p + tickStep) : std::max(target, p - tickStep);
       write(it, p, target);
       if (p != target) moving = true;
     }
@@ -136,6 +162,8 @@ namespace stencil::gui {
       timer->setInterval(FILTER_FADE_TICK_MS);
       connect(timer, &QTimer::timeout, this, [this] { tick(); });
     }
-    if (!timer->isActive()) timer->start();
+    if (timer->isActive()) return;
+    tickStep = double(FILTER_FADE_TICK_MS) / support::motionMs(FILTER_FADE_MS);   // held for the whole run
+    timer->start();
   }
 }  // namespace stencil::gui

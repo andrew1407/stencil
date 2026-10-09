@@ -5,6 +5,7 @@
 // App-wide under its own localStorage key; mirrored onto <html data-motion> (animations/motionModes.css).
 
 import { publish, EVENTS } from '../../eventBus/appBus.js';
+import MOTION from '../../../../common/config/motion.json' with { type: 'json' };
 
 export const MOTION_STORAGE_KEY = 'drawingApp_motion';
 // Fired after every change, so an open dialog can restate its controls.
@@ -14,9 +15,8 @@ const BACKDROP_ATTR = 'data-modal-backdrop';
 const MULTI_WINDOW_ATTR = 'data-multi-window';
 
 const MOTION_PARTICLES = 'particles';
-// On by default: a window that dims what it covers is the shape both surfaces ship with.
-export const DEFAULT_MODAL_BACKDROP = true;
-// Off by default: one window at a time, over a backdrop; on, windows stay open side by side.
+// Off by default: one window at a time, dimming and blurring what it covers; on, windows stay open
+// side by side over a sharp page.
 export const DEFAULT_MULTI_WINDOW = false;
 const MOTION_WATER = 'water';
 const MOTION_FIRE = 'fire';
@@ -28,6 +28,9 @@ export const PARTICLE_MODES = Object.freeze([MOTION_PARTICLES, MOTION_WATER, MOT
 const PARTICLE_STYLE_OF = { [MOTION_PARTICLES]: 'dust', [MOTION_WATER]: 'water', [MOTION_FIRE]: 'fire' };
 export const DEFAULT_MOTION_MODE = MOTION_PARTICLES;
 export const DEFAULT_DRAWING_ANIMATIONS = true;
+// The Visuals "Animation speed": every interface flight runs DEFAULT / speed times its tuned length.
+export const MOTION_SPEED = Object.freeze({ ...MOTION.speed });
+export const DEFAULT_MOTION_SPEED = MOTION_SPEED.default;
 
 // One list for the desktop combo (dialogs/settings/SettingsDialog.cpp) and the extension's options
 // page (src/lib/accent/accent.js StencilMotion) to mirror.
@@ -46,17 +49,24 @@ export const normalizeMotionMode = (v) => {
   return MOTION_MODES.includes(s) ? s : DEFAULT_MOTION_MODE;
 };
 
+// A number outside min–max is clamped; anything else reads as the default. Two decimals, the step.
+export const clampMotionSpeed = (v) => {
+  const n = typeof v === 'string' && v.trim() !== '' ? Number(v) : v;
+  if (typeof n !== 'number' || !Number.isFinite(n)) return DEFAULT_MOTION_SPEED;
+  return Math.round(Math.min(MOTION_SPEED.max, Math.max(MOTION_SPEED.min, n)) * 100) / 100;
+};
+
 const defaultMotionPrefs = () => ({
   mode: DEFAULT_MOTION_MODE, drawing: DEFAULT_DRAWING_ANIMATIONS,
-  backdrop: DEFAULT_MODAL_BACKDROP, multiWindow: DEFAULT_MULTI_WINDOW,
+  multiWindow: DEFAULT_MULTI_WINDOW, speed: DEFAULT_MOTION_SPEED,
 });
 
 const mergePatch = (base, patch = {}) => {
   const next = { ...base };
   if (patch.mode !== undefined) next.mode = normalizeMotionMode(patch.mode);
   if (patch.drawing !== undefined) next.drawing = !!patch.drawing;
-  if (patch.backdrop !== undefined) next.backdrop = !!patch.backdrop;
   if (patch.multiWindow !== undefined) next.multiWindow = !!patch.multiWindow;
+  if (patch.speed !== undefined) next.speed = clampMotionSpeed(patch.speed);
   return next;
 };
 
@@ -80,12 +90,23 @@ const effective = () => (override ? { ...prefs, ...override } : prefs);
 export const motionPrefs = () => ({ ...effective() });
 export const motionMode = () => effective().mode;
 export const drawingAnimations = () => effective().drawing;
-// Whether an open window blurs and darkens what is behind it. Desktop twin:
-// support/motionPrefs.hpp modalBackdrop().
-export const modalBackdrop = () => effective().backdrop;
 // Many windows at once, none dimming or blocking the app. Desktop twin: support/motionPrefs.hpp multiWindow().
 export const multiWindow = () => effective().multiWindow;
 export const motionOverridden = () => override !== null;
+export const motionSpeed = () => effective().speed;
+// The duration multiplier: exactly 1 at the default, so nothing tuned moves until the user asks.
+export const motionScale = () => DEFAULT_MOTION_SPEED / effective().speed;
+export const motionMs = (ms) => {
+  const k = motionScale();
+  return k === 1 ? ms : Math.round(ms * k);
+};
+// A clock for one rAF flight: its milliseconds pass at the speed in force when it started, so a
+// change mid-flight neither freezes the motes nor ends them at once.
+export const motionClock = (real = () => globalThis.performance?.now?.() ?? Date.now()) => {
+  const k = motionScale();
+  const t0 = real();
+  return () => t0 + (real() - t0) / k;
+};
 export const storedMotionMode = () => prefs.mode;
 export const showMotionStyle = () => PARTICLE_STYLE_OF[effective().mode] || 'dust';
 export const showDustAllowed = () => PARTICLE_MODES.includes(effective().mode);   // slide/none fly none
@@ -111,7 +132,7 @@ export const applyMotionAttr = (root = typeof document !== 'undefined' ? documen
   const now = effective();
   root?.setAttribute?.(MOTION_ATTR, now.mode);
   // A plain attribute, so the blur is a CSS rule rather than a per-overlay inline style.
-  root?.toggleAttribute?.(BACKDROP_ATTR, now.backdrop && !now.multiWindow);
+  root?.toggleAttribute?.(BACKDROP_ATTR, !now.multiWindow);
   root?.toggleAttribute?.(MULTI_WINDOW_ATTR, now.multiWindow);
 };
 

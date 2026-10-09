@@ -109,7 +109,7 @@ namespace stencil::gui {
       parts.dockChrome.setChatCompactPopover(false);   // it is leaving; the next open re-establishes it
       parts.dockChrome.setChatShown(false, /*animate=*/true);
       QPointer<QWidget> pin(anchor);
-      QTimer::singleShot(support::motionReduced() ? 0 : outMs, this, [this, pin] {
+      QTimer::singleShot(support::motionReduced() ? 0 : support::motionMs(outMs), this, [this, pin] {
         if (pin) parts.dockChrome.openChatCompactNow(pin);
       });
       return;

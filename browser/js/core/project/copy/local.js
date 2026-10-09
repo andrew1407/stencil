@@ -2,14 +2,14 @@
 // thumbnail when the copy shows what it shows, and its chat for a whole-project copy.
 import { PROJECT_ACTION } from '../../../worker/messages.js';
 import { guardedFetch } from '../../../net/fetchGuard.js';
-import { blobToDataUrl } from '../serverTransfer.js';
+import { dataUrlOfBlob } from '../store/imageBlobs.js';
 import { copyPayload, copyScopes } from './scope.js';
 
 // The backend stores a thumbnail only as a data URL; a row's is read back from its object URL.
 const thumbDataUrl = async (c, thumb) => {
   if (typeof thumb !== 'string' || !thumb) return null;
   if (/^data:/i.test(thumb)) return thumb;
-  try { return await blobToDataUrl(c, await (await guardedFetch(thumb)).blob()); } catch { return null; }
+  try { return await dataUrlOfBlob(await (await guardedFetch(thumb)).blob()); } catch { return null; }
 };
 
 export const createLocalCopy = async (c, src, what, name) => {

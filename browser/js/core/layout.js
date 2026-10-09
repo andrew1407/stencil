@@ -2,6 +2,7 @@ import LAYOUT_FIELDS_DATA from '../../../common/config/layoutFields.json' with {
 import constants from '../../../common/config/constants.json' with { type: 'json' };
 import { core } from './abi/stencilCore.js';
 import { LINE_DEFAULTS } from './line/linesCodec.js';
+import { storedSize } from './settings/limits.js';
 
 // Pure layout helpers: serialization, validation, geometry-edit indices. No DOM/app state.
 // LAYOUT_FIELDS (config/layoutFields.json, canonical for every surface): array order IS the
@@ -103,9 +104,9 @@ const sanitizeLine = (l, budget) => {
   if (typeof l.fillColor === 'string') line.fillColor = l.fillColor;
   if (typeof l.style === 'string') line.style = l.style;
   const thickness = Number(l.thickness);
-  if (Number.isFinite(thickness)) line.thickness = thickness;
+  if (Number.isFinite(thickness)) line.thickness = storedSize(thickness);
   const pointSize = Number(l.pointSize);
-  if (Number.isFinite(pointSize)) line.pointSize = pointSize;
+  if (Number.isFinite(pointSize)) line.pointSize = storedSize(pointSize);
   line.locked = !!l.locked;
   if (typeof l.name === 'string' && l.name) line.name = l.name.slice(0, MAX_NAME);
   if (l.hidden) line.hidden = true;

@@ -6,6 +6,7 @@
 #include <QMouseEvent>
 #include <QObject>
 #include <QSlider>
+#include <QString>
 #include <QStyle>
 #include <QStyleOptionSlider>
 
@@ -37,9 +38,9 @@ namespace stencil::gui {
   };
 
   // The frame scrub as a player's progress bar: named for the QSS that paints it
-  // (#oiFrameScrub), a pointer cursor QSS cannot give it, and tap-to-seek.
-  inline void makeScrubBar(QSlider* s) {
-    s->setObjectName(QStringLiteral("oiFrameScrub"));
+  // (#oiFrameScrub, or another name that rule lists), a pointer cursor QSS cannot give it, and tap-to-seek.
+  inline void makeScrubBar(QSlider* s, const QString& name = QStringLiteral("oiFrameScrub")) {
+    s->setObjectName(name);
     s->setCursor(Qt::PointingHandCursor);
     s->installEventFilter(new ScrubClick(s));
   }

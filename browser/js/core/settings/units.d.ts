@@ -29,4 +29,3 @@ export declare const layoutLineLengthCm: (layout: MeasurableLayout | null | unde
 export declare const pageFormatLabel: (name: string, unit?: string) => string;
 /** <option> markup for every named format in PAGE_SIZES order. */
 export declare const pageFormatOptions: (unit?: string) => string;
-export declare const isDeltaToken: (token: unknown) => boolean;

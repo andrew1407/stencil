@@ -2,20 +2,20 @@
 // flyout (editor.js). The colouring comes from the core's own token stream, so the
 // editors and the runner never disagree about what a line means.
 import { parseScript } from '../../core/script.js';
-import { DIRECTIVES, unitIndexOfColumn } from '../../core/script/types.js';
+import { DIRECTIVES, columnIndex } from '../../core/script/types.js';
 
 // Token and diagnostic columns are UTF-8 bytes (both engines); the <pre> counts UTF-16 units.
-// → { col (1-based unit), len (units) } over the same characters.
-const unitSpan = (lineText, col, len) => {
-  const start = unitIndexOfColumn(lineText, col);
-  return { col: start + 1, len: unitIndexOfColumn(lineText, col + len) - start };
+// → { col (1-based unit), len (units) } over the same characters, via the line's columnIndex.
+const unitSpan = (index, col, len) => {
+  const start = index.unitOf(col);
+  return { col: start + 1, len: index.unitOf(col + len) - start };
 };
 
 // The lexer classifies on the '@' alone, so only a REAL directive is coloured, lowercased like
 // the lowering (@CROP stays one). Read off the SOURCE: the wasm path leaves token.text empty.
 const DIRECTIVE_WORDS = new Set(DIRECTIVES);
-const knownDirective = (lines, t) => {
-  const { col, len } = unitSpan(lines[t.line - 1] ?? '', t.col, t.len);
+const knownDirective = (lines, index, t) => {
+  const { col, len } = unitSpan(index, t.col, t.len);
   return DIRECTIVE_WORDS.has((lines[t.line - 1] ?? '').slice(col, col - 1 + len).toLowerCase());
 };
 
@@ -79,14 +79,16 @@ export const paintInto = (pre, text, withDiagnostics) => {
   // Tokens arrive in column order, so a diagnostic splices in at its column and nothing sorts.
   const byLine = Array.from({ length: lines.length + 1 }, () => []);
   const bucket = (line) => byLine[line] ?? (byLine[line] = []);
+  const indexes = [];
+  const indexOf = (line) => indexes[line] ?? (indexes[line] = columnIndex(lines[line - 1] ?? ''));
   for (const t of program.tokens) {
-    if (t.kind === 'directive' && !knownDirective(lines, t)) continue;   // plain text, and still underlined
-    bucket(t.line).push({ ...unitSpan(lines[t.line - 1] ?? '', t.col, t.len), cls: `stk-${t.kind}` });
+    if (t.kind === 'directive' && !knownDirective(lines, indexOf(t.line), t)) continue;   // plain text, and still underlined
+    bucket(t.line).push({ ...unitSpan(indexOf(t.line), t.col, t.len), cls: `stk-${t.kind}` });
   }
 
   if (withDiagnostics) {
     for (const d of program.diagnostics) {
-      const { col, len } = unitSpan(lines[d.line - 1] ?? '', d.col, Math.max(1, d.len));
+      const { col, len } = unitSpan(indexOf(d.line), d.col, Math.max(1, d.len));
       const marks = bucket(d.line);
       // A diagnostic underlines the token already there rather than replacing it, so the
       // span keeps its colour AND gains the squiggle.

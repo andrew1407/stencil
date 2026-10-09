@@ -24,9 +24,6 @@ public sealed partial class LayerBoundaryTests
 
     private static readonly string[] _domainForbiddenPackages = ["Telegram.Bot", "StackExchange.Redis"];
 
-    // Frozen violations, one reason each; empty means the tree honours every rule.
-    private static readonly IReadOnlyDictionary<string, string> _allowances = new Dictionary<string, string>();
-
     [GeneratedRegex(@"^\s*(?:global\s+)?using\s+(?:static\s+)?(?:[\w.]+\s*=\s*)?([\w.]+)\s*;")]
     private static partial Regex usingLine();
 
@@ -55,8 +52,6 @@ public sealed partial class LayerBoundaryTests
     private static string toRel(string path) =>
         Path.GetRelativePath(SharedFixtures.RepoRoot, path).Replace('\\', '/');
 
-    private static bool isAllowed(string relPath) => _allowances.ContainsKey(relPath);
-
     public static IEnumerable<object[]> RingNames() => _rings.Select(r => new object[] { r });
 
     [Theory]
@@ -81,10 +76,6 @@ public sealed partial class LayerBoundaryTests
         List<string> offending = [];
         foreach (string file in sourceFiles(ring))
         {
-            if (isAllowed(toRel(file)))
-            {
-                continue;
-            }
             foreach (string ns in usings(file))
             {
                 string? target = ringOf(ns);
@@ -104,10 +95,6 @@ public sealed partial class LayerBoundaryTests
         List<string> offending = [];
         foreach (string file in sourceFiles("Domain"))
         {
-            if (isAllowed(toRel(file)))
-            {
-                continue;
-            }
             foreach (string ns in usings(file))
             {
                 if (_domainForbiddenNamespaces.Any(f => ns == f || ns.StartsWith(f + ".", StringComparison.Ordinal)))
@@ -127,15 +114,6 @@ public sealed partial class LayerBoundaryTests
             .Where(p => _domainForbiddenPackages.Any(f => p.Equals(f, StringComparison.OrdinalIgnoreCase)))
             .ToArray();
         Assert.True(packages.Length == 0, "Domain references an adapter package: " + string.Join(", ", packages));
-    }
-
-    [Fact]
-    public void Should_Name_A_File_For_Every_Allowance()
-    {
-        string[] stale = _allowances.Keys
-            .Where(rel => !File.Exists(SharedFixtures.PathOf(rel.Split('/'))))
-            .ToArray();
-        Assert.True(stale.Length == 0, "allowance for a file that no longer exists: " + string.Join(", ", stale));
     }
 
     [Fact]

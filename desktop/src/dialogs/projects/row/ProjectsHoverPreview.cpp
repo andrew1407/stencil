@@ -94,7 +94,7 @@ namespace stencil::gui {
       hover.hoverPreview->setWindowOpacity(0.0);
       gui::holdFadeKeys(fade, gui::TIP_DUST_IN_MS);
     } else {
-      fade->setDuration(HOVER_FADE_MS);
+      fade->setDuration(support::motionMs(HOVER_FADE_MS));
       fade->setStartValue(hover.hoverPreview->windowOpacity());
       fade->setEndValue(1.0);
     }
@@ -117,7 +117,7 @@ namespace stencil::gui {
     fade->stop();
     fade->setKeyValues({});
     hover.hoverClosing = true;
-    fade->setDuration(gui::DUST_HAND_OVER_MS);
+    fade->setDuration(support::motionMs(gui::DUST_HAND_OVER_MS));
     fade->setStartValue(hover.hoverPreview->windowOpacity());
     fade->setEndValue(0.0);
     fade->start();

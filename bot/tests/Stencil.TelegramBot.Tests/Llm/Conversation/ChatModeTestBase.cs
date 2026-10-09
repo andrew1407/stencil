@@ -31,7 +31,7 @@ public abstract class ChatModeTestBase : IDisposable
 
     protected ChatModeTestBase()
     {
-        _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-chatmode-" + Guid.NewGuid().ToString("N"));
+        _dataDir = TempDirs.New("bot-chatmode");
         BotOptions options = new() { DataDir = _dataDir, AllowedUsers = AnyUser.Instance };
         EditingService editing = new(_cli, new UserWorkspace(options), _store);
         _handlers = TestHandlers.Create(options, _store, _cli, _bot, _llm, editing: editing);
@@ -49,7 +49,7 @@ public abstract class ChatModeTestBase : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
+        TempDirs.Delete(_dataDir);
         GC.SuppressFinalize(this);
     }
 
@@ -66,15 +66,7 @@ public abstract class ChatModeTestBase : IDisposable
 
     /// <summary>Tap an inline button (the 💬 Chat / 🚪 Chat off tokens).</summary>
     protected Task Tap(string data) =>
-        _callbacks.HandleAsync(
-            new CallbackQuery
-            {
-                Id = "cb",
-                From = new User { Id = UserId },
-                Message = new Message { Chat = new Chat { Id = ChatId } },
-                Data = data,
-            },
-            CancellationToken.None);
+        _callbacks.HandleAsync(TestHandlers.Tap(UserId, ChatId, data), CancellationToken.None);
 
     protected IEnumerable<SendMessageRequest> Messages => _bot.Requests.OfType<SendMessageRequest>();
 }

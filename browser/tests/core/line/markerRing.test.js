@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ringFor, drawPoint } from '../../../js/core/line/render.js';
-import { recordingCtx } from '../../helpers/recordingCtx.js';
+import { recordingCtx, argsOf } from '../../helpers/recordingCtx.js';
 
 test('ringFor: black on light fills, white on dark ones, in every form the canvas hands back', () => {
   assert.equal(ringFor('#ffff00'), '#000');
@@ -28,4 +28,14 @@ test('drawPoint strokes the ring its fill asks for', () => {
     drawPoint({ ctx, app: {} }, { x: 5, y: 5 }, fill, 3);
     assert.deepEqual(strokes, [ring]);
   }
+});
+
+// A real canvas throws IndexSizeError on a negative arc radius; the stand-in records it instead.
+test('drawPoint never hands the canvas a negative radius, whatever the line carries', () => {
+  const { ctx, calls } = recordingCtx();
+  drawPoint({ ctx, app: { selGlowColor: '#fff', focusRingColor: '#fff' } }, { x: 5, y: 5 }, '#ff0000', -3, true, 2);
+  const radii = argsOf(calls, 'arc').map((a) => a[2]);
+  assert.equal(radii.length, 3, 'glow, focus ring and the point');
+  assert.ok(radii.every((r) => r >= 0), `radii ${radii}`);
+  assert.equal(radii.at(-1), 0);
 });

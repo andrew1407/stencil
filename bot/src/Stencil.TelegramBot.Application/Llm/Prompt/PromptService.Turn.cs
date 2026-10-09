@@ -28,7 +28,7 @@ public sealed partial class PromptService
         List<LlmImage> images = image is null ? [] : edgeMap is null ? [image] : [image, edgeMap];
         messages.Add(new LlmMessage(LlmMessage.ROLE_USER, text, images));
         LlmOptions options = optionsFor(session);
-        (string? serverUrl, string? serverToken) = resolveServer(session, options);
+        (string? serverUrl, string? serverToken, bool fromUser) = resolveServer(session, options);
         string system = ChatSystemPrompt + contextSuffix(session, projects);
         if (image is not null && edgeMap is not null)
         {
@@ -40,6 +40,7 @@ public sealed partial class PromptService
             Messages = messages,
             ServerUrl = serverUrl,
             ServerToken = serverToken,
+            ServerFromUser = fromUser,
             Options = options,
         };
     }
@@ -65,11 +66,11 @@ public sealed partial class PromptService
 
     // An explicit STENCIL_LLM_SERVER_URL wins (reusing the user's stored token), else the first
     // connected server.
-    private (string? Url, string? Token) resolveServer(UserSession session, LlmOptions options)
+    private (string? Url, string? Token, bool FromUser) resolveServer(UserSession session, LlmOptions options)
     {
         if (options.Provider != LlmOptions.PROVIDER_STENCIL_SERVER)
         {
-            return (null, null);
+            return (null, null, false);
         }
         if (options.ServerUrl is string configured && configured.Trim().Length > 0)
         {
@@ -86,7 +87,7 @@ public sealed partial class PromptService
                 throw new InvalidOperationException(
                     $"The AI assistant runs through {url} — /connect {url} <token> first.");
             }
-            return (url, token);
+            return (url, token, false);
         }
         ServerConnectionInfo? first = session.Connections.FirstOrDefault();
         if (first is null)
@@ -94,7 +95,7 @@ public sealed partial class PromptService
             throw new InvalidOperationException(
                 "The AI assistant runs through a Stencil server — /connect <url> first.");
         }
-        return (first.Url, first.Token);
+        return (first.Url, first.Token, true);
     }
 
     // The cli console's cap.
@@ -111,7 +112,7 @@ public sealed partial class PromptService
         }
         try
         {
-            return await _projects.ListProjectsAsync(userId, null, ct);
+            return await _projects.ListRecentProjectsAsync(userId, MAX_CONTEXT_PROJECTS + 1, ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -157,7 +158,8 @@ public sealed partial class PromptService
             : " No active server project.");
     }
 
-    // At most MaxContextProjects names per server, then "+N more" (the cli console's rule).
+    // At most MaxContextProjects names per server; one more listed only proves there are more, so
+    // the count the cli console prints is unknown here.
     private static string projectsSuffix(IReadOnlyList<ServerProjectInfo>? projects)
     {
         if (projects is null)
@@ -173,7 +175,7 @@ public sealed partial class PromptService
             sb.Append(string.Join(", ", names.Take(shown)));
             if (names.Count > shown)
             {
-                sb.Append($" (+{names.Count - shown} more)");
+                sb.Append(" (+more)");
             }
             sb.Append('.');
         }

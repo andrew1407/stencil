@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ..image import Image
-from ._snapshot import _MAX_STATES, _Snapshot
+from ._snapshot import _MAX_STATES, _Snapshot, _evictions
 
 
 class _HistoryApi:
@@ -17,13 +17,15 @@ class _HistoryApi:
 
   def _push(self, snapshot: _Snapshot) -> None:
     """The CLI's ``pushState``: truncate the redo tail, append, advance, then evict the oldest
-    EDIT past ``_MAX_STATES`` (index 1, never the pristine [0])."""
+    EDITS (from index 1, never the pristine [0] nor the newest) past ``_MAX_STATES``, then while
+    the points kept pass core's cap (LIMITS.historyPointsMax)."""
+    snapshot.points = sum(len(line.points) for line in snapshot.lines)
     self._history = self._history[: self._cursor + 1]
     self._history.append(snapshot)
     self._cursor = len(self._history) - 1
-    while len(self._history) > _MAX_STATES:
-      del self._history[1]
-      self._cursor -= 1
+    drop = _evictions(self._history, _MAX_STATES, self._get_core().history_caps()[1])
+    del self._history[1 : 1 + drop]
+    self._cursor -= drop
     self._revision += 1
 
 

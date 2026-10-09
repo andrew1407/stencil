@@ -1,4 +1,4 @@
-import { motionReduced } from '../motionPrefs.js';
+import { motionMs, motionReduced } from '../motionPrefs.js';
 import { TUNE } from '../tune.js';
 // A switching control wears one of these for one flight, so the parts whose visibility
 // IS the state (the mic's waves) arrive and leave (animations/voice.css).
@@ -16,7 +16,7 @@ export function replayWaves(el, on, { setTimer = setTimeout } = {}) {
     if (el.matches?.(':hover')) { el.addEventListener('pointerleave', () => el.classList.remove(cls), { once: true }); return; }
     el.classList.remove(cls);
   };
-  setTimer(done, WAVES_FLIGHT_MS);
+  setTimer(done, motionMs(WAVES_FLIGHT_MS));
 }
 
 // Toggles that rewrite themselves in place: the new markup is written FIRST, then the outgoing
@@ -59,7 +59,7 @@ export function swapContent(el, html, {
     if (swapGen.get(el) !== gen) return;   // a newer swap owns the element now
     el.classList?.remove(SWAP_CLASS);
     ghost?.remove?.();
-  }, ms + 60);
+  }, motionMs(ms + 60));
   return true;
 }
 

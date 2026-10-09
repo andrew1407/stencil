@@ -158,6 +158,7 @@ namespace stencil::support {
       }
       row.shake->stop();
       row.chip->settle();
+      row.shake->setDuration(support::motionMs(gui::AppTooltip::SHAKE_MS));
       row.shake->start();
     }
   }

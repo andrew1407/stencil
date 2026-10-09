@@ -125,7 +125,7 @@ namespace stencil::gui {
     if (w.pop.active) w.dismissPopover();
     // The one kept takes its dim and blur once the others have flown home, never under their flight.
     if (keep)
-      QTimer::singleShot(OTHERS_GONE_MS, keep, [this, keep = QPointer<QDialog>(keep)] {
+      QTimer::singleShot(support::motionMs(OTHERS_GONE_MS), keep, [this, keep = QPointer<QDialog>(keep)] {
         if (!keep || !keep->isVisible() || support::multiWindow()) return;
         remodal(keep, Qt::ApplicationModal);   // one window at a time blocks the app again
         support::ModalBackdrop::behindAll(keep);
