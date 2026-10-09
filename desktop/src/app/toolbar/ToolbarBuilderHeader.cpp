@@ -7,6 +7,9 @@
 #include "mainWindowHelpers.hpp"
 #include "CanvasWidget.hpp"
 #include "LogoDrag.hpp"
+#include "LogoLineAims.hpp"
+#include "SelectedLineBar.hpp"
+#include "SelectionPanel.hpp"
 #include "LogoHoverFx.hpp"
 #include "LogoStage.hpp"
 #include "Notifications.hpp"
@@ -214,6 +217,7 @@ namespace stencil::gui {
       if (w.canvas->getCompareMode() != QLatin1String("none"))
         w.parts.styleControls.setCompareModeUi(QStringLiteral("none"));
     };
+    addLogoLineHooks(drag, {w.canvas, w.selPanel, w.selectedLineBar, w.scroll, &w.settings});
     installLogoDrag(w.tools.logoBtn, stage, std::move(drag));
   }
 

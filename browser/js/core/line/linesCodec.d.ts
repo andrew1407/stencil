@@ -3,6 +3,10 @@ export interface CodecLine {
   points: { x: number; y: number }[];
   color: string; thickness: number; pointSize: number;
   style: string; locked: boolean; fillColor: string; pointColor: string;
+  /** The user's label; '' = unnamed. */
+  name: string;
+  /** Kept, but neither drawn nor hit. */
+  hidden: boolean;
 }
 
 /** What a missing field stands for: core/models.hpp's Line defaults. */

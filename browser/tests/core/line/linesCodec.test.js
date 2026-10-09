@@ -17,6 +17,17 @@ test('a snapshot round-trips field for field', () => {
   assert.equal(out[1].fillColor, 'transparent');
 });
 
+test("a line's name and hidden flag round-trip; a missing one decodes as unnamed and shown", () => {
+  const { nums, text } = encodeLines([{ ...line(2), name: 'Roof ridge', hidden: true }, line(1)]);
+  const out = decodeLines(nums, text);
+  assert.equal(out[0].name, 'Roof ridge');
+  assert.equal(out[0].hidden, true);
+  assert.deepEqual(out[0].points, pts(2));
+  assert.equal(out[1].name, '');
+  assert.equal(out[1].hidden, false);
+  assert.equal(out[1].color, '#ff0000');
+});
+
 test('NaN, negative and huge counts never drive the decode', () => {
   const { nums, text } = encodeLines([line(2), line(1)]);
   for (const bad of [NaN, -1, 0]) {
@@ -27,7 +38,7 @@ test('NaN, negative and huge counts never drive the decode', () => {
   assert.equal(decodeLines(huge, text).length, 2, 'a huge line count is capped, the buffer ends it');
   const nanPts = nums.slice(); nanPts[1] = NaN;
   assert.deepEqual(decodeLines(nanPts, text), [], 'a NaN point count stops at the last whole line');
-  const nanLen = nums.slice(); nanLen[5] = NaN;
+  const nanLen = nums.slice(); nanLen[6] = NaN;
   assert.deepEqual(decodeLines(nanLen, text), [], 'a NaN text length is malformed');
   assert.deepEqual(decodeLines(nums, undefined), [], 'no text buffer, no line');
 });

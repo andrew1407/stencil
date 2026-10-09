@@ -3,7 +3,7 @@
 // prototype as they are (delegates.js installMethods); `this` is the app.
 import { notify, compareEditedShows } from '../../utils.js';
 import * as hitTest from '../draw/hitTest.js';
-import { shownMarks, lineAt } from '../pointer/markHits.js';
+import { shownMarks, lineAt, hittableLines } from '../pointer/markHits.js';
 import * as dragGestures from '../touch/dragGestures.js';
 import * as launch from '../launch/controller.js';
 import { editorMemento, sameFilter } from '../historyStack.js';
@@ -72,7 +72,7 @@ export class EditingMethods {
 
   findNearestPoint(x, y, threshold = HIT.pointRadiusPx / (this.scale || 1)) {
     if (!shownMarks(this).points) return null;
-    return hitTest.findNearestPoint(this.lines, this.currentLine, x, y, threshold);
+    return hitTest.findNearestPoint(hittableLines(this.lines), this.currentLine, x, y, threshold);
   }
 
 // Alt+Ctrl/⌘+drag: pull a NEW point out of the line under the cursor; a closed area breaks
@@ -119,12 +119,12 @@ export class EditingMethods {
 
   findNearestPointWithIdx(x, y, threshold = HIT.grabRadiusPx / (this.scale || 1)) {
     if (!shownMarks(this).points) return null;
-    return hitTest.findNearestPointWithIdx(this.lines, this.currentLine, x, y, threshold);
+    return hitTest.findNearestPointWithIdx(hittableLines(this.lines), this.currentLine, x, y, threshold);
   }
 
   findNearestSegmentWithIdx(x, y, threshold = HIT.grabRadiusPx / (this.scale || 1)) {
     if (!shownMarks(this).lines) return null;
-    return hitTest.findNearestSegmentWithIdx(this.lines, x, y, threshold);
+    return hitTest.findNearestSegmentWithIdx(hittableLines(this.lines), x, y, threshold);
   }
 
   saveHistory() {

@@ -46,7 +46,7 @@ namespace stencil::gui {
   void CanvasScene::drawLineScaled(QPainter& p, const core::Line& line,
                                    int lineIdx, double scale,
                                    bool highlight, const LiveMarks* live) const {
-    if (line.points.empty()) return;
+    if (line.points.empty() || line.hidden) return;   // a hidden line is kept, never painted
 
     // A vertex added a moment ago is drawn where it is RIGHT NOW, so segments hanging off a moving
     // vertex follow it for free. One buffer per frame: QPolygonF keeps its capacity.

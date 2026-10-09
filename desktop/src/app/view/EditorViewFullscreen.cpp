@@ -8,10 +8,12 @@
 #include "zoomPan.hpp"
 #include "../../support/uiTimings.hpp"
 #include "theme.hpp"
+#include "iconDrag.hpp"
 
 #include <QScrollArea>
 #include <QLabel>
 #include <QMenuBar>
+#include <QPointer>
 #include <QToolBar>
 
 // Fullscreen: the toggle, the edge-hover reveal of the bars it hid, driven by the pointer's moves,
@@ -85,6 +87,18 @@ namespace stencil::gui {
   // Edge-hover reveal with hysteresis: a wide "keep" zone once shown stops flicker.
   void EditorView::fsHoverTick() {
     if (!w.fs.active) return;
+    // A control dragged out of a revealed row keeps the rows up until its drop: a folded row hides
+    // the button that holds the pointer (browser fullscreen/layer.js).
+    if (support::anyIconDragActive()) {
+      if (w.fs.tickAfterDrag) return;
+      w.fs.tickAfterDrag = true;
+      support::afterIconDrag([this, alive = QPointer<MainWindow>(&w)] {
+        if (!alive) return;
+        w.fs.tickAfterDrag = false;
+        fsHoverTick();
+      });
+      return;
+    }
     const QPoint p = w.mapFromGlobal(QCursor::pos());
     const QSize win = w.size();
     if (!FullscreenController::cursorInside(p, win)) return;

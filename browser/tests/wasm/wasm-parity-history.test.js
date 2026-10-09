@@ -26,7 +26,7 @@ before(async () => {
 const line = (over = {}) => ({
   points: [{ x: 1, y: 2 }, { x: 3.5, y: -4.25 }],
   color: '#7c3aed', thickness: 2, pointSize: 4, style: 'solid',
-  locked: false, fillColor: 'transparent', pointColor: '',
+  locked: false, fillColor: 'transparent', pointColor: '', name: '', hidden: false,
   ...over,
 });
 
@@ -35,10 +35,10 @@ const line = (over = {}) => ({
 test('linesCodec: the encoded layout is exactly what the C++ decoder expects', () => {
   const { nums, text } = encodeLines([{
     points: [{ x: 1, y: 2 }], color: '#ab', thickness: 3, pointSize: 4,
-    style: 'dd', locked: true, fillColor: 'ccc', pointColor: '',
+    style: 'dd', locked: true, fillColor: 'ccc', pointColor: '', name: 'nm', hidden: true,
   }]);
-  assert.deepStrictEqual(Array.from(nums), [1, 1, 3, 4, 1, 3, 2, 3, 0, 1, 2]);
-  assert.strictEqual(new TextDecoder().decode(text), '#abddccc');
+  assert.deepStrictEqual(Array.from(nums), [1, 1, 3, 4, 1, 1, 3, 2, 3, 0, 2, 1, 2]);
+  assert.strictEqual(new TextDecoder().decode(text), '#abddcccnm');
 });
 
 const OPS = {
@@ -77,7 +77,7 @@ wtest('history: the wasm class is installed alongside the pure ops', () => {
 });
 
 wtest('history: a pushed line comes back field for field (codec round trip)', () => {
-  const a = [line({ color: '#abcdef', style: 'dashed', locked: true, fillColor: '', pointColor: '#0f0', thickness: 3.5, pointSize: 7.25 })];
+  const a = [line({ color: '#abcdef', style: 'dashed', locked: true, fillColor: '', pointColor: '#0f0', thickness: 3.5, pointSize: 7.25, name: 'Ridge ✓', hidden: true })];
   const b = [line(), line({ points: [], color: '#000000' })];
   const log = drive([['push', a], ['push', b], ['undo'], ['redo']]);
   assert.deepStrictEqual(log[2], a);
@@ -159,7 +159,7 @@ wtest('history: a sparse line decodes complete, from the core defaults', () => {
     wasm.push([{ points: [] }]);
     assert.deepStrictEqual(wasm.undo(), [{
       points: [{ x: 0, y: 0 }], color: '#FFFF00', thickness: 2, pointSize: 4,
-      style: 'solid', locked: false, fillColor: 'transparent', pointColor: '',
+      style: 'solid', locked: false, hidden: false, fillColor: 'transparent', pointColor: '', name: '',
     }]);
   } finally {
     wasm.destroy();

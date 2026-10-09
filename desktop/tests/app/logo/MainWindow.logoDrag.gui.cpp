@@ -5,6 +5,7 @@
 #include "../../MainWindow.gui.hpp"
 #include "../drag/iconDragGui.hpp"
 #include "LogoStage.hpp"
+#include "dragOverlays.hpp"
 #include "iconDrag.hpp"
 
 using stencil::gui::LogoStage;
@@ -28,11 +29,12 @@ class MainWindowGuiTest : public QObject {
   }
   static void release(MainWindow& win, const QPoint& at) { dropIcon(win.tools.logoBtn, at); }
   // A picture wearing everything the clean view takes off: a filter, a line with its points, a split.
+  // The line keeps to a corner: over a line the mark restyles it instead (MainWindow.logoDrop).
   static CanvasWidget* dressed(MainWindow& win) {
     CanvasWidget* canvas = openLoaded(win);
     if (!canvas->hasImage()) return canvas;
     stencil::core::Line line;
-    line.points = {{20, 20}, {120, 80}, {200, 40}};
+    line.points = {{4, 4}, {24, 16}, {40, 8}};
     line.color = "#ff0000";
     line.thickness = 4;
     canvas->setLines({line});
@@ -51,7 +53,7 @@ class MainWindowGuiTest : public QObject {
   static bool ghostOf(MainWindow& win) {
     for (QWidget* child : win.findChildren<QWidget*>(Qt::FindDirectChildrenOnly))
       if (child->isVisible() && child->testAttribute(Qt::WA_TransparentForMouseEvents) &&
-          child->size() == win.tools.logoBtn->size())
+          dynamic_cast<stencil::support::DragGhost*>(child) && static_cast<stencil::support::DragGhost*>(child)->faceSize() == win.tools.logoBtn->size())
         return true;
     return false;
   }

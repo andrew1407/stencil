@@ -120,9 +120,11 @@
 
 /* Fixed layout over the colgroup, so a row fits the panel at its 240px narrowest. */
 .lines-table { table-layout: fixed; }
+.lines-index-col { width: 24px; }
 .lines-swatch-col { width: 26px; }
-.lines-count-col { width: 40px; }
-.lines-remove-col { width: 28px; }
+.lines-num-col { width: 30px; }
+.lines-count-col { width: 34px; }
+.lines-remove-col { width: 26px; }
 .lines-row { cursor: pointer; }
 .lines-row:hover { background-color: color-mix(in srgb, var(--accent) 18%, transparent); }
 /* The row whose line is under the canvas cursor. */
@@ -147,4 +149,10 @@
 .lines-num:has(.lines-num-input) { padding: 2px; }
 /* Never display:none (panel/lines/swatchPicker.js), or the native picker opens at the page corner. */
 .lines-color-picker { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-.lines-remove-cell { width: 28px; padding: 4px; }
+.lines-remove-cell, .lines-eye-cell { padding: 4px 2px; }
+/* The name takes what the fixed columns leave; unnamed, it shows its muted "Line N". */
+.lines-name { cursor: text; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lines-name-unset { color: var(--text-muted); font-style: italic; }
+.lines-name:has(.lines-name-input) { padding: 2px; }
+/* A hidden line keeps its row, dimmed; its eye stays at full strength so it reads as the way back. */
+.lines-row-hidden td:not(.lines-eye-cell) { opacity: 0.45; }

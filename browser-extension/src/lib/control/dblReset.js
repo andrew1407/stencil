@@ -26,6 +26,9 @@ export const resetTarget = (target) => {
   return target.closest('label')?.querySelector('input[type="checkbox"]') ?? null;
 };
 
+// No stated field defaults here, so a drop resets just what a double-click does.
+export const dropResetTarget = (target) => resetTarget(target);
+
 export const defaultOf = (el) => {
   const stated = DEFAULTS[el.id] ? String(DEFAULTS[el.id]()) : el.dataset.default;
   if (el.type === 'checkbox') return stated !== undefined ? stated === 'true' : el.defaultChecked;

@@ -1,16 +1,20 @@
 #pragma once
 // Double-click a selector or a checkbox and it goes back to its default, applied as a pick
 // (browser js/ui/control/dblReset.js). A control opts in with setResetDefault: a combo's item
-// data (or text, or an int index), a check's bool.
+// data (or text, or an int index), a check's bool, a spin's number, a field's text; a colour
+// chip's reset is its own function. A logo dropped on any of them resets it the same way.
 #include <QAbstractButton>
 #include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDoubleSpinBox>
 #include <QElapsedTimer>
 #include <QEvent>
 #include <QMenu>
+#include <QLineEdit>
 #include <QMouseEvent>
 #include <QPointer>
+#include <QSpinBox>
 #include <QTimer>
 #include <QVariant>
 
@@ -27,7 +31,22 @@ namespace stencil::support {
   // Set by captionToggles: the check a caption stands for, so its double-click resets it too.
   inline constexpr const char* CAPTION_BOX_PROPERTY = "captionBox";
 
+  inline constexpr const char* RESET_HOOK_PROPERTY = "resetHook";
+
   inline void setResetDefault(QObject* o, const QVariant& v) { if (o) o->setProperty(RESET_DEFAULT_PROPERTY, v); }
+
+  // A control that puts its default back itself (a colour chip); the hook lives as long as it does.
+  class ResetHook : public QObject {
+   public:
+    ResetHook(QObject* owner, std::function<void()> reset) : QObject(owner), reset(std::move(reset)) {}
+    std::function<void()> reset;
+  };
+  inline void setResetHook(QObject* o, std::function<void()> reset) {
+    if (o) o->setProperty(RESET_HOOK_PROPERTY, QVariant::fromValue<void*>(new ResetHook(o, std::move(reset))));
+  }
+  inline ResetHook* resetHookOf(const QObject* o) {
+    return o ? static_cast<ResetHook*>(o->property(RESET_HOOK_PROPERTY).value<void*>()) : nullptr;
+  }
 
   inline bool resetCombo(QComboBox* c) {
     const QVariant v = c->property(RESET_DEFAULT_PROPERTY);
@@ -47,6 +66,44 @@ namespace stencil::support {
     if (!v.isValid() || !b->isEnabled() || b->isChecked() == v.toBool()) return false;
     b->click();   // click(), so the box's own signal chain runs unchanged
     return true;
+  }
+
+  template <typename Spin, typename Value>
+  bool resetSpin(Spin* s, Value v) {
+    if (!s->isEnabled() || s->value() == v) return false;
+    s->setValue(v);   // valueChanged is the route a typed value takes
+    return true;
+  }
+
+  inline bool resetField(QLineEdit* e) {
+    const QVariant v = e->property(RESET_DEFAULT_PROPERTY);
+    if (!v.isValid() || !e->isEnabled() || e->text() == v.toString()) return false;
+    e->setText(v.toString());
+    return true;
+  }
+
+  // The control a logo dropped on `at` resets: the nearest one with a default, `at` or above it.
+  inline QWidget* dropResetTarget(QWidget* at) {
+    for (QWidget* w = at; w; w = w->parentWidget()) {
+      if (!w->isEnabled()) return nullptr;
+      if (resetHookOf(w) || w->property(RESET_DEFAULT_PROPERTY).isValid()) return w;
+      if (auto* box = qobject_cast<QAbstractButton*>(w->property(CAPTION_BOX_PROPERTY).value<QObject*>())) return box;
+      if (w->isWindow()) return nullptr;
+    }
+    return nullptr;
+  }
+
+  // Puts `w` back to its default through its own change path; false when it already was.
+  inline bool resetToDefault(QWidget* w) {
+    if (!w || !w->isEnabled()) return false;
+    if (ResetHook* hook = resetHookOf(w)) { hook->reset(); return true; }
+    const QVariant v = w->property(RESET_DEFAULT_PROPERTY);
+    if (auto* c = qobject_cast<QComboBox*>(w)) return resetCombo(c);
+    if (auto* b = qobject_cast<QAbstractButton*>(w)) return resetCheck(b);
+    if (auto* s = qobject_cast<QSpinBox*>(w)) return v.isValid() && resetSpin(s, v.toInt());
+    if (auto* s = qobject_cast<QDoubleSpinBox*>(w)) return v.isValid() && resetSpin(s, v.toDouble());
+    if (auto* e = qobject_cast<QLineEdit*>(w)) return resetField(e);
+    return false;
   }
 
   // A checkable menu row (a stay-open menu keeps it up across both clicks).
@@ -115,6 +172,7 @@ namespace stencil::support {
   // A colour chip opens a modal picker on its release, so a double-click's second press would land
   // outside it: the open waits one double-click interval (POPOVER.doubleClickMs), a second click resets.
   inline void wireColorChip(QAbstractButton* chip, std::function<void()> open, std::function<void()> reset) {
+    setResetHook(chip, reset);
     auto* wait = new QTimer(chip);
     wait->setSingleShot(true);
     wait->setInterval(uiTimings().doubleClickMs);

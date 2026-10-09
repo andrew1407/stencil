@@ -1,6 +1,7 @@
 #include "fileStore.hpp"
 #include "fileStoreIo.hpp"
 #include "layoutCanon.hpp"
+#include "lineName.hpp"
 #include "linesCodec.hpp"
 #include "localeUnit.hpp"
 #include <QJsonArray>
@@ -40,6 +41,8 @@ namespace stencil::gui {
     o["fillColor"] = QString::fromStdString(line.fillColor);
     // Written ONLY when set: an absent key is how "inherit" round-trips without changing old files' bytes.
     if (!line.pointColor.empty()) o["pointColor"] = QString::fromStdString(line.pointColor);
+    if (!line.name.empty()) o["name"] = QString::fromStdString(line.name);
+    if (line.hidden) o["hidden"] = true;
     return o;
   }
 
@@ -60,6 +63,8 @@ namespace stencil::gui {
       line.locked = o.value("locked").toBool(false);
       line.fillColor = o.value("fillColor").toString("transparent").toStdString();
       line.pointColor = o.value("pointColor").toString("").toStdString();
+      line.name = model::lineNameOf(o.value("name").toString());
+      line.hidden = o.value("hidden").toBool(false);
       return line;
     }
   }  // namespace

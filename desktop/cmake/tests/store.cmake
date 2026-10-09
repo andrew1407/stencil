@@ -31,6 +31,12 @@ stencil_headless_test(stencil_layoutcaps_headless
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
+# A line's name and hidden flag through the layout JSON, and a hidden line out of every hit-test.
+stencil_headless_test(stencil_hiddenlines_headless
+  SOURCES tests/model/hiddenLines.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
+    resources/app.qrc
+  LIBS stencil_core Qt6::Widgets)
+
 # The per-project `color` round-trip through projectToJson <-> projectFromJson.
 stencil_headless_test(stencil_projectcolor_headless
   SOURCES tests/app/project/projectColor.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp

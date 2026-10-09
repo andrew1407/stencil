@@ -22,6 +22,8 @@ namespace stencil::core {
     // EMPTY MEANS INHERIT `color` (layouts written before the field existed carry
     // none). Read it through pointColorOr(), never directly.
     std::string pointColor = "";
+    std::string name = "";              // the user's label for the line; empty = unnamed
+    bool hidden = false;                // kept, but neither drawn nor hit
   };
 
   inline const std::string& pointColorOr(const Line& line) {

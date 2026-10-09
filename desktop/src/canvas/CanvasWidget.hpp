@@ -69,7 +69,6 @@ namespace stencil::gui {
     // axis 0 = x, 1 = y; image px; no clamping (browser drawingApp.js setPointCoord).
     void setPointCoord(int index, int axis, double value);
     void deselect();
-
     DrawMode getDrawMode() const { return drawMode; }
     void setDrawMode(DrawMode mode);
     // Returns the chosen index (-1 = none).
@@ -95,12 +94,13 @@ namespace stencil::gui {
     void setSelectedLinePointColor(const QString& pointColor, bool preview = false, int idx = -1);
     void setSelectedLineStyle(const QString& style);
     void setSelectedLineFill(const QString& fillColor, bool preview = false);
+    void setLineName(int idx, const QString& name);   // model::lineNameOf; one step, none if unchanged
+    void setLineHidden(int idx, bool hidden);         // a hidden line is kept, neither painted nor hit
     void deleteSelectedLine();
 
     bool getIsDrawing() const { return isDrawing; }
     void setHoldDrawDelay(int ms);   // the hold-to-draw dwell (browser holdDraw.js)
     int holdDrawDelay() const { return hold.delayMs; }
-
    signals:
     void hovered(double imageX, double imageY);  // image-space cursor position
     // `immediate` is true only from refreshHoverForModifiers() — a modifier change updates at

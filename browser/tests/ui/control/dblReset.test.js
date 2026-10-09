@@ -62,3 +62,20 @@ test('a mirrored menu row resets through its own toggle, only while its toolbar 
   assert.equal(resetControl(row), false, 'at its default, nothing to do');
   assert.equal(toggles, 1);
 });
+
+test('a number or formula field resets to the editor default; the point colour to the toolbar yellow', () => {
+  const thick = new FakeControl({ id: 'line-thickness', type: 'number', value: '9' });
+  const seen = changes(thick);
+  assert.equal(defaultOf(thick), '2');
+  assert.equal(resetControl(thick), true);
+  assert.deepEqual(seen, ['2']);
+  assert.equal(resetControl(thick), false, 'already the default');
+  assert.equal(defaultOf(new FakeControl({ id: 'point-size', type: 'number' })), '4');
+  const formula = new FakeControl({ id: 'formula-x', type: 'text', value: 'x*2' });
+  let inputs = 0;
+  formula.addEventListener('input', () => inputs++);
+  assert.equal(resetControl(formula), true);
+  assert.equal(formula.value, '');
+  assert.equal(inputs, 1, 'the formula commits from its input event');
+  assert.equal(defaultOf(new FakeControl({ id: 'point-color', type: 'color', value: '#000000' })), '#ffff00');
+});

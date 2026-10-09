@@ -7,6 +7,8 @@ const HAS = (cls) => (n) => n.classList?.contains(cls);
 const MATCH = {
   '.lines-remove': HAS('lines-remove'), '.lines-swatch': HAS('lines-swatch'),
   '.lines-point-swatch': HAS('lines-point-swatch'), '.lines-num': HAS('lines-num'),
+  '.lines-name': HAS('lines-name'), '.lines-eye': HAS('lines-eye'),
+  '.lines-num, .lines-name': (n) => HAS('lines-num')(n) || HAS('lines-name')(n),
   'tr.lines-row': (n) => n.tagName === 'TR' && n.classList?.contains('lines-row'),
 };
 

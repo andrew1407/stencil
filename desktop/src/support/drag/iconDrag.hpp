@@ -61,6 +61,13 @@ namespace stencil::support {
     return started;
   }
 
+  // Whether any control is being dragged now; afterIconDrag runs `fn` at once without one, or after
+  // the live drag's drop. iconDragBegan/Ended bracket each drag (installIconDrag calls them).
+  bool anyIconDragActive();
+  void afterIconDrag(std::function<void()> fn);
+  void iconDragBegan();
+  void iconDragEnded();
+
   // The drop and the cancel run on the next event-loop turn, after the source has seen its release,
   // so a hook may open a modal; a source that is no button sees no live drag's moves or release.
   void installIconDrag(QWidget* source, IconDragHooks hooks);

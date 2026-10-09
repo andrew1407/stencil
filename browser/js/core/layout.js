@@ -79,7 +79,7 @@ export const mergeLines = (serverLines, localLines) => {
 // Bounded so a hostile #stencil= fragment / pasted JSON / co-edit payload cannot DoS the renderer;
 // the total also bounds the 64 history snapshots. Twin: the core's layout sanitiser.
 const { layoutLinesMax: MAX_LINES, layoutLinePointsMax: MAX_POINTS_PER_LINE,
-  layoutPointsMax: MAX_TOTAL_POINTS } = constants.LIMITS;
+  layoutPointsMax: MAX_TOTAL_POINTS, lineNameMax: MAX_NAME } = constants.LIMITS;
 
 const sanitizePoints = (pts, budget) => {
   if (!Array.isArray(pts)) return [];
@@ -107,6 +107,8 @@ const sanitizeLine = (l, budget) => {
   const pointSize = Number(l.pointSize);
   if (Number.isFinite(pointSize)) line.pointSize = pointSize;
   line.locked = !!l.locked;
+  if (typeof l.name === 'string' && l.name) line.name = l.name.slice(0, MAX_NAME);
+  if (l.hidden) line.hidden = true;
   return line;
 };
 

@@ -118,6 +118,32 @@ int main(int argc, char** argv) {
   waitMs(window + 80);
   check(opens == 2, "…and the next lone click opens it again");
 
+  // The logo drop's half: what a drop on a widget resets, and the reset itself.
+  using stencil::support::dropResetTarget;
+  using stencil::support::resetToDefault;
+  check(dropResetTarget(chip) == chip && resetToDefault(chip) && resets == 2,
+        "a colour chip resets through its own function");
+  auto* spin = new QSpinBox(&host);
+  spin->setRange(1, 50);
+  spin->setValue(9);
+  stencil::support::setResetDefault(spin, 2);
+  int spun = 0;
+  QObject::connect(spin, &QSpinBox::valueChanged, [&spun](int) { ++spun; });
+  check(dropResetTarget(spin->findChild<QLineEdit*>()) == spin, "a drop on a spin's inner field finds the spin");
+  check(resetToDefault(spin) && spin->value() == 2 && spun == 1, "a spin takes its default through valueChanged");
+  check(!resetToDefault(spin) && spun == 1, "…and a spin already at it fires nothing");
+  auto* field = new QLineEdit(QStringLiteral("x*2"), &host);
+  stencil::support::setResetDefault(field, QString());
+  check(resetToDefault(field) && field->text().isEmpty(), "a formula field empties");
+  auto* plain = new QLabel(&host);
+  check(dropResetTarget(plain) == nullptr, "a widget with no default is no drop target");
+  combo->setCurrentIndex(1);
+  combo->setEnabled(false);
+  check(dropResetTarget(combo) == nullptr && !resetToDefault(combo), "a disabled control is left alone");
+  combo->setEnabled(true);
+  check(dropResetTarget(combo) == combo && resetToDefault(combo) && combo->currentIndex() == 0,
+        "a combo resets as a double-click does");
+
   std::printf("\n%s (%d failure%s)\n", failures ? "FAILURE" : "SUCCESS", failures,
               failures == 1 ? "" : "s");
   return failures ? 1 : 0;

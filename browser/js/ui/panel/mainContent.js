@@ -83,16 +83,18 @@ export class StencilMainContent extends StencilElement {
                 </table>
                 <table class="coordinates-table lines-table" id="lines-list" role="tabpanel" style="display:none;">
                     <colgroup>
-                        <col><col class="lines-swatch-col"><col><col class="lines-swatch-col"><col>
-                        <col class="lines-count-col"><col class="lines-remove-col">
+                        <col class="lines-index-col"><col><col class="lines-swatch-col"><col class="lines-num-col">
+                        <col class="lines-swatch-col"><col class="lines-num-col"><col class="lines-count-col">
+                        <col class="lines-remove-col"><col class="lines-remove-col">
                     </colgroup>
                     <thead>
                         <tr>
                             <th data-title="Line number">#</th>
+                            <th data-title="Line name — double-click a row's to rename it">Name</th>
                             <th colspan="2" data-title="Line — its own color and thickness">Line</th>
                             <th colspan="2" data-title="Point — its points' color and size">Point</th>
                             <th class="lines-count-cell" data-title="Points">Pts</th>
-                            <th class="lines-remove-cell"></th>
+                            <th class="lines-remove-cell" colspan="2"></th>
                         </tr>
                     </thead>
                     <tbody id="lines-body"></tbody>

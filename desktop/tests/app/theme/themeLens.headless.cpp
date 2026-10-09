@@ -5,6 +5,8 @@
 #include "ThemeLens.hpp"
 
 #include <QApplication>
+#include <QElapsedTimer>
+#include <QPointer>
 #include <QImage>
 #include <QPainter>
 #include <QWidget>
@@ -44,10 +46,18 @@ int main(int argc, char** argv) {
   const QRect picture(300, 0, 300, 400);
   QPainter(&other).fillRect(picture, PICTURE);
 
+  check(ThemeLens::radiusAt(0) == 0 && ThemeLens::radiusAt(ThemeLens::GROW_MS / 2) > ThemeLens::RADIUS / 2.0 &&
+            ThemeLens::radiusAt(ThemeLens::GROW_MS) == ThemeLens::RADIUS,
+        "the circle opens from a point to its radius, eased out");
   auto* lens = new ThemeLens(&host, other, picture);
   check(!lens->isVisible() && lens->testAttribute(Qt::WA_TransparentForMouseEvents),
         "the lens waits for the pointer and never takes it");
   lens->follow(host.mapToGlobal(QPoint(150, 200)));
+  check(lens->getRadius() < ThemeLens::RADIUS, "the circle starts as a point, not whole");
+  QElapsedTimer grown;
+  grown.start();
+  while (lens->getRadius() < ThemeLens::RADIUS && grown.elapsed() < 2000) QApplication::processEvents();
+  check(lens->getRadius() == ThemeLens::RADIUS, "…and opens to its radius");
   QImage shot = host.grab().toImage();
   check(lens->isVisible() && at(shot, 150, 200) == OTHER, "its disc shows the other theme at the pointer");
   check(at(shot, 150, 200 - ThemeLens::RADIUS + 10) == OTHER, "…out to its radius");
@@ -60,6 +70,15 @@ int main(int argc, char** argv) {
         "over the picture, which has no theme, the disc inverts it");
   check(at(shot, 290, 200) == OTHER, "…and nowhere else");
   check(at(shot, 150, 200) == GROUND, "the disc it left shows the window again");
+
+  QPointer<ThemeLens> closing = lens;
+  lens->dismiss();
+  check(closing && closing->isVisible(), "dismissed, the circle stays to close…");
+  grown.restart();
+  while (closing && closing->getRadius() >= ThemeLens::RADIUS && grown.elapsed() < 2000) QApplication::processEvents();
+  check(closing && closing->getRadius() < ThemeLens::RADIUS, "…shrinking back toward a point");
+  while (closing && grown.elapsed() < 3000) QApplication::processEvents();
+  check(!closing, "…and then it is gone");
 
   std::printf(failures ? "\nFAILED (%d)\n" : "\nOK\n", failures);
   return failures ? 1 : 0;

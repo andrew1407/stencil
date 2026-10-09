@@ -1,5 +1,6 @@
 import { CHANGE, changed } from '../app/changes.js';
 import { clampThickness, clampPointSize } from '../settings/limits.js';
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 // The single/multi selection set and the ways to change it (⌘/Ctrl+Shift+click on the canvas, a
 // click in the Lines tab), and one line's own style by index, the path the bar and the rows share.
 // Desktop twin: canvas/draw/CanvasSelection.cpp and CanvasLineEdit.cpp.
@@ -122,6 +123,34 @@ export const applyLineChange = (app, idx, prop, value, { commit = true } = {}) =
   if (prop === 'color' && !line.pointColor) line.pointColor = line.color;
   line[prop] = clamp ? clamp(value) : value;
   if (commit) { app.saveHistory(); changed(app, CHANGE.lines); }
+  app.renderer.redraw();
+  return true;
+};
+
+// A line's label as stored: trimmed, capped at LIMITS.lineNameMax; '' = unnamed.
+export const lineNameOf = (v) => String(v ?? '').trim().slice(0, constants.LIMITS.lineNameMax);
+
+// Rename / hide line `idx` as one history step; false when it already reads so (or cannot change).
+export const renameLine = (app, idx, name) => {
+  const next = lineNameOf(name);
+  return !!app.lines[idx] && (app.lines[idx].name ?? '') !== next && applyLineChange(app, idx, 'name', next);
+};
+export const setLineHidden = (app, idx, hidden) =>
+  !!app.lines[idx] && !!app.lines[idx].hidden !== !!hidden && applyLineChange(app, idx, 'hidden', !!hidden);
+
+// Line `idx` takes the toolbar's style, what a new line is drawn with, as one history step; a line
+// already wearing it records nothing. '' pointColor follows the line's own colour.
+export const applyToolbarStyle = (app, idx) => {
+  const line = app.lines[idx];
+  if (!line || app.compareReadOnly()) return false;
+  const want = {
+    color: app.color, pointColor: app.pointColor ?? '', thickness: clampThickness(app.thickness),
+    pointSize: clampPointSize(app.pointSize), style: app.style,
+  };
+  if (Object.keys(want).every((k) => line[k] === want[k])) return false;
+  Object.assign(line, want);
+  app.saveHistory();
+  changed(app, CHANGE.lines);
   app.renderer.redraw();
   return true;
 };

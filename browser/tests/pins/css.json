@@ -563,6 +563,18 @@
    "@keyframes icmWave|65%": {
     "transform": "skewX(-5deg)"
    },
+   "@keyframes icon-ghost-shine-mark|from": {
+    "filter": "drop-shadow(0 0 1px color-mix(in srgb, var(--accent) 50%, transparent))"
+   },
+   "@keyframes icon-ghost-shine-mark|to": {
+    "filter": "var(--ghost-mark)"
+   },
+   "@keyframes icon-ghost-shine|from": {
+    "box-shadow": "0 0 0 1.5px color-mix(in srgb, var(--accent) 40%, transparent), 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent)"
+   },
+   "@keyframes icon-ghost-shine|to": {
+    "box-shadow": "var(--ghost-rim)"
+   },
    "@keyframes idleCardArrive|from": {
     "opacity": "0",
     "transform": "scale(0.86)"
@@ -619,6 +631,12 @@
     "border-left-width": "0",
     "border-right-width": "0",
     "margin-right": "calc(0px - var(--chip-gap, 6px))"
+   },
+   "@keyframes linesEyeSlash|from": {
+    "transform": "translate(-50%, -50%) rotate(-45deg) scaleX(0)"
+   },
+   "@keyframes linesEyeSlash|to": {
+    "transform": "translate(-50%, -50%) rotate(-45deg) scaleX(1)"
    },
    "@keyframes logoPulse|0%, 100%": {
     "transform": "translateY(0) scale(1)",
@@ -1412,11 +1430,19 @@
    "@media (prefers-reduced-motion: reduce)|.icm-spun :is(.ic, .draw-mode-icon)": {
     "animation-name": "none"
    },
+   "@media (prefers-reduced-motion: reduce)|.icon-drag-ghost": {
+    "animation": "none",
+    "box-shadow": "var(--ghost-rim)",
+    "filter": "var(--ghost-mark, none)"
+   },
    "@media (prefers-reduced-motion: reduce)|.idle-create.idle-arriving .idle-create-btn": {
     "animation": "none"
    },
    "@media (prefers-reduced-motion: reduce)|.ig-edge": {
     "transition": "none !important"
+   },
+   "@media (prefers-reduced-motion: reduce)|.lines-eye-flip::after": {
+    "animation": "none"
    },
    "@media (prefers-reduced-motion: reduce)|.mark-forming": {
     "animation": "none"
@@ -4179,7 +4205,7 @@
     "gap": "6px",
     "white-space": "nowrap"
    },
-   "|.coord-px-input, .lines-num-input": {
+   "|.coord-px-input, .lines-name-input, .lines-num-input": {
     "width": "58px",
     "background": "var(--input-bg)",
     "color": "var(--input-text)",
@@ -4189,7 +4215,7 @@
     "font-size": "12px",
     "outline": "none"
    },
-   "|.coord-px-input:focus, .lines-num-input:focus": {
+   "|.coord-px-input:focus, .lines-name-input:focus, .lines-num-input:focus": {
     "box-shadow": "0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent)"
    },
    "|.coord-status": {
@@ -5643,6 +5669,10 @@
     "--ic-ease": "cubic-bezier(0.33, 1, 0.68, 1)",
     "animation-name": "var(--ic-play)"
    },
+   "|.icon-drag-ghost": {
+    "--ghost-rim": "0 0 0 1.5px color-mix(in srgb, var(--accent) 90%, transparent), 0 0 12px color-mix(in srgb, var(--accent) 60%, transparent)",
+    "animation": "icon-ghost-shine 1.4s ease-in-out infinite alternate"
+   },
    "|.icon-drag-source": {
     "opacity": "0.45",
     "outline": "1px dashed var(--accent-2)",
@@ -5954,13 +5984,77 @@
     "pointer-events": "none"
    },
    "|.lines-count-col": {
-    "width": "40px"
+    "width": "34px"
+   },
+   "|.lines-eye": {
+    "position": "relative",
+    "background": "transparent",
+    "border": "none !important",
+    "color": "var(--text-muted)",
+    "cursor": "pointer",
+    "padding": "0 3px",
+    "line-height": "1",
+    "border-radius": "3px"
+   },
+   "|.lines-eye-cell, .lines-remove-cell": {
+    "padding": "4px 2px"
+   },
+   "|.lines-eye-flip::after": {
+    "animation": "linesEyeSlash 0.26s cubic-bezier(0.33, 1, 0.68, 1)"
+   },
+   "|.lines-eye-flip:not(.lines-eye-off)::after": {
+    "animation-direction": "reverse"
+   },
+   "|.lines-eye-off": {
+    "color": "var(--accent)"
+   },
+   "|.lines-eye-off::after": {
+    "transform": "translate(-50%, -50%) rotate(-45deg) scaleX(1)"
+   },
+   "|.lines-eye::after": {
+    "content": "''",
+    "position": "absolute",
+    "left": "50%",
+    "top": "50%",
+    "width": "17px",
+    "height": "1.5px",
+    "border-radius": "1px",
+    "background": "currentColor",
+    "transform": "translate(-50%, -50%) rotate(-45deg) scaleX(0)",
+    "pointer-events": "none"
+   },
+   "|.lines-eye:hover": {
+    "color": "var(--text-main)",
+    "background": "color-mix(in srgb, var(--accent) 14%, transparent) !important"
+   },
+   "|.lines-index-col": {
+    "width": "24px"
+   },
+   "|.lines-name": {
+    "cursor": "text",
+    "white-space": "nowrap",
+    "overflow": "hidden",
+    "text-overflow": "ellipsis"
+   },
+   "|.lines-name-input": {
+    "width": "100%",
+    "box-sizing": "border-box"
+   },
+   "|.lines-name-unset": {
+    "color": "var(--text-muted)",
+    "font-style": "italic"
+   },
+   "|.lines-name:has(.lines-name-input)": {
+    "padding": "2px"
    },
    "|.lines-num": {
     "cursor": "text",
     "font-variant-numeric": "tabular-nums",
     "white-space": "nowrap",
     "overflow": "hidden"
+   },
+   "|.lines-num-col": {
+    "width": "30px"
    },
    "|.lines-num-input": {
     "width": "100%",
@@ -5985,15 +6079,14 @@
     "display": "inline-block",
     "vertical-align": "middle"
    },
-   "|.lines-remove-cell": {
-    "width": "28px",
-    "padding": "4px"
-   },
    "|.lines-remove-col": {
-    "width": "28px"
+    "width": "26px"
    },
    "|.lines-row": {
     "cursor": "pointer"
+   },
+   "|.lines-row-hidden td:not(.lines-eye-cell)": {
+    "opacity": "0.45"
    },
    "|.lines-row-hover:not(.lines-row-selected)": {
     "background-color": "color-mix(in srgb, var(--accent) 18%, transparent)"
@@ -8861,6 +8954,11 @@
    "|html.theme-swapping, html.theme-swapping *, html.theme-swapping *::after, html.theme-swapping *::before": {
     "transition": "background-color 0.45s ease, background-image 0.45s ease, color 0.45s ease, border-color 0.45s ease, outline-color 0.45s ease, fill 0.45s ease, stroke 0.45s ease, box-shadow 0.45s ease !important"
    },
+   "|html[data-motion=\"none\"] .icon-drag-ghost": {
+    "animation": "none",
+    "box-shadow": "var(--ghost-rim)",
+    "filter": "var(--ghost-mark, none)"
+   },
    "|input[type=\"color\"]": {
     "width": "46px",
     "height": "26px",
@@ -9208,6 +9306,11 @@
     "flex": "1 1 auto",
     "letter-spacing": "0.02em"
    },
+   "|svg.icon-drag-ghost": {
+    "--ghost-rim": "none",
+    "--ghost-mark": "drop-shadow(0 0 2px var(--accent)) drop-shadow(0 0 7px var(--accent))",
+    "animation-name": "icon-ghost-shine-mark"
+   },
    "|textarea.confirm-prompt-input": {
     "font-family": "inherit",
     "line-height": "1.45",
@@ -9431,7 +9534,9 @@
    "|.coord-tab:hover",
    "|.coord-tab-active",
    "|.lines-table",
+   "|.lines-index-col",
    "|.lines-swatch-col",
+   "|.lines-num-col",
    "|.lines-count-col",
    "|.lines-remove-col",
    "|.lines-row",
@@ -9446,7 +9551,11 @@
    "|.lines-num",
    "|.lines-num:has(.lines-num-input)",
    "|.lines-color-picker",
-   "|.lines-remove-cell",
+   "|.lines-eye-cell, .lines-remove-cell",
+   "|.lines-name",
+   "|.lines-name-unset",
+   "|.lines-name:has(.lines-name-input)",
+   "|.lines-row-hidden td:not(.lines-eye-cell)",
    "|.coordinates-table",
    "|.coordinates-table td, .coordinates-table th",
    "|.coordinates-table th",
@@ -9462,12 +9571,18 @@
    "|.sel-sep",
    "|.alpha-input",
    "|.fill-clear",
-   "|.coord-px-input, .lines-num-input",
-   "|.coord-px-input:focus, .lines-num-input:focus",
+   "|.coord-px-input, .lines-name-input, .lines-num-input",
+   "|.coord-px-input:focus, .lines-name-input:focus, .lines-num-input:focus",
    "|.lines-num-input",
+   "|.lines-name-input",
    "|.lines-num-input::-webkit-inner-spin-button, .lines-num-input::-webkit-outer-spin-button",
    "|.del-pt-btn",
    "|.del-pt-btn:hover",
+   "|.lines-eye",
+   "|.lines-eye:hover",
+   "|.lines-eye-off",
+   "|.lines-eye::after",
+   "|.lines-eye-off::after",
    "|input[type=checkbox], input[type=radio]",
    "|input[type=radio]",
    "|input[type=checkbox]:checked",
@@ -10639,8 +10754,21 @@
    "@media (prefers-reduced-motion: reduce)|.app-logo-wrap::before",
    "|.icm-spun :is(.ic, .draw-mode-icon)",
    "@media (prefers-reduced-motion: reduce)|.icm-spun :is(.ic, .draw-mode-icon)",
+   "|.lines-eye-flip::after",
+   "|.lines-eye-flip:not(.lines-eye-off)::after",
+   "@keyframes linesEyeSlash|from",
+   "@keyframes linesEyeSlash|to",
+   "@media (prefers-reduced-motion: reduce)|.lines-eye-flip::after",
    "|html.icon-dragging, html.icon-dragging *",
    "|.icon-drag-source",
+   "|.icon-drag-ghost",
+   "|svg.icon-drag-ghost",
+   "@keyframes icon-ghost-shine|from",
+   "@keyframes icon-ghost-shine|to",
+   "@keyframes icon-ghost-shine-mark|from",
+   "@keyframes icon-ghost-shine-mark|to",
+   "@media (prefers-reduced-motion: reduce)|.icon-drag-ghost",
+   "|html[data-motion=\"none\"] .icon-drag-ghost",
    "|.icon-drop-target",
    "|.icon-drop-target-over",
    "|.canvas-viewport.icon-drop-target",

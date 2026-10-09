@@ -36,6 +36,12 @@ const DEFAULTS = Object.freeze({
   'ctx-tt-screen': editor('tooltipShowScreen'), 'ctx-tt-coords': editor('tooltipShowCoords'),
   'ctx-allow-formulas': editor('allowFormulas'),
   'line-color': editor('color'), 'sel-color': toolbarColor, 'fs-sel-color': toolbarColor,
+  'point-color': editor('color'),
+  // Reached by a logo drop only: a double-click in a field selects its text.
+  'line-thickness': editor('thickness'), 'point-size': editor('pointSize'),
+  'ctx-thickness': editor('thickness'), 'ctx-point-size': editor('pointSize'),
+  'formula-x': editor('formulaX'), 'formula-y': editor('formulaY'),
+  'ctx-formula-x': editor('formulaX'), 'ctx-formula-y': editor('formulaY'),
 });
 // Menu rows that toggle in place: their state is the toolbar check they mirror.
 const MIRRORS = Object.freeze({ 'ctx-show-points': 'show-points', 'ctx-show-lines': 'show-lines' });
@@ -63,6 +69,17 @@ export const resetTarget = (target) => {
   return box ?? null;
 };
 
+const isField = (el) => typeof HTMLInputElement !== 'undefined' && el instanceof HTMLInputElement
+  && (el.type === 'number' || el.type === 'text');
+
+/** What a logo dropped on `target` resets: what a double-click does, plus a number or formula field with a stated default. */
+export const dropResetTarget = (target) => {
+  if (typeof Element === 'undefined' || !(target instanceof Element)) return null;
+  const el = resetTarget(target);
+  if (el) return el;
+  return isField(target) && DEFAULTS[target.id] && !target.closest(SKIP) ? target : null;
+};
+
 /** What `el` resets to. */
 export const defaultOf = (el) => {
   const stated = DEFAULTS[el.id] ? String(DEFAULTS[el.id](el)) : el.dataset.default;
@@ -82,6 +99,16 @@ const TAKE = Object.freeze({
   },
   color: (el, want) => {
     if (normalizeHex(el.value) === want) return false;
+    el.value = want;
+    return true;
+  },
+  number: (el, want) => {
+    if (Number(el.value) === Number(want)) return false;
+    el.value = String(want);
+    return true;
+  },
+  text: (el, want) => {
+    if (el.value === want) return false;
     el.value = want;
     return true;
   },

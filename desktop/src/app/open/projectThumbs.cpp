@@ -21,7 +21,7 @@ namespace stencil::gui::projectThumbs {
       size_t h = lines.size();
       for (const core::Line& l : lines) {
         h = qHashMulti(h, str(l.color), str(l.pointColor), str(l.style), str(l.fillColor),
-                       l.thickness, l.pointSize, int(l.locked));
+                       l.thickness, l.pointSize, int(l.locked), int(l.hidden));
         for (const core::Point& p : l.points) h = qHashMulti(h, p.x, p.y);
       }
       return h;

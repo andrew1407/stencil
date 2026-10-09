@@ -20,13 +20,16 @@ pub fn layoutCaps() LayoutCaps {
     return .{ .lines = @intCast(lines), .line_points = @intCast(line_points), .points = @intCast(points) };
 }
 
+/// Doubles before a line's points: count, thickness, pointSize, locked, hidden, five text lengths.
+const header = 10;
+
 const Encoded = struct { nums: []f64, text: []u8 };
 
 fn encode(a: std.mem.Allocator, lines: []const LineDraw) !Encoded {
     var n: usize = 1;
     var t: usize = 0;
     for (lines) |l| {
-        n += 8 + l.points.len;
+        n += header + l.points.len;
         t += l.color.len + l.style.len + l.fill_color.len + l.point_color.len;
     }
     const out = Encoded{ .nums = try a.alloc(f64, n), .text = try a.alloc(u8, t) };
@@ -39,8 +42,10 @@ fn encode(a: std.mem.Allocator, lines: []const LineDraw) !Encoded {
         out.nums[i + 1] = l.thickness;
         out.nums[i + 2] = l.point_size;
         out.nums[i + 3] = if (l.locked) 1 else 0;
-        for (fields, 0..) |f, j| out.nums[i + 4 + j] = @floatFromInt(f.len);
-        i += 8;
+        out.nums[i + 4] = 0; // hidden: the CLI draws every line it is given
+        for (fields, 0..) |f, j| out.nums[i + 5 + j] = @floatFromInt(f.len);
+        out.nums[i + 9] = 0; // name: the CLI carries none
+        i += header;
         @memcpy(out.nums[i..][0..l.points.len], l.points);
         i += l.points.len;
         for (fields) |f| {

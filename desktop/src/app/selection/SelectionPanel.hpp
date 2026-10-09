@@ -75,6 +75,9 @@ namespace stencil::gui {
     // A row's thickness or point size typed in place, already held to LIMITS (browser lines/numEdit.js).
     void lineThicknessEdited(int index, int thickness);
     void linePointSizeEdited(int index, int pointSize);
+    // A row's name typed in place (browser lines/nameEdit.js) and its eye clicked (lines/events.js).
+    void lineNameEdited(int index, const QString& name);
+    void lineHiddenToggled(int index, bool hidden);
     // Inline px coord edit committed (axis 0 = x, 1 = y); mirrors browser coordTable.js double-
     // click-to-edit.
     void pointCoordChanged(int index, int axis, double value);
@@ -92,7 +95,11 @@ namespace stencil::gui {
 
    private:
     void buildLinesTab();   // SelectionPanelLines.cpp
-    void styleLineRow(int i);
+    void styleLineRow(int i);   // SelectionPanelLineCells.cpp
+    // Row i's name cell and eye, and its dimming while its line hides (SelectionPanelLineCells.cpp).
+    void addLineNameCell(int i, const core::Line& ln);
+    void addLineEye(int i, bool hidden);
+    void dimHiddenRow(int i);
     QBrush rowWash(bool picked) const;
     QBrush rowInk() const;
     void applyUnitHeaders();
@@ -120,6 +127,7 @@ namespace stencil::gui {
     int canvasHoverPointRow = -1;
     int canvasHoverLineRow = -1;
     std::vector<int> linesSelected;
+    int eyeFlipRow = -1;   // the row whose eye was just clicked: its next build plays the toggle once
   };
 
 }

@@ -12,8 +12,8 @@ const { doubleClickMs: DOUBLE_CLICK_MS, doubleTapMs: DOUBLE_TAP_MS } = constants
 
 const at = (i) => body.children[i];
 const cellOf = (row, col) => at(row).children[col];
-const lineSwatch = (i) => cellOf(i, 1).children[0];
-const pointSwatch = (i) => cellOf(i, 3).children[0];
+const lineSwatch = (i) => cellOf(i, 2).children[0];
+const pointSwatch = (i) => cellOf(i, 4).children[0];
 const picker = () => table.children.find((c) => c.className === 'lines-color-picker');
 
 test('re-rendering keeps one listener per event type on the body, none on a row', () => {
@@ -30,13 +30,14 @@ test('hover, click and Delete reach the row under the event; a number cell never
   const cell = cellOf(2, 0);
   body.dispatch('mouseover', { target: cell, relatedTarget: at(1) });
   assert.equal(app.listHoverLineIdx, 2);
-  body.dispatch('mouseout', { target: cell, relatedTarget: at(2).children[5] });
+  body.dispatch('mouseout', { target: cell, relatedTarget: at(2).children[6] });
   assert.equal(app.listHoverLineIdx, 2, 'a move between cells of one row is no leave');
   body.dispatch('mouseout', { target: cell, relatedTarget: null });
   assert.equal(app.listHoverLineIdx, -1);
-  body.dispatch('click', { target: cellOf(1, 2) });
-  body.dispatch('click', { target: cellOf(1, 4) });
-  assert.deepEqual([app.selectedLines, app.selectedLineIdx], [[0, 2], -1], 'the numbers edit, they do not select');
+  body.dispatch('click', { target: cellOf(1, 1) });
+  body.dispatch('click', { target: cellOf(1, 3) });
+  body.dispatch('click', { target: cellOf(1, 5) });
+  assert.deepEqual([app.selectedLines, app.selectedLineIdx], [[0, 2], -1], 'the name and numbers edit, they do not select');
   body.dispatch('click', { target: cell, ctrlKey: false, metaKey: false, shiftKey: false });
   assert.deepEqual([app.selectedLines, app.selectedLineIdx], [[], 2]);
   let stopped = 0;
@@ -47,7 +48,7 @@ test('hover, click and Delete reach the row under the event; a number cell never
 test('the bin removes its own row and never selects it', async () => {
   const app = makeLinesApp();
   renderLinesList(app);
-  const bin = cellOf(0, 6).children[0];
+  const bin = cellOf(0, 8).children[0];
   let stopped = 0;
   body.dispatch('click', { target: bin, stopPropagation() { stopped++; } });
   await new Promise((r) => setTimeout(r, 400));
@@ -144,10 +145,57 @@ test('a swatch dragged away inside the window opens no picker and selects nothin
 test('a double-click on a number opens its field in place', () => {
   const app = makeLinesApp();
   renderLinesList(app);
-  const thick = cellOf(0, 2);
+  const thick = cellOf(0, 3);
   body.dispatch('dblclick', { target: thick });
   const input = thick.children[0];
   assert.deepEqual([input.tagName, input.className, input.value], ['INPUT', 'lines-num-input', '3']);
   body.dispatch('dblclick', { target: cellOf(0, 0) });
   assert.equal(cellOf(0, 0).children.length, 0, 'the number of the row is no field');
+});
+
+test('the eye hides and shows its line as one step each, never selects, and plays on its own row once', () => {
+  const app = makeLinesApp();
+  renderLinesList(app);
+  let stopped = 0;
+  body.dispatch('click', { target: cellOf(1, 7).children[0], stopPropagation() { stopped++; } });
+  assert.deepEqual([app.lines[1].hidden, app.saved, stopped, app.selectedLineIdx], [true, 1, 1, -1]);
+  renderLinesList(app);
+  const eye = cellOf(1, 7).children[0];
+  assert.ok(at(1).classList.contains('lines-row-hidden'));
+  assert.ok(eye.classList.contains('lines-eye-off') && eye.classList.contains('lines-eye-flip'));
+  assert.deepEqual([eye.dataset.title, eye.getAttribute('aria-pressed')], ['Show line', 'true']);
+  renderLinesList(app);
+  assert.ok(!cellOf(1, 7).children[0].classList.contains('lines-eye-flip'), 'a later render rests');
+  body.dispatch('click', { target: cellOf(1, 7).children[0], stopPropagation() {} });
+  assert.deepEqual([app.lines[1].hidden, app.saved], [false, 2]);
+  app.readOnly = true;
+  body.dispatch('click', { target: cellOf(1, 7).children[0], stopPropagation() {} });
+  assert.deepEqual([app.lines[1].hidden, app.saved], [false, 2], 'a read-only compare view hides nothing');
+});
+
+test('a double-click on the name opens its field on the name shown; Enter renames as one step, Escape keeps it', () => {
+  const app = makeLinesApp();
+  renderLinesList(app);
+  const name = cellOf(0, 1);
+  assert.deepEqual([name.textContent, name.classList.contains('lines-name-unset')], ['Line 1', true]);
+  body.dispatch('dblclick', { target: name });
+  const input = name.children[0];
+  assert.deepEqual([input.className, input.value, input.placeholder], ['lines-name-input', 'Line 1', 'Line 1'],
+    "an unnamed line's field opens on its own \"Line 1\"");
+  input.dispatch('keydown', { key: 'Enter', preventDefault() {}, stopPropagation() {} });
+  assert.deepEqual([app.lines[0].name ?? '', app.saved], ['', 0], 'committed untouched, it stays unnamed');
+  renderLinesList(app);
+  body.dispatch('dblclick', { target: cellOf(0, 1) });
+  const typing = cellOf(0, 1).children[0];
+  typing.value = '  Roof ridge  ';
+  typing.dispatch('keydown', { key: 'Enter', preventDefault() {}, stopPropagation() {} });
+  input.dispatch('keydown', { key: 'Enter', preventDefault() {}, stopPropagation() {} });
+  assert.deepEqual([app.lines[0].name, app.saved], ['Roof ridge', 1]);
+  renderLinesList(app);
+  const again = cellOf(0, 1);
+  assert.deepEqual([again.textContent, again.classList.contains('lines-name-unset')], ['Roof ridge', false]);
+  body.dispatch('dblclick', { target: again });
+  again.children[0].value = 'Other';
+  again.children[0].dispatch('keydown', { key: 'Escape', preventDefault() {}, stopPropagation() {} });
+  assert.deepEqual([app.lines[0].name, app.saved, again.textContent], ['Roof ridge', 1, 'Roof ridge']);
 });

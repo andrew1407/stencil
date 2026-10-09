@@ -1,8 +1,10 @@
-// Dragging the header logo onto the canvas: over it the picture previews its clean view (no
-// filter, lines, points or compare split) on the view alone; dropped there, each of those commits
-// through the setter its toolbar control uses, so the controls, history and storage follow.
+// Dragging the header logo: over the bare canvas the picture previews its clean view (no filter,
+// lines, points or compare split), committed on a drop through each toolbar setter; a line dropped
+// on takes the toolbar's style, a control its default (logoTargets.js).
 // Desktop twin: desktop/src/app/logo/LogoDrag.{hpp,cpp}.
 import { wireIconDrag, markDropTarget } from './iconDrag.js';
+import { logoTargetAt, sameTarget, glowOf, dropControlAt, resetDropped } from './logoTargets.js';
+import { applyToolbarStyle, setListHoverLine } from '../../core/line/selection.js';
 
 // Only what is applied changes: a picture already unfiltered records no filter step.
 export const commitCleanView = (app) => {
@@ -23,18 +25,37 @@ const accentMenuUp = (logo) => {
   return !!menu && !menu.hidden && !menu.classList?.contains('dd-closing');
 };
 
+// Over a target: the canvas previews the clean view, a line wears the Lines-tab hover glow, and
+// whatever the drop would change glows brighter than the canvas frame offered at the start.
+const showTarget = (app, t, on, frame) => {
+  if (!t) return;
+  if (t.kind === 'clean') app.renderer.previewClean(on);
+  if (t.kind === 'line') setListHoverLine(app, on ? t.idx : -1);
+  if (t.el === frame) markDropTarget(frame, true, on);
+  else markDropTarget(t.kind === 'control' ? glowOf(t.el) : t.el, on, on);
+};
+
+// The drop's work: a line takes the toolbar style (its bar re-shows it), a control its default.
+const commitTarget = (app, t, reset) => {
+  if (t?.kind === 'clean') commitCleanView(app);
+  else if (t?.kind === 'control') reset(t.el);
+  else if (t?.kind === 'line' && applyToolbarStyle(app, t.idx) && t.idx === app.selectedLineIdx)
+    app.showSelectionPanel(app.lines[t.idx]);
+};
+
 // `viewport()` is the canvas region; `hold` is the mark's own hold, which a drag drops.
-export const logoDragHooks = (app, { viewport, hold = null, menuUp = () => false }) => {
-  let over = false;
-  const onCanvas = (target) => !!app.image && !!target && !!viewport()?.contains?.(target);
-  const preview = (on) => {
-    if (over === on) return;
-    over = on;
-    markDropTarget(viewport(), true, on);
-    app.renderer.previewClean(on);
+// `controlAt` and `reset` find and reset a control (tests pass their own).
+export const logoDragHooks = (app, { viewport, hold = null, menuUp = () => false,
+                                     controlAt = dropControlAt, reset = resetDropped }) => {
+  let over = null;
+  const aim = (next) => {
+    if (sameTarget(over, next)) return;
+    showTarget(app, over, false, viewport());
+    over = next;
+    showTarget(app, over, true, viewport());
   };
   const end = () => {
-    preview(false);
+    aim(null);
     markDropTarget(viewport(), false);
   };
   return {
@@ -44,10 +65,11 @@ export const logoDragHooks = (app, { viewport, hold = null, menuUp = () => false
       markDropTarget(viewport(), !!app.image);
       return true;
     },
-    move: ({ target }) => preview(onCanvas(target)),
-    drop: ({ target }) => {
-      if (onCanvas(target)) commitCleanView(app);
+    move: (p) => aim(logoTargetAt(app, p, viewport(), controlAt)),
+    drop: (p) => {
+      const t = logoTargetAt(app, p, viewport(), controlAt);
       end();
+      commitTarget(app, t, reset);
     },
     cancel: end,
   };

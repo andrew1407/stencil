@@ -15,20 +15,29 @@ namespace stencil::gui {
 
   // One for one with the browser's coordinates table (mainContent.js <thead>).
   enum PointCol { COL_INDEX = 0, COL_X, COL_Y, COL_PAGE_X, COL_PAGE_Y, COL_DEL, COL_COUNT };
-  // …and with its lines table, the same widget so the two tabs read as one panel: the line's colour
-  // and thickness, its points' colour and size, its point count and its bin.
-  enum LineCol { LCOL_INDEX = 0, LCOL_COLOR, LCOL_THICK, LCOL_POINT, LCOL_SIZE, LCOL_PTS, LCOL_DEL, LCOL_COUNT };
+  // …and with its lines table, the same widget so the two tabs read as one panel: the line's name,
+  // colour and thickness, its points' colour and size, its point count, its eye and its bin.
+  enum LineCol {
+    LCOL_INDEX = 0, LCOL_NAME, LCOL_COLOR, LCOL_THICK, LCOL_POINT, LCOL_SIZE, LCOL_PTS, LCOL_EYE, LCOL_DEL,
+    LCOL_COUNT
+  };
   // A row the CANVAS selected; the view's own selection is the current row, what Delete acts on.
   inline constexpr int SELECTED_ROLE = Qt::UserRole + 1;
+  // On a Lines row's name cell: the line's own name ('' = unnamed, shown as a muted "Line N").
+  inline constexpr int NAME_ROLE = Qt::UserRole + 2;
+  // On a Lines row's index cell: its line is hidden, so the row is dimmed.
+  inline constexpr int HIDDEN_ROLE = Qt::UserRole + 3;
 
   // Also the floating re-open chevron's (mainWindow PANEL_TOGGLE_BOX).
   inline constexpr int TOGGLE_BOX = 24;
   inline constexpr int TOGGLE_GLYPH = 15;
 
-  // The Lines tab's fixed columns (browser .lines-table colgroup): the chips, the count and the
-  // bin; the two numbers share the rest.
+  // The Lines tab's fixed columns (browser .lines-table colgroup): the chips, the numbers, the count,
+  // the eye and the bin; the name takes the rest.
   inline constexpr int LINE_COL_CHIP = 26;
-  inline constexpr int LINE_COL_PTS = 40;
+  inline constexpr int LINE_COL_NUM = 30;
+  inline constexpr int LINE_COL_PTS = 34;
+  inline constexpr int LINE_COL_BTN = 26;
 
   // Browser .coordinates-table rows: one text line, td padding 6px above and below, a 1px rule.
   inline void fitTableRows(QTableWidget* t) {

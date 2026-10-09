@@ -71,6 +71,12 @@ stencil_headless_test(stencil_icondrag_headless
   LIBS stencil_gui_objs Qt6::Test
   INCLUDE_TESTS)
 
+# The drag's end and the ghost's shining rim (support/drag/iconDrag, dragOverlays).
+stencil_headless_test(stencil_icondragend_headless
+  SOURCES tests/support/drag/iconDragEnd.headless.cpp
+  LIBS stencil_gui_objs Qt6::Test
+  INCLUDE_TESTS)
+
 # Dragging a colour swatch onto another (support/drag/colorDrag): chips and a table's swatch cells.
 stencil_headless_test(stencil_colordrag_headless
   SOURCES tests/support/drag/colorDrag.headless.cpp

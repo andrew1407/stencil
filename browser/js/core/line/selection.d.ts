@@ -21,6 +21,14 @@ export declare const keepLineSelection: (app: DrawingApp) => void;
 export declare const deselectEmptyArea: (app: DrawingApp, e: MouseEvent | null | undefined) => void;
 /** One field of line `idx` (thickness and pointSize clamped to LIMITS), then a history entry and a `lines` change unless `commit` is false (a live preview). False when nothing applied. */
 export declare const applyLineChange: (app: DrawingApp, idx: number, prop: string, value: unknown, opts?: { commit?: boolean }) => boolean;
+/** A label as stored: trimmed and capped at LIMITS.lineNameMax; '' = unnamed. */
+export declare const lineNameOf: (v: unknown) => string;
+/** Line `idx`'s label, one history step; false when it already reads so or cannot change. */
+export declare const renameLine: (app: DrawingApp, idx: number, name: unknown) => boolean;
+/** Hide or show line `idx` (neither drawn nor hit while hidden), one history step; false when unchanged. */
+export declare const setLineHidden: (app: DrawingApp, idx: number, hidden: boolean) => boolean;
+/** Line `idx` takes the toolbar's colour, point colour, thickness, point size and style as one history step; false when it already wears them or cannot change. */
+export declare const applyToolbarStyle: (app: DrawingApp, idx: number) => boolean;
 /** applyLineChange on the selected line. */
 export declare const applySelectionChange: (app: DrawingApp, prop: string, value: unknown, opts?: { commit?: boolean }) => boolean;
 /** The Lines-tab hover glow; -1 or out of range clears it. */

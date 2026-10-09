@@ -163,8 +163,8 @@ classDiagram
 | Interpreter | `FormulaEngine` (`core/parse/formulaEngine.js`), recursive descent over `core/parse/formulaContext.js` | Ports `core/parse/formulaParser.cpp`; never `eval` |
 | Interpreter + runner | `core/script/` lowers a `.stc` to an op stream; `console/scriptRunner.js` executes it | The parser never touches the editor and the runner never re-parses; op-plan caps guard model output, not the user's script |
 | Session override | `setMotionOverride` (`ui/motion/motionPrefs.js`), `setIconSkin` (`ui/icons.js`), `setFaviconArt` (`core/settings/accents.js`), set by `ui/webcore/toggle.js` | Read by everything, written to no store |
-| Double-click reset | `installDblReset` (`ui/control/dblReset.js`), one capture listener on `document` | A control returns to its default and fires `change` |
-| Gesture machines | `createIconDrag` (`ui/drag/iconDrag.js`), `createDragPick` (`ui/control/dropdownMenu.js`), `createDragMenu` (`ui/projects/list/dragMenu.js`), `wireColorDrag` (`ui/drag/colorDrag.js`), `wireAltPeek` (`ui/tip/altPeek.js`) | A pure machine under thin DOM wiring; a drag acts only on release, and a release back on its source or Escape changes nothing |
+| Double-click reset | `installDblReset` (`ui/control/dblReset.js`), one capture listener on `document` | A control returns to its default and fires `change`; a logo drop resets through the same table, number and formula fields included |
+| Gesture machines | `createIconDrag` (`ui/drag/iconDrag.js`), `createDragPick` (`ui/control/dropdownMenu.js`), `createDragMenu` (`ui/projects/list/dragMenu.js`), `wireColorDrag` (`ui/drag/colorDrag.js`), `wireAltPeek` (`ui/tip/altPeek.js`) | A pure machine under thin DOM wiring; a drag acts only on release, and a release back on its source or Escape changes nothing; the ghost's rim shines in the accent while it follows the pointer (`css/animations/icon/drag.css`); the fullscreen strip's cloned toolbar is wired again (`wireCloneDrags`) and stays up until the drop (`afterIconDrag`) |
 | View preview | `previewFill` and `previewClean` on `Renderer` (`core/draw/renderer.js`) | The view alone paints a trial while no app field moves; a commit goes through each control's own setter |
 | Page copy | `buildPageCopy` (`ui/accent/themeCopy.js`) in a shadow tree, shown by the theme lens (`ui/drag/themeLens.js`) | An inert still copy of the page under its own sheets; `COPY_ATTR` (`ui/base.js`) keeps its regions from wiring |
 
@@ -184,7 +184,9 @@ classDiagram
   every area. A pointer move, hover or zoom signals nothing.
 - **The line panels.** The Lines tab (`ui/panel/lines/`) is the `list` area, rendered only while
   visible; a row edits its line through `applyLineChange` (`core/line/selection.js`), one history
-  step each. A line set replaced whole resets the selection (`settleReplacedLines`); a turn, flip,
+  step each — its name (`renameLine`) and its eye (`setLineHidden`) too. A hidden line keeps its
+  index and its row but is neither drawn, exported nor hit: the hit-tests read `hittableLines`
+  (`core/pointer/markHits.js`), the paints skip it. A line set replaced whole resets the selection (`settleReplacedLines`); a turn, flip,
   undo or redo keeps it on the lines that still exist (`keepLineSelection`).
 - **Save and sync.** An edit's trailing save runs `ProjectsStore.upsert` through the quota
   ladder (`core/storage/quotaWriter.js`: shed a data-URL source's text, sweep expired projects,
@@ -255,8 +257,10 @@ classDiagram
 - **Drag gestures.** A toolbar icon dragged off its spot carries its action to the release
   point (`ui/bindings/controls/toolbarDrags.js`): an opener opens its window there, a canvas
   action applies only on the canvas frame, and a zoom drag scales with distance. The header logo
-  dragged onto the canvas previews and then applies the clean view through the controls' own
-  setters. The theme switch dragged opens a preview-only lens over a page copy in the other
+  dragged onto the bare canvas previews and then applies the clean view through the controls' own
+  setters; dropped on a line (on the canvas, its Lines-tab row or the selected-line bar) it gives
+  that line the toolbar's style as one history step, and on a control it resets it through the
+  double-click reset's default table (`ui/drag/logoTargets.js`). The theme switch dragged opens a preview-only lens over a page copy in the other
   theme; the theme itself changes only on a click.
 - **Single-file build.** `vite.config.js` carries its rules inline (no plugins);
   `tools/assertSelfContained.js` re-reads the output, and `tests/singleFileBuild.test.js`

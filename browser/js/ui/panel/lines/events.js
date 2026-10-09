@@ -1,12 +1,14 @@
 // The Lines tab's row gestures, one listener per event type on the list body however often it
-// re-renders: hover, select, the two colour swatches, the inline numbers, the bin and Delete.
+// re-renders: hover, select, the two colour swatches, the inline numbers and name, the eye, the bin
+// and Delete.
 // Desktop twin: app/selection/SelectionPanelLines.cpp.
 import { isTypingTarget } from '../../../utils.js';
 import { leaveThenRemove } from '../../motion.js';
-import { selectLineFromList, setListHoverLine } from '../../../core/line/selection.js';
+import { selectLineFromList, setListHoverLine, setLineHidden } from '../../../core/line/selection.js';
 import { removeLine } from '../../../core/line/editOps.js';
 import { createSwatchPicker } from './swatchPicker.js';
 import { editLineNumber } from './numEdit.js';
+import { editLineName } from './nameEdit.js';
 import { dragsStarted } from '../../drag/iconDrag.js';
 import constants from '../../../../../common/config/constants.json' with { type: 'json' };
 
@@ -14,6 +16,14 @@ const { doubleClickMs, doubleTapMs } = constants.POPOVER;
 
 // Each swatch class and the colour of the line it edits.
 const SWATCHES = Object.freeze([['lines-swatch', 'color'], ['lines-point-swatch', 'pointColor']]);
+
+// The line whose eye was just clicked: its next row plays the toggle, every later render rests.
+let eyeToggled = -1;
+export const takeEyeToggled = (i) => {
+  if (i !== eyeToggled) return false;
+  eyeToggled = -1;
+  return true;
+};
 
 // The body → the app of its latest render, which every listener reads.
 const appOf = new WeakMap();
@@ -64,18 +74,26 @@ const wire = (body, host) => {
       if (!app.compareReadOnly()) leaveThenRemove(row, () => removeLine(app, i));
       return;
     }
+    if (e.target.closest('.lines-eye')) {
+      e.stopPropagation();
+      eyeToggled = i;
+      if (!setLineHidden(app, i, !app.lines[i]?.hidden)) eyeToggled = -1;
+      return;
+    }
     const ctrlShift = (e.ctrlKey || e.metaKey) && e.shiftKey;
     if (!ctrlShift) {
       const swatch = SWATCHES.find(([cls]) => e.target.closest(`.${cls}`));
       if (swatch) { swatchClick(app, i, swatch, e); return; }
-      if (e.target.closest('.lines-num')) return;   // a number edits on a double-click, never selects
+      if (e.target.closest('.lines-num, .lines-name')) return;   // edits on a double-click, never selects
     }
     selectLineFromList(app, i, ctrlShift);
   });
   body.addEventListener('dblclick', (e) => {
-    const cell = e.target?.closest?.('.lines-num');
-    const row = cell && rowOf(e);
-    if (row) editLineNumber(appOf.get(body), cell, indexOf(row));
+    const row = rowOf(e);
+    const name = row && e.target.closest('.lines-name');
+    if (name) { editLineName(appOf.get(body), name, indexOf(row)); return; }
+    const cell = row && e.target.closest('.lines-num');
+    if (cell) editLineNumber(appOf.get(body), cell, indexOf(row));
   });
   // Delete/Backspace scoped to a focused row, like the points table's rows; Alt+Delete stays global.
   body.addEventListener('keydown', (e) => {

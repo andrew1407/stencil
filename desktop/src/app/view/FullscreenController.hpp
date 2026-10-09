@@ -25,6 +25,7 @@ namespace stencil::gui {
     // moves; `tickQueued` folds a move's copies (one per ancestor) into one pass.
     QList<QToolBar*> bars;
     bool tickQueued = false;
+    bool tickAfterDrag = false;   // a tick waits for the live icon drag's drop
     QVariantAnimation* zoomAnim = nullptr;
     QSize zoomFromViewport;               // viewport size captured before the show/showNormal
     int zoomWaits = 0;                    // ticks spent waiting for the new geometry

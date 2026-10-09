@@ -6,6 +6,7 @@ import { pointColorOf } from '../core/draw/renderer.js';
 import { toHexColor } from '../core/settings/accents.js';
 import { str } from './coerce.js';
 import { setPointCoord, removePoint, removeLine } from '../core/line/editOps.js';
+import { lineNameOf, renameLine, setLineHidden } from '../core/line/selection.js';
 import { CHANGE, changed } from '../core/app/changes.js';
 
 export const createLineWrappers = ({ app, guard }) => {
@@ -87,7 +88,12 @@ export const createLineWrappers = ({ app, guard }) => {
       get pointSize() { return obj()?.pointSize; }, set pointSize(v) { setProp('pointSize', Number(v)); },
       get style() { return obj()?.style; }, set style(v) { setProp('style', str(v)); },
       get fillColor() { return obj()?.fillColor; }, set fillColor(v) { setProp('fillColor', v == null ? 'transparent' : toHexColor(str(v))); },
-      // Batch style update. Accepts color/pointColor/thickness/pointSize/style/fillColor.
+      // The Lines tab's label ('' = unnamed) and its eye: a hidden line is neither drawn nor hit.
+      get name() { return obj()?.name ?? ''; }, set name(v) { renameLine(app, idx, v); },
+      get hidden() { return !!obj()?.hidden; }, set hidden(v) { setLineHidden(app, idx, !!v); },
+      hide() { setLineHidden(app, idx, true); return line; },
+      show() { setLineHidden(app, idx, false); return line; },
+      // Batch style update. Accepts color/pointColor/thickness/pointSize/style/fillColor/name/hidden.
       apply(opts = {}) {
         const l = obj();
         if (!l) return line;
@@ -101,6 +107,8 @@ export const createLineWrappers = ({ app, guard }) => {
         if (ms != null) l.pointSize = Number(ms);
         if (opts.style != null) l.style = str(opts.style);
         if (opts.fillColor != null) l.fillColor = opts.fillColor === 'transparent' ? 'transparent' : toHexColor(str(opts.fillColor));
+        if (opts.name != null) l.name = lineNameOf(opts.name);
+        if (opts.hidden != null) l.hidden = !!opts.hidden;
         commit();
         return line;
       },

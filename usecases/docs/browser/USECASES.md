@@ -134,6 +134,12 @@ Drag the logo in the header over the picture and it previews its clean view: no 
 no points, no compare split. Move off and the picture comes back as it was; let go over it and the
 clean view is applied, with the filter, **Points**, **Lines** and **Compare** controls following.
 
+The logo resets other things too. Let go over a control and it goes back to its default: a colour
+turns yellow, **Thickness** returns to 2, the filter to none, the page to A3, a formula field
+empties and **𝑓(x,y)** switches off. Let go over a line — on the picture, on its row in the
+**Lines** tab or on the selected-line bar — and that line takes the style the toolbar is set to.
+Whatever the logo would change glows while it is over it.
+
 ![the logo dragged over a sepia picture with lines](img/drag-logo-clean.gif)
 
 ## Change the look

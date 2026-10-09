@@ -16,3 +16,7 @@ export declare function wireToolbarDrags(
   bar: ToolbarRoot | null,
   holds?: { in?: HoldZoom; out?: HoldZoom },
 ): string[];
+
+/** Wires the fullscreen strip's cloned toolbar under `root` as the toolbar is, the theme lens
+ *  included; the ids that took a drag. */
+export declare function wireCloneDrags(app: DrawingApp, root: ParentNode | null): string[];

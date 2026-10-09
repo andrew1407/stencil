@@ -1,4 +1,4 @@
-// The resting annotations an export, a thumbnail and the co-edit result carry: every line (or
+// The resting annotations an export, a thumbnail and the co-edit result carry: every shown line (or
 // its points alone) with no ring, glow or vertex in flight. One loop for the editor's renderer
 // and for the stand-in the image worker paints through, so the two cannot drift.
 import { drawLine, drawPoint } from '../line/render.js';
@@ -9,7 +9,8 @@ const RESTING_FX = Object.freeze({
 });
 
 // `r` draws a line or a point (the Renderer, or restingPainter below); the lines are CodecLines.
-export const paintRestingLines = (r, lines, { showLines, showPoints, pointSize }) => {
+export const paintRestingLines = (r, all, { showLines, showPoints, pointSize }) => {
+  const lines = all.filter((line) => !line.hidden);
   if (showLines) {
     lines.forEach((line) => r.drawLine(line, false));
   } else if (showPoints) {

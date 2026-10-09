@@ -107,6 +107,7 @@ namespace stencil::gui {
                                                   "Point color", w.tools.pointColorBtn);
       if (c.isValid()) applyPointColor(c);
     });
+    support::setResetHook(w.tools.pointColorBtn, [applyPointColor] { applyPointColor(QColor(defaultVisuals::table().color)); });
     // A chip dragged onto another hands it its colour, which lands through that chip's own pick.
     support::installColorDrag(w.tools.lineColorBtn, {[this] { return w.tools.lineColorValue; }, applyLineColor});
     support::installColorDrag(w.tools.pointColorBtn,

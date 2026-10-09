@@ -4,6 +4,7 @@
 // opens over a wipe in flight or under the webcore skin. The release: MainWindow.themeLensDrop.gui.cpp.
 #include "themeLensGui.hpp"
 #include "ThemeLens.hpp"
+#include "dragOverlays.hpp"
 #include "iconDrag.hpp"
 #include "skinPrefs.hpp"
 
@@ -41,8 +42,10 @@ namespace {
   bool ghostAbove(const QWidget& win, QWidget* lens, const QSize& size) {
     const auto kids = win.findChildren<QWidget*>(Qt::FindDirectChildrenOnly);
     for (qsizetype i = kids.indexOf(lens) + 1; i < kids.size(); ++i)
-      if (kids[i]->isVisible() && kids[i]->testAttribute(Qt::WA_TransparentForMouseEvents) && kids[i]->size() == size)
-        return true;
+      if (kids[i]->isVisible() && kids[i]->testAttribute(Qt::WA_TransparentForMouseEvents)) {
+        auto* ghost = dynamic_cast<stencil::support::DragGhost*>(kids[i]);
+        if (ghost && ghost->faceSize() == size) return true;
+      }
     return false;
   }
   // Counts restyles reaching one widget: a photograph of the other theme sends two.

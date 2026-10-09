@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createStubElement } from '../../../helpers/dom.js';
 import { StencilToolbar } from '../../../../js/ui/toolbar/toolbar.js';
-import { wireToolbarDrags, canvasActs, CANVAS_CLICK_IDS } from '../../../../js/ui/bindings/controls/toolbarDrags.js';
+import { wireToolbarDrags, wireCloneDrags, canvasActs, CANVAS_CLICK_IDS } from '../../../../js/ui/bindings/controls/toolbarDrags.js';
 import { windowOpeners } from '../../../../js/ui/drag/modalDrag.js';
 
 const buttonIds = [...StencilToolbar.inner().matchAll(/<button id="([\w-]+)"/g)].map((m) => m[1]);
@@ -51,4 +51,16 @@ test('a canvas drop fires rotate and flip as their click, and clears the lines w
 
 test('without a toolbar nothing is wired', () => {
   assert.deepEqual(wireToolbarDrags(app(), null), []);
+  assert.deepEqual(wireCloneDrags(app(), null), []);
+});
+
+test("the fullscreen strip's copy drags as the toolbar does, the theme switch with it", () => {
+  const { els, bar } = barRig();
+  const expected = wireToolbarDrags(app(), bar, {});
+  const copy = barRig();
+  const root = { querySelector: (sel) => copy.els.get(sel.slice(1)) ?? null };
+  const wired = wireCloneDrags(app(), root);
+  assert.deepEqual([...wired].sort(), [...expected, 'theme-toggle'].sort());
+  assert.ok(copy.els.get('theme-toggle').listeners.pointerdown?.length, 'the lens drags from the copy');
+  assert.ok(!els.get('theme-toggle').listeners.pointerdown?.length, 'the original is left alone');
 });

@@ -26,10 +26,10 @@ test('an unchain and a chain break leave the panels true', () => {
 test('the Lines tab follows a thickness wheeled on the canvas and a fill picked in the bar', () => {
   const app = makeApp([line(20), { ...line(60), locked: true }]);
   adjustThicknessAtCursor(app, { clientX: 60, clientY: 20, deltaY: -1 }, () => {});
-  assert.equal(listRows()[0].children[2].textContent, '3', 'the wheel\'s new thickness');
+  assert.equal(listRows()[0].children[3].textContent, '3', 'the wheel\'s new thickness');
   selectLineFromList(app, 1);
   applySelectionChange(app, 'fillColor', '#336699');
-  assert.equal(listRows()[1].children[1].children[0].style.background, '#336699', 'the area swatch shows its fill');
+  assert.equal(listRows()[1].children[2].children[0].style.background, '#336699', 'the area swatch shows its fill');
 });
 
 // A turn or a flip moves the same lines, so what was picked stays picked; an undo or redo of it too.

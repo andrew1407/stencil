@@ -1,6 +1,6 @@
 // The Lines tab of the selection panel: its table, built once, and its rows, rebuilt from the
-// canvas's lines — per line its number, its colour and thickness, its points' colour and size, its
-// point count and its bin (browser ui/panel/lines/list.js and lines/events.js).
+// canvas's lines — per line its number, its name, its colour and thickness, its points' colour and
+// size, its point count, its eye and its bin (browser ui/panel/lines/list.js and lines/events.js).
 #include "SelectionPanel.hpp"
 #include "linesTableParts.hpp"
 #include "cssColor.hpp"
@@ -29,6 +29,7 @@ namespace stencil::gui {
     const QString POINT_TIP = QStringLiteral("Point color\nDouble-click: the line's own color");
     const QString LINE_HEAD = QStringLiteral("Line — its own color and thickness");
     const QString POINT_HEAD = QStringLiteral("Point — its points' color and size");
+    const QString NAME_HEAD = QStringLiteral("Line name — double-click a row's to rename it");
 
     QString rangeTip(const char* what, int lo, int hi) {
       return QStringLiteral("%1\nDouble-click to edit (%2–%3 px)").arg(QLatin1String(what)).arg(lo).arg(hi);
@@ -44,14 +45,19 @@ namespace stencil::gui {
     lines = new FitTable(0, LCOL_COUNT, linesTab);
     lines->setObjectName("linesList");
     lines->viewport()->setCursor(Qt::PointingHandCursor);   // browser .lines-row
-    lines->setItemDelegate(new LineCellDelegate(lines, [this] { return readOnly && readOnly(); }));
+    // Queued: the rename rebuilds this table, which must not happen inside the editor's own commit.
+    const auto renamed = [this](int row, const QString& name) {
+      QTimer::singleShot(0, this, [this, row, name] { emit lineNameEdited(row, name); });
+    };
+    lines->setItemDelegate(new LineCellDelegate(lines, [this] { return readOnly && readOnly(); }, renamed));
     lines->setHorizontalHeader(new PairedHeader(lines));
-    lines->setHorizontalHeaderLabels({"#", "Line", QString(), "Point", QString(), "Pts", QString()});
-    const QStringList heads{"Line number", LINE_HEAD, LINE_HEAD, POINT_HEAD, POINT_HEAD, "Points", QString()};
+    lines->setHorizontalHeaderLabels({"#", "Name", "Line", QString(), "Point", QString(), "Pts", QString(), QString()});
+    const QStringList heads{"Line number", NAME_HEAD, LINE_HEAD, LINE_HEAD, POINT_HEAD, POINT_HEAD, "Points",
+                            QString(), QString()};
     for (int c = 0; c < LCOL_COUNT; ++c) lines->horizontalHeaderItem(c)->setToolTip(heads[c]);
     lines->verticalHeader()->setVisible(false);
     lines->setSelectionMode(QAbstractItemView::NoSelection);  // selection is driven by the canvas
-    // Only a thickness or a point size is editable, in place (browser lines/numEdit.js).
+    // Only a name, a thickness or a point size is editable, in place (browser lines/nameEdit.js, numEdit.js).
     lines->setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed);
     lines->setWordWrap(false);
     lines->setShowGrid(true);
@@ -70,9 +76,11 @@ namespace stencil::gui {
     auto* lh = lines->horizontalHeader();
     // The ordinal and the bin are the points table's own, so both tabs share their edges.
     lh->setSectionResizeMode(LCOL_INDEX, QHeaderView::ResizeToContents);
-    for (int col : {LCOL_THICK, LCOL_SIZE}) lh->setSectionResizeMode(col, QHeaderView::Stretch);
+    lh->setSectionResizeMode(LCOL_NAME, QHeaderView::Stretch);
     for (const auto& [col, w] : {std::pair{LCOL_COLOR, LINE_COL_CHIP}, std::pair{LCOL_POINT, LINE_COL_CHIP},
-                                 std::pair{LCOL_PTS, LINE_COL_PTS}, std::pair{LCOL_DEL, 28}}) {
+                                 std::pair{LCOL_THICK, LINE_COL_NUM}, std::pair{LCOL_SIZE, LINE_COL_NUM},
+                                 std::pair{LCOL_PTS, LINE_COL_PTS}, std::pair{LCOL_EYE, LINE_COL_BTN},
+                                 std::pair{LCOL_DEL, LINE_COL_BTN}}) {
       lh->setSectionResizeMode(col, QHeaderView::Fixed);
       lines->setColumnWidth(col, w);
     }
@@ -83,15 +91,15 @@ namespace stencil::gui {
     linesLay->addWidget(lines);
     linesLay->addStretch(1);
     tabs->addTab(linesTab, "Lines");
-    // A click selects its line, Ctrl/⌘+Shift toggles it; a number edits on a double-click and never
-    // selects, and a chip times its own clicks (setLines).
+    // A click selects its line, Ctrl/⌘+Shift toggles it; a name or a number edits on a double-click
+    // and never selects, and a chip times its own clicks (setLines).
     connect(lines, &QTableWidget::cellClicked, this, [this](int idx, int col) {
       if (idx < 0) return;
       lines->setCurrentCell(idx, LCOL_INDEX);   // the row Delete/Backspace will act on
       const auto mods = QGuiApplication::keyboardModifiers();
       const bool multi = (mods & (Qt::ControlModifier | Qt::MetaModifier)) &&
                          (mods & Qt::ShiftModifier);
-      if (!multi && (col == LCOL_THICK || col == LCOL_SIZE)) return;
+      if (!multi && (col == LCOL_NAME || col == LCOL_THICK || col == LCOL_SIZE)) return;
       emit lineListActivated(idx, multi);
     });
     // Queued: the edit rebuilds this table, which must not happen inside the editor's own commit.
@@ -147,6 +155,7 @@ namespace stencil::gui {
         this->lines->setItem(i, col, it);
       };
       cell(LCOL_INDEX, QString::number(i + 1), QStringLiteral("Line %1").arg(i + 1));
+      addLineNameCell(i, ln);
       cell(LCOL_COLOR, QString(), ln.locked ? AREA_TIP : LINE_TIP);
       cell(LCOL_THICK, int(std::lround(ln.thickness)), thickTip, true);
       cell(LCOL_POINT, QString(), POINT_TIP);
@@ -186,32 +195,13 @@ namespace stencil::gui {
         emit lineListRemoveRequested(i);
       });
       this->lines->setCellWidget(i, LCOL_DEL, centeredCell(rm, this->lines));
+      addLineEye(i, ln.hidden);
+      if (ln.hidden) dimHiddenRow(i);
       styleLineRow(i);
     }
+    eyeFlipRow = -1;
     if (prevCurrent >= 0)
       this->lines->setCurrentCell(std::min(prevCurrent, this->lines->rowCount() - 1), LCOL_INDEX);
-  }
-
-  // Kept in one place so setCanvasHover can restyle two rows without rebuilding or scrolling.
-  void SelectionPanel::styleLineRow(int i) {
-    if (!lines || i < 0 || i >= lines->rowCount()) return;
-    if (isEmptyRow(lines, i)) {
-      if (QTableWidgetItem* it = lines->item(0, 0)) it->setBackground(i == canvasHoverLineRow ? emptyWash() : QBrush());
-      return;
-    }
-    const bool sel = std::find(linesSelected.begin(), linesSelected.end(), i) !=
-                     linesSelected.end();
-    // A restyle is no edit: itemChanged would read a size cell's new wash as a typed value.
-    QSignalBlocker quiet(lines);
-    // Browser .lines-row-selected (the delegate strokes the outline) and .lines-row-hover.
-    const bool hot = i == canvasHoverLineRow;
-    const QBrush wash = (sel || hot) ? rowWash(sel) : QBrush();
-    for (int c = 0; c < LCOL_COUNT; ++c)
-      if (QTableWidgetItem* it = lines->item(i, c)) {
-        it->setBackground(wash);
-        it->setForeground(sel && support::isWebcore() ? rowInk() : QBrush());
-        it->setData(SELECTED_ROLE, sel);
-      }
   }
 
 }

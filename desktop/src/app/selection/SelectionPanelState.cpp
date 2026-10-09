@@ -1,5 +1,5 @@
 #include "SelectionPanel.hpp"
-#include "selectionPanelParts.hpp"
+#include "linesTableParts.hpp"
 #include "guiHelpers.hpp"
 #include "iconSet.hpp"
 #include "../../support/theme/themeTokens.hpp"
@@ -37,6 +37,9 @@ namespace stencil::gui {
       if (table)
         for (QPushButton* b : table->findChildren<QPushButton*>(QStringLiteral("pointDelBtn")))
           b->setIcon(themedIcon("trash", this->binColor, 14));
+    if (lines)
+      for (QPushButton* eye : lines->findChildren<QPushButton*>(QStringLiteral("linesEyeBtn")))
+        static_cast<LineEyeButton*>(eye)->restyle();   // the name is only ever a LineEyeButton's
     // The chips paint their corners by the skin, so a switch repaints them.
     if (lines)
       for (const char* name : {"linesSwatch", "linesPointSwatch"})

@@ -134,6 +134,7 @@ set(STENCIL_GUI_SOURCES
   src/app/logo/LogoStageInput.cpp
   src/app/logo/LogoStagePaint.cpp
   src/app/logo/LogoDrag.cpp
+  src/app/logo/LogoLineAims.cpp
   src/app/theme/ThemePainterWebcore.cpp
   src/app/theme/ThemePainterLens.cpp
   src/app/theme/ThemeLens.cpp
@@ -149,6 +150,7 @@ set(STENCIL_GUI_SOURCES
   src/app/selection/SelectionPanel.cpp
   src/app/selection/SelectionPanelRows.cpp
   src/app/selection/SelectionPanelLines.cpp
+  src/app/selection/SelectionPanelLineCells.cpp
   src/app/selection/SelectionPanelState.cpp
   src/app/selection/SelectedLineBar.cpp
   src/app/selection/SelectedLineBarRow.cpp

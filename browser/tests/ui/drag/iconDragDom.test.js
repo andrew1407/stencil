@@ -1,6 +1,7 @@
 // A control's drag on the page (js/ui/drag/iconDrag.js wireIconDrag): every tooltip is held off from
 // its start to its end, Escape included; the click its release makes is swallowed, and so is the
-// dblclick it makes after a click just before the drag; a plain press holds nothing and keeps its click.
+// dblclick it makes after a click just before the drag; a plain press holds nothing and keeps its click;
+// work deferred past a drag runs after its drop.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { installDom, createStubElement } from '../../helpers/dom.js';
@@ -9,7 +10,7 @@ const doc = installDom();
 const win = createStubElement('window');
 globalThis.window = win;
 doc.elementFromPoint = () => null;
-const { wireIconDrag } = await import('../../../js/ui/drag/iconDrag.js');
+const { wireIconDrag, afterIconDrag } = await import('../../../js/ui/drag/iconDrag.js');
 const { tipsHeld } = await import('../../../js/ui/tip/tipHold.js');
 
 const ICON = { left: 100, top: 10, right: 128, bottom: 38, width: 28, height: 28 };
@@ -107,4 +108,18 @@ test('the tips are already held when the owner starts (a lens copies no tip), an
     await tick();
   }
   assert.deepEqual(seen, [true, true]);
+});
+
+test('afterIconDrag runs at once with no drag, and after the drop of a live one', async () => {
+  const ran = [];
+  afterIconDrag(() => ran.push('idle'));
+  assert.deepEqual(ran, ['idle']);
+  const { el, drops } = rig();
+  el.dispatch('pointerdown', pointer(110, 20));
+  win.dispatch('pointermove', pointer(300, 300));
+  afterIconDrag(() => ran.push(`after ${drops.length} drop`));
+  assert.deepEqual(ran, ['idle'], 'held while the drag is live');
+  win.dispatch('pointerup', pointer(320, 310));
+  await tick();
+  assert.deepEqual(ran, ['idle', 'after 1 drop']);
 });

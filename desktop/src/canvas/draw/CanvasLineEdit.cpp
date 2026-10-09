@@ -1,4 +1,5 @@
 #include "CanvasWidget.hpp"
+#include "lineName.hpp"
 #include "../../support/control/lineLimits.hpp"
 
 #include <algorithm>
@@ -58,6 +59,19 @@ namespace stencil::gui {
 
   void CanvasWidget::setSelectedLineFill(const QString& fillColor, bool preview) {
     mutateSelectedLine([&](core::Line& line) { line.fillColor = fillColor.toStdString(); }, !preview);
+  }
+
+  // A Lines-row edit names its line, so the selection stays; an edit that changes nothing is no step.
+  void CanvasWidget::setLineName(int idx, const QString& name) {
+    const std::string next = model::lineNameOf(name);
+    if (idx < 0 || idx >= static_cast<int>(lines.size()) || lines[idx].name == next) return;
+    mutateSelectedLine([&](core::Line& line) { line.name = next; }, true, idx);
+  }
+
+  void CanvasWidget::setLineHidden(int idx, bool hidden) {
+    if (idx < 0 || idx >= static_cast<int>(lines.size()) || lines[idx].hidden == hidden) return;
+    mutateSelectedLine([&](core::Line& line) { line.hidden = hidden; }, true, idx);
+    clearHoverCache();   // a hover ring on the line just hidden would outlive it
   }
 
   // Deletes the WHOLE selection (browser parity: removeSelectedLines): erase from the highest

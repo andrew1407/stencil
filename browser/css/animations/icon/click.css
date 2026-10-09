@@ -11,3 +11,15 @@
 @media (prefers-reduced-motion: reduce) {
     .icm-spun :is(.ic, .draw-mode-icon) { animation-name: none; }
 }
+
+/* The Lines-tab eye just clicked (panel/lines/events.js): hiding draws the slash across it from its
+   middle, showing draws it back out. Played once, on the row the click re-rendered. */
+.lines-eye-flip::after { animation: linesEyeSlash 0.26s cubic-bezier(0.33, 1, 0.68, 1); }
+.lines-eye-flip:not(.lines-eye-off)::after { animation-direction: reverse; }
+@keyframes linesEyeSlash {
+    from { transform: translate(-50%, -50%) rotate(-45deg) scaleX(0); }
+    to { transform: translate(-50%, -50%) rotate(-45deg) scaleX(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .lines-eye-flip::after { animation: none; }
+}

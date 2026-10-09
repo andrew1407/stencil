@@ -9,7 +9,7 @@
 
 namespace {
   // selectionPanelParts.hpp LineCol.
-  enum { INDEX_COL = 0, COLOR_COL, THICK_COL, POINT_COL, SIZE_COL, PTS_COL };
+  enum { INDEX_COL = 0, NAME_COL, COLOR_COL, THICK_COL, POINT_COL, SIZE_COL, PTS_COL };
 
   // The picker opens later from a timer and exec()s its own loop, so a polling timer answers it.
   void answerPicker(const QColor& c) {
@@ -70,7 +70,7 @@ class MainWindowGuiTest : public QObject {
     seed(win);
     QTableWidget* list = listOf(win);
     QCOMPARE(list->rowCount(), 2);
-    QCOMPARE(list->columnCount(), 7);
+    QCOMPARE(list->columnCount(), 9);
     QCOMPARE(list->horizontalHeaderItem(COLOR_COL)->text(), QString("Line"));
     QCOMPARE(list->horizontalHeaderItem(POINT_COL)->text(), QString("Point"));
     QCOMPARE(list->item(0, THICK_COL)->data(Qt::EditRole).toInt(), 3);
@@ -78,7 +78,7 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(list->item(0, PTS_COL)->text(), QString("3"));
     QCOMPARE(faceOf(chipAt(list, 0, COLOR_COL)), QColor("#ff0000"));
     QCOMPARE(faceOf(chipAt(list, 0, POINT_COL)), QColor("#ff0000"));   // no point colour: the line's
-    for (int col : {INDEX_COL, COLOR_COL, THICK_COL, POINT_COL, SIZE_COL, PTS_COL})
+    for (int col : {INDEX_COL, NAME_COL, COLOR_COL, THICK_COL, POINT_COL, SIZE_COL, PTS_COL})
       QVERIFY2(!list->item(0, col)->toolTip().isEmpty(), qPrintable(QString("column %1 is named").arg(col)));
   }
 
@@ -174,7 +174,7 @@ class MainWindowGuiTest : public QObject {
       emit t->cellEntered(row, col);
       return t->viewport()->cursor().shape();
     };
-    for (int col : {THICK_COL, SIZE_COL}) QCOMPARE(shapeAt(list, 0, col), Qt::IBeamCursor);
+    for (int col : {NAME_COL, THICK_COL, SIZE_COL}) QCOMPARE(shapeAt(list, 0, col), Qt::IBeamCursor);
     for (int col : {INDEX_COL, PTS_COL}) QCOMPARE(shapeAt(list, 0, col), Qt::PointingHandCursor);
     QCOMPARE(shapeAt(points, 0, 1), Qt::IBeamCursor);   // px x (selectionPanelParts.hpp COL_X)
     QCOMPARE(shapeAt(points, 0, 2), Qt::IBeamCursor);   // px y

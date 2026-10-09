@@ -33,7 +33,13 @@ export interface Line {
   pointSize: number | undefined;
   style: string | undefined;
   fillColor: string | undefined;
-  apply(opts?: { color?: ColorInput; pointColor?: ColorInput; thickness?: number; pointSize?: number; style?: LineStyle | string; fillColor?: ColorInput | 'transparent' }): Line;
+  /** The Lines tab's label, trimmed and capped at LIMITS.lineNameMax; '' = unnamed. */
+  name: string;
+  /** A hidden line stays in the list and the layout but is neither drawn, exported nor hit. */
+  hidden: boolean;
+  hide(): Line;
+  show(): Line;
+  apply(opts?: { color?: ColorInput; pointColor?: ColorInput; thickness?: number; pointSize?: number; style?: LineStyle | string; fillColor?: ColorInput | 'transparent'; name?: string; hidden?: boolean }): Line;
   move(delta?: { x?: number; y?: number }): Line;
   /** Degrees clockwise around `pivot`, else the bounding-box centre. */
   rotate(deg: number, pivot?: Partial<XY>): Line;

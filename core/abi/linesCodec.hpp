@@ -6,9 +6,9 @@
 #include <utility>
 
 // Flat encoding of a Lines snapshot for the extern "C" ABIs, in two caller-owned buffers.
-//   nums: [lineCount, then per line: pointCount, thickness, pointSize, locked,
-//          byte lengths of color/style/fillColor/pointColor, then x0,y0,x1,y1,...]
-//   text: those four strings per line, concatenated UTF-8, in that field order.
+//   nums: [lineCount, then per line: pointCount, thickness, pointSize, locked, hidden,
+//          byte lengths of color/style/fillColor/pointColor/name, then x0,y0,x1,y1,...]
+//   text: those five strings per line, concatenated UTF-8, in that field order.
 // Twin: browser/js/core/line/linesCodec.js.
 namespace stencil::core::abi {
 
@@ -18,12 +18,15 @@ namespace stencil::core::abi {
     int text = 0;
   };
 
+  // Doubles before a line's points: count, thickness, pointSize, locked, hidden, five lengths.
+  inline constexpr int HEADER = 10;
+
   inline LinesSize linesSize(const Lines& lines) {
     LinesSize s;
     for (const Line& l : lines) {
-      s.nums += 8 + 2 * static_cast<int>(l.points.size());
+      s.nums += HEADER + 2 * static_cast<int>(l.points.size());
       s.text += static_cast<int>(l.color.size() + l.style.size() + l.fillColor.size() +
-                                 l.pointColor.size());
+                                 l.pointColor.size() + l.name.size());
     }
     return s;
   }
@@ -37,13 +40,14 @@ namespace stencil::core::abi {
       nums[i++] = l.thickness;
       nums[i++] = l.pointSize;
       nums[i++] = l.locked ? 1.0 : 0.0;
-      for (const std::string* s : {&l.color, &l.style, &l.fillColor, &l.pointColor})
+      nums[i++] = l.hidden ? 1.0 : 0.0;
+      for (const std::string* s : {&l.color, &l.style, &l.fillColor, &l.pointColor, &l.name})
         nums[i++] = static_cast<double>(s->size());
       for (const Point& p : l.points) {
         nums[i++] = p.x;
         nums[i++] = p.y;
       }
-      for (const std::string* s : {&l.color, &l.style, &l.fillColor, &l.pointColor}) {
+      for (const std::string* s : {&l.color, &l.style, &l.fillColor, &l.pointColor, &l.name}) {
         if (text != nullptr && !s->empty()) {
           for (std::size_t k = 0; k < s->size(); ++k)
             text[t + k] = static_cast<std::uint8_t>((*s)[k]);
@@ -71,18 +75,18 @@ namespace stencil::core::abi {
         nums[0] < MAX_LAYOUT_LINES ? static_cast<int>(nums[0]) : MAX_LAYOUT_LINES;
     int i = 1, t = 0, budget = MAX_LAYOUT_POINTS;
     for (int li = 0; li < lineCount && budget > 0; ++li) {
-      if (i + 8 > numsLen) break;
+      if (i + HEADER > numsLen) break;
       const double declared = nums[i];
       const double thickness = nums[i + 1], pointSize = nums[i + 2];
-      const bool locked = nums[i + 3] != 0.0;
-      int len[4] = {0, 0, 0, 0};
+      const bool locked = nums[i + 3] != 0.0, hidden = nums[i + 4] != 0.0;
+      int len[5] = {0, 0, 0, 0, 0};
       bool ok = true;
-      for (int f = 0; f < 4; ++f) {
-        const double l = nums[i + 4 + f];
+      for (int f = 0; f < 5; ++f) {
+        const double l = nums[i + 5 + f];
         ok = ok && l >= 0.0 && l <= textLen - t;
         len[f] = ok ? static_cast<int>(l) : 0;
       }
-      i += 8;
+      i += HEADER;
       if (!(declared >= 0.0) || i + 2.0 * declared > numsLen) break;
       const int ptCount = static_cast<int>(declared);
       const int kept = std::min({ptCount, MAX_LINE_POINTS, budget});
@@ -90,12 +94,14 @@ namespace stencil::core::abi {
       line.thickness = thickness;
       line.pointSize = pointSize;
       line.locked = locked;
+      line.hidden = hidden;
       line.points.reserve(static_cast<std::size_t>(kept));
       for (int p = 0; p < kept; ++p)
         line.points.push_back(Point{nums[i + 2 * p], nums[i + 2 * p + 1]});
       i += 2 * ptCount;
-      std::string* field[4] = {&line.color, &line.style, &line.fillColor, &line.pointColor};
-      for (int f = 0; f < 4 && ok; ++f) {
+      std::string* field[5] = {&line.color, &line.style, &line.fillColor, &line.pointColor,
+                               &line.name};
+      for (int f = 0; f < 5 && ok; ++f) {
         if (text == nullptr || t + len[f] > textLen) { ok = false; break; }
         field[f]->assign(reinterpret_cast<const char*>(text) + t,
                          static_cast<std::size_t>(len[f]));

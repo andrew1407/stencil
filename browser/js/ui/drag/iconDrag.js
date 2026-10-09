@@ -11,12 +11,24 @@ export const DRAG_SLOP_PX = constants.POPOVER.pressSlopPx;
 export const GHOST_OPACITY = 0.85;
 export const DRAGGING_CLASS = 'icon-dragging';
 export const SOURCE_CLASS = 'icon-drag-source';
+export const GHOST_CLASS = 'icon-drag-ghost';
 export const TARGET_CLASS = 'icon-drop-target';
 export const TARGET_OVER_CLASS = 'icon-drop-target-over';
 
 let started = 0;
 /** Drags started this session: a deferred open notes it and stands down if a drag began since. */
 export const dragsStarted = () => started;
+
+let live = 0;
+let waiting = [];
+/** Runs `fn` now, or once the drag in progress has dropped: a panel the drag left stays up meanwhile. */
+export const afterIconDrag = (fn) => { if (live) waiting.push(fn); else fn(); };
+const settle = () => {
+  if (--live > 0) return;
+  const run = waiting;
+  waiting = [];
+  setTimeout(() => { for (const fn of run) fn(); }, 0);
+};
 
 export const createIconDrag = ({ start, move, drop, cancel, originRect, targetAt = () => null,
                                  slop = DRAG_SLOP_PX } = {}) => {
@@ -82,12 +94,14 @@ export const wireIconDrag = (el, hooks = {}) => {
   const { ghost: wantGhost = true, ghostCentred = false, enabled = () => !el.disabled } = hooks;
   let pointerId = null;
   let ghost = null;
+  let counted = false;
   let pressAt = null;
   let swallow = false;
 
   const finish = () => {
     ghost?.destroy();
     ghost = null;
+    if (counted) { counted = false; settle(); }
     document.documentElement.classList.remove(DRAGGING_CLASS);
     el.classList.remove(SOURCE_CLASS);
     window.removeEventListener('keydown', onKey, true);
@@ -109,17 +123,26 @@ export const wireIconDrag = (el, hooks = {}) => {
       holdTips(true);
       if (hooks.start?.(p) === false) { holdTips(false); return false; }
       el.__stencilGestures?.dragged?.();
+      live += 1;
+      counted = true;
       try { el.setPointerCapture?.(pointerId); } catch { /* the pointer is already gone */ }
       const r = ghostCentred ? el.getBoundingClientRect() : null;
       const hold = r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : pressAt;
-      if (wantGhost) ghost = createDragGhost(el, hold.x, hold.y, GHOST_OPACITY);
+      if (wantGhost) {
+        ghost = createDragGhost(el, hold.x, hold.y, GHOST_OPACITY);
+        ghost.el.style.boxShadow = '';   // the shining rim is css/animations/icon/drag.css's
+        ghost.el.classList.add(GHOST_CLASS);
+      }
       document.documentElement.classList.add(DRAGGING_CLASS);
       el.classList.add(SOURCE_CLASS);
       window.addEventListener('keydown', onKey, true);
       swallow = true;
       return true;
     },
-    move: (p) => { ghost?.move(p.x, p.y); hooks.move?.(p); },
+    move: (p) => {
+      ghost?.move(p.x, p.y);
+      hooks.move?.(p);
+    },
   });
 
   // Window listeners from the press on: a small icon loses the pointer before it passes the slop.

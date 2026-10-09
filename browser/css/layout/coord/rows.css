@@ -61,7 +61,7 @@
 .fill-clear { padding: 0 10px; }
 
 /* inline pixel-coord input, and the Lines tab's number field at its cell's width */
-.coord-px-input, .lines-num-input {
+.coord-px-input, .lines-num-input, .lines-name-input {
     width: 58px;
     background: var(--input-bg);
     color: var(--input-text);
@@ -71,8 +71,9 @@
     font-size: 12px;
     outline: none;
 }
-.coord-px-input:focus, .lines-num-input:focus { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+.coord-px-input:focus, .lines-num-input:focus, .lines-name-input:focus { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
 .lines-num-input { width: 100%; box-sizing: border-box; -moz-appearance: textfield; }
+.lines-name-input { width: 100%; box-sizing: border-box; }
 .lines-num-input::-webkit-inner-spin-button,
 .lines-num-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 
@@ -90,3 +91,30 @@
     transition: opacity 0.15s;
 }
 .del-pt-btn:hover { opacity: 1; background: color-mix(in srgb, var(--danger) 14%, transparent) !important; }
+
+/* The Lines tab's eye: the bin's quiet face in the text colour; hidden, a slash crosses it. */
+.lines-eye {
+    position: relative;
+    background: transparent;
+    border: none !important;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0 3px;
+    line-height: 1;
+    border-radius: 3px;
+}
+.lines-eye:hover { color: var(--text-main); background: color-mix(in srgb, var(--accent) 14%, transparent) !important; }
+.lines-eye-off { color: var(--accent); }
+.lines-eye::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 17px;
+    height: 1.5px;
+    border-radius: 1px;
+    background: currentColor;
+    transform: translate(-50%, -50%) rotate(-45deg) scaleX(0);
+    pointer-events: none;
+}
+.lines-eye-off::after { transform: translate(-50%, -50%) rotate(-45deg) scaleX(1); }

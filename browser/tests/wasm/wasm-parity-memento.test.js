@@ -20,7 +20,7 @@ before(async () => {
 
 // Complete core lines, so the codec's defaults never separate the twins.
 const line = (x) => ({ points: [{ x, y: 2 }, { x: 3.5, y: -4.25 }], color: '#7c3aed', thickness: 2,
-  pointSize: 4, style: 'solid', locked: false, fillColor: 'transparent', pointColor: '' });
+  pointSize: 4, style: 'solid', locked: false, fillColor: 'transparent', pointColor: '', name: '', hidden: false });
 const memento = (cropX, rotationQuarters, n, extra = {}) => ({
   lines: Array.from({ length: n }, (_, i) => line(i)),
   cropRect: cropX == null ? null : { x: cropX, y: 1.5, width: 50, height: 40 },

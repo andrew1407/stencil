@@ -54,6 +54,10 @@ namespace stencil::gui {
                      [this](int idx, int v) { w.canvas->setSelectedLineThickness(v, idx); });
     QObject::connect(w.selPanel, &SelectionPanel::linePointSizeEdited, &w,
                      [this](int idx, int v) { w.canvas->setSelectedLinePointSize(v, idx); });
+    QObject::connect(w.selPanel, &SelectionPanel::lineNameEdited, &w,
+                     [this](int idx, const QString& name) { w.canvas->setLineName(idx, name); });
+    QObject::connect(w.selPanel, &SelectionPanel::lineHiddenToggled, &w,
+                     [this](int idx, bool hidden) { w.canvas->setLineHidden(idx, hidden); });
     // A row's chip is a colour-drag swatch: its line's or its points' own colour, which a drop sets
     // as a pick does.
     QTableWidget* table = w.selPanel->linesTable();

@@ -11,7 +11,7 @@ import { node, SheetStandIn, pageDoc } from '../../helpers/lensDomRig.js';
 globalThis.CSSStyleSheet = SheetStandIn;
 globalThis.getComputedStyle = () => ({});
 const {
-  LENS_RADIUS_PX, LENS_CLASS, RIM_CLASS, otherTheme, lensClip, rimTransform, openThemeLens, themeLensHooks,
+  LENS_RADIUS_PX, LENS_GROW_MS, lensRadiusAt, closingRadiusAt, LENS_CLASS, RIM_CLASS, otherTheme, lensClip, rimTransform, openThemeLens, themeLensHooks,
 } = await import('../../../js/ui/drag/themeLens.js');
 const { NO_COPY_ATTR, COPY_CLASS } = await import('../../../js/ui/accent/themeCopy.js');
 const { createIconDrag } = await import('../../../js/ui/drag/iconDrag.js');
@@ -20,14 +20,15 @@ const { THEME_INSTANT_CLASS, THEME_SWAP_CLASS } = await import('../../../js/ui/m
 test('the other theme, the circle and the rim\'s offset', () => {
   assert.deepEqual([otherTheme('dark'), otherTheme('light')], ['light', 'dark']);
   assert.equal(lensClip(300, 200), `circle(${LENS_RADIUS_PX}px at 300px 200px)`);
-  assert.equal(rimTransform(300, 200), `translate(${300 - LENS_RADIUS_PX}px, ${200 - LENS_RADIUS_PX}px)`);
+  assert.equal(rimTransform(300, 200), `translate(${300 - LENS_RADIUS_PX}px, ${200 - LENS_RADIUS_PX}px) scale(1)`);
+  assert.equal(rimTransform(300, 200, LENS_RADIUS_PX / 2), `translate(${300 - LENS_RADIUS_PX}px, ${200 - LENS_RADIUS_PX}px) scale(0.5)`);
 });
 
 test('opened once: an inert, hidden host over a shadow copy in the other theme, ringed by its rim', () => {
   const sheet = { cssRules: [{ cssText: ':root { --a: 1 }' }], media: { mediaText: '' } };
   const doc = pageDoc({ kids: [node('div', { id: 'root' })], html: { 'data-theme': 'dark' }, sheets: [sheet] });
   globalThis.getComputedStyle = (el) => (el === doc.body ? ['--text-label', 'color'] : {});
-  const lens = openThemeLens(300, 200, { theme: 'light', doc });
+  const lens = openThemeLens(300, 200, { theme: 'light', doc, still: true });
   const { host, rim } = lens;
   assert.equal(host.style['--text-label'], 'initial', 'the copy inherits nothing the dark page hands down');
   assert.deepEqual(doc.body.children.slice(-2), [host, rim]);
@@ -49,6 +50,39 @@ test('opened once: an inert, hidden host over a shadow copy in the other theme, 
   assert.ok(!doc.body.children.includes(host) && !doc.body.children.includes(rim), 'one lens at a time');
   next.close();
   assert.ok(!doc.body.children.includes(next.host));
+});
+
+test('the circle opens from a point to its radius, eased, and stops growing once full', () => {
+  assert.equal(lensRadiusAt(0), 0);
+  assert.ok(lensRadiusAt(LENS_GROW_MS / 2) > LENS_RADIUS_PX / 2, 'eased out: past half by mid-way');
+  assert.equal(lensRadiusAt(LENS_GROW_MS), LENS_RADIUS_PX);
+  const doc = pageDoc({ kids: [node('div')] });
+  globalThis.getComputedStyle = () => ({});
+  const frames = [];
+  let t = 0;
+  const lens = openThemeLens(50, 60, { theme: 'light', doc, still: false, raf: (fn) => frames.push(fn), now: () => t });
+  assert.equal(lens.radius, 0, 'nothing shows at the first instant');
+  assert.equal(lens.host.style.clipPath, lensClip(50, 60, 0));
+  t = LENS_GROW_MS / 2;
+  frames.shift()();
+  assert.ok(lens.radius > 0 && lens.radius < LENS_RADIUS_PX);
+  lens.move(70, 80);
+  assert.equal(lens.host.style.clipPath, lensClip(70, 80, lens.radius), 'a move keeps the radius it has grown to');
+  t = LENS_GROW_MS;
+  while (frames.length) frames.shift()();
+  assert.equal(lens.radius, LENS_RADIUS_PX);
+  assert.equal(lens.rim.style.transform, rimTransform(70, 80));
+  lens.close();
+  assert.ok(doc.body.children.includes(lens.host), 'closing, the circle is still there…');
+  t += LENS_GROW_MS / 2;
+  frames.shift()();
+  assert.ok(lens.radius > 0 && lens.radius < LENS_RADIUS_PX, '…shrinking');
+  t += LENS_GROW_MS;
+  while (frames.length) frames.shift()();
+  assert.equal(lens.radius, 0);
+  assert.ok(!doc.body.children.includes(lens.host) && !doc.body.children.includes(lens.rim), '…then gone');
+  assert.equal(closingRadiusAt(0, 60), 60);
+  assert.equal(closingRadiusAt(LENS_GROW_MS, 60), 0);
 });
 
 // A fake lens and an app whose setTheme records any call, over a stand-in page root.

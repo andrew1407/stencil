@@ -43,7 +43,7 @@ reach into them include them. The document state lives in `CanvasScene` (`core::
 |---|---|---|
 | `src/app/` | `main.cpp`, the controllers, and `MainWindow` (hub and state groups in `MainWindow.hpp`, its parts in `WindowParts.hpp`), a folder per feature | composition only; a new job is a part or a TU in its feature folder, and a part never reaches into another |
 | `src/canvas/` | `scene/` `CanvasScene`, the document and its paint path with no widget; `CanvasWidget`, the scene plus the pointer | pixel, geometry and page math come from `core/` through `model/canvasCore.hpp`; pointer tunings come from `constants.json` through `input/pointerTuning` and `scene/markMetrics`, ranges through `support/control/lineLimits`; an offscreen render uses a `CanvasScene`, never a hidden widget; the canvas never reads a file |
-| `src/model/` | Qt-shaped wrappers over core types the GUI needs whole (`ScriptDoc`, `imageTurn`, `lineUnion`, `markHits`, `OpPlanSchema`, `canvasCore.hpp`) and `ScriptBuffer` | the core seam: `core/` headers enter through `model/`, beyond the frozen `CORE_INCLUDE_ALLOWANCE` in `tests/layerBoundary.headless.cpp`; nothing here is persisted |
+| `src/model/` | Qt-shaped wrappers over core types the GUI needs whole (`ScriptDoc`, `imageTurn`, `lineUnion`, `markHits`, `lineName`, `OpPlanSchema`, `canvasCore.hpp`) and `ScriptBuffer` | the core seam: `core/` headers enter through `model/`, beyond the frozen `CORE_INCLUDE_ALLOWANCE` in `tests/layerBoundary.headless.cpp`; nothing here is persisted |
 | `src/dialogs/` | a folder per window, one dialog per file, plus `ScriptEditorWidget` and `ScriptMenuPanel` | every prompt and choice goes through `promptModal` / `chooseModal`, never `QInputDialog` / `QMessageBox`; the native file picker (`QFileDialog`) and the non-native `QColorDialog` inside the reveal helper are the exempt pickers; a menu-hosted panel reuses the window's widgets |
 | `src/llm/` | `dock/` and `panel/` (chat surfaces), `client/` (`LlmClient`, `QtLlmTransport`, `SessionKey`), `plan/` (registry, typed plan mapping, executor) | plans validate in `core/opplan` before execution; `plan/` only maps core's result to typed actions; the executor calls the toolbar's appliers |
 | `src/io/` | `fileStore` (settings, projects, autosave, `.stencil`), `mediaLoader`, `mediaTypes` (suffix and header sniffers) | QtCore-only serialization; `MediaLoader` decodes on the pool and answers only from the event loop |
@@ -137,13 +137,13 @@ classDiagram
 | Shared editor widget | `ScriptEditorWidget` in `ScriptDialog` and `ScriptMenuPanel` | Hosts differ only in the `Style` they pass and the buttons around it |
 | Session override | `support/motionPrefs.hpp`, `support/skinPrefs.hpp`, the hooks `support/webcore/look.cpp` installs | Asked by every restyle and animation, written to no file |
 | Golden pin / fixture walker | `uiPins`, `opPlanOracle`; the `*Fixtures` walkers | Pins guard pixels, QSS and typed plan results; walkers prove the shared corpora here |
-| Double-click reset | `DblResetFilter` (`support/control/dblReset.hpp`), opted into by `setResetDefault` | A double-click sets the declared default through the control's own signal path |
+| Double-click reset | `DblResetFilter` (`support/control/dblReset.hpp`), opted into by `setResetDefault` or a chip's `setResetHook` | A double-click sets the declared default through the control's own signal path; a logo drop (`resetToDefault`) does too, spins and formula fields included |
 | Deferred click | `support::wireColorChip` (`support/control/dblReset.hpp`) | A colour chip's click waits out the double-click window before its picker opens, so a double-click can reset it |
 | Popup entrance by motion mode | `revealPopup` / `dismissPopup` (`support/menu/menuReveal`), `slidePopupIn` (`support/menu/popupSlide`) | One origin per popup; the motion mode picks particles, a slide or none, and every mode lands on the exact geometry |
 | Alt-peek gesture + glide registry | `AltPeekGesture`, `addGlideHandle` / `glideFrom` (`support/tip/altPeek`); `installComboAltPeek` (`support/menu/comboAltPeek`) | Alt+hover peeks a list open and Alt release closes it; one app-wide filter drives a gesture per `QComboBox`; a registered handle stays open under a peek inside it |
 | View-only paint flag | `CanvasScene::setCleanPreview` | Honoured only by the live paint: no render, setting or history step sees it |
 | Silent restyle | `ThemePainter::otherThemeShot` over `PaintedTheme::silent` | The other theme applied, grabbed and restored inside one event-loop turn; nothing reaches the screen or is stored |
-| Control drag | `installIconDrag` (`support/drag/iconDrag`), a pure `IconDragMachine` under a source event filter | Past the press slop the source reads as released and a ghost follows; drop and cancel run on the next turn, so a hook may open a modal; no tooltip shows while a drag is live |
+| Control drag | `installIconDrag` (`support/drag/iconDrag`), a pure `IconDragMachine` under a source event filter | Past the press slop the source reads as released and a ghost follows; drop and cancel run on the next turn, so a hook may open a modal; no tooltip shows while a drag is live; the ghost's rim shines in the accent (`support/drag/dragOverlays`); a source hidden mid-drag still drops, and `afterIconDrag` holds fullscreen's reveal until the drop |
 | Colour drag | `installColorDrag`, `installColorDragCells` (`support/drag/colorDrag`) | A control drag carrying an RGBA; the target applies it through its own pick path |
 | Press-drag pick | `SearchComboBox::dragPick` (`support/menu/SearchComboPopup.cpp`) | The list opens on the press and a release on a row picks it; a plain click keeps it open |
 | Drag release menu | `ProjectDragMenu` (`dialogs/projects/list/`) | A held project row shows its menu; only the release takes an item, run once the drag loop has unwound |
@@ -157,7 +157,8 @@ classDiagram
   `applyLaunchOptions` applies the theme, then one source by priority: `--project`, a
   `stencil://` reference, `--src`, a positional file. Exit flushes `deferredWrite`.
 - **A canvas press.** `CanvasWidget::mousePressEvent` resolves one gesture by precedence and edits
-  in image space through core geometry. It hits only what the scene draws (`model/markHits`);
+  in image space through core geometry. It hits only what the scene draws (`model/markHits`), so
+  never a line the Lines tab's eye hid, which keeps its index and its row but is never painted;
   `commitHistory` pushes the memento, and `MainWindow::onCanvasChanged` refreshes the actions and
   `SelectionPanel` and schedules the session, remote and `.stencil` autosaves.
 - **Running a script.** `ScriptDialog` and `ScriptMenuPanel` host a `ScriptEditorWidget` over the
@@ -233,7 +234,8 @@ classDiagram
 - **Drags on the chrome.** The header mark (`app/logo/LogoDrag`), the theme switch (`ThemeLens`,
   `app/theme/`) and the toolbar icons (`ToolbarBuilder::buildIconDrags`, `app/drag/`) are control
   drags. A drop applies through the same appliers and actions a click uses, so an edit is one undo
-  step; a drop elsewhere, or Escape, applies nothing. The logo drag previews the clean view; the
+  step; a drop elsewhere, or Escape, applies nothing. The logo drag previews the clean view, gives
+  a line it lands on the toolbar's style (`LogoLineAims`) and resets a control to its default; the
   theme lens shows a photograph from `ThemePainter::otherThemeShot` and switches nothing; a dialog
   icon dropped away opens its dialog in a `support::DialogLanding`; zoom follows
   `zoomFollow.hpp`.

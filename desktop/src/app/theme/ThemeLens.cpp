@@ -1,10 +1,23 @@
 #include "ThemeLens.hpp"
 
+#include "motionPrefs.hpp"
+
 #include <QPainter>
 #include <QPainterPath>
 #include <QRegion>
+#include <algorithm>
+#include <cmath>
 
 namespace stencil::gui {
+
+  namespace {
+    constexpr int FRAME_MS = 16;
+  }  // namespace
+
+  double ThemeLens::radiusAt(double ms) {
+    if (ms >= GROW_MS) return RADIUS;
+    return RADIUS * (1 - std::pow(1 - std::max(0.0, ms) / GROW_MS, 3));
+  }
 
   ThemeLens::ThemeLens(QWidget* host, QPixmap other, const QRect& picture)
       : QWidget(host), shot(std::move(other)) {
@@ -18,29 +31,55 @@ namespace stencil::gui {
       p.fillRect(picture, Qt::white);
     }
     hide();
+    if (support::motionReduced()) return;
+    radius = 0;
+    connect(&ticker, &QTimer::timeout, this, [this] {
+      if (closingFrom >= 0) {
+        radius = closingFrom * (1 - radiusAt(clock.elapsed()) / RADIUS);
+        if (radius <= 0) { ticker.stop(); deleteLater(); return; }
+      } else {
+        radius = radiusAt(clock.elapsed());
+        if (radius >= RADIUS) ticker.stop();
+      }
+      update();
+    });
   }
 
+  // The first follow shows the lens, and its circle opens from that instant.
   void ThemeLens::follow(const QPoint& global) {
     move(parentWidget()->mapFromGlobal(global) - QPoint(REACH, REACH));
     raise();
+    if (!isVisible() && radius < RADIUS) {
+      clock.start();
+      ticker.start(FRAME_MS);
+    }
     show();
   }
 
+  void ThemeLens::dismiss() {
+    if (closingFrom >= 0) return;
+    if (support::motionReduced() || !isVisible() || radius <= 0) { delete this; return; }
+    closingFrom = radius;
+    clock.restart();
+    ticker.start(FRAME_MS);
+  }
+
   void ThemeLens::paintEvent(QPaintEvent*) {
+    if (radius <= 0) return;
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing, true);
     const QPointF centre(REACH, REACH);
     QPainterPath disc;
-    disc.addEllipse(centre, RADIUS, RADIUS);
+    disc.addEllipse(centre, radius, radius);
     p.setClipPath(disc);
     p.drawPixmap(-pos(), shot);
     p.setClipping(false);
     // Two passes, as the compare divider's, so the rim reads over either theme.
     p.setBrush(Qt::NoBrush);
     p.setPen(QPen(QColor(0, 0, 0, 110), 3.0));
-    p.drawEllipse(centre, RADIUS, RADIUS);
+    p.drawEllipse(centre, radius, radius);
     p.setPen(QPen(QColor(255, 255, 255, 220), 1.5));
-    p.drawEllipse(centre, RADIUS, RADIUS);
+    p.drawEllipse(centre, radius, radius);
   }
 
 }  // namespace stencil::gui

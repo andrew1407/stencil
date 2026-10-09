@@ -156,3 +156,21 @@ test('point x/y setters write absolute coords; pt.remove drops the point (and em
   assert.equal(pt.remove(), stencil);
   assert.equal(app.lines.length, 0);
 });
+
+test('line.name and line.hidden read and write the Lines tab fields, one step per real change', () => {
+  const app = makeApp({ lines: [{ points: [{ x: 0, y: 0 }] }, { points: [{ x: 5, y: 5 }], name: 'Roof', hidden: true }] });
+  const stencil = createStencil(app);
+  const [a, b] = stencil.lines;
+  assert.deepEqual([a.name, a.hidden, b.name, b.hidden], ['', false, 'Roof', true]);
+  a.name = '  Ridge  ';
+  assert.equal(app.lines[0].name, 'Ridge', 'trimmed');
+  a.name = 'Ridge';
+  assert.equal(called(app, 'saveHistory').length, 1, 'the same name records nothing');
+  assert.equal(a.hide(), a);
+  assert.equal(app.lines[0].hidden, true);
+  b.hidden = false;
+  assert.equal(app.lines[1].hidden, false);
+  assert.equal(called(app, 'saveHistory').length, 3);
+  a.apply({ name: 'x'.repeat(500), hidden: false });
+  assert.deepEqual([app.lines[0].name.length, app.lines[0].hidden], [80, false], 'capped at LIMITS.lineNameMax');
+});

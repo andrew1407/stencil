@@ -1,16 +1,17 @@
-// The "Lines" tab: one row per committed line — its number, its own line colour and thickness, its
-// point colour and size, its point count and its bin — on the points table's own grid. The app keeps
-// the state; this paints the rows. Desktop twin: app/selection/SelectionPanelLines.cpp (setLines).
+// The "Lines" tab: one row per committed line — its number, its name, its own line colour and
+// thickness, its point colour and size, its point count, its eye and its bin — on the points table's
+// grid. The app keeps the state; this paints the rows. Desktop twin: app/selection/SelectionPanelLines.cpp.
 import { icon } from '../../icons.js';
 import { fillState } from '../../../core/layout.js';
 import { pointColorOf } from '../../../core/line/render.js';
 import { selectionPredicate } from '../../../core/line/selection.js';
-import { wireLinesList } from './events.js';
+import { wireLinesList, takeEyeToggled } from './events.js';
+import { paintNameCell } from './nameEdit.js';
 import constants from '../../../../../common/config/constants.json' with { type: 'json' };
 
 const STROKE = constants.DEFAULT_VISUALS.color;
 const { thickMin, thickMax, pointMin, pointMax } = constants.LIMITS;
-const COLUMNS = 7;   // #, line colour, thickness, point colour, point size, points, bin
+const COLUMNS = 9;   // #, name, line colour, thickness, point colour, point size, points, eye, bin
 
 const TIPS = Object.freeze({
   color: "Line color\nDouble-click: the toolbar's line color",
@@ -18,6 +19,7 @@ const TIPS = Object.freeze({
   thickness: `Line thickness\nDouble-click to edit (${thickMin}–${thickMax} px)`,
   pointColor: "Point color\nDouble-click: the line's own color",
   pointSize: `Point size\nDouble-click to edit (${pointMin}–${pointMax} px)`,
+  name: 'Line name\nDouble-click to rename',
 });
 
 // Class toggle only — the list is never scrolled by a canvas hover.
@@ -67,9 +69,29 @@ const removeCell = (n) => {
   return td;
 };
 
+// The eye says what a click will do; the row it just flipped plays its toggle once (lines.css).
+const eyeCell = (line, n, flipped) => {
+  const td = cell('lines-eye-cell');
+  const eye = document.createElement('button');
+  eye.className = 'lines-eye btn-icon' + (line.hidden ? ' lines-eye-off' : '') + (flipped ? ' lines-eye-flip' : '');
+  eye.type = 'button';
+  eye.dataset.title = line.hidden ? 'Show line' : 'Hide line';
+  eye.setAttribute('aria-label', `${line.hidden ? 'Show' : 'Hide'} line ${n}`);
+  eye.setAttribute('aria-pressed', line.hidden ? 'true' : 'false');
+  eye.innerHTML = icon('eye', { size: 13 });
+  td.appendChild(eye);
+  return td;
+};
+
+const nameCell = (line, i) => {
+  const td = cell('lines-name', TIPS.name);
+  paintNameCell(td, line, i);
+  return td;
+};
+
 const rowOf = (app, line, i, selected) => {
   const row = document.createElement('tr');
-  row.className = 'lines-row' + (selected ? ' lines-row-selected' : '');
+  row.className = 'lines-row' + (selected ? ' lines-row-selected' : '') + (line.hidden ? ' lines-row-hidden' : '');
   if (i === app.hoverLineIdx) row.classList.add('lines-row-hover');
   row.dataset.idx = String(i);
   row.tabIndex = 0;
@@ -82,10 +104,11 @@ const rowOf = (app, line, i, selected) => {
   const face = fill.enabled ? fill.value : (line.locked ? 'transparent' : stroke);
   const count = cell('lines-count-cell', 'Points');
   count.textContent = String(line.points.length);
-  row.append(index, swatchCell('lines-swatch', line.locked ? TIPS.area : TIPS.color, face, stroke),
+  row.append(index, nameCell(line, i), swatchCell('lines-swatch', line.locked ? TIPS.area : TIPS.color, face, stroke),
     numCell('thickness', line.thickness),
     swatchCell('lines-point-swatch', TIPS.pointColor, pointColorOf(line)),
-    numCell('pointSize', line.pointSize ?? app.pointSize), count, removeCell(i + 1));
+    numCell('pointSize', line.pointSize ?? app.pointSize), count,
+    eyeCell(line, i + 1, takeEyeToggled(i)), removeCell(i + 1));
   return row;
 };
 

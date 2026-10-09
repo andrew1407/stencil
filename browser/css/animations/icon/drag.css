@@ -1,7 +1,32 @@
-/* A toolbar control being dragged (js/ui/drag/iconDrag.js): the page grabs, the control it left
-   waits dashed for a cancelling return, a drop target glows and brightens under the pointer. */
+/* A toolbar control being dragged (js/ui/drag/iconDrag.js): the page grabs, its ghost's rim shines,
+   the control it left waits dashed for a cancelling return, a drop target glows and brightens. */
 html.icon-dragging, html.icon-dragging * { cursor: grabbing !important; }
 .icon-drag-source { opacity: 0.45; outline: 1px dashed var(--accent-2); outline-offset: 2px; }
+/* The rim breathes over 1.4s (desktop SHINE_BEAT_MS); an svg mark shines along its own drawn edge. */
+.icon-drag-ghost {
+    --ghost-rim: 0 0 0 1.5px color-mix(in srgb, var(--accent) 90%, transparent),
+                 0 0 12px color-mix(in srgb, var(--accent) 60%, transparent);
+    animation: icon-ghost-shine 1.4s ease-in-out infinite alternate;
+}
+svg.icon-drag-ghost {
+    --ghost-rim: none;
+    --ghost-mark: drop-shadow(0 0 2px var(--accent)) drop-shadow(0 0 7px var(--accent));
+    animation-name: icon-ghost-shine-mark;
+}
+@keyframes icon-ghost-shine {
+    from { box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--accent) 40%, transparent),
+                       0 0 4px color-mix(in srgb, var(--accent) 25%, transparent); }
+    to   { box-shadow: var(--ghost-rim); }
+}
+@keyframes icon-ghost-shine-mark {
+    from { filter: drop-shadow(0 0 1px color-mix(in srgb, var(--accent) 50%, transparent)); }
+    to   { filter: var(--ghost-mark); }
+}
+/* Still under no motion: the rim held at its brightest. */
+@media (prefers-reduced-motion: reduce) {
+    .icon-drag-ghost { animation: none; box-shadow: var(--ghost-rim); filter: var(--ghost-mark, none); }
+}
+html[data-motion="none"] .icon-drag-ghost { animation: none; box-shadow: var(--ghost-rim); filter: var(--ghost-mark, none); }
 .icon-drop-target {
     --drop-glow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent),
                  0 0 10px color-mix(in srgb, var(--accent) 35%, transparent);

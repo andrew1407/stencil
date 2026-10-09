@@ -146,6 +146,7 @@ list(APPEND STENCIL_GUI_SOURCES
   src/support/control/UnderlineTabBar.cpp
   src/support/control/numericInput.cpp
   src/support/drag/iconDrag.cpp
+  src/support/drag/iconDragMachine.cpp
   src/support/drag/dragOverlays.cpp
   src/support/drag/colorDrag.cpp
   src/support/drag/colorDragCells.cpp

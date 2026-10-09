@@ -10,6 +10,12 @@ import { populateFsControls, populateFsPoints, followCoordBody } from './clones.
 import { createFsPanels } from './panels.js';
 import { syncFsSelectionPanel } from '../panel/selectionPanel.js';
 import { windowTookEscape } from '../modal/registry.js';
+import { afterIconDrag } from '../drag/iconDrag.js';
+import { wireCloneDrags } from '../bindings/controls/toolbarDrags.js';
+
+// A drag out of a panel keeps it up until the drop; it then goes unless the pointer came back.
+const leftUnlessDragging = (panel, hide) => () =>
+  afterIconDrag(() => { if (!panel.matches?.(':hover')) hide(); });
 // Fullscreen trigger zones + slide-in panels; exposes the toggle as app.toggleFullscreen
 // (no window global).
 export class StencilFullscreenLayer extends StencilElement {
@@ -37,12 +43,12 @@ export class StencilFullscreenLayer extends StencilElement {
     fsTopTrigger.addEventListener('mouseenter', showControlsPanel);
     fsTopTrigger.addEventListener('mouseleave', hideControlsPanel);
     fsControlsPanel.addEventListener('mouseenter', pauseControlsHide);
-    fsControlsPanel.addEventListener('mouseleave', hideControlsPanel);
+    fsControlsPanel.addEventListener('mouseleave', leftUnlessDragging(fsControlsPanel, hideControlsPanel));
 
     fsRightTrigger.addEventListener('mouseenter', showPointsPanel);
     fsRightTrigger.addEventListener('mouseleave', hidePointsPanel);
     fsPointsPanel.addEventListener('mouseenter', pausePointsHide);
-    fsPointsPanel.addEventListener('mouseleave', hidePointsPanel);
+    fsPointsPanel.addEventListener('mouseleave', leftUnlessDragging(fsPointsPanel, hidePointsPanel));
 
 // Drag sets --coord-panel-width (shared with normal mode for this page's life); the panel is
 // on the right, so dragging left widens it.
@@ -108,6 +114,7 @@ export class StencilFullscreenLayer extends StencilElement {
 // components/fullscreen.css pins the box to the window; syncViewportHeight's in-flow height must go.
         if (vp) vp.style.maxHeight = '';
         populateFsControls(fsControlsPanel);
+        wireCloneDrags(app, fsControlsPanel);
         showPoints();
 // One frame, so position:fixed is committed and vp.clientWidth/Height are full-window.
         requestAnimationFrame(() => {

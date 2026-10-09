@@ -169,10 +169,10 @@ caller-owned buffers:
 
 ```
 nums (double[]): lineCount, then per line:
-                 pointCount, thickness, pointSize, locked,
-                 len(color), len(style), len(fillColor), len(pointColor),
+                 pointCount, thickness, pointSize, locked, hidden,
+                 len(color), len(style), len(fillColor), len(pointColor), len(name),
                  x0, y0, x1, y1, …
-text (uint8[]):  color, style, fillColor, pointColor per line, UTF-8, concatenated
+text (uint8[]):  color, style, fillColor, pointColor, name per line, UTF-8, concatenated
 ```
 
 ## Concurrency

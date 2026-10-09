@@ -215,12 +215,14 @@ namespace stencil::gui {
     QObject::connect(w.selPanel, &SelectionPanel::lineListRemoveRequested, &w,
                      [this](int idx) { w.canvas->removeLineByIndex(idx); });
     wireLineRows();
-    // What a double-click puts each toolbar control back to (support/control/dblReset.hpp).
+    // What a double-click or a logo drop puts each toolbar control back to (support/control/dblReset.hpp).
     const Settings d;
     for (const auto& [control, v] : std::initializer_list<std::pair<QWidget*, QVariant>>{
              {w.tools.imageFilter, d.imageFilter}, {w.tools.lineStyle, d.defaultStyle}, {w.tools.compareCombo, QStringLiteral("none")},
              {w.units.unitCombo, localeDefaultUnit()}, {w.units.pageSize, d.pageSize}, {w.tools.showPointsCheck, d.showPoints},
-             {w.tools.showLinesCheck, d.showLines}, {w.tools.allowFormulas, d.allowFormulas}})
+             {w.tools.showLinesCheck, d.showLines}, {w.tools.allowFormulas, d.allowFormulas},
+             {w.tools.lineThickness, int(d.defaultThickness)}, {w.tools.pointSize, int(d.defaultPointSize)},
+             {w.tools.formulaX, d.formulaX}, {w.tools.formulaY, d.formulaY}})
       support::setResetDefault(control, v);
   }
 }  // namespace stencil::gui

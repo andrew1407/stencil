@@ -2,11 +2,16 @@ export declare const DRAG_SLOP_PX: number;
 export declare const GHOST_OPACITY: number;
 export declare const DRAGGING_CLASS: string;
 export declare const SOURCE_CLASS: string;
+/** On the ghost while it follows the pointer: its rim shines (css/animations/icon/drag.css). */
+export declare const GHOST_CLASS: string;
 export declare const TARGET_CLASS: string;
 export declare const TARGET_OVER_CLASS: string;
 
 /** Drags started this session: a deferred open notes it and stands down if a drag began since. */
 export declare function dragsStarted(): number;
+
+/** Runs `fn` now, or after the drop of the drag in progress. */
+export declare function afterIconDrag(fn: () => void): void;
 
 export interface IconDragPoint {
   x: number;

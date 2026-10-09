@@ -18,7 +18,7 @@ namespace {
     });
     poll->start(10);
   }
-  constexpr int SWATCH_COL = 1;   // selectionPanelParts.hpp LCOL_COLOR
+  constexpr int SWATCH_COL = 2;   // selectionPanelParts.hpp LCOL_COLOR
 }  // namespace
 
 class MainWindowGuiTest : public QObject {

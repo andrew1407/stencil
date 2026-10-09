@@ -93,7 +93,21 @@ TEST_CASE("decodeLines stops cleanly on NaN, negative and astronomical counts") 
   CHECK(patched(0, 1e300) == 2);  // clamped to the cap, then bounded by the buffer
   CHECK(patched(1, 1e300) == 0);  // first line's point count
   CHECK(patched(1, nan) == 0);
-  CHECK(patched(5, 1e300) == 0);  // first line's color length
-  CHECK(patched(5, -1) == 0);
-  CHECK(patched(13, nan) == 1);   // second line's point count: the first survives
+  CHECK(patched(6, 1e300) == 0);  // first line's color length
+  CHECK(patched(6, -1) == 0);
+  CHECK(patched(15, nan) == 1);   // second line's point count: the first survives
+}
+
+TEST_CASE("a line's name and hidden flag survive the round trip") {
+  Line named = withPoints(2);
+  named.name = "Roof ridge";
+  named.hidden = true;
+  const Lines back = encode(Lines{named, withPoints(1)}).decode();
+  REQUIRE(back.size() == 2);
+  CHECK(back[0].name == "Roof ridge");
+  CHECK(back[0].hidden);
+  CHECK(back[0].points.size() == 2);
+  CHECK(back[1].name.empty());
+  CHECK_FALSE(back[1].hidden);
+  CHECK(back[1].color == "#fff");
 }

@@ -1,7 +1,6 @@
 #include "iconDrag.hpp"
 #include "dragOverlays.hpp"
 #include "AppTooltip.hpp"
-#include "../uiTimings.hpp"
 #include <QAbstractButton>
 #include <QApplication>
 #include <QKeyEvent>
@@ -9,59 +8,9 @@
 #include <QPointer>
 #include <QTimer>
 #include <QToolTip>
-#include <cmath>
+#include <algorithm>
 
 namespace stencil::support {
-
-  IconDragMachine::IconDragMachine(IconDragHooks hooks, std::function<QRect()> originRect,
-                                   std::function<QWidget*(const QPoint&)> targetAt)
-      : hooks(std::move(hooks)), originRect(std::move(originRect)), targetAt(std::move(targetAt)) {}
-
-  IconDragPoint IconDragMachine::at(const QPoint& global) const {
-    return {global, originRect && originRect().contains(global), targetAt ? targetAt(global) : nullptr};
-  }
-
-  void IconDragMachine::press(const QPoint& global) {
-    pressAt = global;
-    pressed = true;
-    dragging = false;
-  }
-
-  bool IconDragMachine::move(const QPoint& global) {
-    if (!pressed) return false;
-    if (!dragging) {
-      const QPoint d = global - pressAt;
-      if (std::hypot(d.x(), d.y()) <= uiTimings().pressSlopPx) return false;
-      if (hooks.start && !hooks.start(pressAt, global)) {
-        pressed = false;
-        return false;
-      }
-      dragging = true;
-      ++dragsStarted();
-    }
-    if (hooks.move) hooks.move(at(global));
-    return true;
-  }
-
-  bool IconDragMachine::release(const QPoint& global) {
-    const bool was = dragging;
-    pressed = dragging = false;
-    if (!was) return false;
-    const IconDragPoint p = at(global);
-    if (p.overOrigin) {
-      if (hooks.cancel) hooks.cancel();
-    } else if (hooks.drop) {
-      hooks.drop(p);
-    }
-    return true;
-  }
-
-  bool IconDragMachine::abort() {
-    const bool was = dragging;
-    pressed = dragging = false;
-    if (was && hooks.cancel) hooks.cancel();
-    return was;
-  }
 
   namespace {
 
@@ -124,6 +73,7 @@ namespace stencil::support {
             grabbed = false;
             end();
             machine.release(me->globalPosition().toPoint());
+            settle();
             return spent;
           }
           default:
@@ -155,7 +105,8 @@ namespace stencil::support {
       }
 
       void begin(const QPoint& global) {
-        grabbed = true;
+        grabbed = counted = true;
+        iconDragBegan();
         leaving = true;
         QMouseEvent away(QEvent::MouseMove, QPointF(-1e5, -1e5), QPointF(-1e5, -1e5), Qt::NoButton,
                          Qt::LeftButton, Qt::NoModifier);
@@ -178,13 +129,30 @@ namespace stencil::support {
         if (grabbed || machine.active()) holdTips(false);
       }
 
+      // After the drop, which the release queued first: what waited on the drag (afterIconDrag) runs.
+      void settle() {
+        if (counted) QTimer::singleShot(0, qApp, [] { iconDragEnded(); });
+        counted = false;
+      }
+
       bool appEvent(QEvent* ev) {
         if (!machine.active()) return false;
+        // A source hidden mid-drag (a fullscreen row folding up) loses the pointer to the window.
+        if (!source->isVisible() && (ev->type() == QEvent::MouseMove || ev->type() == QEvent::MouseButtonRelease)) {
+          const QPoint g = static_cast<QMouseEvent*>(ev)->globalPosition().toPoint();
+          if (ev->type() == QEvent::MouseMove) { machine.move(g); ghostFollow(g); return false; }
+          grabbed = false;
+          end();
+          machine.release(g);
+          settle();
+          return true;
+        }
         const bool escape = (ev->type() == QEvent::KeyPress || ev->type() == QEvent::ShortcutOverride) &&
                             static_cast<QKeyEvent*>(ev)->key() == Qt::Key_Escape;
         if (!escape && ev->type() != QEvent::ApplicationDeactivate) return false;
         end();
         machine.abort();
+        settle();
         if (escape) ev->accept();
         return escape;
       }
@@ -196,6 +164,7 @@ namespace stencil::support {
       bool ghostWanted = true;
       bool grabbed = false;   // from the drag's start to the release, Escape or not
       bool leaving = false;
+      bool counted = false;   // this drag holds anyIconDragActive() until it settles
     };
 
     IconDragFilter* filterOf(const QWidget* source) {

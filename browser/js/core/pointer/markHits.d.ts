@@ -3,7 +3,7 @@
 import type { CodecLine } from '../line/linesCodec.js';
 import type { HoldTarget } from '../draw/holdDraw.js';
 
-type Lines = readonly Pick<CodecLine, 'points'>[];
+type Lines = readonly (Pick<CodecLine, 'points'> & { hidden?: boolean })[];
 
 /** Which marks the canvas paints; a flag never set counts as shown. */
 export interface ShownMarks {
@@ -12,6 +12,8 @@ export interface ShownMarks {
 }
 
 export declare const shownMarks: (app: { showPoints?: boolean; showLines?: boolean }) => ShownMarks;
+/** `lines` with each hidden one swapped for a mark-less stand-in, indices kept; the same array when none hides. */
+export declare const hittableLines: <L extends Lines | null | undefined>(lines: L) => L;
 /** The line under (x, y) by what shows: findLineAt with both, the stroke or the points alone, else -1. */
 export declare const lineAt: (lines: Lines, shown: ShownMarks, x: number, y: number, threshold: number) => number;
 /** holdDrawTarget with a hidden kind out of reach; `radius` defaults to HIT.grabRadiusPx. */

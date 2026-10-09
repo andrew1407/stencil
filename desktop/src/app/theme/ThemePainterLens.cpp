@@ -93,7 +93,10 @@ namespace stencil::gui {
     lens = view;
   }
 
-  void ThemePainter::closeLens() { delete lens.data(); }
+  void ThemePainter::closeLens() {
+    if (lens) static_cast<ThemeLens*>(lens.data())->dismiss();
+    lens = nullptr;
+  }
 
   // The window as the other theme paints it: restyled, photographed and put back with no event-loop
   // turn between, so neither restyle reaches the screen; the override is the session's alone.

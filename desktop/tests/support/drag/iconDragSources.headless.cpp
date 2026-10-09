@@ -1,6 +1,15 @@
 // The iconDrag suite's sources: a ghost wearing its owner's face, a centred ghost, and a source
 // that is no button dragging only from what its grab hook takes hold of.
 #include "iconDragParts.hpp"
+#include "dragOverlays.hpp"
+
+namespace {
+  // A ghost by its face: the widget stands off it by the room its rim takes.
+  QSize faceOf(QWidget* child) {
+    auto* ghost = dynamic_cast<DragGhost*>(child);
+    return ghost ? ghost->faceSize() : child->size();
+  }
+}  // namespace
 
 void iconDragTest::sourceCases(QApplication& app, QWidget& window, const QPoint& in, int slop,
                                const IconDragHooks& hooks, QStringList& log) {
@@ -15,7 +24,7 @@ void iconDragTest::sourceCases(QApplication& app, QWidget& window, const QPoint&
   installIconDrag(marked, faced);
   const auto ghostOf = [&window](const QSize& size) {
     for (QWidget* child : window.findChildren<QWidget*>(Qt::FindDirectChildrenOnly))
-      if (child->testAttribute(Qt::WA_TransparentForMouseEvents) && child->isVisible() && child->size() == size)
+      if (child->testAttribute(Qt::WA_TransparentForMouseEvents) && child->isVisible() && faceOf(child) == size)
         return true;
     return false;
   };
@@ -39,7 +48,7 @@ void iconDragTest::sourceCases(QApplication& app, QWidget& window, const QPoint&
   drag(centred, centred->mapFromGlobal(lensAt));
   QWidget* riding = nullptr;
   for (QWidget* child : window.findChildren<QWidget*>(Qt::FindDirectChildrenOnly))
-    if (child->testAttribute(Qt::WA_TransparentForMouseEvents) && child->isVisible() && child->size() == centred->size())
+    if (child->testAttribute(Qt::WA_TransparentForMouseEvents) && child->isVisible() && faceOf(child) == centred->size())
       riding = child;
   check(riding && riding->geometry().center() == window.mapFromGlobal(lensAt),
         "a centred ghost sits centred on the pointer, not held at the grab point");

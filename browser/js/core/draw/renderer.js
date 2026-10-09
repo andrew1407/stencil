@@ -148,7 +148,7 @@ export class Renderer {
     const selected = readOnly ? () => false : selectionPredicate(app);
 
     if (app.showLines) {
-      app.lines.forEach((line, i) => this.drawLine(line, selected(i), i));
+      app.lines.forEach((line, i) => { if (!line.hidden) this.drawLine(line, selected(i), i); });
       if (app.currentLine?.points.length > 0)
         this.drawLine(app.currentLine, false, -1);
     } else if (app.showPoints) {
@@ -163,7 +163,7 @@ export class Renderer {
         });
         fx.paintOver(this.ctx, line, pts);
       };
-      app.lines.forEach((line, i) => drawPts(line, i, selected(i)));
+      app.lines.forEach((line, i) => { if (!line.hidden) drawPts(line, i, selected(i)); });
       if (app.currentLine) drawPts(app.currentLine, -1, false);
     }
 
