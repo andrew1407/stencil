@@ -8,6 +8,9 @@ export const STENCIL_FILE_VERSION = 1;
 
 // chars ≈ bytes (ASCII-dominant JSON+base64); matches the server's 32 MiB MaxBodyBytes.
 export const MAX_PROJECT_FILE_CHARS = 32 * 1024 * 1024;
+export const PROJECT_FILE_TOO_LARGE = 'Project file is too large (over 32 MiB).';
+// A File over the cap is refused by its size, before its bytes are read into a string.
+export const projectFileTooLarge = (file) => (file?.size ?? 0) > MAX_PROJECT_FILE_CHARS;
 
 const isPlainObject = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -74,7 +77,7 @@ export const serializeProjectFile = (state) => JSON.stringify(buildProjectFile(s
 // → { ok:true, project } (the hardened shape for fileIO.js applyProjectFile) or { ok:false, error }.
 export const parseProjectFile = (input) => {
   if (typeof input === 'string' && input.length > MAX_PROJECT_FILE_CHARS) {
-    return { ok: false, error: 'Project file is too large (over 32 MiB).' };
+    return { ok: false, error: PROJECT_FILE_TOO_LARGE };
   }
   let data;
   try { data = typeof input === 'string' ? JSON.parse(input) : input; }

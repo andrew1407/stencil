@@ -5,6 +5,7 @@ import { buildLayoutPayload, normalizeCropRect } from '../layout.js';
 import { buildExternalLaunchUrl } from '../launch/deepLink.js';
 import { requireConnection, createRemoteProject, saveRemoteProject } from '../../net/remoteSync.js';
 import { keptSource, storedSource } from './store/projectSources.js';
+import { dataUrlOfBlob } from './store/imageBlobs.js';
 
 // A NEW server project from a local project's content under `name`; shared by move
 // (then links the local) and copy. Returns { link, proj, meta }.
@@ -110,7 +111,7 @@ export async function copyServerProjectToIncognito(c, meta, { newTab = false } =
   const ext = (blob.type && blob.type.split('/')[1]) || 'png';
   const name = full.project?.name || meta.name || 'Untitled';
   if (newTab) {
-    const dataUrl = await blobToDataUrl(c, blob);
+    const dataUrl = await dataUrlOfBlob(blob);
     const url = buildExternalLaunchUrl(location.origin + location.pathname, { dataUrl, name, incognito: true });
     window.open(url, '_blank');
     return;
@@ -128,22 +129,13 @@ export function openIncognitoHere(c, file, loadOpts = {}) {
   c.host.loadImageFromFile(file, { ...loadOpts, adoptLayout: true });
 }
 
-export function blobToDataUrl(c, blob) {
-  return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res(r.result);
-    r.onerror = () => rej(new Error('could not read image bytes'));
-    r.readAsDataURL(blob);
-  });
-}
-
 // Shared body of move/copy server→local; `copy` defaults the name to "<base>-copy".
 export async function importServerProjectToLocal(c, meta, { removeFromServer = false, copy = false, name = null } = {}) {
   const conn = requireConnection(c.getConnections(), meta.serverUrl);
   const full = await conn.getProject(meta.id);
   const src = full.project?.source || meta.source || '';
   const blob = await c.remoteSync.fetchRemoteOriginal(conn, meta.id, src);
-  const dataUrl = blob ? await blobToDataUrl(c, blob) : null;
+  const dataUrl = blob ? await dataUrlOfBlob(blob) : null;
   const sl = full.layout || {};
   const linked = c.storage.store.list().find(m => m.remoteId === meta.id && m.address === meta.serverUrl);
   const source = keptSource(src, linked ? storedSource(c.storage.store, linked.id) : '');

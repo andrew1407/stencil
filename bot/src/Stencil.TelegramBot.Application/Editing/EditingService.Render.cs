@@ -13,6 +13,7 @@ public sealed partial class EditingService
         return await renderWithAsync(userId, session, session.Edits, ct);
     }
 
+    // The CLI's contour filter to a fresh PNG: the §7 edge-map attachment.
     public Task<RenderResult> RenderContourAsync(long userId, string sourcePath, CancellationToken ct = default) =>
         _cli.EditAsync(new EditRequest
         {
@@ -22,6 +23,7 @@ public sealed partial class EditingService
             Overwrite = true,
         }, ct);
 
+    // The variant path: renders from a copy of the state, leaving the session's own state alone.
     public async Task<RenderResult> RenderAsync(long userId, EditState edits, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
@@ -53,8 +55,21 @@ public sealed partial class EditingService
             Output = _workspace.NewFilePath(userId, ".png"),
             Overwrite = true,
         };
-        return await _cli.EditAsync(request, ct);
+        try
+        {
+            return await _cli.EditAsync(request, ct);
+        }
+        finally
+        {
+            if (layoutPath is not null)
+            {
+                _workspace.Discard(layoutPath);
+            }
+        }
     }
+
+    // A render the caller has sent or uploaded; the janitor would only sweep it after WorkspaceTtl.
+    public void Discard(RenderResult render) => _workspace.Discard(render.Path);
 
     public StencilLayout BuildLayout(UserSession session) =>
         new()

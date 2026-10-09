@@ -10,6 +10,9 @@ public sealed class SyncRegistry
     // Retargets when already enabled.
     public void Enable(long userId, long chatId) => _chatByUser[userId] = chatId;
 
+    // Never retargets: a restart forgets the map, and the user's next update re-adds the chat /sync named.
+    public void Rejoin(long userId, long chatId) => _chatByUser.TryAdd(userId, chatId);
+
     public void Disable(long userId) => _chatByUser.TryRemove(userId, out _);
 
     // A snapshot, so the poller iterates without holding the map.

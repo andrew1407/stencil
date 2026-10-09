@@ -3,7 +3,7 @@
 // Desktop twin: dialogs/connect/ConnectDialogRow.cpp + ConnectDialogRowActions.cpp.
 import { notify } from '../../utils.js';
 import { icon } from '../icons.js';
-import { isExpiredSession } from '../../net/connectionManager.js';
+import { isExpiredSession } from '../../net/urlRules.js';
 
 export function connectRow(url, cm, { app, mgr, selected, drag, updateBatchBar, render, confirmDisconnect }) {
   const row = document.createElement('div');

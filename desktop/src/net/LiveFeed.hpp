@@ -34,7 +34,8 @@ namespace stencil::net {
 
    private:
     void dial();
-    void parseFrames();
+    // False for a hostile stream: a line, or a partial one, past the frame limit.
+    bool parseFrames();
 
     QTcpSocket* sock = nullptr;
     QTimer* retry = nullptr;

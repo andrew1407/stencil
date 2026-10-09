@@ -1,9 +1,10 @@
 // Quoting per shell family, because VS Code's terminal is whichever shell the user picked.
 // PowerShell doubles a quote and evaluates a quoted command word; cmd.exe has no escape at
-// all and needs `cd /d` to change drive; everything else is POSIX.
-// Bytes a POSIX shell passes through untouched.
+// all and needs `cd /d` to change drive; fish escapes inside single quotes; the rest is POSIX.
 
 const SAFE_POSIX = /^[A-Za-z0-9_@%+=:,./-]+$/;
+// fish expands a leading % (process expansion) where a POSIX shell does not.
+const SAFE_FISH = /^[A-Za-z0-9_@+=:,./-]+$/;
 
 // cmd.exe expands %NAME% even inside quotes and splits an argument on , and =; PowerShell
 // reads a leading @ as splatting and a , as a list. Anything else is quoted.
@@ -17,6 +18,11 @@ const SHELLS = Object.freeze({
   posix: Object.freeze({
     safe: SAFE_POSIX, cd: 'cd', lead: '',
     quote: (text) => `'${text.split("'").join("'\\''")}'`,
+  }),
+  // Inside fish single quotes \\ and \' are escapes, so both are backslashed, never closed out.
+  fish: Object.freeze({
+    safe: SAFE_FISH, cd: 'cd', lead: '',
+    quote: (text) => `'${text.replace(/[\\']/g, '\\$&')}'`,
   }),
   powershell: Object.freeze({
     safe: SAFE_PS, cd: 'cd', lead: '& ',
@@ -36,9 +42,10 @@ const shellKind = (shell) => {
   if (!name) return process.platform === 'win32' ? 'powershell' : DEFAULT_KIND;
   if (/(^|[\\/])(pwsh|powershell)(\.exe)?$/.test(name)) return 'powershell';
   if (/(^|[\\/])cmd(\.exe)?$/.test(name)) return 'cmd';
+  if (/(^|[\\/])fish(\.exe)?$/.test(name)) return 'fish';
   return DEFAULT_KIND;
 };
 
 const shellFor = (kind) => SHELLS[kind] ?? SHELLS[DEFAULT_KIND];
 
-export { DEFAULT_KIND, SAFE_CMD, SAFE_POSIX, SAFE_PS, SHELLS, shellFor, shellKind };
+export { DEFAULT_KIND, SAFE_CMD, SAFE_FISH, SAFE_POSIX, SAFE_PS, SHELLS, shellFor, shellKind };

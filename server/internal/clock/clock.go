@@ -4,7 +4,10 @@
 // hub), which could disagree with each other.
 package clock
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 // NowMs reads the wall clock. Production never reassigns it; tests use Stub.
 var NowMs = func() int64 { return time.Now().UnixMilli() }
@@ -18,3 +21,12 @@ func Stub(fn func() int64) func() {
 
 // Fixed is a clock stopped at ms.
 func Fixed(ms int64) func() int64 { return func() int64 { return ms } }
+
+// WithTimeout bounds ctx by d; d <= 0 leaves it unbounded, which is how every configured op timeout
+// spells "off". The returned cancel is always safe to call.
+func WithTimeout(ctx context.Context, d time.Duration) (context.Context, context.CancelFunc) {
+	if d <= 0 {
+		return context.WithCancel(ctx)
+	}
+	return context.WithTimeout(ctx, d)
+}

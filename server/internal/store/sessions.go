@@ -42,8 +42,8 @@ func (s *Store) ResolveToken(ctx context.Context, tokenHash []byte) (auth.Sessio
 // DeleteExpiredSessions removes up to limit sessions whose expiry has passed (expires_at in (0, now]) and
 // reports how many went; projects they own keep their row (owner_session is ON DELETE SET NULL).
 func (s *Store) DeleteExpiredSessions(ctx context.Context, now int64, limit int) (int, error) {
-	if limit <= 0 || limit > defaultSweepLimit {
-		limit = defaultSweepLimit
+	if limit <= 0 || limit > MaxSweepBatch {
+		limit = MaxSweepBatch
 	}
 	tag, err := s.pool.Exec(ctx,
 		`DELETE FROM sessions WHERE id IN (

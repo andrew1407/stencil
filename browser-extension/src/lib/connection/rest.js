@@ -1,6 +1,6 @@
 // Bearer-authed JSON over server/internal/protocol; a stale session token is re-minted once.
 import { normalizeUrl, parseInviteUrl } from './model.js';
-import { readBlobCapped } from './urlGuard.js';
+import { readBlobCapped, withDeadline } from './urlGuard.js';
 import { MAX_ERROR_BYTES, readJsonCapped } from './cappedBody.js';
 
 export const fetchImpl = () => globalThis.fetch?.bind(globalThis);
@@ -14,7 +14,7 @@ const req = async (conn, method, path, opts = {}) => {
   const headers = { ...extra, Authorization: 'Bearer ' + conn.token };
   let payload = body;
   if (body != null && !raw) { headers['Content-Type'] = 'application/json'; payload = JSON.stringify(body); }
-  const resp = await f(url, { method, headers, body: payload, redirect: 'manual' });
+  const resp = await f(url, { method, headers, body: payload, signal: withDeadline(), redirect: 'manual' });
   // Refused, never followed, so the bearer never reaches the host a 30x names.
   if (isRedirect(resp)) throw Object.assign(new Error(`${method} ${path}: the server redirected — connect to its final address`), { status: resp.status });
   if (resp.status === 304) return raw ? resp : null;
@@ -83,7 +83,7 @@ export const connect = async (rawUrl, token = '', f = fetchImpl()) => {
 export const MAX_LIST_PAGES = 1000;
 
 // The cursor a page names for the next one, '' on the last; a repeat, or one past MAX_LIST_PAGES, throws.
-const nextCursor = (body, seen) => {
+export const nextPageCursor = (body, seen) => {
   const next = body && typeof body.nextCursor === 'string' ? body.nextCursor : '';
   if (!next) return '';
   if (seen.has(next)) throw new Error('GET /projects: the server handed back the same page cursor twice');
@@ -100,7 +100,7 @@ export const listProjects = async (conn, f = fetchImpl()) => {
   do {
     const r = await req(conn, 'GET', '/projects', { query: after ? { after } : undefined, fetch: f });
     out.push(...((r && r.projects) || []));
-    after = nextCursor(r, seen);
+    after = nextPageCursor(r, seen);
   } while (after);
   return out;
 };
@@ -125,7 +125,7 @@ export const listProjectsIfChanged = async (conn, prev = null, f = fetchImpl()) 
       page = { after, etag: resp.headers?.get?.('etag') || '', projects: (r && r.projects) || [], next: r && r.nextCursor };
     }
     pages.push(page);
-    after = nextCursor({ nextCursor: page.next }, seen);
+    after = nextPageCursor({ nextCursor: page.next }, seen);
   } while (after);
   const changed = pages.length !== old.length || pages.some((p, i) => p !== old[i]);
   return { changed, etag: pages[0].etag, pages, projects: changed ? pages.flatMap((p) => p.projects) : null };

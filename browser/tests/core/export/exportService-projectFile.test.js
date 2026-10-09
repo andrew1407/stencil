@@ -3,6 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ExportService, makeApp, notifications, reset, lastNote } from '../../helpers/exportServiceRig.js';
+import { MAX_PROJECT_FILE_CHARS } from '../../../js/core/project/file.js';
 // ── .stencil project file save/open ─────────────────────────────────────────
 // A valid serialized project the real parseProjectFile accepts (format + v1 + embedded image).
 const VALID_STENCIL = (name) => JSON.stringify({
@@ -96,6 +97,15 @@ test('openProjectFile: unreadable File (text() throws) → read-error notify', a
   const badFile = { text: async () => { throw new Error('io'); } };
   await new ExportService(makeApp()).openProjectFile(badFile);
   assert.deepEqual(lastNote(), ['Could not read project file', 'fail']);
+});
+
+test('openProjectFile: a File over the cap is refused by its size, never read', async () => {
+  reset();
+  let read = false;
+  const huge = { size: MAX_PROJECT_FILE_CHARS + 1, text: async () => { read = true; return ''; } };
+  await new ExportService(makeApp()).openProjectFile(huge);
+  assert.equal(read, false);
+  assert.deepEqual(lastNote(), ['Invalid .stencil file: Project file is too large (over 32 MiB).', 'fail']);
 });
 
 test('openProjectFile: applyProjectFile throwing → open-error notify', async () => {

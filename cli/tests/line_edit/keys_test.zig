@@ -3,18 +3,12 @@
 //! No tty: `readLine` only reads bytes.
 const std = @import("std");
 const le = @import("../../src/line_edit/line_edit.zig");
-const logo = @import("../../src/app/logo.zig");
+const Pipes = @import("pipes.zig").Pipes;
 const screen_mod = @import("../../src/console/screen.zig");
 
 const Editor = le.Editor;
 const History = le.History;
-const PendingImages = le.PendingImages;
-const PasteResult = le.PasteResult;
 const max_line = le.max_line;
-const max_pending_images = le.max_pending_images;
-const markerEnd = le.markerEnd;
-const markerBefore = le.markerBefore;
-const stripMarkers = le.stripMarkers;
 const testing = std.testing;
 
 test "word-delete chords: every encoding a terminal sends for a modified Backspace" {
@@ -29,11 +23,10 @@ test "word-delete chords: every encoding a terminal sends for a modified Backspa
         .{ .keys = "\x17", .want = "/crop one two " },
     };
     for (cases) |c| {
-        const in = try std.Io.Threaded.pipe2(.{});
-        defer _ = std.c.close(in[0]);
-        const out = try std.Io.Threaded.pipe2(.{});
-        defer _ = std.c.close(out[0]);
-        defer _ = std.c.close(out[1]);
+        const pipes = try Pipes.open();
+        defer pipes.close();
+        const in = pipes.in;
+        const out = pipes.out;
         var ed = Editor{ .fd_in = in[0], .fd_out = out[1], .orig = std.mem.zeroes(std.posix.termios) };
         var hist = History{ .gpa = testing.allocator };
         defer hist.deinit();
@@ -52,11 +45,10 @@ test "word-delete chords: every encoding a terminal sends for a modified Backspa
 
 test "a tty that erases with 0x08 keeps it as a plain backspace" {
     // The one terminal family where 0x08 IS the erase key: it must not eat a whole word there.
-    const in = try std.Io.Threaded.pipe2(.{});
-    defer _ = std.c.close(in[0]);
-    const out = try std.Io.Threaded.pipe2(.{});
-    defer _ = std.c.close(out[0]);
-    defer _ = std.c.close(out[1]);
+    const pipes = try Pipes.open();
+    defer pipes.close();
+    const in = pipes.in;
+    const out = pipes.out;
     var ed = Editor{ .fd_in = in[0], .fd_out = out[1], .orig = std.mem.zeroes(std.posix.termios), .erase = 8 };
     var hist = History{ .gpa = testing.allocator };
     defer hist.deinit();
@@ -74,11 +66,10 @@ test "Ctrl-C copies a live selection; with none it still confirms the exit" {
     const a = testing.allocator;
     var threaded = std.Io.Threaded.init(a, .{});
     defer threaded.deinit();
-    const in = try std.Io.Threaded.pipe2(.{});
-    defer _ = std.c.close(in[0]);
-    const out = try std.Io.Threaded.pipe2(.{});
-    defer _ = std.c.close(out[0]);
-    defer _ = std.c.close(out[1]);
+    const pipes = try Pipes.open();
+    defer pipes.close();
+    const in = pipes.in;
+    const out = pipes.out;
 
     var scr = screen_mod.Screen{ .gpa = a, .io = threaded.io(), .fd = out[1], .rows = 20, .cols = 40 };
     defer scr.freeAllForTest();
@@ -108,11 +99,10 @@ test "Ctrl-C copies a live selection; with none it still confirms the exit" {
 }
 
 test "pollInterrupt: a Ctrl-C is reported, other type-ahead is dropped" {
-    const in = try std.Io.Threaded.pipe2(.{});
-    defer _ = std.c.close(in[0]);
-    const out = try std.Io.Threaded.pipe2(.{});
-    defer _ = std.c.close(out[0]);
-    defer _ = std.c.close(out[1]);
+    const pipes = try Pipes.open();
+    defer pipes.close();
+    const in = pipes.in;
+    const out = pipes.out;
     var ed = Editor{ .fd_in = in[0], .fd_out = out[1], .orig = std.mem.zeroes(std.posix.termios) };
 
     const typed = [_]u8{ 'a', 'b', '\n' }; // keystrokes during a call have no line to land in
@@ -131,11 +121,10 @@ test "pollInterrupt: a Ctrl-C is reported, other type-ahead is dropped" {
 test "plain Ctrl-V / Ctrl-Z resolve to the paste / un-paste actions" {
     // Driven over a pipe rather than a tty: readLine only reads bytes, and the actions under test need
     // no screen. Ctrl-V is delivered untouched by terminals, unlike the Option/Meta chords.
-    const in = try std.Io.Threaded.pipe2(.{});
-    defer _ = std.c.close(in[0]);
-    const out = try std.Io.Threaded.pipe2(.{});
-    defer _ = std.c.close(out[0]);
-    defer _ = std.c.close(out[1]);
+    const pipes = try Pipes.open();
+    defer pipes.close();
+    const in = pipes.in;
+    const out = pipes.out;
 
     var ed = Editor{ .fd_in = in[0], .fd_out = out[1], .orig = std.mem.zeroes(std.posix.termios) };
     var hist = History{ .gpa = testing.allocator };

@@ -247,7 +247,7 @@
           "type": "string",
           "default": "",
           "scope": "machine",
-          "markdownDescription": "Path to the Stencil CLI binary, used by the run commands and by the check on save. A relative path is taken from the workspace folder. Empty falls back to `STENCIL_CLI`, then `stencil` on `PATH`. Read from user settings only: a workspace cannot choose the binary."
+          "markdownDescription": "Absolute path to the Stencil CLI binary, used by the run commands and by the check on save. A relative path is refused. Empty falls back to `STENCIL_CLI`, then `stencil` on `PATH`. Read from user settings only: a workspace cannot choose the binary."
         },
         "stencil.checkOnType": {
           "type": "boolean",
@@ -322,7 +322,7 @@
           "type": "string",
           "default": "",
           "scope": "machine",
-          "markdownDescription": "Path to the Python that runs a `.pystc`. A relative path is taken from the workspace folder. Empty falls back to `STENCIL_PYTHON`, then `python3` and `python` on `PATH`. Read from user settings only: a workspace cannot choose the interpreter."
+          "markdownDescription": "Absolute path to the Python that runs a `.pystc`. A relative path is refused. Empty falls back to `STENCIL_PYTHON`, then `python3` and `python` on `PATH`. Read from user settings only: a workspace cannot choose the interpreter."
         },
         "stencil.webInlineImages": {
           "type": "boolean",

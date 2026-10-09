@@ -1,6 +1,6 @@
 // MainWindow GUI e2e — An outside press closing the accent popover, from both routes.
-// Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
-#include "../../MainWindow.gui.hpp"
+// Shared ground is in themeAccent.gui.hpp, over MainWindow.gui.hpp.
+#include "themeAccent.gui.hpp"
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
@@ -12,25 +12,13 @@ class MainWindowGuiTest : public QObject {
   // whether Qt delivers that press or not: exec() is app-modal, so the platform drops some presses.
   void accentPopoverClosesOnOutsidePress() {
     MainWindow win(nullptr, /*restoreLast=*/false);
-    win.resize(1000, 700);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(showWithPicture(win));
     QToolButton* logo = win.tools.logoBtn;
     QVERIFY(logo && win.canvas);
-    // With a picture loaded, so a canvas press is an ordinary editing press and not the
-    // empty canvas's "create a blank image" invitation (another modal dialog).
-    QImage pic(320, 240, QImage::Format_RGB32);
-    pic.fill(Qt::darkCyan);
-    win.canvas->loadFromImage(pic);
-    QTRY_VERIFY(win.canvas->hasImage());
-    if (QWidget* fw = QApplication::focusWidget()) fw->clearFocus();   // typingFocus gate off
     const QPoint c = logo->rect().center();
     // A toolbar icon that is not the logo, and NOT one the open popover's box covers: a press on a
     // covered icon is a press ON the window (onOpenBox). The SETTINGS cluster's ℹ sits clear of it.
-    QToolButton* other = nullptr;
-    for (auto it = win.pop.buttons.cbegin(); it != win.pop.buttons.cend(); ++it)
-      if (it.value() == win.acts.info && static_cast<QWidget*>(it.key())->isVisible())
-        other = static_cast<QToolButton*>(it.key());
+    QToolButton* other = visibleButtonFor(win.pop.buttons, win.acts.info);
     QVERIFY2(other, "no visible Help button to press outside on");
 
     enum Route { STICKY, PEEK };

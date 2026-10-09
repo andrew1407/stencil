@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "SharedState.hpp"
 #include "../../support/rowWork.hpp"
 #include "DocumentPersistence.hpp"
 #include <QComboBox>
@@ -9,6 +10,7 @@
 #include "Notifications.hpp"
 #include "RemoteSession.hpp"
 #include "ServerClient.hpp"
+#include <utility>
 
 // Session and per-project view persistence, and the server auto-connect on boot.
 
@@ -89,7 +91,7 @@ namespace stencil::gui {
     pr->zoomScale = zoom;
     pr->scrollLeft = left;
     pr->scrollTop = top;
-    fileStore::saveProjects(w.projectList);
+    SharedState::instance().saveProjects(&w);
     // Browser parity: storage.save() flashes "Saved" on this path too.
     w.notify->success(QStringLiteral("Saved"));
   }
@@ -114,8 +116,22 @@ namespace stencil::gui {
     }
   }
 
+  namespace {
+    // `done` runs exactly once: on the path that finishes, or when the last callback holding it
+    // is dropped unrun (a client deleted mid-upload, a window gone).
+    struct Settle {
+      explicit Settle(std::function<void()> fn) : fn(std::move(fn)) {}
+      Settle(const Settle&) = delete;   // a copy's destructor would settle it early
+      Settle& operator=(const Settle&) = delete;
+      ~Settle() { (*this)(); }
+      void operator()() { if (fn) std::exchange(fn, {})(); }
+      std::function<void()> fn;
+    };
+  }  // namespace
+
   // The canvas is copied here; the full-size render and its PNG encode run on the pool.
-  void DocumentPersistence::uploadServerResult(std::function<void()> done) {
+  void DocumentPersistence::uploadServerResult(std::function<void()> finished) {
+    const auto done = [settle = std::make_shared<Settle>(std::move(finished))] { (*settle)(); };
     const QString addr = w.remote.session->getLink().address;
     const QString id = w.remote.session->getLink().id;
     if (!w.remote.connections || !w.remote.connections->find(addr) || !w.canvas->hasImage() || !w.settings.syncToServer) {

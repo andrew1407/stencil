@@ -15,23 +15,6 @@ export const SILENCE_MS_MAX = 10_000;
 const DEFAULT_LANGUAGE = 'default';
 const DEFAULT_RECOGNITION_LANG = 'en-US';
 
-// The settings dialog's menu — a short, common set; the facade takes any tag.
-export const VOICE_LANGUAGES = Object.freeze([
-  ['default', 'Default (English)'],
-  ['en-US', 'English (US)'],
-  ['en-GB', 'English (UK)'],
-  ['de-DE', 'Deutsch'],
-  ['fr-FR', 'Français'],
-  ['es-ES', 'Español'],
-  ['it-IT', 'Italiano'],
-  ['pt-BR', 'Português (Brasil)'],
-  ['pl-PL', 'Polski'],
-  ['uk-UA', 'Українська'],
-  ['ru-RU', 'Русский'],
-  ['ja-JP', '日本語'],
-  ['zh-CN', '中文 (简体)'],
-]);
-
 const ls = () => (typeof localStorage !== 'undefined' ? localStorage : null);
 
 // A BCP-47-looking tag: 2–3 letter language, optional 2–8 char subtags (zh-Hans-CN).

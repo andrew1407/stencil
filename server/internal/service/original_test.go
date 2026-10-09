@@ -40,7 +40,7 @@ func TestParseInlineOriginal(t *testing.T) {
 // originalRig is a project service whose inline originals land through a real file service.
 func originalRig(t *testing.T) (*ProjectService, *testutil.MemStore, *fakeFiles, <-chan eventbus.Envelope) {
 	t.Helper()
-	svc, st, files := projectSvc(t, nil, 0)
+	svc, st, files := projectSvc(t, 0)
 	svc.Originals = NewFiles(st, files, svc.Bus)
 	events, unsub := svc.Bus.Subscribe(eventbus.ChannelEvents)
 	t.Cleanup(unsub)

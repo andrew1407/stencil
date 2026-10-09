@@ -21,14 +21,14 @@ public sealed class ImageAdoptionTests : IDisposable
 
     public ImageAdoptionTests()
     {
-        _root = Path.Combine(Path.GetTempPath(), "stencil-bot-adopt-" + Guid.NewGuid().ToString("N"));
+        _root = TempDirs.New("bot-adopt");
         Directory.CreateDirectory(_root);
         _service = new EditingService(_cli, new UserWorkspace(new BotOptions { DataDir = _root }), _store);
     }
 
     public void Dispose()
     {
-        try { Directory.Delete(_root, recursive: true); } catch { /* best effort */ }
+        TempDirs.Delete(_root);
     }
 
     [Fact]

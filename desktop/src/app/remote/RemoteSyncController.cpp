@@ -21,12 +21,7 @@ namespace stencil::gui {
         remotePushing(remotePushing), planRunning(planRunning), h(std::move(hooks)) {
     pushTimer = new QTimer(this);
     pushTimer->setSingleShot(true);
-    connect(pushTimer, &QTimer::timeout, this, [this] {
-      // Our own result upload bumps the version; a push racing it would 409 and union-merge.
-      if (resultInFlight) { pushTimer->start(100); return; }
-      pushBurstStart = 0;   // burst flushed — start a fresh max-wait window next edit
-      if (!this->session->address().isEmpty()) h.saveToServer();
-    });
+    connect(pushTimer, &QTimer::timeout, this, [this] { firePush(); });
     pollTimer = new QTimer(this);
     pollTimer->setInterval(tableMs("POLL", "remoteMs", POLL_MS));   // backstop behind the live push feed
     connect(pollTimer, &QTimer::timeout, this, [this] { pollRemoteForUpdate(); });
@@ -91,52 +86,6 @@ namespace stencil::gui {
     pushTimer->start(wait);
   }
 
-  void RemoteSyncController::scheduleResultUpload() {
-    if (!resultDirty) resultDirtySince = QDateTime::currentMSecsSinceEpoch();
-    resultDirty = true;
-    if (!resultInFlight) armResultTimer();
-  }
-
-  // due = max(last + gap, min(now + idle, dirtySince + gap)): idle-debounced, capped, spaced.
-  void RemoteSyncController::armResultTimer() {
-    const qint64 now = QDateTime::currentMSecsSinceEpoch();
-    qint64 due = std::min(now + resultIdleMs, resultDirtySince + resultGapMs);
-    if (lastResultAt > 0) due = std::max(due, lastResultAt + resultGapMs);
-    if (resultSettled) due = now;   // a flush is waiting on it
-    resultTimer->start(static_cast<int>(std::clamp<qint64>(due - now, 0, resultGapMs)));
-  }
-
-  void RemoteSyncController::startResultUpload() {
-    resultDirty = false;
-    resultInFlight = true;
-    lastResultAt = QDateTime::currentMSecsSinceEpoch();
-    QPointer<RemoteSyncController> self(this);
-    auto done = [this, self] {
-      if (!self) return;
-      resultInFlight = false;
-      if (resultDirty) { armResultTimer(); return; }
-      if (resultSettled) std::exchange(resultSettled, {})();
-    };
-    if (h.uploadResult) h.uploadResult(done);
-    else done();
-  }
-
-  bool RemoteSyncController::flushResultUpload(std::function<void()> settled) {
-    if (!resultBusy() || session->address().isEmpty()) return false;
-    resultSettled = std::move(settled);
-    if (resultDirty && !resultInFlight) armResultTimer();
-    return true;
-  }
-
-  bool RemoteSyncController::holdCloseForResult(std::function<void()> reclose) {
-    if (closeHeld || !flushResultUpload(std::move(reclose))) return false;
-    closeHeld = true;
-    QTimer::singleShot(RESULT_CLOSE_CAP_MS, this, [this] {
-      if (resultSettled) std::exchange(resultSettled, {})();
-    });
-    return true;
-  }
-
   void RemoteSyncController::startRemotePoll() {
     if (pollTimer && !session->address().isEmpty()) pollTimer->start();
     // The poll is a backstop for https servers / a dropped socket.
@@ -147,9 +96,15 @@ namespace stencil::gui {
     if (pollTimer) pollTimer->stop();
     if (reloadTimer) reloadTimer->stop();
     if (liveFeed) liveFeed->unsubscribe();
-    // The canvas is leaving the project, so a result not yet rendered would bake the wrong one.
+    // The canvas is leaving the project: a result not yet rendered would bake the wrong one, and
+    // one in flight answers for a project no longer held.
     resultDirty = false;
     if (resultTimer) resultTimer->stop();
+    if (resultInFlight) {
+      ++resultSeq;
+      resultInFlight = false;
+      if (resultSettled) std::exchange(resultSettled, {})();
+    }
   }
 
   // No-op unless server-linked and connected; subscribe() is idempotent for the same origin.

@@ -2,11 +2,13 @@ import { setVal, cmToUnit } from '../../utils.js';
 import { normalizePageSize } from './units.js';
 import { paintTintControls, paintCustomSizeGroup } from '../../ui/settings/settingMirrors.js';
 import { CHANGE, changed } from '../app/changes.js';
+import { storedSize } from './limits.js';
 
 // The numeric parsers return undefined on NaN to ABORT the set.
 const toInt = n => { const v = parseInt(n, 10); return Number.isNaN(v) ? undefined : v; };
 const toNum = n => { const v = parseFloat(n); return Number.isNaN(v) ? undefined : v; };
 const toStr = v => String(v);
+const clamped = (clamp) => (n) => { const v = toInt(n); return v === undefined ? undefined : clamp(v); };
 
 // In cycle order (Alt+O steps through them).
 export const COMPARE_MODES = Object.freeze(['none', 'original', 'vertical', 'horizontal']);
@@ -27,12 +29,12 @@ export const SETTINGS = Object.freeze({
     redraw: true, save: true,
   },
   thickness: {
-    field: 'thickness', parse: toInt,
+    field: 'thickness', parse: clamped(storedSize),
     mirror: [{ id: 'line-thickness', kind: 'value' }, { id: 'ctx-thickness', kind: 'valueSkipFocus' }],
     redraw: true, save: true,
   },
   pointSize: {
-    field: 'pointSize', parse: toInt,
+    field: 'pointSize', parse: clamped(storedSize),
     mirror: [{ id: 'point-size', kind: 'value' }, { id: 'ctx-point-size', kind: 'valueSkipFocus' }],
     redraw: true, save: true,
   },

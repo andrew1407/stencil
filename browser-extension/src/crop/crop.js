@@ -1,7 +1,7 @@
 // Quick crop page: a rect in ORIGINAL-image pixels, aspect locked to the page format. The
 // stage, the controls and the editor hand-off live beside this file; here: load, rotate, boot.
 import { cropAspect, isAlbumOrientation, pageDims } from '../lib/image/cropGeometry.js';
-import { fetchAsDataUrl, filenameFromUrl, getSettings, openEditorTab, CROP_SRC_KEY, CROP_META_KEY } from '../lib/stencil.js';
+import { fetchAsDataUrl, filenameFromUrl, getSettings, openEditorTab, takeCropHandoff } from '../lib/stencil.js';
 import { SRC } from '../lib/messages.js';
 import { routeStoreWrites } from '../lib/prefs/writeChain.js';
 import MOTION from '../config/motion.json' with { type: 'json' };
@@ -56,9 +56,12 @@ const aspect = () => {
 const { imgEl, overlay, fitToWindow, resetCrop, swapCrop, layoutOverlay } = createCropStage({ state, aspect });
 const { syncPageControls, syncOrientationButtons, onCustom } = createCropControls({ state, resetCrop, swapCrop });
 
+// Why a launch arrived with no image (its session write was refused); '' = none.
+let handoffError = '';
+
 const init = async () => {
   if (!state.srcUrl) {
-    statusEl.textContent = 'No image URL provided.';
+    statusEl.textContent = handoffError ? `Could not hand the image over: ${handoffError}` : 'No image URL provided.';
     return;
   }
   state.name = filenameFromUrl(state.srcUrl);
@@ -163,23 +166,13 @@ document.getElementById('open').addEventListener('click', async (e) => {
   }
 });
 
-// Bootstrap last, so every const above is defined. Source: session storage (launchCrop), else ?src.
+// Bootstrap last, so every const above is defined. Source: ?src, else launchCrop's session entry.
 (async () => {
-  let src = new URLSearchParams(location.search).get('src') || '';
-  if (!src) {
-    try { const d = await chrome.storage.session.get(CROP_SRC_KEY); src = d[CROP_SRC_KEY] || ''; }
-    catch { /* leave empty → "No image URL provided." */ }
-  }
-  state.srcUrl = src;
-  // Provenance from launchCrop, so the post-crop editor hand-off keeps where the image came from.
-  try {
-    const m = await chrome.storage.session.get(CROP_META_KEY);
-    state.source = (m[CROP_META_KEY] && m[CROP_META_KEY].source) || '';
-    state.resource = (m[CROP_META_KEY] && m[CROP_META_KEY].resource) || '';
-  } catch {
-    state.source = '';
-    state.resource = '';
-  }
+  const handoff = await takeCropHandoff(location.search);
+  state.srcUrl = handoff.src;
+  state.source = handoff.source;
+  state.resource = handoff.resource;
+  handoffError = handoff.error;
   // Custom page W/H take an expression — "45 + 9", "* 2".
   watchNumericInputs();
   init();

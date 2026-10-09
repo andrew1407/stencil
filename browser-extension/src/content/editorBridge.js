@@ -131,12 +131,12 @@
   });
 
   // The relayable types are a WHITELIST: `e.source === window` only proves same-document, and
-  // some types are privileged. The relay also rides on the `editorPageApi` toggle.
+  // some types are privileged. The relay rides on `editorPageApi` AND a user-set editorUrl.
   let pageApiEnabled = false;
   const readPageApiSetting = () => {
     try {
-      chrome.storage.sync.get({ editorPageApi: true }, (s) => {
-        pageApiEnabled = !chrome.runtime.lastError && s.editorPageApi !== false;
+      chrome.storage.sync.get({ editorPageApi: true, editorUrl: '' }, (s) => {
+        pageApiEnabled = !chrome.runtime.lastError && s.editorPageApi !== false && String(s.editorUrl || '').trim() !== '';
       });
     } catch {
       pageApiEnabled = false;   // no storage access → assume off, the safe direction
@@ -145,7 +145,7 @@
   readPageApiSetting();
   try {
     chrome.storage.onChanged?.addListener((changes, area) => {
-      if (area === 'sync' && changes.editorPageApi) readPageApiSetting();
+      if (area === 'sync' && (changes.editorPageApi || changes.editorUrl)) readPageApiSetting();
     });
   } catch {
     /* no storage events — the initial read stands for this document's lifetime */

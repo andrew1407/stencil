@@ -49,11 +49,11 @@ that begins with `-` would misparse as a flag; adapters reject dash-leading outp
 | `-i`, `--input` | `<path\|url>` value | Image/video source: local path or `http(s)://` URL. With `--server`, this is instead the **name of a project** to fetch. Mutually exclusive with `--blank` (→ `DuplicateSource`). |
 | `--blank` | `[format] [w h] [color]` (optional trailing tokens) | Create a blank page. Optional leading ISO page-format name (`a0`…`a10`, `b0`…`b10`, `c0`…`c10`, case-insensitive), **or** an explicit integer `w h` pair (mutually exclusive with a format; giving both errors), then an optional color name / `#hex`. Omit all ⇒ A4 @ 96 dpi, white. Mutually exclusive with `-i`. |
 | `-f`, `--frame` | `<u32>` value | Video frame index to grab (default 0). |
-| `-c`, `--crop` | `"<spec>"` value | Crop spec, e.g. `"x1=10% x2=90% y1=10% y2=90%"`. |
+| `-c`, `--crop` | `"<spec>"` value | Crop spec, e.g. `"x1=10% x2=90% y1=10% y2=90%"`. Each given edge must land inside the image (`[0, width]` / `[0, height]`): one outside it fails the run like a bad token (`error: could not parse crop spec …`, exit 1), and a spec that keeps nothing says so (`error: crop spec … leaves nothing of the …`). |
 | `--album` | switch | On a single-axis crop, derive the missing axis from the page proportion (landscape). |
 | `-r`, `--rotate` | `<i32>` value | Rotate `int × 90°` (negative = counter-clockwise). |
-| `-l`, `--layout` | `<path\|url>` value | Layout JSON to draw onto the image. |
-| `--filter` | `<mode>` value | `bw` \| `sepia` \| `invert` \| `contour` \| a color name/`#hex` (duotone tint). Overrides a layout-baked filter. |
+| `-l`, `--layout` | `<path\|url>` value | Layout JSON to draw onto the image. A document that is not a JSON object, or a line whose `points` is not an array or whose `thickness` / `pointSize` is a negative number (the op registry's layout rule: `>= 0`, `0` and fractions valid), fails before anything is drawn: `error: could not read layout '{path}' ({reason})` — e.g. `(not a JSON object)`, `(lines[2].thickness must be a number >= 0)` — exit 1. A `--script` `@layout` and the console's `/apply` refuse the same lines in the same words. |
+| `--filter` | `<mode>` value | `bw` \| `sepia` \| `invert` \| `contour` (any case) \| a color name/`#hex` (duotone tint). Overrides a layout-baked filter. Anything else, empty included, is refused before anything runs: `error: --filter expects bw, invert, contour, sepia, a colour name or #hex, got '{value}'`, the usage, exit 2. |
 | `--thumbnail` | `<u32>` value, ≥ 1 | The pipeline's last step before encode: shrink the result so its longer side is at most this many pixels — area-averaged over premultiplied alpha, aspect kept, the shorter side rounded and at least 1. A result that already fits is written unchanged (never enlarged). The written file, the `wrote` line's `{W}x{H}` and any `--remote` / `--remote-update` upload carry the shrunk size; the page label keeps the full-size orientation. |
 | `--server` | `<url>` value | Connect to a collaboration server; `-i` then names a **server project** to fetch/edit. |
 | `--remote-update` | switch | With `--server`, write the result back into the fetched project. |
@@ -85,10 +85,11 @@ that begins with `-` would misparse as a flag; adapters reject dash-leading outp
 | `--plan-check` | `<path>` value | **Report mode.** Print core's verdict on a model reply's op plan as JSON **on stdout** (`-` reads stdin); exits 1 when the plan is invalid, 2 when the reply cannot be read. See §7. |
 | `--plan-surface` | `<surface>` value | The surface whose schema judges `--plan-check`, and whose verdict `--script-plan` adds to each chunk: `cli` (default), `mcp`, `bot`, `pystencil`, `desktop`, `browser`. |
 | `--plan-capabilities` | `<a,b,…>` value | The capabilities wired for `--plan-check` / `--plan-surface`: an op requiring another is an unknown op. Absent = all. |
+| `--merge-lines` | `<path>` value | **Report mode.** Print the co-edit line union of a peer's and a local line list as JSON **on stdout** (`-` reads stdin); exits 2 when the input cannot be read or is not `{peer, local}`. See §8. |
 | `--prompt` | `<text>` value | One assistant turn over the `-i` / `--blank` input with the provider the `STENCIL_LLM_*` environment names (see [LLM provider](#llm-provider)): the reply is printed, the validated plan runs, and `<output>` is written with the usual `wrote` line. Exits 1, writing nothing, when the model gives no usable answer (no key, an HTTP error, a truncated, refused or off-shape reply, an invalid plan). POSIX only, as the console is: a Windows build refuses it (`error: --prompt is not available on Windows …`, exit 1). No adapter emits it. |
 | `--console`, `--repl` | switch | Interactive console mode (out of scope for this contract). |
 | `-h`, `--help` | switch | Show help. |
-| `<output>` | positional | Result path (last positional wins) — or, in scrape mode, the **destination directory** (created if missing; default `.`). A missing/unknown extension is auto-filled from the input format. |
+| `<output>` | positional | Result path (last positional wins) — or, in scrape mode, the **destination directory** (created if missing; default `.`). A missing/unknown extension is auto-filled from the input format. A path whose last component is empty, `.` or `..` names no file and is refused: `error: the output '{path}' names a directory, not a file — give the result a file name`, exit 1. |
 
 ### Server credentials
 
@@ -131,7 +132,12 @@ falls back to A4/white with no error), the adapters validate them **before** bui
 - `-i` / `--input` and `--blank` are mutually exclusive (`DuplicateSource` in `args.zig`).
 - `--blank` page-format **and** explicit `w h` are mutually exclusive (`args.zig` prints
   `error: --blank takes a page format OR explicit dims, not both`). A lone `w` without `h`
-  is invalid.
+  is invalid (`error: --blank takes a width and a height, got only '{w}'`), and so is a
+  dimension below 1 (`error: --blank expects a width and height of at least 1 px, got '{v}'`);
+  each prints the usage, exit 2.
+- An integer flag (`-f`, `-r`, `--thumbnail`, the `--source-*` counts and bounds) given a
+  value that is not a whole number prints `error: {flag} expects a whole number, got '{v}'`
+  and the usage, exit 2.
 - `--server` requires `-i` (the project name) and is incompatible with `--blank`
   (`pipeline.zig`: `error: --server needs -i <server project name>`).
 - `--remote-update` requires `--server` + `-i` (`pipeline.zig`:
@@ -145,6 +151,9 @@ falls back to A4/white with no error), the adapters validate them **before** bui
   `--plan-capabilities` ride only with `--plan-check` or `--script-plan` (`error: --plan-surface
   and --plan-capabilities ride with --plan-check or --script-plan`), and `--plan-surface` names
   `cli`, `mcp`, `bot`, `pystencil`, `desktop` or `browser`.
+- `--merge-lines` is mutually exclusive with the script modes, the §6 modes, `--source-site`,
+  `--plan-check`, `--prompt` and the console (`DuplicateSource`, exit 2) and ignores every
+  editing flag.
 - `--thumbnail` rides only with the one-shot raster pipeline: with a script, report, scrape,
   console or `.stencil` mode it is refused (`error: --thumbnail shrinks a one-shot image
   result; it does not ride with this mode`), as is `0`; either refusal prints its `error:`
@@ -183,8 +192,8 @@ mcp's opt-in `preview` is a separate run after a successful write:
 
 The CLI writes **everything** — banner, usage, errors, and the success line — to **stderr**;
 **stdout stays empty** (the real result is the written file). The exceptions are the modes
-that report instead of writing: `--script-check`, `--script-plan` (§4), the §6 modes and
-`--plan-check` (§7). Adapters run the child with
+that report instead of writing: `--script-check`, `--script-plan` (§4), the §6 modes,
+`--plan-check` (§7) and `--merge-lines` (§8). Adapters run the child with
 `NO_COLOR=1` so the text is free of ANSI escapes. Lines are matched by prefix; unrelated
 lines (banner/usage) are ignored. Parsers split on any newline convention and `trim()` each
 line before matching.
@@ -271,7 +280,9 @@ Failures print one or more lines beginning with `error:` (e.g. from `args.zig`, 
 `pipeline.zig` — see `grep -rn "error:" cli/src`). Examples:
 
 ```
-error: could not parse crop spec "oops"
+error: could not parse crop spec "oops" (a bad edge, or one outside the 640x480 image)
+error: crop spec "x1=50% x2=50%" leaves nothing of the 640x480 image
+error: could not read layout 'notes.json' (not a JSON object)
 error: unknown flag '--nope'
 error: refusing to fetch internal/blocked host 'x'
 error: ffmpeg did not finish within 60s — stopped
@@ -705,3 +716,40 @@ Consumers: mcp and bot validate a model's plan through this mode instead of a va
 their own — `stencil --plan-check - --plan-surface mcp` (or `bot`), the reply on stdin — and
 map `result.actions` onto their executors.
 
+---
+
+## 8. Line merge (`--merge-lines <file|->`) output contract
+
+`--merge-lines` joins a peer's line list and a local one the way every editor's 409 retry does
+(the browser's `core/remote/push.js` `mergePeer`, the console's `peerMerge.zig`), so an adapter
+merges through core's line keys instead of a port of them. It reads one JSON object (the file,
+or stdin for `-`, at most 8 MiB, `..` refused) and prints **exactly one JSON document** on
+stdout — minified, one line, then a newline — writing no file.
+
+| Key | Value | Meaning |
+|---|---|---|
+| `peer` | array of layout lines (required) | The lines the server holds now. |
+| `local` | array of layout lines (required) | Our lines, edited since the last push. |
+| `seen` | array of layout lines (optional) | The peer lines an earlier merge pass adopted. A local line keyed like one of them is the peer's, and is dropped before the union, so a peer's later delete or move is not resurrected. Absent = `[]`. |
+
+A line is an object of the browser's layout schema (`points`, `color`, `thickness`, …); two
+lines are the same when core's `mergeKeep` keys them the same.
+
+```json
+{"version":1,"lines":[{"points":[{"x":1,"y":1}]},{"points":[{"x":2,"y":2}]}],"peerAdded":false}
+```
+
+- `version` is this envelope's version — **1** — bumped only when a consumer must change.
+- `lines` — the peer's lines as given, then each surviving local line that no peer line and no
+  earlier local line keys the same, every line passed through verbatim. Not cut at the layout
+  caps: whoever draws the result cuts it, as the editors do.
+- `peerAdded` — `true` when a peer line matches no local line (the merge changed what we hold).
+
+Exit code **0** with the document; **2**, stdout empty, when there is nothing to merge: an
+unreadable input (`error: cannot read the merge input {label} ({reason})`, `error: that merge
+input is too large: …`, `error: refusing to read a merge input that climbs out of the working
+directory: …`), an input that is not that object (`error: the merge input is not a JSON object …`,
+`error: the merge input has no "{key}" array`, `error: the merge input's "{key}" is not an
+array`), or a usage error in argv (banner and usage on stderr).
+
+Consumers: the bot's 409 merge — `stencil --merge-lines -`, the object on stdin.

@@ -12,20 +12,13 @@ public sealed class UserWorkspacePruneTests : IDisposable
 
     public UserWorkspacePruneTests()
     {
-        _root = Path.Combine(Path.GetTempPath(), "stencil-bot-tests-" + Guid.NewGuid().ToString("N"));
+        _root = TempDirs.New("bot-tests");
         _workspace = new UserWorkspace(new BotOptions { DataDir = _root });
     }
 
     public void Dispose()
     {
-        try
-        {
-            Directory.Delete(_root, recursive: true);
-        }
-        catch
-        {
-            // Best effort — temp dir.
-        }
+        TempDirs.Delete(_root);
     }
 
     [Fact]

@@ -184,3 +184,18 @@ fn connection_refused_is_a_connect_error() {
         .unwrap_err();
     assert!(matches!(err, LlmError::Connect(_)), "{err:?}");
 }
+
+#[test]
+fn refuses_a_chunk_size_line_past_the_header_cap() {
+    // A size line that never ends: refused once it outgrows the 64 KiB cap, not read to the deadline.
+    let response = format!(
+        "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n{}",
+        "1".repeat(200 * 1024)
+    );
+    let (base, _rx) = canned_server(Box::leak(response.into_boxed_str()));
+    let err = transport().post_json(&base, &[], "{}").unwrap_err();
+    assert!(
+        matches!(&err, LlmError::BadResponse(m) if m.contains("chunk size line over")),
+        "{err:?}"
+    );
+}

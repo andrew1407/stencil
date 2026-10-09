@@ -32,8 +32,12 @@ namespace stencil::core {
     double pageHeight = 0.0;
   };
 
+  // A cm or percent edge's float noise, not a pixel: the slack an edge may pass its bound by.
+  inline constexpr double CROP_EDGE_SLACK_PX = 1e-6;
+
   // A missing edge defaults to the full image; with one axis given the other follows the page
-  // proportion. `aspect` SHRINKS about the centre (min 1px). Normalized, NOT clamped.
+  // proportion. `aspect` SHRINKS about the centre (min 1px). A given edge outside [0, length]
+  // fails; reversed edges are normalized, and nothing is clamped.
   std::optional<CropRect> resolveCropRect(const CropSpec& spec,
                                           const CropResolveParams& params,
                                           bool album);

@@ -5,9 +5,6 @@
 // been heard since the last commit(). Everything is injected for `node --test`.
 import { createLevelMeter as realLevelMeter } from './level.js';
 
-export const isVoiceSupported = (win = globalThis) =>
-  !!(win && (win.SpeechRecognition || win.webkitSpeechRecognition));
-
 const defaultRecognizer = () =>
   (typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : undefined);
 

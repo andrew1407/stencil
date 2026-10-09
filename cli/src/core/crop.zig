@@ -12,7 +12,10 @@ const c = @cImport({
 pub const Rect = struct { x: i32, y: i32, w: i32, h: i32 };
 pub const Size = struct { w: i32, h: i32 };
 
-/// Resolve a crop spec string to a clamped integer pixel rect. null on a bad spec.
+/// A spec core cannot read (a bad token, an edge outside the image), or one that keeps nothing.
+pub const CropError = error{ BadCropSpec, EmptyCrop };
+
+/// Resolve a crop spec string to a clamped integer pixel rect.
 pub fn resolveCrop(
     spec: [:0]const u8,
     image_w: f64,
@@ -22,13 +25,14 @@ pub fn resolveCrop(
     page_w_cm: f64,
     page_h_cm: f64,
     album: bool,
-) ?Rect {
+) CropError!Rect {
     var x: c_int = 0;
     var y: c_int = 0;
     var w: c_int = 0;
     var h: c_int = 0;
     const ok = c.stencil_cli_resolveCrop(spec.ptr, image_w, image_h, px_per_cm_x, px_per_cm_y, page_w_cm, page_h_cm, @intFromBool(album), &x, &y, &w, &h);
-    if (ok == 0) return null;
+    if (ok == 0) return error.BadCropSpec;
+    if (ok < 0) return error.EmptyCrop;
     return .{ .x = @intCast(x), .y = @intCast(y), .w = @intCast(w), .h = @intCast(h) };
 }
 
@@ -98,10 +102,12 @@ pub fn mirrorImageRGBA(src: []const u8, w: i32, h: i32, dst: []u8) void {
 }
 
 test "resolveCrop + rotate helpers" {
-    const rect = resolveCrop("x1=0px x2=100px y1=0px y2=50px", 200, 200, 10, 10, 21, 29.7, false).?;
+    const rect = try resolveCrop("x1=0px x2=100px y1=0px y2=50px", 200, 200, 10, 10, 21, 29.7, false);
     try testing.expectEqual(@as(i32, 100), rect.w);
     try testing.expectEqual(@as(i32, 50), rect.h);
-    try testing.expect(resolveCrop("z=1", 200, 200, 10, 10, 21, 29.7, false) == null);
+    try testing.expectError(error.BadCropSpec, resolveCrop("z=1", 200, 200, 10, 10, 21, 29.7, false));
+    try testing.expectError(error.BadCropSpec, resolveCrop("y2=-200%", 200, 200, 10, 10, 21, 29.7, false));
+    try testing.expectError(error.EmptyCrop, resolveCrop("x1=50px x2=50px", 200, 200, 10, 10, 21, 29.7, false));
     try testing.expectEqual(@as(i32, 3), normalizeQuarters(-1));
     const d = rotatedDims(4, 2, 1);
     try testing.expect(d.w == 2 and d.h == 4);

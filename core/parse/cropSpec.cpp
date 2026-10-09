@@ -85,7 +85,11 @@ namespace stencil::core {
                     double lengthPx, double pxPerCm) -> double {
       if (!tok) return cur;
       const auto r = resolveAxisPx(*tok, lengthPx, pxPerCm, cur);
-      if (!r) { ok = false; return cur; }
+      // Outside [0, length] is refused, never mirrored (cropApi.js's twin check).
+      if (!r || *r < -CROP_EDGE_SLACK_PX || *r > lengthPx + CROP_EDGE_SLACK_PX) {
+        ok = false;
+        return cur;
+      }
       return *r;
     };
 
@@ -119,7 +123,7 @@ namespace stencil::core {
     // Shrink ONE dimension about the centre — never grow, so the rect stays put.
     if (spec.aspect) {
       const double ratio = parseAspectRatio(*spec.aspect);  // width / height
-      if (ratio <= 0.0) return std::nullopt;
+      if (!std::isfinite(ratio) || ratio <= 0.0) return std::nullopt;
       double w = rect.width;
       double h = rect.height;
       if (h * ratio <= w) w = h * ratio;   // too wide  -> shrink the width

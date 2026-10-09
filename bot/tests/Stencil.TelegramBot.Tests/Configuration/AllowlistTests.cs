@@ -29,11 +29,11 @@ public sealed class AllowlistTests : IDisposable
     private readonly InMemorySessionStore _store = new();
 
     public AllowlistTests() =>
-        _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-allowlist-" + Guid.NewGuid().ToString("N"));
+        _dataDir = TempDirs.New("bot-allowlist");
 
     public void Dispose()
     {
-        try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
+        TempDirs.Delete(_dataDir);
     }
 
     private UpdateRouter routerFor(params long[] allowed)
@@ -183,6 +183,7 @@ public sealed class AllowlistTests : IDisposable
         await router.HandleMessageAsync(textFrom(_allowed, "/blank a4 pink"), CancellationToken.None);
 
         Assert.True(_cli.EditCalls > 0);
+        Assert.False(File.Exists(_cli.LastRequest!.Output)); // the sent render is deleted, not left to the janitor
         Assert.Empty(_log.Entries);
         Assert.DoesNotContain(_bot.Requests.OfType<SendMessageRequest>(), m => m.Text.Contains("isn't enabled"));
     }

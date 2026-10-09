@@ -35,7 +35,7 @@ metrics), `dialogs/` never includes `canvas/`, a `core/` header enters the GUI o
 outside `canvas/`, `CanvasWidget.hpp`) on — a header forward-declares them, and only the units that
 reach into them include them. The document state lives in `CanvasScene` (`core::Lines` +
 `core::EditorHistory`), which `CanvasWidget` is; the controllers are the `*Controller` classes,
-`StencilFileSync`, `ArrowPanner` and `RemoteSession` in `src/app/`.
+`StencilFileSync`, `ArrowPanner`, `RemoteSession` and the process-wide `SharedState` in `src/app/`.
 
 ## Where things go
 
@@ -68,8 +68,10 @@ classDiagram
     ScriptDoc <.. ScriptBuffer : parsed from
     MainWindow *-- CanvasWidget : canvas
     CanvasScene <|-- CanvasWidget : the scene plus the pointer
-    MainWindow *-- Settings : settings
-    MainWindow o-- Project : projectList
+    SharedState o-- Project : projects
+    SharedState *-- Settings : settings
+    MainWindow --> SharedState : projectList, settings
+    MainWindow *-- Settings : its applied copy
     MainWindow --> Session : autosaves
     MainWindow --> LaunchOptions : applyLaunchOptions
     MainWindow *-- WindowParts : parts
@@ -96,14 +98,15 @@ classDiagram
 | `ProjectTitleController` | The project's name as the window wears it: title, name field, chips, rename in place | `MainWindow::projectTitle`, window lifetime | `ProjectNameBar`, `WindowActions`, `RemoteSession`; the window through `Hooks` |
 | `CanvasScene` | The document and its paint path, no widget: pixels, `core::Lines`, the `core::EditorHistory` of `EditorMemento`s, crop, rotation, look, filter, and a picture generation every replacement bumps | Base of `CanvasWidget`; alone, owned by a plan sandbox, a thumbnail batch or a co-edit result render | `LiveMarks`, `sceneChanged` |
 | `CanvasWidget` | The scene plus the pointer: selection, hover, the one `CanvasGesture`, zoom | `MainWindow`, window lifetime | Every edit applier, `SelectionPanel`, `ChatPlanTarget` |
-| `Settings` | Persisted preferences and default visuals (`support/theme/defaultVisuals`) plus desktop-only keys | `MainWindow::settings`, loaded at boot, saved on change | `LlmSettings` derives from its `llm*` fields |
+| `SharedState` | The project registry and the `Settings` every window of the process reads | Process-wide; loaded by the first window, written only through it | `fileStore`; every `MainWindow` saves through it and hears `changed` |
+| `Settings` | Persisted preferences and default visuals (`support/theme/defaultVisuals`) plus desktop-only keys | `SharedState::settings`; each window applies its own copy and saves through it | `LlmSettings` derives from its `llm*` fields |
 | `Session` | The autosaved in-progress drawing | Written by `SessionController`'s debounce, read once at boot | `CanvasWidget`, `activeProjectId` |
-| `Project` | One saved local project: `core::ProjectMeta` plus layout, crop, chat and view | `MainWindow::projectList`, persisted by `fileStore::saveProjects` | `core::ProjectsStore`; `ProjectFileData` for export |
+| `Project` | One saved local project: `core::ProjectMeta` plus layout, crop, chat and view | `SharedState::projects`, the one registry every window's `projectList` is, persisted by `SharedState::saveProjects` | `core::ProjectsStore`; `ProjectFileData` for export |
 | `ProjectFileData` | The portable `.stencil` document (image bytes, layout, metadata, theme, optional chat) | Transient: built by `buildStencilBytes`, parsed by `openProjectFile` | `Project`, the linked file watcher |
 | `ScriptDoc` | One parsed `.stc`: tokens, diagnostics, the lowered op stream, and op resolvers to a `core::CropRect` or `core::Line` | The `ScriptEditorWidget` that parsed it, rebuilt per keystroke | `ScriptHighlighter`; `scriptRun` drives `PlanTarget` from its ops |
-| `ScriptBuffer` | The one `.stc` both script hosts edit | Process-wide; never persisted | `ScriptEditorWidget` |
+| `ScriptBuffer` | The one `.stc` both script hosts edit, and whether a link delivered it (until the user changes it) | Process-wide; never persisted | `ScriptEditorWidget`, `ScriptHost`'s run rules |
 | `LaunchOptions` | Parsed argv or a `stencil://` link | `main.cpp`, consumed once by `applyLaunchOptions` | `MediaLoader`, `openServerLaunch` |
-| `ConnectionManager` | The live `ServerClient`s; `changed()` persists the `SavedServer` snapshot | `MainWindow::remote`, created lazily | `connectionStore`, `RemoteSession` |
+| `ConnectionManager` | The live `ServerClient`s and the bases the user disconnected; `changed()` persists the live ones plus every saved one not forgotten | `MainWindow::remote`, created lazily | `connectionStore`, `RemoteSession` |
 | `ServerClient` | One REST connection: base, bearer token, credential kind, status | `ConnectionManager::clients` | `ServerProject`, `LiveFeed` |
 | `ServerProject` | A server project record, mirroring `server/internal/protocol` `ProjectRecord` | Transient reply value stamped with `serverUrl` | `RemoteLink`, `ProjectsDialog` rows |
 | `RemoteLink` | The server project (address, id, version) bound to the open editor | `RemoteSession::link`, bound on open, unbound on close | `RemoteSyncController` pushes and polls it |
@@ -124,7 +127,7 @@ classDiagram
 | Parts and dispatchers | `WindowParts`; the builders (`ToolbarBuilder`, `MenuBuilder`, …) and dispatchers (`WindowAssembly`, `WindowEvents`, `ChatPlanTarget`) | A part holds the window by reference as its one `friend` and is unaware of other parts; a flow spanning two goes through a window method; only builders and dispatchers reach a part through the window |
 | State group | `WindowActions`, `ToolbarControls`, `PopoverHost`, `RemoteState`, …, held by value in `MainWindow` | Plain structs with no back-reference, read by name |
 | Memento | `core::EditorHistory` in `CanvasScene`; `PlanTarget::stepHistory` | A stroke, crop, turn or committed filter pushes an `EditorMemento`; a preview or no-op pushes none; a restore rebuilds from the original only when crop or turn differ |
-| Strategy | `LlmClient`'s per-wire `chat*` keyed by `providers.json` `wire`; `CanvasScene::setFilter` modes; `MotionMode` → `ParticleStyle`; `NotificationSink` by `Settings.notifyChannel` | Table lookup, no growing `if` chain; a sink that cannot deliver falls back to the toasts |
+| Strategy | `LlmClient`'s per-wire `chat*` keyed by `providers.json` `wire`; `CanvasScene::setImageFilter` modes; `MotionMode` → `ParticleStyle`; `NotificationSink` by `Settings.notifyChannel` | Table lookup, no growing `if` chain; a sink that cannot deliver falls back to the toasts |
 | Observer | Qt signals (`CanvasWidget::changed`, `LiveFeed::projectUpdated`, `MediaLoader::loaded`, …) | Async completions run on the GUI thread, bound to an owning context — a pool job's `QFutureWatcher` is a child of its `ctx`, a reply dies with its `QNetworkAccessManager` — so a completion never outlives its owner; a `QPointer` guards only a callback that crosses to another object |
 | Repository | `fileStore`, `connectionStore`, `core::ProjectsStore` | Callers see typed structs, never JSON or paths |
 | Chain of Responsibility | `fetchGuard::checkAsync` → `request` → `get` | The one guard on every untrusted `http(s)` fetch: blocked hosts, resolution, no redirects, byte cap |
@@ -152,10 +155,14 @@ classDiagram
 
 - **Boot.** `main.cpp` builds `StencilApplication` (holding macOS open events until a window
   registers) and parses `LaunchOptions` before any window, so bad arguments exit cleanly.
-  `MainWindow(restoreLast)` loads `Settings`, restores the `Session` unless incognito and queues
-  `autoConnectServers`; session writes stay off until the restored picture lands. After `show()`,
-  `applyLaunchOptions` applies the theme, then one source by priority: `--project`, a
-  `stencil://` reference, `--src`, a positional file. Exit flushes `deferredWrite`.
+  The first `MainWindow(restoreLast)` loads `SharedState` (the registry and `Settings`); a sibling
+  window shares it, re-applies a setting another window saves (keeping its own picture filter and
+  layout) and repaints an open Projects window on another's registry write. The window restores
+  the `Session` unless incognito and queues `autoConnectServers`; session writes stay off until
+  the restored picture lands. After `show()`, `applyLaunchOptions` applies the theme, then one
+  source by priority: `--project`, a `stencil://` reference, `--src`, a positional file. The app
+  quits when the last window completes its close (`SiblingWindows`), never under a held one; exit
+  flushes `deferredWrite`.
 - **A canvas press.** `CanvasWidget::mousePressEvent` resolves one gesture by precedence and edits
   in image space through core geometry. It hits only what the scene draws (`model/markHits`), so
   never a line the Lines tab's eye hid, which keeps its index and its row but is never painted;
@@ -164,13 +171,15 @@ classDiagram
 - **Running a script.** `ScriptDialog` and `ScriptMenuPanel` host a `ScriptEditorWidget` over the
   one `ScriptBuffer`; each keystroke re-parses through `ScriptDoc`, and diagnostics are reported
   only on Run. `ScriptHost::openScript` drives `runScriptThen` over a `ChatPlanTarget`, so a
-  scripted and a clicked edit take one path. Each script edit leaves a checkpoint
+  scripted and a clicked edit take one path, and holds `planRunning` for the run: a Run, a chat
+  Send or a reload waits while a plan or another script holds the canvas. Each script edit leaves a checkpoint
   (`PlanTarget::captureEdit`), so the lowerer's `undo N` never unwinds the user's own history. A
   script with any error runs nothing; a failure part-way keeps the applied edits and names the
   line. A `.stc` dropped on the open editor fills it; elsewhere, or opened from the OS, it runs.
 - **A linked script.** A `stencil://` link may carry `script=` (at most `LAUNCH.scriptMaxChars`);
-  `ScriptHost::adoptLinkedScript` fills the Script window once the linked picture lands. A link
-  never runs a script.
+  `ScriptHost::adoptLinkedScript` fills the Script window once the linked picture lands, marking
+  the buffer as the link's; a Run of it opens web images only, until the user changes the text. A
+  link never runs a script.
 - **A modal.** Every open-image dialog flies from and back to anchors in
   `support/modal/imageAnchor.hpp`, landing by outcome (`FlightAnchors::closeRectFor`). Every modal
   but the compact popover sits over `support/modal/ModalBackdrop`; `motionReduced()` drops the
@@ -187,7 +196,7 @@ classDiagram
   appliers, one undo step each, and own their delete keys through `ShortcutOverride`. A removal,
   clear, new picture or new layout leaves no stale index in the selection; a turn, flip, undo or
   redo keeps it on the lines that still exist.
-- **Open and save `.stencil`.** `openProjectFile` parses the bytes, decodes on the pool, fills the
+- **Open and save `.stencil`.** `openProjectFile` reads, parses and decodes on the pool, fills the
   canvas, creates a local `Project` and links the file. The save writes
   `fileStore::buildProjectFile` over the untouched source bytes (or a PNG re-encode) and links the
   file. `StencilFileSync` owns the link, baseline, watcher and debounced auto-save; an external
@@ -200,7 +209,9 @@ classDiagram
   `ProjectFlows::closeActiveProject`: the held project is saved, leaves an empty editor and stays
   in Projects.
 - **Server connect and project fetch.** Each `ServerClient` speaks REST with a bearer token under
-  `constants.json` `NETWORK.fetchTimeoutMs`. `listProjectsAsync` walks the `nextCursor` pages,
+  `constants.json` `NETWORK.fetchTimeoutMs`, follows no redirect and reads no reply past
+  `MAX_FETCH_BYTES`; a base never keeps `user:pass@`. A saved server this window cannot reach keeps
+  its row and token; only one the user disconnects is dropped. `listProjectsAsync` walks the `nextCursor` pages,
   failing on a repeated cursor or past `MAX_LIST_PAGES`. `openServerProject` chains the record,
   the original, a pool decode and `RemoteLink::bind`. A peer's edit with an equal `originalHash`
   lands in place as one undo step (`CanvasScene::commitLayout`); only a changed original is a full
@@ -208,10 +219,12 @@ classDiagram
   debounces pushes, polls while linked and subscribes `LiveFeed` (raw TCP NDJSON). A reload holds
   `RemoteState::reloading` from its first request to its landing: no push, poll or second silent
   reload starts meanwhile, and lines drawn during it are union-merged into what lands, then
-  pushed. A push marks
-  the baked `result` stale; a `renderCopy` is rendered on the pool and uploaded once edits idle,
-  throttled by `COEDIT.resultMinGapMs`. A re-read after our own write adopts only our own version
-  bump, so a peer's edit in between still reloads.
+  pushed. One push runs at a time, owning `RemoteState::pushing` by `pushSeq`; the next waits on
+  the timer. A push marks the baked `result` stale; a `renderCopy` is rendered on the pool and uploaded once edits idle,
+  throttled by `COEDIT.resultMinGapMs`. A push carries the id and name of the link it started on.
+  A re-read after our own write — a push, a rename, a colour or a meta edit — adopts only our own
+  version bump, and only on the link it started on, so a peer's edit in between still reloads and
+  a project opened meanwhile is left alone.
 - **An LLM turn.** `ChatSessionController::onChatSend` appends the `ChatMessage` and calls
   `LlmClient::chat` with the system prompt built from the shared registry. `onChatReply` runs
   `parseOpPlan` (walked by `core/opplan`) and `executePlanThen` over `ChatPlanTarget`; notes,
@@ -259,18 +272,19 @@ thread — never once `ctx` is gone. What runs there is picture decode, PNG enco
 runs inline, since a job waiting on slices queued behind it would starve the pool. `SessionKey`,
 `Settings`, the palette, icon and thumbnail caches and every `QPixmap` are GUI-thread only. Network
 completions run on the GUI thread through their `QNetworkAccessManager`. At close the window
-flushes its pending session and view saves, then `deferredWrite::flush`; the co-edit result is
-waited for up to `RESULT_CLOSE_CAP_MS`.
+flushes its pending session, view and linked-`.stencil` saves, holds (hidden) for a pending or
+in-flight layout push and then for the co-edit result, each up to `RESULT_CLOSE_CAP_MS`, then
+`deferredWrite::flush`.
 
 | Owner | Runs on | Shares | Guard | On overflow or teardown |
 |---|---|---|---|---|
 | `support::runOnPool` jobs (decode, encode, render copies) | global pool | inputs captured by value; a `renderCopy` scene owned by the job | the watcher is a child of `ctx`; a decode checks `CanvasScene::pictureGeneration` on landing | `ctx` gone: the result is dropped; an overtaken decode answers false |
 | `support::forEachSlice` | GUI thread plus pool slices | the caller's buffers, disjoint row ranges | a `QSemaphore` the caller waits on | off the GUI thread or under `minPer` rows a slice: inline |
-| `io/deferredWrite` | GUI-thread timers, pool writes | the pending-job table (GUI only), the files | `writeGate` serialises writes in order; `countGate` + a wait condition track in-flight jobs | a burst coalesces to one write; `flush()` blocks until the pool is quiet; each write is a `QSaveFile` rename |
+| `io/deferredWrite` | GUI-thread timers, pool writes | the pending-job table (GUI only), the files | `writeGate` serialises writes, a per-path generation skips one a newer write overtook; `countGate` + a wait condition track in-flight jobs | a burst coalesces to one write; `flush()` blocks until the pool is quiet; each write is a `QSaveFile` rename, an owner-only one narrowed before its first byte |
 | `dragPasteboardMac` promise reader | an `NSOperationQueue` thread and the GUI thread | the offered promise, the landed path, `generation` | one `std::mutex` | a bounded wait, then the drop goes on; a file landing after `abandon()` bumped the generation is deleted |
 | `canvasPaintCache`, `scenePaint` buffers | whichever thread paints | nothing | `thread_local` | per thread, freed at thread exit |
-| `net/LiveFeed` | GUI thread (socket slots) | nothing; emits `projectUpdated` | — | a line over 1 MiB drops the socket; one reconnect after 3 s per drop, the poll as backstop |
-| `RemoteSyncController` timers | GUI thread | `RemoteState::reloading` / `pushing`, `planRunning` | push, poll, reload and result each refuse while another holds the canvas | feed events coalesce 40 ms into one reload; a push is debounced 350 ms, capped at 1.5 s |
+| `net/LiveFeed` | GUI thread (socket slots) | nothing; emits `projectUpdated` | — | a line over 1 MiB, newline or not, drops the socket, whose read buffer is bounded the same; one reconnect after 3 s per drop, the poll as backstop |
+| `RemoteSyncController` timers | GUI thread | `RemoteState::reloading` / `pushing`, `planRunning` | push, poll, reload and result each refuse while another holds the canvas; a push waits for the one in flight | feed events coalesce 40 ms into one reload; a push is debounced 350 ms, capped at 1.5 s; a close fires a pending push and waits for it; the result upload is owned by `resultSeq` and cleared when the editor leaves the project |
 | Layout push / meta PUT | GUI thread, async REST chain | the link's version | `runGuardedWriteAsync` | layout: 6 tries, union merge per 409; meta: 4 tries, version re-read, no merge; then a toast |
 | Server reload (`openServerProject`) | GUI thread, async REST chain + pool decode | the canvas | `reloading` held to the landing, owned by `reloadSeq`; a second silent reload is refused | lines drawn meanwhile are union-merged into what lands, then pushed |
 | `SessionController` debounces | GUI thread | the session file, the project row | gates read at fire time | 600 ms / 400 ms; flushed at close |
@@ -309,7 +323,10 @@ waited for up to `RESULT_CLOSE_CAP_MS`.
    description (`syncTipDescription`), never its markup.
 9. **A script that arrives by link never runs unasked and never reads a local file.** A web page
    can craft a `stencil://` link, and a desktop script could otherwise open a local picture and
-   `@save` it to a linked server.
+   `@save` it to a linked server; `ScriptBuffer` carries the link's origin to the run rules.
+10. **Persisted state has one owner.** The registry and `Settings` are `SharedState`'s; a window
+    writes them through it and never serialises a copy of its own, so a sibling's save cannot
+    revert another window's change.
 
 ## Tests
 
@@ -325,7 +342,8 @@ the shared `common/fixtures` corpora here (core's plan result byte-equal to
 adversarial inputs. The LLM suites use a mock `LlmTransport`, so all runs offline; the anthropic key
 is proved on a fake clock, over the wire fixtures, and through the real `QtLlmTransport` to a
 loopback `/v1/messages`, then found in no file under the state dir and no `QSettings`.
-`tests/support/mockRest.hpp` stands in for the server's REST routes. `layerBoundary.headless.cpp`
+`tests/support/mockRest.hpp` stands in for the server's REST routes, holding a request on demand
+so a close or a project switch can race it. `layerBoundary.headless.cpp`
 is the import lint; `testFloor.headless.cpp` holds the floor of registered targets.
 `uiPins.headless.cpp` pins the stylesheet hash per theme and accent (`tests/pins/stylesheets.txt`)
 and the renders at device pixel ratio 1 and 2 against `tests/pins/<platform>/`, a gitignored

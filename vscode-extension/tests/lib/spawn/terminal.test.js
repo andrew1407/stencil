@@ -3,6 +3,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { existsSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import { installVscodeStub, makeVscode } from '../../helpers/vscodeStub.js';
 
@@ -22,7 +25,7 @@ const withLib = async (shell, body) => {
 
 const SHELLS = {
   '/bin/zsh': 'posix',
-  '/usr/local/bin/fish': 'posix',
+  '/usr/local/bin/fish': 'fish',
   'C:\\Program Files\\Git\\bin\\bash.exe': 'posix',
   'C:\\WINDOWS\\System32\\cmd.exe': 'cmd',
   'cmd.exe': 'cmd',
@@ -109,3 +112,44 @@ test('the POSIX line round-trips through a real shell, argument for argument',
       assert.equal(echoed.status, 0);
     });
   });
+
+// A directory name that escapes a POSIX-quoted fish argument: fish reads \' inside quotes as '.
+const HOSTILE = "x\\';touch pwned;#";
+
+// fish's single-quote rules: \\ and \' are escapes, any other backslash is literal.
+const fishUnquote = (word) => {
+  assert.match(word, /^'.*'$/s);
+  let out = '';
+  for (let k = 1; k < word.length - 1; k += 1) {
+    const c = word[k], next = word[k + 1];
+    if (c === "'") assert.fail(`an unescaped quote ends the word at ${k}: ${word}`);
+    if (c === '\\' && (next === '\\' || next === "'")) { out += next; k += 1; } else out += c;
+  }
+  return out;
+};
+
+test('the hostile directory name stays one literal argument in every shell', async () => {
+  await withLib('/bin/sh', ({ terminal }) => {
+    assert.equal(terminal.quoteArg(HOSTILE, 'fish'), "'x\\\\\\';touch pwned;#'");
+    assert.equal(fishUnquote(terminal.quoteArg(HOSTILE, 'fish')), HOSTILE);
+    assert.equal(terminal.quoteArg(HOSTILE, 'posix'), "'x\\'\\'';touch pwned;#'");
+    assert.equal(terminal.quoteArg(HOSTILE, 'powershell'), "'x\\'';touch pwned;#'");
+    assert.equal(terminal.quoteArg(HOSTILE, 'cmd'), '"x\\\';touch pwned;#"');
+    assert.equal(terminal.quoteArg('%self', 'fish'), "'%self'", 'fish expands a leading %');
+  });
+});
+
+for (const shell of ['/bin/bash', '/bin/zsh', '/usr/bin/fish', '/opt/homebrew/bin/fish', '/usr/local/bin/pwsh']) {
+  test(`${shell} gets the hostile name back as one argument and runs nothing`,
+    { skip: process.platform === 'win32' || !existsSync(shell) ? `${shell} not installed` : false }, async () => {
+      await withLib(shell, ({ shellQuote, terminal }) => {
+        const kind = shellQuote.shellKind(shell);
+        const cwd = mkdtempSync(join(tmpdir(), 'stencil-quote-'));
+        const flag = kind === 'powershell' ? ['-NoProfile', '-Command'] : ['-c'];
+        const echoed = spawnSync(shell, [...flag, terminal.commandLine('printf', ['%s', HOSTILE], kind)],
+          { encoding: 'utf8', cwd });
+        assert.equal(echoed.stdout, HOSTILE);
+        assert.equal(existsSync(join(cwd, 'pwned')), false, 'touch never ran');
+      });
+    });
+}

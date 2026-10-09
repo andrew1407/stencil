@@ -2,6 +2,7 @@
 // points are never a point target, hidden lines never a segment target, and with both hidden nothing
 // is. Browser twin: browser/tests/core/pointer/markHits.test.js.
 #include "markHits.hpp"
+#include <algorithm>
 
 #include <cstdio>
 #include <utility>
@@ -53,6 +54,38 @@ int main() {
         "a hidden stroke is never inserted into");
   check(hold(dots, 102, 1) == K::CONTINUE_POINT && hold(none, 102, 1) == K::NEW_LINE,
         "shown points are continued; with nothing shown a hold starts afresh");
+
+  std::printf("the hover's point, with no copy:\n");
+  {
+    // The order HoverTip read before: the lines copied, the stroke in progress appended, reversed.
+    const auto copied = [](core::Lines committed, const core::Line& current, model::ShownMarks shown,
+                           double x, double y, double r) -> std::optional<core::Point> {
+      if (!current.points.empty()) committed.push_back(current);
+      std::reverse(committed.begin(), committed.end());
+      const auto hit = model::pointAt(committed, shown, x, y, r);
+      if (!hit) return std::nullopt;
+      return committed[hit->lineIdx].points[hit->ptIdx];
+    };
+    core::Line low, high, ghost, stroke;
+    low.points = {{10, 10}, {12, 10}};     // both within reach of (11, 10): the first wins, not the nearer
+    high.points = {{11, 10}, {40, 40}};    // the exact hit, but drawn above
+    ghost.points = {{11, 10}};
+    ghost.hidden = true;
+    stroke.points = {{11, 11}};
+    const core::Lines stacks[] = {{low, high}, {high, low}, {ghost, high}, {ghost}, {}};
+    bool same = true;
+    for (const core::Lines& stack : stacks)
+      for (const core::Line& current : {core::Line{}, stroke, ghost})
+        for (const model::ShownMarks shown : {both, strokes})
+          for (const double r : {0.0, 0.5, 1.5, 5.0}) {
+            const auto a = copied(stack, current, shown, 11, 10, r);
+            const auto b = model::firstPointWithin(stack, current, shown, 11, 10, r);
+            same = same && a.has_value() == b.has_value() && (!a || (a->x == b->x && a->y == b->y));
+          }
+    check(same, "the uncopied scan picks the very point the reversed copy did, ties and hidden lines included");
+    check(model::firstPointWithin({low, high}, {}, both, 11, 10, 1.5)->x == 10,
+          "a tie goes to the lowest line's first point in reach, as hitTest.js orders it");
+  }
 
   std::printf(failures ? "\nFAILED (%d)\n" : "\nOK\n", failures);
   return failures ? 1 : 0;

@@ -75,7 +75,9 @@
       const base = decodeURIComponent(u.pathname.split('/').filter(Boolean).pop() || '');
       if (base && /\.[a-z0-9]{2,4}$/i.test(base)) return base;
       return `${base || fallback}.png`;
-    } catch { return `${fallback}.png`; }
+    } catch {
+      return `${fallback}.png`;
+    }
   };
 
   // The last images() result, so open(0) / crop(1) address a row by position.

@@ -78,13 +78,21 @@ export class TabsCoordinator {
       this.#port.start();
       this.#port.onmessage = e => this.#onWorkerMessage(e.data || {});
       this.#post({ type: MSG.HELLO });
-      window.addEventListener('beforeunload', () => this.#post({ type: MSG.BYE }));
+      this.#onPageLifecycle(() => this.#post({ type: MSG.BYE }),
+        () => this.#post({ type: MSG.HELLO, activeId: this.#activeId, incognito: this.#incognito }));
       return true;
     } catch {
       this.#worker = null;
       this.#port = null;
       return false;
     }
+  }
+
+  // BYE on `pagehide` only: a `beforeunload` the user cancels keeps the tab, which stays counted;
+  // a bfcache restore (`pageshow` persisted) said BYE already and rejoins with its state.
+  #onPageLifecycle(bye, hello) {
+    window.addEventListener('pagehide', bye);
+    window.addEventListener('pageshow', (e) => { if (e.persisted) hello(); });
   }
 
   #post(msg) {
@@ -121,7 +129,8 @@ export class TabsCoordinator {
     this.#channel.onmessage = e => this.#onChannelMessage(e.data || {});
 
     // Roll call: peers reply with HERE; after a short window count/youAreOnly is estimated.
-    this.#channel.postMessage({ type: MSG.HELLO, peerId: this.#peerId, activeId: this.#activeId, incognito: this.#incognito });
+    const hello = () => this.#channel.postMessage({ type: MSG.HELLO, peerId: this.#peerId, activeId: this.#activeId, incognito: this.#incognito });
+    hello();
     setTimeout(() => {
       this.#lastTabCount = this.#peers.tabCount();
       this.#emitTabCount();
@@ -129,13 +138,13 @@ export class TabsCoordinator {
       this.#resolveReady();
     }, READY_TIMEOUT_MS - 50);
 
-    window.addEventListener('beforeunload', () => {
+    this.#onPageLifecycle(() => {
       try {
         this.#channel.postMessage({ type: MSG.BYE, peerId: this.#peerId });
       } catch {
         /* channel already closed — peers time us out anyway */
       }
-    });
+    }, hello);
     return true;
   }
 

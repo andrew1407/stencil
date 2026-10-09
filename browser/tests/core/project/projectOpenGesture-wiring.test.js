@@ -8,7 +8,7 @@ import { DOUBLE_CLICK_MS, DRAG_SLOP_PX } from '../../../js/core/project/openGest
 import { isTouchLike, TOUCH_MEDIA } from '../../../js/utils.js';
 import { COMPONENTS_CSS } from '../../helpers/css.js';
 import { mountContextMenu } from '../../helpers/ctxMenuMountRig.js';
-import { projectsModalSource } from '../../helpers/projectsModalSource.js';
+import { projectsModalSource } from '../../helpers/moduleSource.js';
 
 // ── Wiring contract (what the DOM side must keep doing) ──
 test('the row wires every gesture to the SAME open paths, and stays keyboard-usable', () => {

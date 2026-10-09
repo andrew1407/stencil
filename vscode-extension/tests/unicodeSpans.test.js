@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { parseScript } from '../src/parser/index.js';
+import { unitIndexOfColumn, utf8Length } from '../src/parser/script/types.js';
 import { sourceLines, unitColumn, unitSpan } from '../src/lib/spans.js';
 import { installVscodeStub, makeContext, makeDocument, makeEditor, makeVscode } from './helpers/vscodeStub.js';
 
@@ -101,4 +102,22 @@ test('a painted colour covers exactly its token on a non-ASCII line', async () =
     const texts = new Set(parseScript(TEXT).tokens.map((t) => t.text));
     for (const text of painted) assert.ok(texts.has(text), `${text} is a whole token`);
   });
+});
+
+// The span converter before the per-line index: a walk from the line start for every column.
+const oldUnitColumn = (text, col) => {
+  const over = col - 1 - utf8Length(text);
+  return over > 0 ? text.length + over : unitIndexOfColumn(text, col);
+};
+
+test('the indexed spans equal the walk-from-line-start spans over a unicode-rich line', () => {
+  const lines = ['@save "café 日本😀.png" 10px # é \ud800 x \udc00 😀😀', ''];
+  for (const [i, text] of lines.entries()) {
+    for (let col = -1; col <= utf8Length(text) + 4; col += 1) {
+      assert.equal(unitColumn(text, col), oldUnitColumn(text, col), `col ${col}`);
+      for (const len of [0, 1, 3, 4])
+        assert.deepEqual(unitSpan(lines, { line: i + 1, col, len }),
+          { line: i, start: oldUnitColumn(text, col), end: Math.max(oldUnitColumn(text, col), oldUnitColumn(text, col + len)) });
+    }
+  }
 });

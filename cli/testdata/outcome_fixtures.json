@@ -79,6 +79,11 @@
       "expected": "error: refusing to fetch internal/blocked host 'x'\nerror: HTTP 404 fetching http://y"
     },
     {
+      "name": "a layout that is not a layout object is named, not a silent exit 1",
+      "stderr": "error: could not read layout 'notes.json' (not a JSON object)\n",
+      "expected": "error: could not read layout 'notes.json' (not a JSON object)"
+    },
+    {
       "name": "no error: prefix falls back to whole trimmed stderr",
       "stderr": "  unexpected text  ",
       "expected": "unexpected text"

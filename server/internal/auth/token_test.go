@@ -74,43 +74,6 @@ func TestBearerTokenExtraction(t *testing.T) {
 			t.Fatalf("header %q: got %q want %q", header, got, want)
 		}
 	}
-	// The query-param fallback is reserved for WebSocket upgrade requests; on a
-	// plain REST request a URL token is ignored (it would leak via logs).
-	r := httptest.NewRequest(http.MethodGet, WSRoute+"?token=fromquery", nil)
-	if got := BearerToken(r); got != "" {
-		t.Fatalf("query token on a plain request: got %q, want empty", got)
-	}
-	r.Header.Set("Upgrade", "websocket")
-	r.Header.Set("Connection", "keep-alive, Upgrade")
-	if got := BearerToken(r); got != "fromquery" {
-		t.Fatalf("query fallback on upgrade: got %q", got)
-	}
-}
-
-// A REST route must reject a query-only token; a WS upgrade may authenticate with one (browser WebSocket
-// clients cannot set an Authorization header).
-func TestMiddlewareQueryTokenOnlyOnWebSocketUpgrade(t *testing.T) {
-	token, hash, _ := GenerateToken()
-	res := stubResolver{hash: hash, sess: Session{ID: "s1"}} // ExpiresAt 0 = no expiry
-	protected := Middleware(res, time.Second)(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
-		rw.WriteHeader(http.StatusOK)
-	}))
-
-	rest := httptest.NewRequest(http.MethodGet, "/projects?token="+token, nil)
-	rec := httptest.NewRecorder()
-	protected.ServeHTTP(rec, rest)
-	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("query-token REST request: code %d, want 401", rec.Code)
-	}
-
-	ws := httptest.NewRequest(http.MethodGet, "/ws?token="+token, nil)
-	ws.Header.Set("Upgrade", "websocket")
-	ws.Header.Set("Connection", "Upgrade")
-	rec2 := httptest.NewRecorder()
-	protected.ServeHTTP(rec2, ws)
-	if rec2.Code != http.StatusOK {
-		t.Fatalf("query-token WS upgrade: code %d, want 200", rec2.Code)
-	}
 }
 
 func TestMiddlewareGate(t *testing.T) {
@@ -146,22 +109,22 @@ func TestMiddlewareGate(t *testing.T) {
 	}
 }
 
-// Upgrade headers are the client's to set, so they open the query token only on the WebSocket route: a
-// REST request that spoofs them still needs an Authorization header.
-func TestQueryTokenIsReadOnlyOnTheWebSocketRoute(t *testing.T) {
+// A URL token is never read, on any route and whatever upgrade headers ride along: only the Authorization
+// header authenticates a REST request, and the WebSocket hello carries its own token.
+func TestQueryTokenIsNeverRead(t *testing.T) {
 	token, hash, _ := GenerateToken()
 	res := stubResolver{hash: hash, sess: Session{ID: "s1"}}
 	protected := Middleware(res, time.Second)(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
 		rw.WriteHeader(http.StatusOK)
 	}))
-	for _, path := range []string{"/projects", "/auth/token", "/ws/x", "/llm/chat"} {
+	for _, path := range []string{"/projects", "/auth/token", WSRoute, "/llm/chat"} {
 		req := httptest.NewRequest(http.MethodGet, path+"?token="+token, nil)
 		req.Header.Set("Upgrade", "websocket")
 		req.Header.Set("Connection", "Upgrade")
 		rec := httptest.NewRecorder()
 		protected.ServeHTTP(rec, req)
 		if rec.Code != http.StatusUnauthorized {
-			t.Fatalf("%s with spoofed upgrade headers: code %d, want 401", path, rec.Code)
+			t.Fatalf("%s with a query token: code %d, want 401", path, rec.Code)
 		}
 	}
 }

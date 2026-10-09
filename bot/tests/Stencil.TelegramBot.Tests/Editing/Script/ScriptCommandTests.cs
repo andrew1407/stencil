@@ -28,7 +28,7 @@ public sealed class ScriptCommandTests : IDisposable
 
     public ScriptCommandTests()
     {
-        _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-script-" + Guid.NewGuid().ToString("N"));
+        _dataDir = TempDirs.New("bot-script");
         BotOptions options = new() { DataDir = _dataDir };
         _editing = new EditingService(_cli, new UserWorkspace(options), _store);
         _handlers = TestHandlers.Create(options, _store, _cli, _bot, editing: _editing);
@@ -36,7 +36,7 @@ public sealed class ScriptCommandTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
+        TempDirs.Delete(_dataDir);
     }
 
     private Task dispatch(string text) =>

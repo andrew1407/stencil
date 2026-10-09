@@ -46,7 +46,7 @@ public sealed class ErrorGuard
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error handling update for chat {ChatId}", chatId);
-            await replyError(chatId, "Sorry, something went wrong handling that. Please try again.", ct);
+            await replyError(chatId, Replies.UnexpectedError(), ct);
         }
     }
 

@@ -13,14 +13,14 @@ public sealed class LlmAttachmentLoaderTests : IDisposable
 
     public LlmAttachmentLoaderTests()
     {
-        _dir = Path.Combine(Path.GetTempPath(), "stencil-bot-attach-" + Guid.NewGuid().ToString("N"));
+        _dir = TempDirs.New("bot-attach");
         Directory.CreateDirectory(_dir);
         _loader = new LlmAttachmentLoader(_downscaler);
     }
 
     public void Dispose()
     {
-        try { Directory.Delete(_dir, recursive: true); } catch { /* best effort */ }
+        TempDirs.Delete(_dir);
     }
 
     private string write(string name, byte[] bytes)

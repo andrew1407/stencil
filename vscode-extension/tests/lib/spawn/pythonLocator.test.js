@@ -61,12 +61,13 @@ test('a configured path that names no executable is not silently replaced', POSI
   });
 });
 
-test('a relative setting resolves against the workspace folder, not the cwd', POSIX_ONLY, () => {
+test('a relative setting or STENCIL_PYTHON is refused, never resolved against the workspace', POSIX_ONLY, () => {
   withDir((dir) => {
     const bin = join(dir, 'bin');
     mkdirSync(bin);
     executable(bin, 'py-here');
-    assert.equal(locatePython({ configured: 'bin/py-here', baseDir: dir, env: { PATH: '' } }),
-      join(bin, 'py-here'));
+    executable(bin, 'python3');
+    assert.equal(locatePython({ configured: 'bin/py-here', env: { PATH: bin } }), null);
+    assert.equal(locatePython({ env: { PATH: bin, STENCIL_PYTHON: 'bin/py-here' } }), null);
   });
 });

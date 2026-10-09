@@ -8,6 +8,7 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSyn
 import { dirname, join, relative, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { declaration } from '../../tools/syncTwins.mjs';
 
 const SRC = resolve(dirname(fileURLToPath(import.meta.url)), '../src');
 const ROOT = '';   // src/*.js — the feature modules and the entry point
@@ -61,6 +62,15 @@ test('the scan saw the whole tree', () => {
   assert.ok(walk(SRC).length >= 18, 'vscode-extension/src was read');
   assert.ok(edges.some((e) => e.edge.startsWith('extension.js →')), 'the entry point is indexed');
   assert.ok(edges.some((e) => e.from === 'lib' && e.to === 'parser'), 'lib → parser is indexed');
+});
+
+test('the import scan is the Chrome extension\'s, declaration for declaration', () => {
+  const mine = readFileSync(fileURLToPath(import.meta.url), 'utf8');
+  const theirs = readFileSync(new URL('../../browser-extension/tests/layerBoundary.test.js', import.meta.url), 'utf8');
+  for (const name of ['IMPORT', 'walk']) {
+    assert.ok(declaration(mine, name), name);
+    assert.equal(declaration(mine, name), declaration(theirs, name), `${name} drifted; run node tools/syncTwins.mjs`);
+  }
 });
 
 test('every src/ directory that imports or is imported has a layer', () => {

@@ -156,4 +156,27 @@ public sealed class HttpStencilServerClientTests
         Assert.True(ex.IsConflict);
         Assert.Equal(409, ex.Status);
     }
+
+    // HttpClient.Timeout cancels a token the caller never cancelled: a reply, not a silent shutdown.
+    [Fact]
+    public async Task Should_Report_A_Server_That_Never_Answers_As_A_Timeout()
+    {
+        CannedHttpMessageHandler handler = new((_, _) => CannedHttpMessageHandler.Json("{}")) { Hang = true };
+        HttpStencilServerClient client = new(new HttpClient(handler) { Timeout = TimeSpan.FromMilliseconds(50) }, "http://h:8090", "t");
+
+        ServerException ex = await Assert.ThrowsAsync<ServerException>(() => client.GetProjectAsync("p1"));
+
+        Assert.Equal("timeout", ex.Code);
+        Assert.Contains("http://h:8090 didn't answer", ex.Message);
+    }
+
+    [Fact]
+    public async Task Should_Leave_A_Callers_Own_Cancellation_A_Cancellation()
+    {
+        CannedHttpMessageHandler handler = new((_, _) => CannedHttpMessageHandler.Json("{}")) { Hang = true };
+        HttpStencilServerClient client = Client(handler, token: "t");
+        using CancellationTokenSource shutdown = new(TimeSpan.FromMilliseconds(50));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => client.GetProjectAsync("p1", shutdown.Token));
+    }
 }

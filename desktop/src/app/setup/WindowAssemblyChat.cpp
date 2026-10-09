@@ -1,6 +1,7 @@
 // MainWindow construction, phase 2 of 4: the chat dock and its signals. Order is pinned; see
 // WindowAssembly.cpp.
 #include "MainWindow.hpp"
+#include "SharedState.hpp"
 #include "WindowAssembly.hpp"
 #include "ChatMenuPanel.hpp"
 #include "ChatPlanTarget.hpp"
@@ -54,7 +55,7 @@ namespace stencil::gui {
               return w.parts.chatAppliers.addImageProjectEntry(image, name, /*deferRegistrySave=*/true);
             },
             [this] {
-              fileStore::saveProjects(w.projectList);
+              SharedState::instance().saveProjects(&w);
               SiblingWindows::refreshDockMenu(w.projectList);
             },
             [this] { w.refreshActions(); },
@@ -67,6 +68,7 @@ namespace stencil::gui {
               else if (w.chatDock) w.chatDock->setVisible(true);
             },
             [this](QRect anchorRect) { w.parts.dialogs.openAssistantSettingsFrom(nullptr, anchorRect); },
+            [this] { w.persistSettings(); },
         });
     ChatSessionController* chat = w.chatSession.get();
     QObject::connect(w.chatDock, &ChatDock::sendRequested, chat, &ChatSessionController::onChatSend);
@@ -150,7 +152,7 @@ namespace stencil::gui {
     // toggle of its own.
     QObject::connect(w.chatDock, &ChatDock::chatSwapSidesChanged, &w, [this](bool on) {
       w.settings.chatSwapSides = on;
-      fileStore::saveSettings(w.settings);
+      w.persistSettings();
       if (w.chatSession->chatMenuPanel) asChatMenu(w.chatSession->chatMenuPanel)->setChatSwapSides(on);
     });
   }

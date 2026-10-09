@@ -18,14 +18,4 @@ public sealed record EditRequest
     public required string Output { get; init; }
 
     public bool Overwrite { get; init; }
-
-    // Server flags (cli/CONTRACT.md §1): with Server, Input is the NAME of a project to fetch and edit.
-    public string? Server { get; init; }
-
-    public bool RemoteUpdate { get; init; }
-
-    public string? Remote { get; init; }
-
-    // Default: the input image's base name.
-    public string? RemoteName { get; init; }
 }

@@ -2,39 +2,9 @@
 // turns fatal, each fatal code reports once, and a hot language swap. From voiceInput.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { createVoiceInput, voiceErrorText, FATAL_ERRORS, NETWORK_BACKOFF_MS } from '../../../js/llm/voice/input.js';
-import { createFakeSpeechRecognition, stubClock } from '../../helpers/speech.js';
+import { voiceErrorText, FATAL_ERRORS, NETWORK_BACKOFF_MS } from '../../../js/llm/voice/input.js';
+import { makeEngine } from '../../helpers/speech.js';
 
-// A level meter double: records start/stop, lets the test push a level.
-const fakeMeter = () => {
-  const m = { started: 0, stopped: 0, onLevel: null, fail: false };
-  m.create = () => ({
-    async start(cb) { m.started++; if (m.fail) throw new Error('mic refused'); m.onLevel = cb; },
-    stop() { m.stopped++; m.onLevel = null; },
-  });
-  return m;
-};
-
-const makeEngine = (over = {}) => {
-  const sr = createFakeSpeechRecognition(over.recognition || {});
-  const clock = stubClock();
-  const meter = fakeMeter();
-  const engine = createVoiceInput({
-    SpeechRecognition: over.unsupported ? undefined : sr.ctor,
-    createLevelMeter: meter.create,
-    setTimer: clock.setTimer,
-    clearTimer: clock.clearTimer,
-  });
-  const log = { transcripts: [], states: [], errors: [], levels: [] };
-  const session = (lang = 'en-US') => ({
-    lang,
-    onTranscript: (t) => log.transcripts.push(t),
-    onState: (s, extra) => log.states.push(extra ? [s, extra] : s),
-    onError: (e) => log.errors.push(e),
-    onLevel: (l) => log.levels.push(l),
-  });
-  return { sr, clock, meter, engine, log, session };
-};
 
 test('no-speech and aborted restart immediately; network backs off and turns fatal on the third drop', () => {
   const { sr, clock, engine, log, session } = makeEngine();

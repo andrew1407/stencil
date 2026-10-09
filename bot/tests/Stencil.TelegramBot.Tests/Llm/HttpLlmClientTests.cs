@@ -77,4 +77,20 @@ public sealed class HttpLlmClientTests
         Assert.Contains("clippy", ex.OperatorDetail);
         Assert.Contains("STENCIL_LLM_PROVIDER", ex.OperatorDetail);
     }
+
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    public async Task Should_Dial_A_User_Connected_Server_Through_The_Guarded_Client(bool fromUser, bool guarded)
+    {
+        CannedHttpMessageHandler operatorHandler = new((_, _) => CannedHttpMessageHandler.Json("""{"text":"ok"}"""));
+        CannedHttpMessageHandler userHandler = new((_, _) => CannedHttpMessageHandler.Json("""{"text":"ok"}"""));
+        HttpLlmClient client = new(new HttpClient(operatorHandler),
+            new LlmOptions { Provider = LlmOptions.PROVIDER_STENCIL_SERVER }, new HttpClient(userHandler));
+
+        await client.ChatAsync(Request(serverUrl: "http://h:8090", serverToken: "t") with { ServerFromUser = fromUser });
+
+        Assert.Equal(guarded, userHandler.LastRequest is not null);
+        Assert.Equal(!guarded, operatorHandler.LastRequest is not null);
+    }
 }

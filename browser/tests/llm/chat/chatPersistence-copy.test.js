@@ -3,6 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { installMemoryStorage } from '../../helpers/memoryStorage.js';
+import { makeStore } from '../../helpers/chatStoreRig.js';
 
 installMemoryStorage();
 const { createChatPersistence } = await import('../../../js/llm/chat/persistence.js');
@@ -10,11 +11,6 @@ const { buildChatDoc } = await import('../../../js/llm/chat/store.js');
 
 const DOC = buildChatDoc([{ role: 'user', text: 'make it sepia' }, { role: 'assistant', text: 'done' }], 5);
 
-const makeStore = (seed = {}) => {
-  const m = new Map(Object.entries(seed));
-  return { _map: m, async load(id) { return m.get(String(id)) || null; },
-    async save(id, doc) { m.set(String(id), doc); return true; }, async remove() {}, async clear() {} };
-};
 const makeConn = (doc = null) => {
   const conn = { puts: [],
     putFile: async (id, kind, body) => { conn.puts.push({ id, kind, body }); },

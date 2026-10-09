@@ -54,7 +54,7 @@ public sealed class PromptLinesAndCropTests : PromptServiceTestBase
         Assert.Equal("#ff0000", Assert.Single(session.Edits.Layout!.Lines).PointColor);
         await _editing.RenderAsync(UserId);
         StencilLayout rendered = System.Text.Json.JsonSerializer.Deserialize<StencilLayout>(
-            await File.ReadAllTextAsync(_cli.LastRequest!.LayoutPath!), StencilJson.Options)!;
+            _cli.LayoutJson(_cli.LastRequest!)!, StencilJson.Options)!;
         Assert.Equal("#ff0000", Assert.Single(rendered.Lines).PointColor);
     }
 
@@ -106,7 +106,7 @@ public sealed class PromptLinesAndCropTests : PromptServiceTestBase
         await Prompt("one take with another mark");
 
         StencilLayout rendered = System.Text.Json.JsonSerializer.Deserialize<StencilLayout>(
-            await File.ReadAllTextAsync(_cli.LastRequest!.LayoutPath!), StencilJson.Options)!;
+            _cli.LayoutJson(_cli.LastRequest!)!, StencilJson.Options)!;
         Assert.Equal(new LayoutPoint(5, 6), Assert.Single(rendered.Lines).Points[0]);
         Assert.Equal(1, (await _store.GetAsync(UserId)).Edits.LineCount);   // variants never mutate
     }

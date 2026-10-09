@@ -124,6 +124,7 @@ namespace stencil::gui {
   // The browser's `<td colspan="6" class="empty-message">No points yet.</td>`.
   void SelectionPanel::showEmptyPoints() {
     points->clearSpans();
+    clearRows(points);
     points->setRowCount(1);
     points->setItem(0, COL_INDEX, emptyMessage(QStringLiteral("No points yet.")));
     points->setSpan(0, COL_INDEX, 1, COL_COUNT);

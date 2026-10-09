@@ -1,18 +1,26 @@
-// Package transport abstracts the live-edit connection so the hub is agnostic to how bytes arrive. A Conn
+// Package transport abstracts the live connection so the hub is agnostic to how bytes arrive. A Conn
 // carries one protocol.WSMessage (compact JSON) per Read/Write, over two implementations: WebSocket
 // (ws.go, one text frame per message — browser and extension) and TCP (tcp.go, one newline-delimited JSON
 // record — desktop QTcpSocket and the Zig CLI, so neither needs a WebSocket library). Both deliver
-// identical protocol messages, so every client editing one project lands in the same hub session.
+// identical protocol messages, so every client reaches the same hub feed.
 package transport
 
 import (
 	"context"
+	"errors"
 	"time"
 )
 
-// MaxMessageBytes caps a single inbound message on either transport, bounding memory against
-// a hostile or buggy peer. Large enough for a base64 image payload in an edit/save.
+// MaxHelloBytes caps the first inbound message on either transport: a connection holds no more than this
+// until its hello has authenticated, which bounds what a flood of anonymous sockets can pin.
+const MaxHelloBytes = 64 << 10
+
+// MaxMessageBytes caps an inbound message once the hello has passed, bounding memory against a hostile
+// or buggy peer.
 const MaxMessageBytes = 16 << 20
+
+// ErrFrameTooLarge fails a Read whose frame exceeds the connection's read limit.
+var ErrFrameTooLarge = errors.New("transport: frame exceeds the read limit")
 
 // Close codes (a small transport-neutral set; the WS adapter maps these to
 // RFC6455 status codes, the TCP adapter ignores them).
@@ -28,6 +36,8 @@ type Conn interface {
 	Read(ctx context.Context) ([]byte, error)
 	// Write sends one message.
 	Write(ctx context.Context, data []byte) error
+	// SetReadLimit caps the next messages Read accepts; a new Conn starts at MaxHelloBytes.
+	SetReadLimit(n int64)
 	// Close shuts the connection with a code and human-readable reason.
 	Close(code int, reason string) error
 	// RemoteAddr identifies the peer for logging.

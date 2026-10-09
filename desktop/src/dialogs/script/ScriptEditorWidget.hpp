@@ -63,6 +63,7 @@ namespace stencil::gui {
 
    protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
+    void showEvent(QShowEvent* event) override;
 
    private:
     void parseAndPaint(const QString& text, bool withDiagnostics);
@@ -82,6 +83,8 @@ namespace stencil::gui {
     /* Re-colouring the document is itself a document change, so the editor's textChanged
      * comes back at us mid-paint; without this the two call each other until the stack ends. */
     bool painting = false;
+    // The shared buffer moved while this host was hidden: the text and its parse catch up on show.
+    bool stale = false;
   };
 
 }  // namespace stencil::gui

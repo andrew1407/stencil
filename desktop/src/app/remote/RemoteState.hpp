@@ -12,6 +12,7 @@ namespace stencil::gui {
     stencil::net::ConnectionManager* connections = nullptr;
     RemoteSession* session = nullptr;
     bool pushing = false;
+    int pushSeq = 0;     // the push that owns `pushing`, as reloadSeq owns `reloading`
     bool reloading = false;
     int reloadSeq = 0;   // the reload that owns `reloading`; an older one's late clear leaves it alone
   };

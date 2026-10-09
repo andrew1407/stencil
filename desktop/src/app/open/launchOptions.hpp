@@ -50,7 +50,6 @@ namespace stencil::gui {
     // stencil:// deep-link fields (parseStencilUrl). A saved token is reused, else minted via POST /auth/token — no token rides the link.
     QString serverUrl;
     QString serverProjectId;
-    qint64 serverVersion = 0;
     // Inline layout JSON (`layout=`), the in-URL variant of --layout.
     QString layoutJson;
 
@@ -77,5 +76,9 @@ namespace stencil::gui {
   // src is restricted to web/data sources — links are remotely clickable, so local paths never ride them.
   // A script (`script=`; a `scriptMode=` beside it is ignored) rides beside either, or alone.
   LaunchOptions parseStencilUrl(const QUrl& url);
+
+  // A stencil:// link given as the positional argument, over the flags already parsed: the link's
+  // source, layout, frame and script win, and either side's incognito holds.
+  void adoptLinkOptions(LaunchOptions& o, const LaunchOptions& link);
 
 }

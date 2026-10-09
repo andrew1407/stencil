@@ -16,22 +16,27 @@ const projectName = (app) => (app.activeProjectId != null
   ? (app.storage.store.getMeta(app.activeProjectId)?.name || app.imageBaseName || 'Untitled')
   : (app.imageBaseName || 'Untitled'));
 
+export const sameLink = (a, b) => !!a && !!b && a.remoteId === b.remoteId && a.address === b.address;
+
 // A peer saved first: merge their lines and adopt the server version. Each pass merges against
 // what the last pass saw: a line of that peer set is theirs, so a peer's move never resurrects it.
-const mergePeer = async (app, conn, hooks, seen) => {
+const mergePeer = async (app, conn, hooks, seen, stale) => {
   const full = await conn.getProject(app.remoteLink.remoteId);
+  if (stale()) return;
   app.remoteLink = { ...app.remoteLink, version: full.project?.version ?? app.remoteLink.version };
   const sl = full.layout || {};
   const peer = sanitizeLines(sl.lines);
   const local = app.lines.filter((l) => !seen.peerKeys.has(lineDedupeKey(l)));
   seen.peerKeys = new Set(peer.map(lineDedupeKey));
   app.lines = capLayoutPoints(mergeLines(peer, local));
+  seen.merged = true;
 // A line-only edit must not clobber a peer's filter change (the scalar can't merge).
   if (!app.filterDirty) hooks.adoptServerFilter(sl);
   app.renderer.redraw();
 };
 
-// The link after the push, or null (not linked, failed, or never converged — then reloaded).
+// The link after the push, or null (not linked, failed, abandoned by a project switch, or never
+// converged — then reloaded).
 export const pushLayout = async (app, hooks) => {
   if (!app.remoteLink || !getSyncToServer()) return null;
   let conn;
@@ -41,6 +46,9 @@ export const pushLayout = async (app, hooks) => {
     hooks.toast('failed', err.message, 'fail');
     return null;
   }
+  const started = app.remoteLink;
+  // The editor left this project while a round trip was out: what came back lands nowhere.
+  const stale = () => !hooks.live() || !sameLink(app.remoteLink, started);
   const name = projectName(app);
   const seen = { peerKeys: new Set(), merged: false };
   // One undo step for the whole save, however many passes it merged.
@@ -52,17 +60,21 @@ export const pushLayout = async (app, hooks) => {
     const layout = currentLayoutPayload(app);
     hooks.saved();
     try {
-      app.remoteLink = await saveRemoteProject(conn, app.remoteLink, { name, layout });
+      const next = await saveRemoteProject(conn, app.remoteLink, { name, layout });
+      if (stale()) return null;
+      app.remoteLink = next;
       hooks.saved();
       app.filterDirty = false;
       hooks.toast('ok', attempt === 0 ? 'Saved to server' : 'Merged changes from another editor', 'ok');
       return settle(app.remoteLink);
     } catch (err) {
+      if (stale()) return null;
       if (!err || !err.conflict) {
         hooks.toast('failed', `Server save failed — ${err.message}`, 'fail');
         return settle(null);
       }
-      try { await mergePeer(app, conn, hooks, seen); seen.merged = true; } catch { /* fetch failed; loop retries with current state */ }
+      try { await mergePeer(app, conn, hooks, seen, stale); } catch { /* fetch failed; loop retries with current state */ }
+      if (stale()) return null;
     }
   }
   settle();
@@ -75,8 +87,6 @@ export const pushLayout = async (app, hooks) => {
 // The link and what the result paints, as they are right now; the render itself runs later, in the
 // image worker when there is one (worker/imageTasks.js resultPngBytes).
 export const captureResult = (app) => ({ link: app.remoteLink, job: app.image ? restingJob(app) : null });
-
-const sameLink = (a, b) => !!a && !!b && a.remoteId === b.remoteId && a.address === b.address;
 
 // The write is measured against the link as it stands when it starts, so a push queued before it
 // does not hide this write's own bump; the still-open link adopts only that bump.

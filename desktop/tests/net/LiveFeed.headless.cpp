@@ -103,6 +103,34 @@ int main(int argc, char** argv) {
   feed.unsubscribe();
   check(feed.getBase().isEmpty(), "unsubscribe clears the subscription");
 
+  // A line past the frame limit drops the feed even when its newline arrives with it.
+  {
+    QTcpServer hostile;
+    check(hostile.listen(QHostAddress::LocalHost, 0), "a hostile server listens");
+    QTcpSocket* bad = nullptr;
+    bool sent = false;
+    QObject::connect(&hostile, &QTcpServer::newConnection, [&] {
+      bad = hostile.nextPendingConnection();
+      QObject::connect(bad, &QTcpSocket::readyRead, [&] {
+        bad->readAll();
+        if (sent) return;
+        sent = true;
+        bad->write(QByteArray((1 << 20) + 16, 'x') + '\n');
+        bad->write("{\"type\":\"project-event\",\"event\":\"updated\",\"project\":{\"id\":\"p9\",\"version\":2}}\n");
+        bad->flush();
+      });
+    });
+    std::vector<QString> seen;
+    LiveFeed flood;
+    QObject::connect(&flood, &LiveFeed::projectUpdated, [&seen](const QString& id) { seen.push_back(id); });
+    check(flood.subscribe(QStringLiteral("http://127.0.0.1:%1").arg(hostile.serverPort() - 1), "tok"),
+          "subscribe to the hostile server");
+    pumpUntil([&] { return sent && bad && bad->state() != QAbstractSocket::ConnectedState; }, 4000);
+    pumpUntil([] { return false; }, 200);
+    check(sent && seen.empty(), "an oversized line drops the feed before any frame after it");
+    flood.unsubscribe();
+  }
+
   // ── #1 connection-security policy (ServerClient::normalizeBase / isInsecureRemote) ──
   {
     typedef ServerClient SC;

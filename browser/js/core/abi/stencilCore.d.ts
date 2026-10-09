@@ -64,9 +64,11 @@ export interface StencilCore {
   readonly ready: boolean;
   /** Idempotent; resolves false (JS fallback stays) when the artifact is missing or stale. */
   init(): Promise<boolean>;
-  /** Routes to the wasm op when installed, else `jsRef` — read per call, so a boot-time bind picks up the swap. */
+  /** Routes to the wasm op when installed, else `jsRef` — read per call, so a boot-time bind picks up the swap.
+   * A call the wasm heap cannot serve is answered by `jsRef`, and the core retires to JS for the session. */
   bind<F extends (...args: never[]) => unknown>(name: CoreOpName, jsRef: F): F;
-  /** The installed wasm fn, or null — for asymmetric callers with their own fallback. */
+  /** The installed wasm fn, or null — for asymmetric callers with their own fallback. Its call may throw
+   * a CoreHeapError (coreMarshal.js) once; the core has then retired and op() returns null. */
   op<K extends keyof CoreOps>(name: K): CoreOps[K] | null;
   readonly opNames: CoreOpName[];
 }

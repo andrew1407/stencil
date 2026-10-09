@@ -49,6 +49,11 @@ TEST_CASE("stencil_cli_resolveCrop yields a clamped pixel rect") {
 
   CHECK(stencil_cli_resolveCrop("z = 1", 200, 200, 10, 10, 21, 29.7, 0,
                                 &x, &y, &w, &h) == 0);
+  // An edge outside the image is a bad spec; an in-range spec with nothing left is -1.
+  CHECK(stencil_cli_resolveCrop("y2 = -200%", 200, 200, 10, 10, 21, 29.7, 0,
+                                &x, &y, &w, &h) == 0);
+  CHECK(stencil_cli_resolveCrop("x1 = 50px x2 = 50px y1 = 0px y2 = 10px", 200, 200, 10, 10,
+                                21, 29.7, 0, &x, &y, &w, &h) == -1);
 }
 
 TEST_CASE("stencil_cli rotate helpers") {

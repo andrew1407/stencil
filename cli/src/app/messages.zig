@@ -114,6 +114,7 @@ pub const exec_usage = "usage: /exec <action> <args> — actions: crop | rotate 
 pub const crop_usage = "usage: /crop <spec> [album] — edges x1= x2= y1= y2= with %, px, cm/mm/in, or a bare pixel delta; omit an edge to keep the image bound\n";
 pub const crop_usage_example = "       e.g. '/crop x1=10% x2=90% y1=10% y2=90%' (add 'album' to derive a missing axis from the page, landscape)\n";
 pub const rotate_usage = "usage: /rotate <int> — quarter-turns: 1 = 90° cw, 2 = 180°, -1 = 90° ccw, 3 = 270° (e.g. '/rotate -1')\n";
+pub const layout_refused = "could not read layout '{s}' ({s})\n";
 pub const apply_needs_path = "apply needs a path or URL to a layout JSON — e.g. '/apply notes.json'\n";
 pub const rotate_needs_int = "rotate needs an integer (quarter-turns), e.g. '/rotate -1'\n";
 pub const rotate_full_turn = "rotate {d} is a full turn — no change\n";

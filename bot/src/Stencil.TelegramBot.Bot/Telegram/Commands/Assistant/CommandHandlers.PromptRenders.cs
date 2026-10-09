@@ -25,7 +25,7 @@ public sealed partial class CommandHandlers
 
     // A collapsed album shows only the first caption, so it leads with the batch size.
     private static string albumLeadCaption(IReadOnlyList<PromptRender> renders) =>
-        $"{renders.Count} results\n{promptCaption(renders[0])}";
+        Replies.ResultsCaption(renders.Count, promptCaption(renders[0]));
 
     private readonly ConcurrentDictionary<long, List<PromptRender>> _renderCaptures = new();
 

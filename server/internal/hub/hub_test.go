@@ -18,18 +18,15 @@ import (
 
 const goodToken = "good-token"
 
-// newTestHub wires a hub onto the shared in-memory store, seeded with two
-// projects and one session so goodToken resolves.
+// newTestHub wires a hub onto an in-memory session store, seeded so goodToken resolves.
 func newTestHub(t *testing.T, opts ...Option) *Hub {
 	t.Helper()
 	st := testutil.NewMemStore()
-	st.Seed(protocol.ProjectRecord{ID: "p_t_a", Name: "P", Version: 0})
-	st.Seed(protocol.ProjectRecord{ID: "p_t_b", Name: "Q", Version: 0})
 	if _, err := st.CreateSession(context.Background(), auth.HashToken(goodToken), "test", 0, 0); err != nil {
 		t.Fatal(err)
 	}
-	h := New(context.Background(), st, eventbus.NewInProc(), st, opts...)
-	t.Cleanup(h.Close) // the hub holds a context of its own now, so a test must end it
+	h := New(context.Background(), eventbus.NewInProc(), st, opts...)
+	t.Cleanup(h.Close) // the hub holds a context of its own, so a test must end it
 	return h
 }
 
@@ -74,6 +71,16 @@ func readUntil(t *testing.T, c transport.Conn, want string) protocol.WSMessage {
 	}
 }
 
+// readEvent reads project events until the one about id arrives.
+func readEvent(t *testing.T, c transport.Conn, id string) protocol.WSMessage {
+	t.Helper()
+	for {
+		if m := readUntil(t, c, protocol.WSProjectEv); m.Project != nil && m.Project.ID == id {
+			return m
+		}
+	}
+}
+
 // expectClosed asserts the peer hung up within the deadline. Frames already in flight are drained: only
 // a read error that is NOT our own deadline proves the server closed the connection.
 func expectClosed(t *testing.T, c transport.Conn, what string) {
@@ -92,37 +99,37 @@ func expectClosed(t *testing.T, c transport.Conn, what string) {
 	}
 }
 
-// joinProject connects, sends hello + subscribe, and waits for welcome.
-func joinProject(t *testing.T, addr, project, client string) transport.Conn {
+// joinFeed connects over TCP, says hello, and waits until the feed delivers: a probe event is published
+// until the connection reads one, since the hello has no acknowledgement.
+func joinFeed(t *testing.T, h *Hub, addr string) transport.Conn {
 	t.Helper()
 	c, err := testutil.DialTCP(addr)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { c.Close(0, "") })
-	send(t, c, protocol.WSMessage{Type: protocol.WSHello, Token: goodToken, ProjectID: project, ClientID: client})
-	send(t, c, protocol.WSMessage{Type: protocol.WSSubscribe})
-	readUntil(t, c, protocol.WSWelcome)
+	send(t, c, protocol.WSMessage{Type: protocol.WSHello, Token: goodToken})
+	awaitFeed(t, h, c)
 	return c
 }
 
-// TestConnectionCountTracksLiveMembers verifies the count the REST delete guard reads:
-// 0 with no session, then rising and falling as clients join and leave a project.
-func TestConnectionCountTracksLiveMembers(t *testing.T) {
-	h := newTestHub(t)
-	addr := startTCP(t, h)
-
-	if n := h.ConnectionCount("p_t_a"); n != 0 {
-		t.Fatalf("no connections should count 0, got %d", n)
-	}
-	a := joinProject(t, addr, "p_t_a", "A")
-	b := joinProject(t, addr, "p_t_a", "B")
-	waitFor(t, func() bool { return h.ConnectionCount("p_t_a") == 2 })
-
-	a.Close(0, "bye")
-	waitFor(t, func() bool { return h.ConnectionCount("p_t_a") == 1 })
-	b.Close(0, "bye")
-	waitFor(t, func() bool { return h.ConnectionCount("p_t_a") == 0 })
+// awaitFeed publishes a probe every few ms under one long read: a WebSocket read whose context is
+// cancelled closes the connection, so the read is never cut short to retry.
+func awaitFeed(t *testing.T, h *Hub, c transport.Conn) {
+	t.Helper()
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		for {
+			eventbus.PublishProjectEvent(context.Background(), h.bus, protocol.EventUpdated, protocol.ProjectRecord{ID: "p_probe"})
+			select {
+			case <-done:
+				return
+			case <-time.After(10 * time.Millisecond):
+			}
+		}
+	}()
+	readEvent(t, c, "p_probe")
 }
 
 // waitFor polls cond up to ~2s so tests don't race the hub's connect/disconnect goroutines.
@@ -138,46 +145,49 @@ func waitFor(t *testing.T, cond func() bool) {
 	t.Fatal("condition not met within timeout")
 }
 
-// On shutdown CloseAll cancels every live connection's context: a blocked TCP editor's Read is
-// interrupted and the session refcount falls to 0. Without ctx-aware TCP reads this would hang.
-func TestCloseAllDrainsConnections(t *testing.T) {
-	h := newTestHub(t)
-	addr := startTCP(t, h)
-
-	a := joinProject(t, addr, "p_t_a", "A")
-	waitFor(t, func() bool { return h.ConnectionCount("p_t_a") == 1 })
-
-	h.CloseAll()
-
-	// The server-side read (blocked in Scan) is cancelled and the conn closed, so
-	// the client's read returns an error well within the deadline.
-	expectClosed(t, a, "CloseAll")
-	// The handler unwound and released the session reference.
-	waitFor(t, func() bool { return h.ConnectionCount("p_t_a") == 0 })
+func liveConnCount(h *Hub) int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return len(h.conns)
 }
 
-// TestWebSocketTransport exercises the same flow over the WS adapter.
-func TestWebSocketTransport(t *testing.T) {
+// The feed carries every project event to a TCP peer, metadata only.
+func TestFeedDeliversProjectEventsOverTCP(t *testing.T) {
+	h := newTestHub(t)
+	c := joinFeed(t, h, startTCP(t, h))
+	rec := protocol.ProjectRecord{ID: "p_t_a", Name: "P", Version: 3, Layout: json.RawMessage(`{"lines":[1]}`)}
+	eventbus.PublishProjectEvent(context.Background(), h.bus, protocol.EventCreated, rec)
+	got := readEvent(t, c, "p_t_a")
+	if got.Event != protocol.EventCreated || got.Project.Version != 3 || got.Project.Layout != nil {
+		t.Fatalf("feed got %+v, want a created event with metadata only", got)
+	}
+}
+
+// The same feed over the WebSocket adapter.
+func TestFeedDeliversProjectEventsOverWebSocket(t *testing.T) {
 	h := newTestHub(t)
 	srv := httptest.NewServer(h.WSHandler())
 	t.Cleanup(srv.Close)
-	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
+	c, err := testutil.DialWS(context.Background(), "ws"+strings.TrimPrefix(srv.URL, "http"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { c.Close(0, "") })
+	send(t, c, protocol.WSMessage{Type: protocol.WSHello, Token: goodToken, ClientID: "A"})
+	awaitFeed(t, h, c)
+	eventbus.PublishProjectEvent(context.Background(), h.bus, protocol.EventDeleted, protocol.ProjectRecord{ID: "p_t_b"})
+	if got := readEvent(t, c, "p_t_b"); got.Event != protocol.EventDeleted {
+		t.Fatalf("ws feed got %+v", got)
+	}
+}
 
-	dial := func(client string) transport.Conn {
-		c, err := testutil.DialWS(context.Background(), wsURL)
-		if err != nil {
-			t.Fatal(err)
-		}
-		t.Cleanup(func() { c.Close(0, "") })
-		send(t, c, protocol.WSMessage{Type: protocol.WSHello, Token: goodToken, ProjectID: "p_t_a", ClientID: client})
-		send(t, c, protocol.WSMessage{Type: protocol.WSSubscribe})
-		readUntil(t, c, protocol.WSWelcome)
-		return c
-	}
-	a := dial("A")
-	b := dial("B")
-	send(t, a, protocol.WSMessage{Type: protocol.WSEdit, Op: "rotate"})
-	if got := readUntil(t, b, protocol.WSEdit); got.Op != "rotate" || got.FromClientID != "A" {
-		t.Fatalf("ws peer got %+v", got)
-	}
+// On shutdown CloseAll cancels every live connection's context: a blocked TCP reader is interrupted and
+// the connection is forgotten. Without ctx-aware TCP reads this would hang.
+func TestCloseAllDrainsConnections(t *testing.T) {
+	h := newTestHub(t)
+	c := joinFeed(t, h, startTCP(t, h))
+	waitFor(t, func() bool { return liveConnCount(h) == 1 })
+	h.CloseAll()
+	expectClosed(t, c, "CloseAll")
+	waitFor(t, func() bool { return liveConnCount(h) == 0 })
 }

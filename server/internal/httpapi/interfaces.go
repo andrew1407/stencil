@@ -31,12 +31,6 @@ type SessionStore interface {
 	CreateSession(ctx context.Context, tokenHash []byte, label string, createdAt, expiresAt int64) (auth.Session, error)
 }
 
-// SessionCounter reports how many clients are connected to a project's live edit session. It is optional
-// (nil in unit tests), and then the delete guard treats every project as having no live connections.
-type SessionCounter interface {
-	ConnectionCount(projectID string) int
-}
-
 // FileStore is the byte storage the API needs. Nothing here holds a whole file in memory: reads go
 // through FindByKind + OpenByRelPath, and PutStreamAs writes the request body as it arrives.
 type FileStore interface {

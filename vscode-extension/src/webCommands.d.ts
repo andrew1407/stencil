@@ -5,6 +5,8 @@ export declare const OPEN_A_SCRIPT: string;
 export declare const OUTPUT_NAME: string;
 export declare const STCJS_IS_CONSOLE_ONLY: string;
 export declare const TOO_BIG: string;
+/** A picked local image past MAX_INLINE_BYTES, refused before it is read. */
+export declare const IMAGE_TOO_BIG: string;
 export declare const openImageInWeb: () => Promise<unknown>;
 export declare const openInWeb: () => Promise<unknown>;
 export declare const openInWebIncognito: () => Promise<unknown>;

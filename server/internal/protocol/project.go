@@ -25,8 +25,8 @@ type ProjectRecord struct {
 	// recorded. Equal hashes name the same picture, so a client may keep its history across an edit.
 	OriginalHash string `json:"originalHash,omitempty"`
 
-	// Server-only storage fields. The layout payload rides only in GET /projects/{id} and in a welcome's
-	// own layout field; the original's bytes live in the filestore alone, served by the files route.
+	// Server-only storage fields. The layout payload rides only in GET /projects/{id}; the original's
+	// bytes live in the filestore alone, served by the files route.
 	OriginalPath string          `json:"originalPath,omitempty"` // filestore-relative
 	ResultPath   string          `json:"resultPath,omitempty"`   // filestore-relative
 	Layout       json.RawMessage `json:"layout,omitempty"`       // JSON layout payload

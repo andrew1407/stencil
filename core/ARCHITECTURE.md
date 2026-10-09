@@ -48,6 +48,7 @@ classDiagram
     }
     class SnapshotHistory~T~ {
         +MAX_STEPS
+        +MAX_POINTS
     }
     class EditorMemento {
         +Lines lines
@@ -84,7 +85,7 @@ classDiagram
 |---|---|---|---|
 | `Point` (`models.hpp`) | one image-pixel coordinate | value; inside a `Line` or a flat `[x0,y0,…]` array | `Line` |
 | `Line` (`models.hpp`) | one drawn polyline or closed area; `Lines` is `vector<Line>` | value; snapshotted by the history, burned by `raster/rasterize` | `Point`, `CropRect` |
-| `SnapshotHistory<T>` (`state/HistoryStack.hpp`) | the undo/redo stack of whole snapshots, capped at `MAX_STEPS`; `HistoryStack` over `Lines`, `EditorHistory` over `EditorMemento` | the GUI canvas, or a `HistorySlot` over wasm | `Line`, `EditorMemento` |
+| `SnapshotHistory<T>` (`state/HistoryStack.hpp`) | the undo/redo stack of whole snapshots, capped at `MAX_STEPS` and at `MAX_POINTS` points across them; `HistoryStack` over `Lines`, `EditorHistory` over `EditorMemento` | the GUI canvas, or a `HistorySlot` over wasm | `Line`, `EditorMemento` |
 | `EditorMemento` (`state/HistoryStack.hpp`) | one editor undo step: the lines and the view (crop, quarter turns, mirror, filter) | value inside an `EditorHistory` | `Line`, `CropRect` |
 | `HistorySlot` (`wasmHistoryApi.cpp`) | an `EditorHistory` plus the last undo/redo step, held until the host reads it | a `HandleTable` entry, created and destroyed by the host | `SnapshotHistory`, `HandleTable` |
 | `HandleTable<T>` (`abi/HandleTable.hpp`) | opaque int → owned instance; a stale or forged handle looks up to `nullptr` | one static table per stateful class | `HistorySlot`, `HoldDrawController`, `Schema`, `Result` |
@@ -151,7 +152,8 @@ classDiagram
 - **A formula evaluation.** The caller applies `FormulaParser::apply` per axis after
   `pixelToPageRaw`; a failure leaves the value unchanged, and an unsupplied `FormulaContext`
   field is NaN, so its name fails rather than reading zero.
-- **A history push and undo.** `push` drops the redo branch and trims past `MAX_STEPS`. Below
+- **A history push and undo.** `push` drops the redo branch and trims the oldest steps past `MAX_STEPS`,
+  then while the points kept exceed `MAX_POINTS`, never the step just pushed. Below
   the first entry sits a floor with no lines and the stack's base view, so undoing the first
   crop restores the crop before it.
 - **A co-edit merge.** `mergeLines(server, local)` keeps the peer's lines, then each local line

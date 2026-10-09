@@ -1,8 +1,6 @@
 package service
 
-// The two project rules the transports used to each own a copy of. Driven
-// straight against the service, so they hold on any path — REST today, the WS
-// hub tomorrow.
+// The project rules, driven straight against the service so they hold on any path.
 
 import (
 	"context"
@@ -16,16 +14,16 @@ import (
 	"stencil/server/internal/testutil"
 )
 
-func projectSvc(t *testing.T, live SessionCounter, ttl time.Duration) (*ProjectService, *testutil.MemStore, *fakeFiles) {
+func projectSvc(t *testing.T, ttl time.Duration) (*ProjectService, *testutil.MemStore, *fakeFiles) {
 	t.Helper()
 	st, files := testutil.NewMemStore(), &fakeFiles{}
-	return NewProjects(st, files, live, eventbus.NewInProc(), ttl), st, files
+	return NewProjects(st, files, eventbus.NewInProc(), ttl), st, files
 }
 
 // A Stencil project is created FROM an image; bare metadata is refused before
 // any row exists.
 func TestCreateRejectsAnImagelessProject(t *testing.T) {
-	svc, st, _ := projectSvc(t, nil, 0)
+	svc, st, _ := projectSvc(t, 0)
 	if _, err := svc.Create(context.Background(), "", protocol.CreateProjectRequest{Name: "bare"}); !errors.Is(err, ErrImageRequired) {
 		t.Fatalf("create without an image: %v, want ErrImageRequired", err)
 	}
@@ -37,7 +35,7 @@ func TestCreateRejectsAnImagelessProject(t *testing.T) {
 // PROJECT_TTL stamps an expiry only when the client named none.
 func TestCreateStampsTheDefaultTTL(t *testing.T) {
 	t.Cleanup(clock.Stub(clock.Fixed(1_000)))
-	svc, _, _ := projectSvc(t, nil, time.Hour)
+	svc, _, _ := projectSvc(t, time.Hour)
 	ctx := context.Background()
 
 	auto, err := svc.Create(ctx, "", protocol.CreateProjectRequest{Name: "auto", HasImage: true})
@@ -58,7 +56,7 @@ func TestCreateStampsTheDefaultTTL(t *testing.T) {
 
 // No TTL configured means no expiry at all.
 func TestCreateLeavesExpiryUnsetWithoutATTL(t *testing.T) {
-	svc, _, _ := projectSvc(t, nil, 0)
+	svc, _, _ := projectSvc(t, 0)
 	rec, err := svc.Create(context.Background(), "", protocol.CreateProjectRequest{Name: "n", HasImage: true})
 	if err != nil {
 		t.Fatal(err)
@@ -68,25 +66,9 @@ func TestCreateLeavesExpiryUnsetWithoutATTL(t *testing.T) {
 	}
 }
 
-// Deletion is refused while two or more clients share the live edit session, and
-// nothing is dropped when it is.
-func TestDeleteRefusesWhileTheSessionIsShared(t *testing.T) {
-	svc, st, files := projectSvc(t, fakeCounter(2), 0)
-	st.Seed(protocol.ProjectRecord{ID: "p_1"})
-	if err := svc.Delete(context.Background(), "p_1"); !errors.Is(err, ErrProjectInUse) {
-		t.Fatalf("delete with 2 peers: %v, want ErrProjectInUse", err)
-	}
-	if _, ok := st.Project("p_1"); !ok {
-		t.Fatal("a refused delete removed the row")
-	}
-	if len(files.removed) != 0 {
-		t.Fatalf("a refused delete dropped bytes: %v", files.removed)
-	}
-}
-
-// One editor (or none) may delete; the row goes first, then the bytes.
+// A delete takes the row first, then the bytes.
 func TestDeleteDropsRowThenBytes(t *testing.T) {
-	svc, st, files := projectSvc(t, fakeCounter(1), 0)
+	svc, st, files := projectSvc(t, 0)
 	st.Seed(protocol.ProjectRecord{ID: "p_1"})
 	if err := svc.Delete(context.Background(), "p_1"); err != nil {
 		t.Fatal(err)
@@ -101,7 +83,7 @@ func TestDeleteDropsRowThenBytes(t *testing.T) {
 
 // Dropped is the sweep's half: it takes bytes and announces, never a row.
 func TestDroppedTakesBytesWithoutTouchingTheRow(t *testing.T) {
-	svc, st, files := projectSvc(t, nil, 0)
+	svc, st, files := projectSvc(t, 0)
 	st.Seed(protocol.ProjectRecord{ID: "p_9"})
 	svc.Dropped(context.Background(), "p_9")
 	if len(files.removed) != 1 {

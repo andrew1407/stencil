@@ -1,5 +1,6 @@
 #pragma once
 #include "formulaContext.hpp"
+#include <cstddef>
 #include <optional>
 #include <string>
 
@@ -11,6 +12,10 @@
 namespace stencil::core {
 
   struct FormulaParser {
+    // Longest expression parsed; past it the formula is invalid. Canon is LIMITS.formulaMaxChars
+    // in common/config/constants.json, drift-tested in browser/tests/core/parse/formula.test.js.
+    static constexpr std::size_t MAX_CHARS = 1000;
+
     // Empty / whitespace is valid (identity); otherwise finite at var = 1.
     static bool validate(const std::string& expr, char varName = 'x');
 

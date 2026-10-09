@@ -258,14 +258,14 @@ means on the command line.
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `stencil.cliPath` | *(empty)* | Path to the `stencil` binary. Empty falls back to `STENCIL_CLI`, then `stencil` on `PATH`. A relative path is taken from the workspace folder. |
+| `stencil.cliPath` | *(empty)* | Path to the `stencil` binary. Empty falls back to `STENCIL_CLI`, then `stencil` on `PATH`. Must be absolute (so must `STENCIL_CLI`): a relative path is refused. |
 | `stencil.checkOnType` | `true` | Re-check while typing. Off checks only on save — with the CLI where one is found, with the in-process parser where none is. |
 | `stencil.checkOnSave` | `true` | Check the saved file with the CLI, so the editor answers with the engine that runs it. Off spawns nothing and the in-process parser answers on save too. |
 | `stencil.highlighting` | `true` | Colour words by the statement they sit in. Off leaves the plain grammar. Needs `editor.semanticHighlighting.enabled`, which a theme may switch off. |
 | `stencil.completion` | `true` | Suggest what is legal at the caret. |
 | `stencil.hover` | `true` | Explain the word under the pointer. |
 | `stencil.colors` | `{}` | An exact colour per family, over the eight the extension already paints — see [Colours](#colours). A named family wins over the theme and applies even with `stencil.highlighting` off. |
-| `stencil.pythonPath` | *(empty)* | The Python that runs a `.pystc`. Empty falls back to `STENCIL_PYTHON`, then `python3` and `python` on `PATH`. A relative path is taken from the workspace folder. |
+| `stencil.pythonPath` | *(empty)* | The Python that runs a `.pystc`. Empty falls back to `STENCIL_PYTHON`, then `python3` and `python` on `PATH`. Must be absolute (so must `STENCIL_PYTHON`): a relative path is refused. |
 | `stencil.webUrl` | *(empty)* | The instance the browser commands open. Empty uses `https://andrew1407.github.io/stencil/`. Must be an `http(s)` URL, and it is never read out of the file being edited. User settings only. |
 | `stencil.webBrowser` | `chrome` | Which browser the console command launches — `chrome` or `edge`. |
 | `stencil.webInlineImages` | `true` | Let a picked local image travel into the browser as a `data:` URL. Off, only `http(s)` images can be opened. |

@@ -7,7 +7,7 @@ import { lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFile
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { hookNote, itemsOf, loadManifest, normalizePort, regeneratePort } from './syncTwins.mjs';
+import { declaration, declarationShape, hookNote, itemsOf, loadManifest, normalizePort, regeneratePort } from './syncTwins.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const src = (rel) => readFileSync(path.join(ROOT, rel), 'utf8');
@@ -18,22 +18,27 @@ const key = (r) => `${r.from} -> ${r.to}`;
 
 // ── the pair tables, read out of each parity test ───────────────
 const PORT = 'browser-extension/tests/portParity.test.js';
+const FUNCS = 'browser-extension/tests/portParityFunctions.test.js';
 const DATA = 'browser-extension/tests/dataParity.test.js';
 const PARSER = 'vscode-extension/tests/parserParity.test.js';
+const LAYERS = 'vscode-extension/tests/layerBoundary.test.js';
 const PY = 'pystencil/tests/test_canonical_drift.py';
 
 const portRows = () => [...between(src(PORT), 'const MANIFEST = [').matchAll(/\['(\w+)', '([^']+)', '([^']+)'\]/g)]
   .map(([, name, a, b]) => ({ name, from: rel(PORT, a), to: rel(PORT, b) }));
 
 const functionRows = () => {
-  const port = [...between(src(PORT), 'const FUNCTIONS = [').matchAll(/\['(\w+)', '([^']+)', '([^']+)',\s*\[([^\]]*)\]\]/g)]
-    .map(([, name, a, b, list]) => ({ name, from: rel(PORT, a), to: rel(PORT, b), names: [...list.matchAll(/'(\w+)'/g)].map((m) => m[1]) }));
+  const port = [...between(src(FUNCS), 'const FUNCTIONS = [').matchAll(/\['(\w+)', '([^']+)', '([^']+)',\s*\[([^\]]*)\]\]/g)]
+    .map(([, name, a, b, list]) => ({ name, from: rel(FUNCS, a), to: rel(FUNCS, b), names: [...list.matchAll(/'(\w+)'/g)].map((m) => m[1]) }));
   const t = src(PARSER);
   const dir = (v) => rel(PARSER, new RegExp(`const ${v} = fileURLToPath\\(new URL\\('([^']+)'`).exec(t)[1]);
   const index = { name: 'parserIndex', from: dir('CORE') + /\$\{CORE\}(\w+\.js)/.exec(t)[1],
     to: dir('PARSER') + /\$\{PARSER\}(\w+\.js)/.exec(t)[1],
     names: [.../for \(const name of \[([^\]]+)\]\)/.exec(t)[1].matchAll(/'(\w+)'/g)].map((m) => m[1]) };
-  return [...port, index];
+  const l = src(LAYERS);
+  const scan = { name: 'layerScan', from: rel(LAYERS, /new URL\('([^']+)', import\.meta\.url\)/.exec(l)[1]), to: LAYERS,
+    names: [.../for \(const name of \[([^\]]+)\]\)/.exec(l)[1].matchAll(/'(\w+)'/g)].map((m) => m[1]) };
+  return [...port, index, scan];
 };
 
 const goCopies = () => {
@@ -105,6 +110,14 @@ test('every whole-file port and per-function port portParity pins is in the mani
 test('every pair in the manifest is in step now', () => {
   const drifted = itemsOf(manifest).map((i) => [i.label, i.drift()]).filter(([, d]) => d.length);
   assert.deepEqual(drifted, [], 'run `node tools/syncTwins.mjs` to re-copy from the originals');
+});
+
+test('declaration reads past regex literals and block comments, and finds an inline copy', () => {
+  const src = "export const f = (s) => {\n  const re = /url\\((['\"]?)\\)/g; /* } */\n  return s.replace(/\\//g, '_');\n};\nconst g = 1;\n";
+  assert.equal(declaration(src, 'f').split('\n').length, 4);
+  const inline = '(() => {\n  const f = (s) => {\n    return s;\n  };\n})();\n';
+  assert.equal(declarationShape(declaration(inline, 'f')), 'const f = (s) => {\n  return s;\n};');
+  assert.equal(declarationShape('export const x = 1;'), 'const x = 1;', 'export is placement');
 });
 
 // ── the sync itself, on a scratch tree ──────────────────────────

@@ -38,6 +38,7 @@ namespace stencil::net {
         return;
       }
       clients.push_back(client);
+      forgotten.removeAll(client->getBase());
       emit changed();
       done(ok, ok ? QString() : client->lastError());
     }, kindHint);
@@ -46,6 +47,7 @@ namespace stencil::net {
   void ConnectionManager::disconnectFrom(const QString& url) {
     if (clients.isEmpty()) return;
     if (url.isEmpty()) {
+      forgotten << clients.last()->getBase();
       delete clients.takeLast();
       emit changed();
       return;
@@ -53,6 +55,7 @@ namespace stencil::net {
     const QString base = ServerClient::normalizeBase(url);
     for (int i = 0; i < clients.size(); ++i) {
       if (clients[i]->getBase() == base) {
+        forgotten << base;
         delete clients.takeAt(i);
         emit changed();
         return;
@@ -83,19 +86,15 @@ namespace stencil::net {
     });
   }
 
-  void ConnectionManager::reconnectAllAsync(std::function<void()> done) {
+  void ConnectionManager::reconnectAllAsync() {
     if (clients.isEmpty()) {
       emit changed();
-      if (done) done();
       return;
     }
     auto remaining = std::make_shared<int>(clients.size());
     for (auto* c : clients) {
-      c->reconnectAsync([this, remaining, done](bool) {
-        if (--*remaining == 0) {
-          emit changed();
-          if (done) done();
-        }
+      c->reconnectAsync([this, remaining](bool) {
+        if (--*remaining == 0) emit changed();
       });
     }
   }

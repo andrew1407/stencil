@@ -1,7 +1,7 @@
 package transport
 
 // TCP adapter framing: one message per Read/Write, the NDJSON split/reassembly
-// the hand-rolled framer owes the Zig CLI and Qt desktop, and the size cap.
+// the hand-rolled framer owes the Zig CLI and Qt desktop, and the message cap.
 
 import (
 	"context"
@@ -19,8 +19,8 @@ func TestTCPRoundTripsOneMessagePerReadWrite(t *testing.T) {
 		t.Errorf("got %q", got)
 	}
 	// And back the other way — Conn is bidirectional.
-	write1(t, server, `{"type":"welcome"}`)
-	if got := string(read1(t, client)); got != `{"type":"welcome"}` {
+	write1(t, server, `{"type":"pong"}`)
+	if got := string(read1(t, client)); got != `{"type":"pong"}` {
 		t.Errorf("got %q", got)
 	}
 }
@@ -48,7 +48,7 @@ func TestTCPSplitsCoalescedMessages(t *testing.T) {
 func TestTCPReassemblesASplitMessage(t *testing.T) {
 	client, server := tcpPair(t)
 	raw := client.(*tcpConn)
-	for _, chunk := range []string{`{"type":"e`, `dit","op":"ro`, `tate"}`} {
+	for _, chunk := range []string{`{"type":"h`, `ello","token":"ab`, `c"}`} {
 		if _, err := raw.conn.Write([]byte(chunk)); err != nil {
 			t.Fatal(err)
 		}
@@ -57,7 +57,7 @@ func TestTCPReassemblesASplitMessage(t *testing.T) {
 	if _, err := raw.conn.Write([]byte("\n")); err != nil {
 		t.Fatal(err)
 	}
-	if got := string(read1(t, server)); got != `{"type":"edit","op":"rotate"}` {
+	if got := string(read1(t, server)); got != `{"type":"hello","token":"abc"}` {
 		t.Errorf("got %q", got)
 	}
 }
@@ -77,7 +77,7 @@ func TestTCPWriteAppendsExactlyOneNewline(t *testing.T) {
 	}
 }
 
-// Scanner reuses its internal buffer, so Read must hand back a copy — otherwise
+// The reader reuses its internal buffer, so Read must hand back a copy — otherwise
 // a caller holding frame N would see it mutate into frame N+1.
 func TestTCPReadReturnsAnIndependentCopy(t *testing.T) {
 	client, server := tcpPair(t)
@@ -97,6 +97,7 @@ func TestTCPReadReturnsAnIndependentCopy(t *testing.T) {
 // bound — this is the memory guard against a hostile or buggy peer.
 func TestTCPRejectsAnOverLimitFrame(t *testing.T) {
 	client, server := tcpPair(t)
+	server.SetReadLimit(MaxMessageBytes)
 	raw := client.(*tcpConn)
 	go func() {
 		huge := make([]byte, MaxMessageBytes+1024)
@@ -117,6 +118,7 @@ func TestTCPRejectsAnOverLimitFrame(t *testing.T) {
 // A frame at exactly the cap is still legal — the boundary must not be off by one.
 func TestTCPAcceptsAFrameAtTheLimit(t *testing.T) {
 	client, server := tcpPair(t)
+	server.SetReadLimit(MaxMessageBytes)
 	raw := client.(*tcpConn)
 	payload := strings.Repeat("a", MaxMessageBytes)
 	go func() { _, _ = raw.conn.Write(append([]byte(payload), '\n')) }()
@@ -131,8 +133,8 @@ func TestTCPAcceptsAFrameAtTheLimit(t *testing.T) {
 	}
 }
 
-// The hub fans out to a member from its write loop while other goroutines may also write; interleaved
-// bytes would corrupt the NDJSON stream, so Write holds a mutex. Run under -race for the data race.
+// The feed writes while a notice may also write; interleaved bytes would corrupt the NDJSON stream, so
+// Write holds a mutex. Run under -race for the data race.
 func TestTCPConcurrentWritesDoNotInterleave(t *testing.T) {
 	client, server := tcpPair(t)
 

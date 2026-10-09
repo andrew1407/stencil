@@ -11,8 +11,8 @@ import { createThumbnailScheduler } from '../image/thumbnail.js';
 import { saveBlockedReason, writeActiveProject } from './save.js';
 import { attachProjectsStore, restoreProjects, autoRefreshOnOpen,
          promoteTemporary, clearEditorState, collapseCanvas } from './session.js';
-import { applyStoredPage, applyStoredDrawing, applyStoredProvenance, applyStoredFormulas,
-         applyStoredTools, applyStoredImage, applyImagelessPayload } from './storedLayout.js';
+import { applyStoredPage, applyStoredDrawing, applyStoredProvenance, applyStoredFormulas, applyStoredTools,
+         applyStoredImage, applyImagelessPayload, refuseOversizedImage } from './storedLayout.js';
 import { CHANGE, changed } from '../app/changes.js';
 import { settleReplacedLines } from '../line/selection.js';
 
@@ -104,6 +104,7 @@ export class Storage {
     const proj = this.store.get(id);
     if (!proj) return false;
     this.app.remoteSync?.flushResult?.();
+    this.app.remoteSync?.detach?.();
     this.saveSoon.flush();
     this.thumbs.flush();
     this.activeId = id;
@@ -147,7 +148,7 @@ export class Storage {
         this.app.originalImage = new Image();
         this.app.originalImage.onload = () => {
           // The user may have switched projects mid-load.
-          if (this.activeId !== targetId) return;
+          if (this.activeId !== targetId || refuseOversizedImage(this, this.app.originalImage, layout)) return;
           // Rotation first: defaultCropRect and rebuild both read it.
           this.app.rotationQuarters = layout.rotationQuarters || 0;
           this.app.mirrored = layout.mirrored === true;
@@ -189,6 +190,7 @@ export class Storage {
   // would wipe the exchange that asked for the reset.
   newTemporary({ keepChat = false } = {}) {
     this.app.remoteSync?.flushResult?.();
+    this.app.remoteSync?.detach?.();
     this.saveSoon.flush(); this.thumbs.flush();
     this.activeId = null;
     this.temporary = true;

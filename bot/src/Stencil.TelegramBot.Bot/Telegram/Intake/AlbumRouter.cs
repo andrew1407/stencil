@@ -4,6 +4,7 @@ using Telegram.Bot;
 using Telegram.Bot.Types;
 using Stencil.TelegramBot.Bot.Telegram.Access;
 using Stencil.TelegramBot.Bot.Telegram.Commands;
+using Stencil.TelegramBot.Bot.Telegram.Messaging;
 
 namespace Stencil.TelegramBot.Bot.Telegram.Intake;
 
@@ -30,10 +31,15 @@ public sealed class AlbumRouter
         _albums = albums;
     }
 
+    // The user's update lane: a flush queues there like any update, so it holds no worker of its own.
+    public Func<long, Func<Task>, Task>? Lanes { get; set; }
+
     public void Buffer(long userId, long chatId, string groupId, Message message, PhotoSize[] album, CancellationToken ct) =>
         _albums.Add(userId, groupId,
             new AlbumPhoto(message.Id, album[^1].FileId, message.Caption),
-            photos => flushAsync(userId, chatId, photos, ct), ct);
+            photos => Lanes is { } lanes
+                ? lanes(userId, () => flushAsync(userId, chatId, photos, ct))
+                : flushAsync(userId, chatId, photos, ct), ct);
 
     private Task flushAsync(long userId, long chatId, IReadOnlyList<AlbumPhoto> photos, CancellationToken ct) =>
         _guard.RunAsync(chatId, async () =>
@@ -51,10 +57,7 @@ public sealed class AlbumRouter
         string? caption = ordered.FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.Caption))?.Caption;
         if (caption is null)
         {
-            await _bot.SendMessage(
-                chatId,
-                $"Got an album of {ordered.Count} photos — only one can be the working image, so I took the last. Caption an album to edit every photo.",
-                cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.AlbumTookLast(ordered.Count), cancellationToken: ct);
             await _media.AdoptImageAsync(userId, chatId, ordered[^1].FileId, ".jpg", "photo", caption: null, ct);
             return;
         }

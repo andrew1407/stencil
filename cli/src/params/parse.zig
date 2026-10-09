@@ -37,7 +37,7 @@ pub fn parse(argv: []const [:0]const u8) Error!Options {
             if (opts.blank != null or opts.source_site != null) return Error.DuplicateSource;
             opts.input = try value(&st, "--input");
         } else if (eq(arg, "-f") or eq(arg, "--frame")) {
-            opts.frame = try parseU32(try value(&st, "--frame"));
+            opts.frame = try parseU32("--frame", try value(&st, "--frame"));
         } else if (eq(arg, "--blank")) {
             if (opts.input != null or opts.source_site != null) return Error.DuplicateSource;
             opts.blank = try blank.parseBlank(&st);
@@ -48,7 +48,7 @@ pub fn parse(argv: []const [:0]const u8) Error!Options {
         } else if (eq(arg, "--flip")) {
             opts.flip = true;
         } else if (eq(arg, "-r") or eq(arg, "--rotate")) {
-            opts.rotate = try parseI32(try value(&st, "--rotate"));
+            opts.rotate = try parseI32("--rotate", try value(&st, "--rotate"));
         } else if (eq(arg, "-l") or eq(arg, "--layout")) {
             opts.layout = try value(&st, "--layout");
         } else if (eq(arg, "--layout-frame")) {
@@ -62,7 +62,7 @@ pub fn parse(argv: []const [:0]const u8) Error!Options {
                 return Error.BadValue;
             }
         } else if (eq(arg, "--filter")) {
-            opts.filter = try value(&st, "--filter");
+            opts.filter = try state.filter(try value(&st, "--filter"));
         } else if (eq(arg, "--script")) {
             if (opts.script_plan != null or opts.script_check != null) return Error.DuplicateSource;
             opts.script = try value(&st, "--script");

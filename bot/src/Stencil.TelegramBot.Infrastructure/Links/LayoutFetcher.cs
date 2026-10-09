@@ -40,6 +40,12 @@ public sealed class LayoutFetcher : IDisposable
             // wrapping it.
             throw blocked;
         }
+        // HttpClient.Timeout surfaces as a cancellation the caller never asked for.
+        catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+        {
+            throw new InvalidOperationException(
+                $"The layout link didn't answer within {_http.Timeout.TotalSeconds:0} s.");
+        }
         using (response)
         {
             if (!response.IsSuccessStatusCode)

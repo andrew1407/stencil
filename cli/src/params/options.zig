@@ -66,6 +66,8 @@ pub const Options = struct {
     plan_check: ?[]const u8 = null,
     plan_surface: ?[]const u8 = null,
     plan_capabilities: ?[]const u8 = null,
+    /// `--merge-lines <file|->`: a peer's and our line lists joined as a 409 retry joins them.
+    merge_lines: ?[]const u8 = null,
     /// `--prompt <text>`: one assistant turn over the input, with the `STENCIL_LLM_*` provider.
     prompt: ?[]const u8 = null,
     // Server options: `--server <url>` + -i names a project to fetch and edit (`--remote-update` writes
@@ -125,6 +127,8 @@ pub const Mode = union(enum) {
     inspect: Inspect,
     /// `--plan-check <file|->`: core's verdict on a model reply, one JSON document on stdout.
     plan_check: []const u8,
+    /// `--merge-lines <file|->`: the co-edit line union, one JSON document on stdout.
+    merge_lines: []const u8,
     /// A `.stencil` project on either side, or a `--prompt` turn, outside server mode: the
     /// console Session renders the layout the way the GUI editors do.
     project,
@@ -141,6 +145,7 @@ pub fn modeOf(opts: Options, argc: usize, isProjectPath: *const fn ([]const u8) 
     if (opts.script_plan) |p| return .{ .script = .{ .kind = .plan, .path = p } };
     if (opts.script_check) |p| return .{ .script = .{ .kind = .check, .path = p } };
     if (opts.plan_check) |p| return .{ .plan_check = p };
+    if (opts.merge_lines) |p| return .{ .merge_lines = p };
     if (opts.probe) return .{ .inspect = .probe };
     if (opts.list_projects) return .{ .inspect = .list_projects };
     if (opts.project_info != null) return .{ .inspect = .project_info };

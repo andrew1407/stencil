@@ -56,11 +56,31 @@ test('a setting that names nothing executable is refused, not guessed at', POSIX
   });
 });
 
-test('a relative setting resolves against the workspace folder', POSIX_ONLY, async () => {
+test('a relative setting or STENCIL_CLI is refused, never resolved against the workspace', POSIX_ONLY, async () => {
   await withLib({}, ({ cliLocator, dir }) => {
-    const path = executable(dir, 'rel-stencil');
-    assert.equal(cliLocator.resolveConfigured('rel-stencil', dir), path);
-    assert.equal(cliLocator.resolveConfigured('rel-stencil', ''), null, 'no base, no guess');
+    executable(dir, 'rel-stencil');
+    const onPathDir = join(dir, 'bin');
+    mkdirSync(onPathDir);
+    executable(onPathDir);
+    const env = { PATH: onPathDir };
+    assert.equal(cliLocator.resolveConfigured('rel-stencil'), null);
+    assert.equal(cliLocator.locateCli({ configured: 'rel-stencil', env }), null, 'not skipped to PATH either');
+    assert.equal(cliLocator.locateCli({ configured: './rel-stencil', env }), null);
+    assert.equal(cliLocator.locateCli({ env: { ...env, STENCIL_CLI: 'rel-stencil' } }), null);
+    const absolute = executable(dir, 'abs-stencil');
+    assert.equal(cliLocator.locateCli({ configured: absolute, env: { ...env, STENCIL_CLI: 'rel' } }), absolute,
+      'an absolute setting wins over a relative STENCIL_CLI');
+  });
+});
+
+test('the refusal names itself; a plain miss says "not found"', async () => {
+  await withLib({}, ({ cliLocator, vscode }) => {
+    vscode.workspace.getConfiguration = () => ({ get: () => 'tools/stencil' });
+    assert.equal(cliLocator.missingCliMessage(vscode, {}), cliLocator.RELATIVE_CLI_MESSAGE);
+    assert.match(cliLocator.RELATIVE_CLI_MESSAGE, /must be absolute/);
+    vscode.workspace.getConfiguration = () => ({ get: () => '' });
+    assert.equal(cliLocator.missingCliMessage(vscode, { STENCIL_CLI: 'stencil' }), cliLocator.RELATIVE_CLI_MESSAGE);
+    assert.equal(cliLocator.missingCliMessage(vscode, {}), cliLocator.MISSING_CLI_MESSAGE);
   });
 });
 

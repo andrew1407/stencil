@@ -2,6 +2,7 @@
 // Script window whatever its scriptMode, runs nothing until the user presses Run, and reaches the
 // window only once a linked picture has landed. Helpers: MainWindow.gui.hpp.
 #include "../../MainWindow.gui.hpp"
+#include "../../support/recordingSink.hpp"
 #include "ScriptBuffer.hpp"
 #include "ScriptDialog.hpp"
 #include "launchOptions.hpp"
@@ -9,13 +10,6 @@
 using stencil::gui::ScriptDialog;
 
 namespace {
-
-  struct RecordingSink : stencil::gui::NotificationSink {
-    QStringList shown;
-    bool show(const stencil::gui::Notice& n) override { shown << n.text; return true; }
-    bool isAvailable() const override { return true; }
-    void setActive(bool) override {}
-  };
 
   QImage flat(const QColor& c, QSize size = QSize(40, 30)) {
     QImage img(size, QImage::Format_ARGB32);
@@ -38,7 +32,7 @@ class MainWindowGuiTest : public QObject {
   Q_OBJECT
 
   std::unique_ptr<MainWindow> win;
-  RecordingSink* notices = nullptr;
+  stencil::test::RecordingSink* notices = nullptr;
   QString shownText;
   qint64 keyAtShow = 0;   // the canvas original's cacheKey when the window came up
 
@@ -57,13 +51,29 @@ class MainWindowGuiTest : public QObject {
     closer->start(20);
   }
 
+  // The Script window, Run pressed from a tick of its own loop, closed once `until` holds.
+  void runScriptWindowUntil(std::function<bool()> until) {
+    auto* runner = new QTimer(win.get());
+    auto ran = std::make_shared<bool>(false);
+    auto ticks = std::make_shared<int>(0);
+    QObject::connect(runner, &QTimer::timeout, win.get(), [runner, ran, ticks, until] {
+      auto* dlg = qobject_cast<ScriptDialog*>(QApplication::activeModalWidget());
+      if (!dlg) return;
+      if (!*ran) { *ran = true; emit dlg->runRequested(); return; }
+      if (!until() && ++*ticks < 250) return;   // 5 s, then the case's own check fails it
+      runner->stop();
+      dlg->reject();
+    });
+    runner->start(20);
+  }
+
   void openWindow() {
     stencil::model::ScriptBuffer::instance().setText(QString());
     win = std::make_unique<MainWindow>(nullptr, false);
     win->resize(1000, 760);
     win->show();
     QVERIFY(QTest::qWaitForWindowExposed(win.get()));
-    auto owned = std::make_unique<RecordingSink>();
+    auto owned = std::make_unique<stencil::test::RecordingSink>();
     notices = owned.get();
     win->notify->setSystemSink(std::move(owned));
     win->notify->setChannel(stencil::gui::NotifyChannel::SYSTEM);
@@ -98,6 +108,33 @@ class MainWindowGuiTest : public QObject {
     win->canvas->loadFromImage(flat(QColor(20, 40, 200), QSize(30, 20)));
     QTRY_COMPARE(shownText, QStringLiteral("@filter bw\n"));
     QVERIFY(keyAtShow != before);
+  }
+
+  // Rule 9: a linked script that names a local picture is refused on Run, and the picture stays;
+  // once the user has changed the script it is theirs, and the same open goes through.
+  void aLinkedScriptOpensNoLocalFileUntilTheUserChangesIt() {
+    openWindow();
+    win->canvas->loadFromImage(flat(QColor(200, 40, 40)));
+    const qint64 before = win->canvas->getOriginalImage().cacheKey();
+    const QString script = QStringLiteral("@source %1:\n  @filter bw\n").arg(guiTestImage());
+    const auto refused = [this] {
+      return std::any_of(notices->shown.begin(), notices->shown.end(),
+                         [](const QString& s) { return s.contains(QStringLiteral("web images only")); });
+    };
+    runScriptWindowUntil(refused);
+    win->parts.scriptHost.adoptLinkedScript(script, std::nullopt);
+    QTRY_VERIFY2(refused(), "a linked script opened a local picture");
+    QTRY_VERIFY(!QApplication::activeModalWidget());
+    QCOMPARE(win->canvas->getOriginalImage().cacheKey(), before);
+    QVERIFY(stencil::model::ScriptBuffer::instance().isFromLink());
+
+    stencil::model::ScriptBuffer::instance().setText(script + QStringLiteral("\n"));   // the user's edit
+    QVERIFY(!stencil::model::ScriptBuffer::instance().isFromLink());
+    const auto opened = [this, before] { return win->canvas->getOriginalImage().cacheKey() != before; };
+    runScriptWindowUntil(opened);
+    win->acts.script->trigger();
+    QTRY_VERIFY2(opened(), "the user's own script could not open the local picture");
+    QTRY_VERIFY(!QApplication::activeModalWidget());
   }
 
   void anOverCapScriptIsLeftOutAndSaid() {

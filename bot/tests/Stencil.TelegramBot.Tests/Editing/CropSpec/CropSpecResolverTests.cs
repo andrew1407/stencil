@@ -48,9 +48,8 @@ public sealed class CropSpecResolverTests
         // x2/y2 default to the far edge, so "-20"/"-30" move them inward from there.
         Assert.Equal(new CropRect(0, 0, 380, 270),
             CropSpecResolver.Resolve("x2=-20 y2=-30", 400, 300, album: false));
-        // x1 defaults to 0, so its "-20" lands at -20 and the rect clamps back to the image.
-        Assert.Equal(new CropRect(0, 0, 400, 300),
-            CropSpecResolver.Resolve("x1=-20 y1=0px y2=300px", 400, 300, album: false));
+        // x1 defaults to 0, so its "-20" lands at -20: outside the image, refused rather than clamped.
+        Assert.Null(CropSpecResolver.Resolve("x1=-20 y1=0px y2=300px", 400, 300, album: false));
     }
 
     [Fact]
@@ -166,5 +165,38 @@ public sealed class CropSpecResolverTests
     public void Should_Treat_Aspect_With_A_Missing_Value_As_A_Structural_Parse_Error()
     {
         Assert.Null(CropSpecResolver.Resolve("aspect = ", 640, 480, album: false));
+    }
+
+    // ── core/tests/parse/cropSpec.test.cpp: an edge outside [0, length], an overflowing ratio ──
+
+    [Theory]
+    [InlineData("y2 = -200%")]
+    [InlineData("x2 = 101px")]
+    [InlineData("x1 = -20")]
+    [InlineData("x1 = 0px x2 = 150%")]
+    [InlineData("y1 = -101px y2 = 50px")]
+    public void Should_Refuse_An_Edge_Outside_The_Image_Instead_Of_Mirroring(string spec)
+    {
+        Assert.Null(CropSpecResolver.Resolve(spec, 100, 100, album: false));
+    }
+
+    [Fact]
+    public void Should_Resolve_The_Bounds_Cm_Float_Noise_And_A_Reversed_Pair_Inside()
+    {
+        Assert.Equal(new CropRect(0, 10, 100, 50),
+            CropSpecResolver.Resolve("x1 = 0px x2 = 100% y1 = 60px y2 = 10px", 100, 100, album: false));
+        Assert.NotNull(CropSpecResolver.Resolve("x1 = 99px x2 = -99px y1 = 0 y2 = 10cm", 100, 100, album: false));
+        // 100 px wide is A4 upright here, so 21 cm lands on the far edge give or take float noise.
+        Assert.NotNull(CropSpecResolver.Resolve("x1 = 0cm x2 = 21cm y1 = 0px y2 = 10px", 100, 100, album: false));
+    }
+
+    [Fact]
+    public void Should_Refuse_A_Ratio_Too_Long_For_A_Double()
+    {
+        string digits = new('9', 400);
+        foreach (string ratio in new[] { digits + ":" + digits, digits + ":1", "1:" + digits })
+        {
+            Assert.Null(CropSpecResolver.Resolve("aspect = " + ratio, 640, 480, album: false));
+        }
     }
 }

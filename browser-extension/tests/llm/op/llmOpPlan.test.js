@@ -2,7 +2,7 @@
 // chat-only degradation, dropped variants, focus/open/attach, and the action caps.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LIMITS, attachOnly } from '../../../src/llm/op/plan.js';
+import { LIMITS } from '../../../src/llm/op/plan.js';
 import { parse, plan } from '../../helpers/opPlanHarness.js';
 
 // ── Shared §1 extraction mechanics ──
@@ -208,13 +208,4 @@ test('malformed actions shells fail the plan', () => {
   assert.throws(() => parse(plan('x')), /"actions" must be an array/);
   assert.throws(() => parse(plan([42])), /object with an "op"/);
   assert.throws(() => parse(plan([{ image: 1 }])), /object with an "op"/);
-});
-
-// ── attachOnly (auto-continuation trigger) ──
-test('attachOnly is true only when every action is an attach (and there is at least one)', () => {
-  assert.equal(attachOnly(parse(plan([{ op: 'attach', image: 1 }]))), true);
-  assert.equal(attachOnly(parse(plan([{ op: 'attach', images: [1, 2] }, { op: 'attach', image: 3 }]))), true);
-  assert.equal(attachOnly(parse(plan([{ op: 'attach', image: 1 }, { op: 'focus', image: 2 }]))), false);
-  assert.equal(attachOnly(parse(plan([]))), false);
-  assert.equal(attachOnly(parse('chat only')), false);
 });

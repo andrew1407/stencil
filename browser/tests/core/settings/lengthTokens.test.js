@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseLengthToken, resolveAxisPx, normalizePageSize, isDeltaToken } from '../../../js/core/settings/units.js';
+import { parseLengthToken, resolveAxisPx, normalizePageSize } from '../../../js/core/settings/units.js';
 
 // Pure length-token parsing used by the console API (window.stencil) for crop/move.
 
@@ -48,11 +48,4 @@ test('normalizePageSize: case-insensitive over the whole ISO table, else null', 
   assert.equal(normalizePageSize('Custom'), 'custom');
   assert.equal(normalizePageSize('D4'), null);
   assert.equal(normalizePageSize(''), null);
-});
-
-test('isDeltaToken: only bare numbers are deltas', () => {
-  assert.equal(isDeltaToken(5), true);
-  assert.equal(isDeltaToken('5'), true);
-  assert.equal(isDeltaToken('5cm'), false);
-  assert.equal(isDeltaToken('50%'), false);
 });

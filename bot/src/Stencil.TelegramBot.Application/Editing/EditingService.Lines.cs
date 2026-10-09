@@ -6,6 +6,7 @@ namespace Stencil.TelegramBot.Application.Editing;
 
 public sealed partial class EditingService
 {
+    // Only non-null arguments change; fill takes none/transparent to clear a closed-shape fill.
     public async Task<UserSession> ConfigurePenAsync(long userId, string? color, double? thickness, double? pointSize, string? style, string? fill, CancellationToken ct = default)
     {
         // The CLI SKIPS a colour it can't parse, so a typo would silently paint the default: reject
@@ -27,6 +28,7 @@ public sealed partial class EditingService
         return updated;
     }
 
+    // points are image pixels; closed repeats the first point and fills with the pen's fill colour.
     public Task<UserSession> AddLineAsync(long userId, IReadOnlyList<LayoutPoint> points, bool closed, CancellationToken ct = default) =>
         applyEditAsync(userId, session =>
         {

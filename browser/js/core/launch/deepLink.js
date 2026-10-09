@@ -1,4 +1,4 @@
-import { isLoopbackHost, normalizeUrl } from '../../net/connectionManager.js';
+import { isLoopbackHost, normalizeUrl } from '../../net/urlRules.js';
 import constants from '../../../../common/config/constants.json' with { type: 'json' };
 
 // Project deep links: a new tab carries the target id in `?open=<id>`, which the booting
@@ -81,10 +81,6 @@ export const encodeTelegramStartPayload = (serverUrl, projectId) => {
 
 export const buildTelegramLink = (botUsername, payload) =>
   `https://t.me/${botUsername}?start=${payload}`;
-
-// Telegram never linkifies custom schemes, so `stencil://` rides launch.html, which forwards.
-export const buildDesktopBounceUrl = (browserBase, stencilUrl) =>
-  `${String(browserBase || '').replace(/\/+$/, '')}/launch.html#stencil-desktop=${encodeURIComponent(stencilUrl)}`;
 
 // chars ≈ bytes for base64: the server's 32 MiB MaxBodyBytes.
 export const LAUNCH_DATA_URL_MAX = constants.LAUNCH.payloadMaxChars;   // 32 MiB

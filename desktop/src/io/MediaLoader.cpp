@@ -138,7 +138,7 @@ namespace stencil::gui {
     }
     const bool video = looksLikeVideo(src, url);
 
-    if (!isHttp(url)) {
+    if (!stencil::net::fetchGuard::isWebScheme(url)) {
       if (video) {
         startVideo(url);
         return;
@@ -171,8 +171,9 @@ namespace stencil::gui {
     // Unknown remote: download and decode it as an image; bytes that fail with no still-image
     // signature may yet be a video, so the URL is streamed.
     const QUrl u = url;
-    guard::get(this, u, /*strict=*/false, [this, u](const QByteArray& bytes, const QString& err) {
-      if (done) return;
+    const quint64 serial = loadSerial;
+    guard::get(this, u, /*strict=*/false, [this, u, serial](const QByteArray& bytes, const QString& err) {
+      if (done || serial != loadSerial) return;   // a newer load owns the loader now
       auto notImage = [this, u, err] {
         // A candidate still waiting makes the video probe a stall: the answer has already
         // settled this one (the browser refuses an unaccepted content type and moves on).

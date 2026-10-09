@@ -60,6 +60,20 @@ public sealed class TextGoldenTests
             Replies.DesktopLink("Poster", "https://s/launch.html", false));
         section(sb, "DesktopLink(\"Poster\", \"http://localhost:8080/launch.html\", loopback: true)",
             Replies.DesktopLink("Poster", "http://localhost:8080/launch.html", true));
+        foreach (string value in new[] { "", "#ff5623" })
+        {
+            section(sb, $"ProjectColorSet(\"{value}\")", Replies.ProjectColorSet(value));
+            section(sb, $"BlankColorCurrent(\"{value}\")", Replies.BlankColorCurrent(value));
+            section(sb, $"BlankColorSet(\"{value}\")", Replies.BlankColorSet(value));
+        }
+        foreach (string value in new[] { "", "Poster draft" })
+        {
+            section(sb, $"ProjectDescriptionSet(\"{value}\")", Replies.ProjectDescriptionSet(value));
+            section(sb, $"DescriptionHeld(\"{value}\")", Replies.DescriptionHeld(value));
+            section(sb, $"DescriptionAsk(\"{value}\")", Replies.DescriptionAsk(value));
+        }
+        section(sb, "ExpirySet(0, \"\")", Replies.ExpirySet(0, ""));
+        section(sb, "ExpirySet(1767225600000, \"3 days\")", Replies.ExpirySet(1767225600000, "3 days"));
         return sb.ToString();
     }
 

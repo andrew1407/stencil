@@ -10,13 +10,16 @@ public static partial class CropSpecResolver
     private const double _a4ShortCm = 21.0;
     private const double _a4LongCm = 29.7;
 
+    // A cm or percent edge's float noise, not a pixel: core cropSpec.cpp CROP_EDGE_SLACK_PX.
+    private const double _edgeSlackPx = 1e-6;
+
     private enum LengthKind { PX, CM, PERCENT, DELTA }
 
     private readonly record struct LengthToken(LengthKind Kind, double Value, bool FromEnd);
 
     private sealed record ParsedSpec(string? X1, string? X2, string? Y1, string? Y2, string? Aspect, bool Valid);
 
-    // Null when the spec is malformed or the rect rounds to empty. Edges default to the full image;
+    // Null when the spec is malformed, an edge lies outside the image, or the rect rounds to empty. Edges default to the full image;
     // a single-axis spec derives the other from the page aspect; aspect=W:H centre-fits the rect.
     public static CropRect? Resolve(string spec, double imageW, double imageH, bool album)
     {
@@ -38,7 +41,8 @@ public static partial class CropSpecResolver
                 return current;
             }
             double? resolved = resolveAxisPx(token, lengthPx, pxPerCm, current);
-            if (resolved is null)
+            // Outside [0, length] is refused, never mirrored or clamped.
+            if (resolved is not double px || px < -_edgeSlackPx || px > lengthPx + _edgeSlackPx)
             {
                 ok = false;
                 return current;
@@ -85,9 +89,9 @@ public static partial class CropSpecResolver
         if (parsed.Aspect is string aspectToken)
         {
             double ratio = parseAspectRatio(aspectToken);   // width / height
-            if (ratio <= 0.0)
+            if (!double.IsFinite(ratio) || ratio <= 0.0)
             {
-                return null;   // invalid aspect fails resolution
+                return null;   // invalid or overflowing aspect fails resolution
             }
             double fitW = rectW;
             double fitH = rectH;

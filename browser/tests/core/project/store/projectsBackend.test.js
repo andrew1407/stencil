@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { createProjectsBackend } from '../../../../js/core/project/store/projectsBackend.js';
 import { ProjectsStore, REGISTRY_KEY, PROJECT_PREFIX } from '../../../../js/core/project/store/projectsStore.js';
-import { createMemoryStorage } from '../../../helpers/memoryStorage.js';
+import { createMemoryStorage, makeKv } from '../../../helpers/memoryStorage.js';
 
 // The backend splits ProjectsStore's keys across two homes: payload keys
 // (stencil_project_<id>) ride an in-memory mirror written through to IndexedDB,
@@ -13,16 +13,6 @@ import { createMemoryStorage } from '../../../helpers/memoryStorage.js';
 
 const makeShim = (init = {}) => createMemoryStorage(init);
 
-const makeKv = (init = {}, opts = {}) => {
-  const m = new Map(Object.entries(init));
-  return {
-    _map: m,
-    async get(k) { return m.has(k) ? m.get(k) : undefined; },
-    async set(k, v) { if (opts.failSet) throw new Error('idb set'); m.set(k, v); },
-    async remove(k) { m.delete(k); },
-    async entries() { return Array.from(m.entries()); },
-  };
-};
 
 const PK = PROJECT_PREFIX + 'p1';
 

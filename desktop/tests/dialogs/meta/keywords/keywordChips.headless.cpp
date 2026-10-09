@@ -6,6 +6,7 @@
 #include "KeywordChips.hpp"
 #include "KeywordsDialog.hpp"
 #include "modalChrome.hpp"
+#include "../metaDialogs.hpp"
 
 #include <QApplication>
 #include <QDialog>
@@ -26,24 +27,6 @@ using namespace stencil::gui;
 
 #include "../../../support/check.hpp"
 
-static void pumpFor(int ms) {
-  QElapsedTimer t;
-  t.start();
-  while (t.elapsed() < ms) QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
-}
-
-static QPushButton* btnByText(QWidget* root, const QString& text) {
-  for (QPushButton* b : root->findChildren<QPushButton*>())
-    if (b->text() == text) return b;
-  return nullptr;
-}
-
-static bool headerHasGlyph(QWidget* root) {
-  for (QLabel* l : root->findChildren<QLabel*>())
-    if (!l->pixmap().isNull()) return true;
-  return false;
-}
-
 // The chips, and the words they show, in the order they are LAID OUT — the nodes are
 // reused across edits, so child order is creation order and says nothing about the row.
 static QList<QFrame*> chips(QWidget* root) {
@@ -63,13 +46,6 @@ static QStringList chipWords(QWidget* root) {
   for (QFrame* chip : chips(root))
     for (QLabel* l : chip->findChildren<QLabel*>()) out << l->text();
   return out;
-}
-
-static void pressKey(QWidget* w, Qt::Key key, Qt::KeyboardModifiers mods = Qt::NoModifier) {
-  QKeyEvent down(QEvent::KeyPress, key, mods);
-  QApplication::sendEvent(w, &down);
-  QKeyEvent up(QEvent::KeyRelease, key, mods);
-  QApplication::sendEvent(w, &up);
 }
 
 // Run `act` from inside the dialog's own exec() loop, then return how it was dismissed.

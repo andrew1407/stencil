@@ -14,20 +14,20 @@ public sealed partial class CommandHandlers
     {
         if (cmd.Args.Count == 0)
         {
-            await _bot.SendMessage(chatId, _sourceUploadUsage, cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.SourceUploadUsage(), cancellationToken: ct);
             return;
         }
         string url = cmd.Args[0];
         if (!tryParseSourceUploadArgs(url, cmd.Args, out ScrapeRequest request, out int index, out string? error))
         {
-            await _bot.SendMessage(chatId, $"{error}\n\n{_sourceUploadUsage}", cancellationToken: ct);
+            await _bot.SendMessage(chatId, $"{error}\n\n{Replies.SourceUploadUsage()}", cancellationToken: ct);
             return;
         }
         // Same trust boundary as /url.
         await RemoteImageUrl.ValidateAsync(url, ct, _options.ResolveTimeout);
         string host = Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) ? uri.Host : url;
         ProgressNotice progress = await ProgressNotice.StartAsync(
-            _bot, chatId, $"Scraping {host}…", ChatAction.UploadPhoto, _options.ProgressTick, ct);
+            _bot, chatId, Replies.Scraping(host), ChatAction.UploadPhoto, _options.ProgressTick, ct);
         ScrapeResult result;
         try
         {
@@ -41,7 +41,7 @@ public sealed partial class CommandHandlers
         }
         if (result.Files.Count == 0)
         {
-            await _bot.SendMessage(chatId, $"No image at index {index}.\n\n{_sourceUploadUsage}", cancellationToken: ct);
+            await _bot.SendMessage(chatId, $"{Replies.NoImageAtIndex(index)}\n\n{Replies.SourceUploadUsage()}", cancellationToken: ct);
             return;
         }
         // Telegram has no modal, so there's no TTY-style confirmation before replacing the working
@@ -49,13 +49,6 @@ public sealed partial class CommandHandlers
         await _editing.SetImageFromLocalFileAsync(userId, result.Files[0].Path, labelFromUrl(url), sourceUrl: url, ct: ct);
         await RenderAndSendAsync(userId, chatId, ct);
     }
-
-    private const string _sourceUploadUsage =
-        "Usage: /sourceupload <http(s) link> [index=0] [format=png|jpg|…] [name=<regex>] "
-        + "[minw=…] [maxw=…] [minh=…] [maxh=…]\n"
-        + "Scrapes the page and loads its index-th still (img/background/poster — not video) as "
-        + "the editable working image. name= is a case-insensitive regex on the media URL.\n"
-        + "e.g. /sourceupload https://example.com 2 format=png name=cat minw=200";
 
     // Stills only, Count = 1, Group = index so the CLI's paging window isolates one still.
     private static bool tryParseSourceUploadArgs(string url, IReadOnlyList<string> args, out ScrapeRequest request, out int index, out string? error)
@@ -76,7 +69,7 @@ public sealed partial class CommandHandlers
                     index = bare;
                     continue;
                 }
-                error = $"Unrecognised option '{token}'.";
+                error = Replies.OptionUnknown(token);
                 return false;
             }
             string key = token[..eq].ToLowerInvariant();
@@ -95,7 +88,7 @@ public sealed partial class CommandHandlers
                 case "format": format = value; break;
                 case "name": name = value; break;
                 default:
-                    error = $"Unrecognised option '{key}'.";
+                    error = Replies.OptionUnknown(key);
                     return false;
             }
         }

@@ -15,7 +15,8 @@ stencil_headless_test(stencil_sessioncontroller_headless
 # ctor is inline, so the suite needs its moc but not its TU, which drags in the notification stack.
 stencil_headless_test(stencil_remotesynccontroller_headless
   SOURCES tests/app/remote/RemoteSyncController.headless.cpp
-    src/app/remote/RemoteSyncController.cpp src/app/remote/RemoteSession.hpp
+    src/app/remote/RemoteSyncController.cpp src/app/remote/RemoteSyncControllerResult.cpp
+    src/app/remote/RemoteSession.hpp
     src/net/LiveFeed.cpp ${STENCIL_SERVERCLIENT_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Gui Qt6::Network)
 

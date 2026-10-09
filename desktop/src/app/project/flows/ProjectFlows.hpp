@@ -9,6 +9,10 @@
 
 class QWidget;
 
+namespace stencil::net {
+  class ServerClient;
+}
+
 namespace stencil::gui {
 
   // What removing `n` projects says, from the projects window or the assistant (browser
@@ -45,6 +49,8 @@ namespace stencil::gui {
     void closeActiveProject(QWidget* over = nullptr, const QRect& from = QRect(), bool ask = true);
     // The projects list's drag targets here: the window's zones, and Close for the open project.
     void wireProjectsDrag(ProjectsDialog& dlg, const std::function<bool()>& unsavedSession);
+    // Its stay-open requests: the dialog confirms in place, the window acts and repaints it.
+    void wireProjectsRequests(ProjectsDialog& dlg, const std::function<bool()>& unsavedSession);
     void resetToBlankEditor();
     void openServerProject(const QString& serverUrl, const QString& id, bool silent = false,
                            bool link = true);
@@ -79,11 +85,18 @@ namespace stencil::gui {
     void setActiveBlankColor();
     void applyBlankColor(const QColor& c);
     bool renameProjectById(const QString& id, const QString& name);
+    // The Projects row menu's edits; `serverUrl` empty for a local row.
+    void setProjectDescriptionById(const QString& id, const QString& serverUrl, const QString& text);
+    void setProjectKeywordsById(const QString& id, const QString& serverUrl, const QStringList& keywords);
     void setProjectColorById(const QString& id, const QString& serverUrl, const QString& color,
                              std::function<void(bool ok)> done = {});
     std::optional<QString> normalizeProjectColor(const QString& color) const;
 
    private:
+    // A server row's meta PUT, version-guarded with the meta retries; `what` names the toasts.
+    void putServerMeta(const QString& serverUrl, const QString& id, const QString& what,
+                       std::function<void(stencil::net::ServerClient*, qint64,
+                                          std::function<void(bool, qint64, bool)>)> put);
     MainWindow& w;
   };
 

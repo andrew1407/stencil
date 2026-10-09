@@ -9,7 +9,7 @@ namespace Stencil.TelegramBot.Application.Editing;
 
 // One base image on disk plus a re-applicable EditState, replayed through IStencilCli on render.
 // InvalidOperationException messages are meant to be surfaced verbatim.
-public sealed partial class EditingService : IEditingService
+public sealed partial class EditingService
 {
     private readonly IStencilCli _cli;
     private readonly IUserWorkspace _workspace;
@@ -28,6 +28,7 @@ public sealed partial class EditingService : IEditingService
         _projectFiles = new ProjectFileService(cli, this);
     }
 
+    // Copies into the workspace, probes, resets edits and clears any active project.
     public async Task<UserSession> SetImageFromLocalFileAsync(long userId, string sourcePath, string label, string? sourceUrl = null, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
@@ -121,6 +122,7 @@ public sealed partial class EditingService : IEditingService
         return px < 1 ? 1 : px;
     }
 
+    // Remembers the video so ExtractFrameAsync can re-grab a frame. Needs ffmpeg on PATH.
     public async Task<UserSession> SetImageFromVideoAsync(long userId, string videoSourcePath, int frame, string label, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
@@ -144,9 +146,12 @@ public sealed partial class EditingService : IEditingService
             EditSessions.ResetToImage(session, result.Path, result.Size, label) with { VideoSourcePath = video }, ct);
     }
 
+    // Lets the server service, which owns no workspace, adopt a downloaded original.
     public Task<string> StoreOriginalBytesAsync(long userId, byte[] data, string extension, CancellationToken ct = default) =>
         _workspace.WriteAsync(userId, data, extension, ct);
 
+    // --source-site mode into a fresh per-user scratch directory (the service fills
+    // request.OutputDir); touches neither the working image nor the session.
     public Task<ScrapeResult> ScrapeAsync(long userId, ScrapeRequest request, CancellationToken ct = default)
     {
         // Its own sub-directory, apart from render artifacts; /drop's Clear() wipes the whole user
@@ -155,12 +160,14 @@ public sealed partial class EditingService : IEditingService
         return _cli.ScrapeAsync(request with { OutputDir = dir }, ct);
     }
 
+    // Adopts the project's ORIGINAL image and rebuilds the EditState from its layout.
     public async Task<UserSession> OpenProjectFileAsync(long userId, StencilProject project, CancellationToken ct = default)
     {
         UserSession session = await _store.GetAsync(userId, ct);
         return await saveAsync(await _projectFiles.OpenAsync(userId, session, project, ct), ct);
     }
 
+    // The ORIGINAL image + export layout + metadata as portable .stencil bytes.
     public async Task<byte[]> ExportProjectFileAsync(long userId, CancellationToken ct = default) =>
         await _projectFiles.ExportAsync(userId, await _store.GetAsync(userId, ct), ct);
 

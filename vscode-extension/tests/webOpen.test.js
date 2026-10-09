@@ -132,6 +132,14 @@ test('a source-less script brings a picture with it', async () => {
       await web.openInWeb();
       assert.deepEqual(openedPayload(calls), { script: '@crop 10%\n' });
     });
+    // Past the inline cap the file is refused by its size, not read and then found too long.
+    writeFileSync(path, Buffer.alloc(1_400_000));
+    await withHost({ openDialog: [{ fsPath: path }] }, async ({ calls, vscode, web }) => {
+      open(vscode, { text: '@crop 10%\n' });
+      await web.openInWeb();
+      assert.equal(calls.opened.length, 0);
+      assert.equal(calls.errors.at(-1), web.IMAGE_TOO_BIG);
+    });
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

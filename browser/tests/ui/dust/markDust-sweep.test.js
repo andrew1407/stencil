@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createStubElement } from '../../helpers/dom.js';
-import { installDustDom, rect, boxEl } from '../../helpers/dustCloudRig.js';
+import { installDustDom, rect, boxEl } from '../../helpers/dustRig.js';
 
 const dust = installDustDom({
   docOpts: { autoCreateById: true },

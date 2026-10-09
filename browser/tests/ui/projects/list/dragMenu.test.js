@@ -18,7 +18,7 @@ setMotionOverride({ mode: 'none' });
 const { createProjectRowMenu } = await import('../../../../js/ui/projects/window/projectRowMenu.js');
 const { createDragMenu, DRAG_MENU_SLACK_PX } = await import('../../../../js/ui/projects/list/dragMenu.js');
 const { SURFACE_FORMING_CLASS, SURFACE_LEAVING_CLASS } = await import('../../../../js/ui/motion.js');
-const { cloudAim, near } = await import('../../../helpers/dustCloudRig.js');
+const { cloudAim, near } = await import('../../../helpers/dustRig.js');
 
 const box = (left, top, width, height) => ({ left, top, width, height, right: left + width, bottom: top + height });
 const at = (el, r) => { el.getBoundingClientRect = () => r; return el; };

@@ -1,5 +1,7 @@
 // The core's crop ops over the wasm ABI: the page aspect, the centred default rect, every
 // rect edit (corner resize, move, scale, orientation swap, quarter rotation, mirror) and the commit snap.
+import { heapAlloc } from './coreMarshal.js';
+
 export const buildCropOps = (core, { F64, withRectOut }) => {
   const cIsAlbum         = core.cwrap('stencil_isAlbumOrientation', 'number', ['number', 'number']);
   const cCropAspect      = core.cwrap('stencil_cropAspect', 'number', ['number', 'number', 'number']);
@@ -59,7 +61,7 @@ export const buildCropOps = (core, { F64, withRectOut }) => {
     },
 
     cropChange(oldRect, newRect) {
-      const out = core._malloc(2 * F64);
+      const out = heapAlloc(core, 2 * F64);
       try {
         cCropChange(oldRect.x, oldRect.y, oldRect.width, oldRect.height, newRect.x, newRect.y, newRect.width, newRect.height, out);
         return { orientationChanged: core.getValue(out, 'double') === 1, scale: core.getValue(out + F64, 'double') };
@@ -78,7 +80,7 @@ export const buildCropOps = (core, { F64, withRectOut }) => {
 
     // out[0..3] = the snapped window, out[4] = the wrapped quarter count.
     rotateEditQuarter(crop, quarters, originalW, originalH, clockwise) {
-      const out = core._malloc(5 * F64);
+      const out = heapAlloc(core, 5 * F64);
       try {
         cTurnEdit(crop.x, crop.y, crop.width, crop.height, quarters, originalW, originalH, clockwise ? 1 : 0, out);
         const at = (i) => core.getValue(out + i * F64, 'double');
@@ -90,7 +92,7 @@ export const buildCropOps = (core, { F64, withRectOut }) => {
 
     // out[0..3] = the reflected window, out[4] = the negated quarter count.
     mirrorEdit(crop, quarters, originalW, originalH) {
-      const out = core._malloc(5 * F64);
+      const out = heapAlloc(core, 5 * F64);
       try {
         cMirrorEdit(crop.x, crop.y, crop.width, crop.height, quarters, originalW, originalH, out);
         const at = (i) => core.getValue(out + i * F64, 'double');

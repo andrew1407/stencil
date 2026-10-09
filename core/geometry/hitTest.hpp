@@ -17,6 +17,7 @@ namespace stencil::core {
   bool shouldCloseShape(const std::vector<Point>& points, const Point& click,
                         double pointSize);
 
+  // A hidden line offers no mark to any finder below; every index stays its own.
   // hitTest.js findLineAt: topmost (last-drawn) wins; a point hit uses radius
   // `threshold + 4`, a segment hit distToSegment at `threshold`. -1 when nothing is hit.
   int findLineAt(const Lines& lines, double x, double y, double threshold = 8.0);

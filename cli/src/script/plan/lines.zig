@@ -49,9 +49,13 @@ pub fn recropped(a: std.mem.Allocator, set: Lines, old: core.Rect, new: core.Rec
 pub const Doc = union(enum) { lines: Lines, failed: []const u8 };
 
 pub fn document(a: std.mem.Allocator, io: std.Io, src: []const u8, is_url: bool, strict: bool) Doc {
-    const bytes = (if (is_url) net.fetch(a, io, src, strict) else pipeline.loadLayoutBytes(a, io, src)) catch
+    const bytes = (if (is_url) net.fetch(a, io, src, strict) else pipeline.loadText(a, io, src)) catch
         return .{ .failed = if (is_url) "the fetch failed" else "the file cannot be read" };
     const doc = layout_mod.parse(a, bytes) catch return .{ .failed = "it is not layout JSON" };
+    if (doc.bad_line) |bad| {
+        var buf: [96]u8 = undefined;
+        return .{ .failed = a.dupe(u8, bad.describe(&buf)) catch "it carries a line it may not" };
+    }
     return .{ .lines = doc.lines };
 }
 

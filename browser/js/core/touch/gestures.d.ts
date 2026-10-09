@@ -9,4 +9,3 @@ export declare const midpoint: (t0: TouchPoint, t1: TouchPoint) => { x: number; 
 export declare const touchDist: (t0: TouchPoint, t1: TouchPoint) => number;
 export interface PressSummary { moved: number; elapsed: number; }
 export declare const classifyEnd: (press: PressSummary, opts?: Partial<TouchThresholds>) => 'tap' | 'drag';
-export declare const isLongPress: (press: PressSummary, opts?: Partial<TouchThresholds>) => boolean;

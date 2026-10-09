@@ -48,6 +48,18 @@ stencil_headless_test(stencil_scriptbuffer_headless
     ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Svg)
 
+# The same buffer reaching a hidden host: no per-keystroke re-lex, a catch-up on show.
+stencil_headless_test(stencil_scriptbufferhidden_headless
+  SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    ${STENCIL_DISINTEGRATE_SOURCES}
+    tests/model/scriptBufferHidden.headless.cpp src/dialogs/script/ScriptDialog.cpp src/dialogs/script/ScriptDialogFile.cpp
+    src/dialogs/script/ScriptMenuPanel.cpp src/dialogs/script/ScriptMenuPanelState.cpp
+    src/dialogs/script/ScriptEditorWidget.cpp src/dialogs/script/ScriptEditorWidgetKeys.cpp src/dialogs/script/ScriptHighlighter.cpp
+    src/model/ScriptBuffer.cpp src/model/ScriptDoc.cpp
+    ${STENCIL_MODALCHROME_SOURCES} src/support/icon/iconSet.cpp src/support/modal/modalReveal.cpp
+    ${STENCIL_THEME_SOURCES} resources/app.qrc
+  LIBS stencil_core Qt6::Widgets Qt6::Svg)
+
 # The .stc runner (app/scriptRun.cpp): which op reaches which PlanTarget call; an error runs nothing.
 stencil_headless_test(stencil_scriptrunner_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}

@@ -104,13 +104,30 @@ TEST_CASE("deeply nested parens are invalid (identity), not a stack overflow") {
   CHECK_FALSE(FormulaParser::validate(std::string(200000, '-') + "x", 'x'));
 }
 
+TEST_CASE("past the recursion cap is invalid within the length cap too") {
+  const std::string over = std::string(300, '(') + "x" + std::string(300, ')');
+  REQUIRE(over.size() <= FormulaParser::MAX_CHARS);
+  CHECK_FALSE(FormulaParser::validate(over, 'x'));
+  CHECK(FormulaParser::validate(std::string(100, '(') + "x" + std::string(100, ')'), 'x'));
+}
+
 TEST_CASE("a long flat expression stays linear and valid") {
-  // No nesting -> handled by the iterative +/* loops, not recursion. Must succeed.
+  // No nesting -> handled by the iterative +/* loops, not recursion. 0+1+1… is 1 + 2n chars.
   std::string flat = "0";
-  for (int i = 0; i < 20000; ++i) flat += "+1";
+  for (int i = 0; i < 499; ++i) flat += "+1";
+  REQUIRE(flat.size() == 999);
   const auto v = FormulaParser::evaluate(flat, 'x', 0.0);
   REQUIRE(v.has_value());
-  CHECK(*v == doctest::Approx(20000.0));
+  CHECK(*v == doctest::Approx(499.0));
+}
+
+TEST_CASE("an expression past MAX_CHARS is invalid (identity), however simple") {
+  CHECK(FormulaParser::MAX_CHARS == 1000);  // LIMITS.formulaMaxChars in common/config/constants.json
+  const std::string at = "x" + std::string(FormulaParser::MAX_CHARS - 1, ' ');
+  CHECK(FormulaParser::validate(at, 'x'));
+  CHECK_FALSE(FormulaParser::validate(at + " ", 'x'));
+  CHECK(FormulaParser::apply(at + " ", 'x', 7.0, true) == doctest::Approx(7.0));
+  CHECK(FormulaParser::validate(std::string(5000, ' '), 'x'));  // blank: identity, never parsed
 }
 
 TEST_CASE("numeric overflow yields invalid (identity), matching the finite contract") {

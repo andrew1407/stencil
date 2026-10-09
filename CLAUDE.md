@@ -17,10 +17,10 @@ four front-ends**, plus a family of adapters that wrap the CLI or the collaborat
 | `browser-extension/` | Chrome MV3 — scans page images, hands them to `browser/` via a URL fragment | no |
 | `vscode-extension/` | VS Code editor support for `.stc`, `.stcjs` and `.pystc` (and a `.stencil` project icon) — spawns the `cli/` binary (including `--script-emit`) and the Python that runs a `.pystc`, hands scripts to `browser/` over `#stencil=` or drives its console through VS Code's built-in JS debugger, and carries a byte-equal copy of `browser/js/core/script/` for in-editor parsing | no |
 | `mcp/` | Rust MCP server — shells out to the `cli/` binary | no |
-| `server/` | Go collaboration server — projects + live multi-client sessions over REST/WS/TCP; Postgres + a secured file store | no |
+| `server/` | Go collaboration server — projects over REST, a live events feed over WS/TCP; Postgres + a secured file store | no |
 | `bot/` | .NET Telegram bot (clean architecture) — wraps the CLI + server REST | no |
 | `e2e/` | Node/Playwright cross-surface smoke harness over the real wire protocols | no |
-| `tools/` | Node repo checks: move proofs, dead doc/comment paths, twin sync (`tools/README.md`) | no |
+| `tools/` | Node repo checks: move proofs, dead doc/comment paths, twin sync, size caps (`tools/README.md`) | no |
 
 `browser-extension/`, `vscode-extension/`, `mcp/`, `server/`, `bot/` and `e2e/` are adapters or
 black-box harnesses: the parity contract below does **not** reach them. `mcp/`, `bot/` and
@@ -44,7 +44,7 @@ CMake + Doctest; each other surface uses its platform's default.
 | **browser-extension** | none | `cd browser-extension && npm test` | load unpacked at `chrome://extensions` (needs `browser/` served) |
 | **vscode-extension** | none to run it from source (open the folder, press F5); `npm ci && npm run package` → `stencil-stc.vsix` | `cd vscode-extension && npm test` | `code --install-extension stencil-stc.vsix`, then open any `.stc` |
 | **mcp** | `cd mcp && cargo build` (→ `target/debug/stencil-mcp`) | `cargo test` (e2e self-skips without the CLI binary) | `claude mcp add stencil -- $(pwd)/target/debug/stencil-mcp` |
-| **server** | `cd server && go generate ./... && go build ./...` (generate copies `common/config/` into the embedded assets) | `go test ./...`; `go test -race ./internal/hub/...` (store/bus e2e self-skip without `TEST_DATABASE_URL`/`REDIS_URL`) | `go run ./cmd/stencil-server`; needs `DATABASE_URL` — see the sample env file in `server/` |
+| **server** | `cd server && go generate ./... && go build ./...` (generate copies `common/config/` into the embedded assets) | `go test ./...`; `go test -race ./...` (store/bus e2e self-skip without `TEST_DATABASE_URL`/`REDIS_URL`) | `go run ./cmd/stencil-server`; needs `DATABASE_URL` — see the sample env file in `server/` |
 | **bot** | `cd bot && dotnet build Stencil.TelegramBot.slnx` | `dotnet test Stencil.TelegramBot.slnx` (offline: no token, server, CLI or Redis) | `dotnet run --project src/Stencil.TelegramBot.Bot` (needs `TELEGRAM_BOT_TOKEN` + the CLI) |
 | **e2e** | `cd e2e && npm ci && npx playwright install chromium` | `npm test` | `npm run test:ui`; full stack: `E2E_STACK=1 npm test` (docker compose) |
 | **tools** | none | `node --test tools/*.test.mjs` | `node tools/docPaths.mjs --check`, `node tools/syncTwins.mjs --check` |
@@ -71,7 +71,8 @@ CMake + Doctest; each other surface uses its platform's default.
 - The CLI builds with Zig 0.16 (`cli/build.zig.zon` `minimum_zig_version`); a newer Zig fails
   inside `build.zig` on the changed build API.
 - `zig build` where every SDK `xcrun` offers is newer than Zig supports (`INFINITY`
-  undeclared) needs a libc file naming an older one: `zig libc | sed -E 's#MacOSX[0-9.]*\.sdk#MacOSX26.5.sdk#' > "$TMPDIR/zig-libc.txt"`, then
+  undeclared) needs a libc file naming an older SDK still installed:
+  `zig libc | sed -E 's#MacOSX[0-9.]*\.sdk#MacOSX<older>.sdk#' > "$TMPDIR/zig-libc.txt"`, then
   `ZIG_LIBC="$TMPDIR/zig-libc.txt" zig build`.
 
 ## Commits
@@ -130,5 +131,5 @@ Stated in full in `ARCHITECTURE.md` §1–§2; `.claude/rules/core-changes.md` l
   `usecases/capture-runner/` (never hand-edited). User-facing like a README: no architecture, no
   inventories, no counts. Docs-only: touching `usecases/` runs no CI job.
 - **`tools/README.md`** — `moveCheck.mjs` and `commentOnlyDiff.mjs` (move proofs),
-  `docPaths.mjs` and `commentPaths.mjs` (every path a doc or a code comment names exists) and
-  `syncTwins.mjs` (re-copy the twins).
+  `docPaths.mjs` and `commentPaths.mjs` (every path a doc or a code comment names exists),
+  `syncTwins.mjs` (re-copy the twins) and `caps.mjs` (the 230-line, 12-file and comment-share caps).

@@ -109,6 +109,17 @@ test('the page-API relay is refused when editorPageApi is off', async () => {
   assert.match(apiRes(posted)[0].error, /turned off/);
 });
 
+test('the page-API relay stays off until the user sets an editor URL', async () => {
+  const { sent, posted, dispatch } = setupEnv({ swResponse: { ok: true }, editorUrl: '' });
+  await loadBridge();
+  sent.length = 0;
+
+  dispatch({ source: SRC.EXT_API, id: 'unset1', message: { type: 'stencil-source-tabs' } });
+  await flush();
+  assert.deepEqual(sent, [], 'nothing reaches the service worker');
+  assert.match(apiRes(posted)[0].error, /turned off/);
+});
+
 // The extension → editor direction is NOT gated: it is how the popup imports into an
 // already-open editor.
 test('editorPageApi off still lets the extension drive the page (import/state/switch)', async () => {

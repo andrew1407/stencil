@@ -21,8 +21,3 @@ type projectExister interface {
 type projectDropper interface {
 	Dropped(ctx context.Context, id string)
 }
-
-// presenceBeater publishes this instance's live projects for the others (service.Presence).
-type presenceBeater interface {
-	Beat(ctx context.Context) error
-}

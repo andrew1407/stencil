@@ -8,6 +8,5 @@ export declare function copyServerProjectToLocal(c: C, meta: object, opts?: { na
 export declare function copyServerProjectToIncognito(c: C, meta: object, opts?: { newTab?: boolean }): Promise<unknown>;
 /** `file` into a fresh incognito editor in this tab, its layout adopted; the session is saved first. */
 export declare function openIncognitoHere(c: C, file: File, loadOpts?: object): void;
-export declare function blobToDataUrl(c: C, blob: Blob): Promise<string>;
 export declare function importServerProjectToLocal(c: C, meta: object,
   opts?: { removeFromServer?: boolean; copy?: boolean; name?: string | null }): Promise<string>;

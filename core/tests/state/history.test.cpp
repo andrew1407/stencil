@@ -148,3 +148,26 @@ TEST_CASE("the cap holds over a long run and leaves redo reachable") {
   REQUIRE(r.has_value());
   CHECK((*r)[0].points[0].x == doctest::Approx(cap * 3 - 1));
 }
+
+// Mirrors the browser's MAX_POINTS case: steps of 0.35 x the budget, the third push evicts the oldest.
+TEST_CASE("push keeps the points of every step under MAX_POINTS, never the newest") {
+  const auto big = [](double id, std::size_t n) {
+    Line l;
+    l.points.assign(n, Point{id, 0});
+    return Lines{l};
+  };
+  const std::size_t step = (HistoryStack::MAX_POINTS * 35 + 99) / 100;
+  HistoryStack h;
+  h.push(big(0, step));
+  h.push(big(1, step));
+  CHECK(h.size() == 2);
+  h.push(big(2, step));
+  CHECK(h.size() == 2);
+  CHECK(h.step() == 1);
+  REQUIRE(h.undo().has_value());
+  const auto floor = h.undo();
+  REQUIRE(floor.has_value());
+  CHECK(floor->empty());
+  h.push(big(3, HistoryStack::MAX_POINTS + 1));
+  CHECK(h.size() == 1);
+}

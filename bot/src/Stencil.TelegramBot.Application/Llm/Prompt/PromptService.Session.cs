@@ -83,7 +83,7 @@ public sealed partial class PromptService
             {
                 await _projects.SetProjectNameAsync(ctx.UserId, name.Trim(), ct);
             }
-            await _projects.SaveActiveProjectAsync(ctx.UserId, ct);
+            await _projects.SaveActiveProjectAsync(ctx.UserId, ct: ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

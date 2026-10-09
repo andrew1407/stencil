@@ -121,7 +121,8 @@ export function drawLine(r, line, isSelected = false, lineIdx = -99) {
 // highlightState: 0 = none, 1 = hover (subtle ring), 2 = focused (bold ring + shadow)
 export function drawPoint(r, point, color, pointSize = 4, isSelected = false, highlightState = 0) {
   const ctx = r.ctx;
-  const rad = pointSize;
+  // ctx.arc throws IndexSizeError on a negative radius, which would stop every later paint.
+  const rad = Math.max(0, pointSize);
   if (isSelected) {
     ctx.fillStyle = rgba(r.app.selGlowColor, SELECT_GLOW.pointAlpha);
     ctx.beginPath();

@@ -10,7 +10,7 @@ import {
 } from '../../../../js/core/project/store/projectSources.js';
 import { upsertWithQuota } from '../../../../js/core/storage/quotaWriter.js';
 import { openInLaunchPayload } from '../../../../js/core/launch/payload.js';
-import { createMemoryStorage } from '../../../helpers/memoryStorage.js';
+import { createMemoryStorage, makeKv } from '../../../helpers/memoryStorage.js';
 
 const BOUND = 128;
 const dataUrl = (fill, n = 200000) => `data:image/png;base64,${fill.repeat(n)}`;
@@ -18,16 +18,6 @@ const [A, B, C] = ['A', 'B', 'C'].map((f) => dataUrl(f));
 const fresh = (s) => [...s].join('');
 const IMG = 'data:image/jpeg;base64,/9j/IMG';
 
-const makeKv = (init = {}, opts = {}) => {
-  const m = new Map(Object.entries(init));
-  return {
-    _map: m,
-    async get(k) { return m.has(k) ? m.get(k) : undefined; },
-    async set(k, v) { if (opts.failSet) throw new Error('idb set'); m.set(k, v); },
-    async remove(k) { m.delete(k); },
-    async entries() { return Array.from(m.entries()); },
-  };
-};
 
 const quota = () => Object.assign(new Error('quota'), { name: 'QuotaExceededError' });
 // localStorage with a character budget: a write that would take the whole over `cap` throws.

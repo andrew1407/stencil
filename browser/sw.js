@@ -3,6 +3,9 @@
 // is only the offline fallback — no version bumping needed for freshness. The name is
 // fixed; activate still evicts any other (legacy) cache so old versions clean up.
 const CACHE = 'stencil-v2';
+// Runtime entries kept: over twice the app's own files (about 620), so the offline app is never
+// trimmed; past it the entry fetched longest ago goes first, and the shell is never pruned.
+const MAX_ENTRIES = 1500;
 
 // Critical shell: enough to boot the app offline. The rest of the module graph
 // (ui/, core/, config/, the optional wasm) is filled in at runtime on first use.
@@ -74,6 +77,17 @@ const SHELL = [
   './js/index.js',
 ];
 
+const shellUrls = () => new Set(SHELL.map(u => new URL(u, self.location.href).href));
+
+// A put moves its key to the end of cache.keys(), so the front is the least recently fetched.
+const prune = async (cache) => {
+  const keys = await cache.keys();
+  if (keys.length <= MAX_ENTRIES) return;
+  const shell = shellUrls();
+  const old = keys.filter(k => !shell.has(k.url)).slice(0, keys.length - MAX_ENTRIES);
+  await Promise.all(old.map(k => cache.delete(k)));
+};
+
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE)
@@ -97,15 +111,17 @@ self.addEventListener('fetch', e => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;  // leave cross-origin to the network
 
+  // A page is the same file whatever its query (`?open=<id>`): one entry per path, not per link.
+  const key = req.mode === 'navigate' ? url.origin + url.pathname : req;
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
     try {
       const res = await fetch(req);                  // network-first: always try live
       // Cache complete, same-origin responses for offline (skip opaque/partial/errors).
-      if (res && res.ok && res.type === 'basic') cache.put(req, res.clone());
+      if (res && res.ok && res.type === 'basic') cache.put(key, res.clone()).then(() => prune(cache)).catch(() => {});
       return res;
     } catch {
-      const cached = await cache.match(req);          // offline → fall back to cache
+      const cached = await cache.match(key);          // offline → fall back to cache
       if (cached) return cached;
       throw new Error('offline and not cached');
     }

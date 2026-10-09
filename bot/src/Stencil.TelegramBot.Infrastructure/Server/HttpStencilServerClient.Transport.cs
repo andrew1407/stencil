@@ -13,17 +13,17 @@ public sealed partial class HttpStencilServerClient
     // A token or an error reply is a few hundred bytes; anything past this is not one.
     private const long _smallBodyBytes = 64 * 1024;
 
-    private async Task<JsonDocument> sendJsonAsync(HttpMethod method, string path, HttpContent? content, CancellationToken ct)
+    private async Task<JsonDocument> sendJsonAsync(HttpMethod method, string path, HttpContent? content, CancellationToken ct) =>
+        parse(await sendBytesAsync(method, path, content, ct).ConfigureAwait(false));
+
+    private async Task<byte[]> sendBytesAsync(HttpMethod method, string path, HttpContent? content, CancellationToken ct)
     {
         using HttpResponseMessage response = await sendAsync(method, path, content, ct).ConfigureAwait(false);
         await ensureSuccessAsync(response, ct).ConfigureAwait(false);
-        byte[] body = await readBodyAsync(response, ct).ConfigureAwait(false);
-        if (body.Length == 0)
-        {
-            return JsonDocument.Parse("{}");
-        }
-        return JsonDocument.Parse(body);
+        return await readBodyAsync(response, ct).ConfigureAwait(false);
     }
+
+    private static JsonDocument parse(byte[] body) => JsonDocument.Parse(body.Length == 0 ? "{}"u8.ToArray() : body);
 
     // A stored session token dies with a server DB wipe: on 401/403, when this client carries its credential,
     // re-mint once and retry in place (extension connections.js req parity); /auth/token never retries.
@@ -64,6 +64,15 @@ public sealed partial class HttpStencilServerClient
         catch (HttpRequestException ex) when (GuardedConnect.RefusalIn(ex) is InvalidOperationException refused)
         {
             throw refused;
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new ServerException("unreachable", $"couldn't reach {BaseUrl} ({ex.Message})");
+        }
+        // HttpClient.Timeout surfaces as a cancellation the caller never asked for.
+        catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+        {
+            throw new ServerException("timeout", $"{BaseUrl} didn't answer within {_http.Timeout.TotalSeconds:0} s");
         }
     }
 

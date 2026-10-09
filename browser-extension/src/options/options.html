@@ -69,7 +69,7 @@
 
     <label class="f" for="editorUrl">Editor URL</label>
     <input id="editorUrl" type="url" placeholder="http://localhost:8080/">
-    <div class="help">The Stencil browser app served over HTTP (e.g. <code>npm run serve</code> → <code>http://localhost:8080/</code>). The full editor opens in a new tab; the quick crop opens as an in-page modal.</div>
+    <div class="help">The Stencil browser app served over HTTP (e.g. <code>npm run serve</code> → <code>http://localhost:8080/</code>, used while this is blank). The full editor opens in a new tab; the quick crop opens as an in-page modal.</div>
 
     <label class="f" for="page">Default page size (crop aspect)</label>
     <!-- Options are generated from the shared ISO format table (see general.js). -->
@@ -111,7 +111,7 @@
       <input id="editorPageApi" type="checkbox" style="width:auto; margin-top:3px;" checked>
       <span>Expose <code>stencil.extension</code> on the Stencil editor page (list open editors, scan another page's images, import into this editor)</span>
     </label>
-    <div class="help">On by default. Unlike the toggle above, this touches <strong>only the editor URL configured at the top of this page</strong> — no other site sees it. It is what makes <code>stencil.extension</code> available in the editor's own console (e.g. <code>await stencil.extension.editors()</code>, <code>await stencil.extension.images(tabId)</code>, <code>await stencil.extension.open(0)</code>); with it off, <code>stencil.extension</code> is <code>null</code> and editor mode in the popup still works.</div>
+    <div class="help">Off until you set the <strong>Editor URL</strong> above yourself; then on unless you untick it. Unlike the toggle above, this touches <strong>only the editor URL configured at the top of this page</strong> — no other site sees it. It is what makes <code>stencil.extension</code> available in the editor's own console (e.g. <code>await stencil.extension.editors()</code>, <code>await stencil.extension.images(tabId)</code>, <code>await stencil.extension.open(0)</code>); with it off, <code>stencil.extension</code> is <code>null</code> and editor mode in the popup still works.</div>
 
     <label class="f" for="desktopScheme">Open in other apps</label>
     <input id="desktopScheme" type="text" placeholder="stencil">

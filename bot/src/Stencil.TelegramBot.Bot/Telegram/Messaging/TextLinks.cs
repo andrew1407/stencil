@@ -73,7 +73,7 @@ public sealed class UrlLink : IMessageHandler
         {
             // The /url render already answered with the edit menu, which reads as "done" — say the
             // edit is still coming.
-            await _bot.SendMessage(ctx.ChatId, "✏️ Loaded — now editing per your request…", cancellationToken: ct);
+            await _bot.SendMessage(ctx.ChatId, Replies.LinkLoadedEditing(), cancellationToken: ct);
             await _handlers.DispatchAsync(ctx.UserId, ctx.ChatId, CommandParser.Prompt(around), ct);
         }
         return true;
@@ -130,7 +130,7 @@ public sealed class FallbackLink : IMessageHandler
         if (!string.IsNullOrWhiteSpace(ctx.Text))
         {
             await _bot.SendMessage(
-                ctx.ChatId, "Send a photo or an image link to edit, or /help for commands.", cancellationToken: ct);
+                ctx.ChatId, Replies.FallbackHint(), cancellationToken: ct);
         }
         return true;
     }

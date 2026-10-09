@@ -78,4 +78,41 @@ public static partial class Replies
 
     public static string ConnectUsage() => BotStrings.Reply("connectUsage");
 
+    public static string UrlUsage() => BotStrings.Reply("urlUsage");
+
+    public static string SourceSiteUsage() => BotStrings.Reply("sourceSiteUsage");
+
+    public static string SourceUploadUsage() => BotStrings.Reply("sourceUploadUsage");
+
+    public static string Scraping(string host) => BotStrings.Reply("scraping", host);
+
+    public static string ScrapedFiles(int count, string host) => BotStrings.Reply("scrapedFiles", count, host);
+
+    public static string OptionUnknown(string option) => BotStrings.Reply("optionUnknown", option);
+
+    public static string OptionNotCount(string key, string value) => BotStrings.Reply("optionNotCount", key, value);
+
+    public static string NoImageAtIndex(int index) => BotStrings.Reply("noImageAtIndex", index);
+
+    public static string PromptUsage() => BotStrings.Reply("promptUsage");
+
+    public static string AskCustomHint(string label) => BotStrings.Reply("askCustomHint", label);
+
+    public static string AskClosed() => BotStrings.Reply("askClosed");
+
+    public static string AskTypeAnswer() => BotStrings.Reply("askTypeAnswer");
+
+    public static string AskPickOne() => BotStrings.Reply("askPickOne");
+
+    public static string NothingRunning() => BotStrings.Reply("nothingRunning");
+
+    public static string RetryStale() => BotStrings.Reply("retryStale");
+
+    public static string RemovalCancelled() => BotStrings.Reply("removalCancelled");
+
+    public static string NameAsk(string current) => BotStrings.Reply("nameAsk", current);
+
+    public static string DescriptionAsk(string? current) => BotStrings.Reply("descriptionAsk", string.IsNullOrEmpty(current) ? BotStrings.Reply("descriptionNone") : BotStrings.Reply("descriptionCurrent", current));
+
+    public static string ThisImage() => BotStrings.Reply("thisImage");
 }

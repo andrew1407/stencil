@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 	"path"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -15,6 +14,7 @@ import (
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/service"
 	"stencil/server/internal/store"
+	"stencil/server/internal/validate"
 )
 
 // handleGetFile streams a project file: original/result take their path from the project record, the
@@ -113,12 +113,16 @@ func (a *API) handlePutFile(rw http.ResponseWriter, req *http.Request) {
 		writeBadRequest(rw, msgUnknownFileKind)
 		return
 	}
-	put := service.FilePut{ID: id, Kind: kind, Ext: strings.TrimPrefix(req.URL.Query().Get("ext"), ".")}
+	q := req.URL.Query()
+	w, h, err := validate.ImageSize(q.Get("w"), q.Get("h"))
+	if err != nil {
+		writeBadRequest(rw, err.Error())
+		return
+	}
+	put := service.FilePut{ID: id, Kind: kind, Ext: strings.TrimPrefix(q.Get("ext"), "."), W: w, H: h}
 	if sess, ok := auth.SessionFromContext(req.Context()); ok {
 		put.Writer = sess.ID
 	}
-	put.W, _ = strconv.Atoi(req.URL.Query().Get("w"))
-	put.H, _ = strconv.Atoi(req.URL.Query().Get("h"))
 
 	// The body streams straight to disk under the request's context; each store call takes its own op timeout.
 	resp, err := a.files.Store(req.Context(), put, http.MaxBytesReader(rw, req.Body, a.deps.MaxBodyBytes))

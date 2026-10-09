@@ -23,6 +23,9 @@ test('isLoopbackHost classifies hosts like the browser client', () => {
   assert.equal(isLoopbackHost('127.0.0.1'), true);
   assert.equal(isLoopbackHost('::1'), true);
   assert.equal(isLoopbackHost('example.com'), false);
+  assert.equal(isLoopbackHost('localhost.'), true, 'one trailing dot is the same host');
+  assert.equal(isLoopbackHost('app.localhost.'), true);
+  assert.equal(isLoopbackHost('localhost..'), false);
 });
 
 test('sharedPinFromProject marks shared + carries serverUrl/projectId', () => {

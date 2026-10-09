@@ -88,7 +88,7 @@ extern "C" {
     int y = std::clamp(static_cast<int>(std::lround(rect->y)), 0, std::max(0, ih));
     int w = std::clamp(static_cast<int>(std::lround(rect->width)), 0, iw - x);
     int h = std::clamp(static_cast<int>(std::lround(rect->height)), 0, ih - y);
-    if (w <= 0 || h <= 0) return 0;  // an empty crop is not useful
+    if (w <= 0 || h <= 0) return -1;  // parsed, but nothing is left to keep
 
     if (outX) *outX = x;
     if (outY) *outY = y;

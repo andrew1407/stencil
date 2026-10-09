@@ -6,12 +6,12 @@ import (
 	"time"
 )
 
-var tunableKeys = []string{"HUB_OUT_BUFFER", "HUB_OUT_BUDGET_BYTES", "HELLO_TIMEOUT_SECONDS", "BUS_SUB_BUFFER",
+var tunableKeys = []string{"MAX_CONNECTIONS_PER_IP", "HELLO_TIMEOUT_SECONDS", "BUS_SUB_BUFFER",
 	"WS_PING_SECONDS", "WS_PONG_TIMEOUT_SECONDS", "TCP_IDLE_TIMEOUT_SECONDS", "TCP_WRITE_TIMEOUT_SECONDS",
 	"HTTP_READ_HEADER_TIMEOUT_SECONDS", "HTTP_READ_TIMEOUT_SECONDS", "HTTP_WRITE_TIMEOUT_SECONDS",
 	"HTTP_IDLE_TIMEOUT_SECONDS", "SHUTDOWN_TIMEOUT_SECONDS", "RETRY_AFTER_SECONDS", "LLM_BUSY_RETRY_AFTER_SECONDS",
 	"PROJECTS_PAGE_SIZE", "SWEEP_BATCH", "SWEEP_WORKERS", "FILESTORE_RECONCILE_MINUTES", "FILESTORE_TMP_MAX_AGE_MINUTES",
-	"PRESENCE_TTL_SECONDS", "PRESENCE_HEARTBEAT_SECONDS", "PRESENCE_SETTLE_MS", "HUB_NOTICE_TIMEOUT_SECONDS",
+	"HUB_NOTICE_TIMEOUT_SECONDS",
 	"BUS_DROP_WARN_INTERVAL_SECONDS", "REDIS_SUBSCRIBE_TIMEOUT_SECONDS", "RATE_BUCKET_IDLE_MINUTES", "OP_TIMEOUT_SECONDS"}
 
 func clearTunables(t *testing.T) {
@@ -31,7 +31,7 @@ func TestTunableDefaultsMatchTheOldConstants(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantLive := LiveOptions{OutBuffer: 256, OutBudgetBytes: 8 << 20, HelloTimeout: 10 * time.Second,
+	wantLive := LiveOptions{MaxConnsPerIP: 64, HelloTimeout: 10 * time.Second,
 		NoticeTimeout: time.Second, BusSubBuffer: 64, BusDropWarn: 30 * time.Second, WSPing: 30 * time.Second,
 		WSPongTimeout: 10 * time.Second, TCPIdle: 5 * time.Minute, TCPWrite: 30 * time.Second}
 	if cfg.Live != wantLive {
@@ -55,7 +55,7 @@ func TestTunableDefaultsMatchTheOldConstants(t *testing.T) {
 
 func TestTunableOverrides(t *testing.T) {
 	clearTunables(t)
-	for k, v := range map[string]string{"HUB_OUT_BUFFER": "32", "HELLO_TIMEOUT_SECONDS": "3",
+	for k, v := range map[string]string{"MAX_CONNECTIONS_PER_IP": "0", "HELLO_TIMEOUT_SECONDS": "3",
 		"TCP_WRITE_TIMEOUT_SECONDS": "7", "RETRY_AFTER_SECONDS": "90", "PROJECTS_PAGE_SIZE": "50",
 		"SWEEP_WORKERS": "2", "FILESTORE_RECONCILE_MINUTES": "0", "HUB_NOTICE_TIMEOUT_SECONDS": "2",
 		"BUS_DROP_WARN_INTERVAL_SECONDS": "5", "REDIS_SUBSCRIBE_TIMEOUT_SECONDS": "9", "RATE_BUCKET_IDLE_MINUTES": "3"} {
@@ -65,7 +65,7 @@ func TestTunableOverrides(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Live.OutBuffer != 32 || cfg.Live.HelloTimeout != 3*time.Second || cfg.Live.TCPWrite != 7*time.Second ||
+	if cfg.Live.MaxConnsPerIP != 0 || cfg.Live.HelloTimeout != 3*time.Second || cfg.Live.TCPWrite != 7*time.Second ||
 		cfg.Live.NoticeTimeout != 2*time.Second || cfg.Live.BusDropWarn != 5*time.Second {
 		t.Fatalf("live overrides: %+v", cfg.Live)
 	}
@@ -81,8 +81,8 @@ func TestTunableOverrides(t *testing.T) {
 }
 
 func TestTunablesRejectBadValues(t *testing.T) {
-	for _, tc := range [][2]string{{"HUB_OUT_BUFFER", "0"}, {"HELLO_TIMEOUT_SECONDS", "x"},
-		{"WS_PING_SECONDS", "0"}, {"PROJECTS_PAGE_SIZE", "501"}, {"SWEEP_BATCH", "-1"},
+	for _, tc := range [][2]string{{"MAX_CONNECTIONS_PER_IP", "-1"}, {"HELLO_TIMEOUT_SECONDS", "x"},
+		{"WS_PING_SECONDS", "0"}, {"PROJECTS_PAGE_SIZE", "501"}, {"SWEEP_BATCH", "-1"}, {"SWEEP_BATCH", "501"},
 		{"FILESTORE_TMP_MAX_AGE_MINUTES", "0"}, {"HUB_NOTICE_TIMEOUT_SECONDS", "0"},
 		{"HUB_NOTICE_TIMEOUT_SECONDS", "11"}, {"BUS_DROP_WARN_INTERVAL_SECONDS", "x"},
 		{"REDIS_SUBSCRIBE_TIMEOUT_SECONDS", "0"}, {"RATE_BUCKET_IDLE_MINUTES", "0"}} {

@@ -26,7 +26,6 @@ type Deps struct {
 	Sessions     SessionStore
 	Files        FileStore
 	Charges      service.ChargeLedger // optional: the per-session ledger, touched only under SessionQuotaBytes
-	LiveSessions SessionCounter       // optional: live edit-session connection counts (the hub)
 	LLM          LLM                  // optional: Anthropic proxy; nil = LLM routes disabled
 	Bus          eventbus.Bus
 	TokenTTL     time.Duration
@@ -47,8 +46,6 @@ type Deps struct {
 	BusyRetryAfter time.Duration
 	// Rows in a GET /projects that names no ?limit=; 0 lists every project.
 	ProjectsPageSize int
-	// Live editors on the other instances sharing the database (service.Presence); nil = one instance.
-	RemoteSessions service.RemoteSessions
 	// Peers whose X-Forwarded-For is believed when keying a per-IP limiter;
 	// empty (the default) ignores the header entirely.
 	TrustedProxies []netip.Prefix
@@ -86,9 +83,8 @@ func New(deps Deps) *API {
 	}
 	files := service.NewFiles(deps.Projects, deps.Files, deps.Bus)
 	files.Charges, files.SessionQuota, files.OpTimeout = deps.Charges, deps.SessionQuotaBytes, deps.OpTimeout
-	projects := service.NewProjects(deps.Projects, deps.Files, liveSessions(deps), deps.Bus, deps.ProjectTTL)
+	projects := service.NewProjects(deps.Projects, deps.Files, deps.Bus, deps.ProjectTTL)
 	projects.Originals = files
-	projects.Remote = deps.RemoteSessions
 	return &API{
 		deps:      deps,
 		projects:  projects,
@@ -98,15 +94,6 @@ func New(deps Deps) *API {
 		authRate:  ratelimit.New(deps.AuthRatePerMin),
 		writeRate: ratelimit.New(deps.WriteRatePerMin),
 	}
-}
-
-// liveSessions hands the hub to the service as a plain interface, keeping a
-// typed nil (an unset Deps.LiveSessions) out of it.
-func liveSessions(deps Deps) service.SessionCounter {
-	if deps.LiveSessions == nil {
-		return nil
-	}
-	return deps.LiveSessions
 }
 
 // The fallbacks for Deps.RetryAfter and BusyRetryAfter (config sets both).

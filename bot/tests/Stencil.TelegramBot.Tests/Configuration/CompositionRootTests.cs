@@ -27,11 +27,11 @@ public sealed class CompositionRootTests : IDisposable
     private const string _fakeToken = "123456:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
     private readonly string _dataDir =
-        Path.Combine(Path.GetTempPath(), "stencil-bot-di-" + Guid.NewGuid().ToString("N"));
+        TempDirs.New("bot-di");
 
     public void Dispose()
     {
-        try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
+        TempDirs.Delete(_dataDir);
     }
 
     private BotOptions makeOptions(string redisUrl = "") =>
@@ -111,7 +111,7 @@ public sealed class CompositionRootTests : IDisposable
 
         Assert.IsType<ProcessStencilCli>(provider.GetRequiredService<IStencilCli>());
         Assert.IsType<HttpLlmClient>(provider.GetRequiredService<ILlmClient>());
-        Assert.IsAssignableFrom<EditingService>(provider.GetRequiredService<IEditingService>());
+        Assert.IsAssignableFrom<EditingService>(provider.GetRequiredService<EditingService>());
         Assert.IsAssignableFrom<ServerService>(provider.GetRequiredService<IServerService>());
     }
 
@@ -141,7 +141,7 @@ public sealed class CompositionRootTests : IDisposable
         ServiceCollection services = new();
         services.AddStencilApplication();
 
-        Assert.Contains(services, d => d.ServiceType == typeof(IEditingService));
+        Assert.Contains(services, d => d.ServiceType == typeof(EditingService));
         Assert.Contains(services, d => d.ServiceType == typeof(IServerService));
         Assert.Contains(services, d => d.ServiceType == typeof(PromptService));
         Assert.Contains(services, d => d.ServiceType == typeof(LlmAttachmentLoader));

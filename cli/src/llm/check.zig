@@ -3,38 +3,14 @@
 //! without a validator of its own (CONTRACT.md §7). Reads the file, or stdin for "-".
 const std = @import("std");
 const opplan = @import("../core/opplan.zig");
-const confine = @import("../safety/confine.zig");
+const input = @import("../safety/input.zig");
 const report = @import("../app/report.zig");
 
 /// This envelope's version, bumped only when a consumer must change.
 pub const VERSION = 1;
-pub const MAX_REPLY_BYTES: usize = 8 << 20;
 
-/// A reply that cannot be read, or a schema core refuses: the caller exits 2.
+/// A schema core refuses: the caller exits 2, as for a reply that cannot be read.
 pub const Error = error{Usage};
-
-fn readReply(gpa: std.mem.Allocator, io: std.Io, path: []const u8) (Error || error{OutOfMemory})![]u8 {
-    if (std.mem.eql(u8, path, "-")) {
-        var buf: [4096]u8 = undefined;
-        var stdin = std.Io.File.stdin().readerStreaming(io, &buf);
-        return stdin.interface.allocRemaining(gpa, .limited(MAX_REPLY_BYTES)) catch |e| return readFailed("<stdin>", e);
-    }
-    if (confine.hasParentTraversal(path)) {
-        report.err("refusing to read a reply that climbs out of the working directory: '{s}'\n", .{path});
-        return Error.Usage;
-    }
-    return std.Io.Dir.cwd().readFileAlloc(io, path, gpa, .limited(MAX_REPLY_BYTES)) catch |e| readFailed(path, e);
-}
-
-fn readFailed(label: []const u8, e: anyerror) (Error || error{OutOfMemory}) {
-    if (e == error.OutOfMemory) return error.OutOfMemory;
-    if (e == error.StreamTooLong) {
-        report.err("that reply is too large: {s} (the cap is {d} bytes)\n", .{ label, MAX_REPLY_BYTES });
-    } else {
-        report.err("cannot read the reply {s} ({s})\n", .{ label, @errorName(e) });
-    }
-    return Error.Usage;
-}
 
 /// Write the envelope for `raw` walked under `surface`; returns core's verdict.
 pub fn writeCheck(
@@ -82,7 +58,7 @@ pub fn run(
     surface: []const u8,
     capabilities: ?[]const u8,
 ) !opplan.Status {
-    const raw = try readReply(gpa, io, path);
+    const raw = try input.read(gpa, io, path, "reply");
     defer gpa.free(raw);
     const status = try writeCheck(gpa, out, raw, surface, capabilities);
     try out.flush();

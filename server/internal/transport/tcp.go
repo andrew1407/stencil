@@ -3,8 +3,10 @@ package transport
 import (
 	"bufio"
 	"context"
+	"errors"
 	"io"
 	"net"
+	"sync/atomic"
 	"time"
 )
 
@@ -12,12 +14,13 @@ import (
 // literal newline, so '\n' is an unambiguous frame delimiter any client can produce and parse.
 type tcpConn struct {
 	conn    net.Conn
-	sc      *bufio.Scanner
+	rd      *bufio.Reader
+	limit   atomic.Int64  // the longest frame Read accepts, without its delimiter
 	wsem    chan struct{} // one slot: the writer's lock, taken under the caller's ctx
 	scratch []byte
 }
 
-// A Read with no deadline of its own gives up after tcpIdleTimeout (generous: an idle co-editor stays), a
+// A Read with no deadline of its own gives up after tcpIdleTimeout (generous: an idle feed stays), a
 // frame's Write after tcpWriteTimeout (a peer that stops reading cannot pin its writer). Set by Configure.
 var (
 	tcpIdleTimeout  = 5 * time.Minute
@@ -30,22 +33,22 @@ var frameEnd = []byte{'\n'}
 // scratchKeep bounds the joined-frame buffer a TLS conn keeps between writes; a larger frame's is dropped.
 const scratchKeep = 64 << 10
 
-// NewTCP wraps an accepted/ dialed net.Conn as a Conn.
+// NewTCP wraps an accepted or dialed net.Conn as a Conn, reading under MaxHelloBytes until SetReadLimit.
 func NewTCP(conn net.Conn) Conn {
-	sc := bufio.NewScanner(conn)
-	// +1 for the delimiter: the scanner buffers the '\n' too, so a cap of exactly
-	// MaxMessageBytes would reject a message OF that size, which WS accepts.
-	sc.Buffer(make([]byte, 0, 64*1024), MaxMessageBytes+1)
-	return &tcpConn{conn: conn, sc: sc, wsem: make(chan struct{}, 1)}
+	t := &tcpConn{conn: conn, rd: bufio.NewReaderSize(conn, scratchKeep), wsem: make(chan struct{}, 1)}
+	t.limit.Store(MaxHelloBytes)
+	return t
 }
+
+func (t *tcpConn) SetReadLimit(n int64) { t.limit.Store(n) }
 
 func (t *tcpConn) Read(ctx context.Context) ([]byte, error) {
 	// An already-cancelled context wins before any bytes are consumed; without this, a Read on a torn-down
-	// connection still delivers whatever the scanner had buffered.
+	// connection still delivers whatever the reader had buffered.
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	// Deadline first, then ctx cancellation: Scan() blocks in conn.Read, so cancellation is delivered by
+	// Deadline first, then ctx cancellation: the reader blocks in conn.Read, so cancellation is delivered by
 	// shoving the read deadline into the past. AfterFunc always sets the later value (now), so it wins.
 	if dl, ok := ctx.Deadline(); ok {
 		_ = t.conn.SetReadDeadline(dl)
@@ -56,22 +59,40 @@ func (t *tcpConn) Read(ctx context.Context) ([]byte, error) {
 		_ = t.conn.SetReadDeadline(time.Now())
 	})
 	defer stop() // release the hook (and its timer) so it never leaks per Read
-	if !t.sc.Scan() {
+	frame, err := t.readFrame()
+	if err != nil {
 		// A cancelled/expired ctx takes precedence so callers see context errors
 		// rather than the timeout the deadline poke produced.
-		if err := ctx.Err(); err != nil {
-			return nil, err
+		if cerr := ctx.Err(); cerr != nil {
+			return nil, cerr
 		}
-		if err := t.sc.Err(); err != nil {
-			return nil, err
-		}
-		return nil, io.EOF
+		return nil, err
 	}
-	// Scanner reuses its buffer; copy before returning.
-	b := t.sc.Bytes()
-	out := make([]byte, len(b))
-	copy(out, b)
-	return out, nil
+	return frame, nil
+}
+
+// readFrame collects one line into a fresh slice, refusing it as soon as it outgrows the read limit; a
+// final unterminated line at EOF still counts as a frame.
+func (t *tcpConn) readFrame() ([]byte, error) {
+	limit := int(t.limit.Load())
+	var out []byte
+	for {
+		part, err := t.rd.ReadSlice('\n')
+		if len(out)+len(part) > limit+1 {
+			return nil, ErrFrameTooLarge
+		}
+		out = append(out, part...)
+		switch {
+		case err == nil:
+			return out[:len(out)-1], nil
+		case errors.Is(err, bufio.ErrBufferFull):
+			continue
+		case errors.Is(err, io.EOF) && len(out) > 0:
+			return out, nil
+		default:
+			return nil, err
+		}
+	}
 }
 
 // Write sends data and its delimiter in one call, under the earlier of ctx's deadline and tcpWriteTimeout:

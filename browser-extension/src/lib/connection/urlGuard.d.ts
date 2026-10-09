@@ -5,6 +5,10 @@ export declare function isAllowedImageUrl(
 ): boolean;
 /** 64 MiB: the most any guarded read buffers. */
 export declare const MAX_FETCH_BYTES: number;
+/** ms every guarded fetch and server request may take: NETWORK.fetchTimeoutMs. */
+export declare const FETCH_TIMEOUT_MS: number;
+/** The caller's signal (if any) raced against a `ms` deadline. */
+export declare function withDeadline(signal?: AbortSignal | null, ms?: number): AbortSignal | undefined;
 export declare const BLOCKED_ADDRESS: string;
 export declare const REDIRECT_REFUSED: string;
 /** Refuses a blocked host up front and any redirect after, never following one; a redirected

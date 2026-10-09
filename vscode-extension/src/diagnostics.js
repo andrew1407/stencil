@@ -73,7 +73,7 @@ const register = (context) => {
     if (!document || document.languageId !== LANGUAGE_ID) return;
     const { version } = document;
     const entries = await collect(document, options);
-    if (document.version !== version) return;
+    if (document.version !== version || document.isClosed) return;
     const lines = sourceLines(document.getText());
     collection.set(document.uri, entries.map((entry) => toDiagnostic(entry, lines, document.uri)));
   };

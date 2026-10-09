@@ -4,7 +4,7 @@ import assert from 'node:assert';
 import {
   OPEN_PARAM, readOpenProjectId, buildOpenProjectUrl, buildExternalLaunchUrl,
   buildStencilSchemeUrl, encodeTelegramStartPayload, buildTelegramLink,
-  buildDesktopBounceUrl, normalizeLaunchPayload, TELEGRAM_START_LIMIT,
+  normalizeLaunchPayload, TELEGRAM_START_LIMIT,
   LAUNCH_DATA_URL_MAX,
 } from '../../../js/core/launch/deepLink.js';
 
@@ -127,16 +127,6 @@ test('encodeTelegramStartPayload returns null past the 64-char limit', () => {
 
 test('buildTelegramLink composes the t.me deep link', () => {
   assert.strictEqual(buildTelegramLink('stencil_bot', '1abc'), 'https://t.me/stencil_bot?start=1abc');
-});
-
-// ── Desktop bounce URL (Telegram cannot linkify stencil://) ──────
-
-test('buildDesktopBounceUrl wraps a stencil:// URL for launch.html', () => {
-  const stencilUrl = 'stencil://open?server=http%3A%2F%2Flocalhost%3A8090&id=p_1';
-  assert.strictEqual(
-    buildDesktopBounceUrl('http://localhost:8080/', stencilUrl),
-    'http://localhost:8080/launch.html#stencil-desktop=' + encodeURIComponent(stencilUrl)
-  );
 });
 
 // ── normalizeLaunchPayload (inbound #stencil= schema) ────────────

@@ -2,7 +2,7 @@
 // warnings, and the one table that maps a failed turn to a kind, its text and its card. Pure.
 
 import { LlmError, NO_KEY_TEXT, PROVIDER_LABELS, providerUrl } from '../client.js';
-import { isAuthStatus } from '../../net/connectionManager.js';
+import { isAuthStatus } from '../../net/urlRules.js';
 
 // The visible answer for a finished turn: the reply plus any unknown-op skips
 // appended in parentheses (contract §1). Pure.

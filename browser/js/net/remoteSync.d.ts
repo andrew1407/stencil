@@ -7,6 +7,8 @@ import type { RemoteLink } from '../core/remote/syncController.js';
 import type { ProjectLayout } from '../core/project/store/projectsStore.js';
 
 export declare const CONFLICT_MESSAGE: string;
+/** ms after this editor's own save during which a project-event is taken for its echo. */
+export declare const ECHO_WINDOW_MS: number;
 
 /** Should a server `project-event` reload the active editor? Pure; shared with the desktop poll. */
 export declare const shouldReloadFromEvent: (

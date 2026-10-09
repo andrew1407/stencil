@@ -14,7 +14,7 @@ import (
 )
 
 // MemStore is an in-memory project + session store (sessions.go). It satisfies httpapi.ProjectStore,
-// httpapi.SessionStore, service.ProjectStore and hub.Store.
+// httpapi.SessionStore, service.ProjectStore and the hub's auth.SessionResolver.
 type MemStore struct {
 	mu       sync.Mutex
 	projects map[string]protocol.ProjectRecord
@@ -157,17 +157,13 @@ func (f *MemStore) DeleteProject(_ context.Context, id string) error {
 	return nil
 }
 
-// DeleteExpiredProjects mirrors the sweep query: expires_at in (0, now], never an id in keep.
-func (f *MemStore) DeleteExpiredProjects(_ context.Context, now int64, limit int, keep []string) ([]string, error) {
+// DeleteExpiredProjects mirrors the sweep query: expires_at in (0, now].
+func (f *MemStore) DeleteExpiredProjects(_ context.Context, now int64, limit int) ([]string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	kept := map[string]bool{}
-	for _, id := range keep {
-		kept[id] = true
-	}
 	ids := make([]string, 0)
 	for id, p := range f.projects {
-		if p.ExpiresAt > 0 && p.ExpiresAt <= now && !kept[id] && (limit <= 0 || len(ids) < limit) {
+		if p.ExpiresAt > 0 && p.ExpiresAt <= now && (limit <= 0 || len(ids) < limit) {
 			ids = append(ids, id)
 			delete(f.projects, id)
 			f.dropCharges(id)

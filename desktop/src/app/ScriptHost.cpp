@@ -1,12 +1,14 @@
 #include "ChatPlanTarget.hpp"
 #include "MainWindow.hpp"
 #include "ScriptHost.hpp"
+#include "ChatSessionController.hpp"
 #include "ScriptDialog.hpp"
 #include "mainWindowHelpers.hpp"   // closeOpenPopupMenus()
 #include "ScriptMenuPanel.hpp"
 #include "Notifications.hpp"
 #include "scriptFile.hpp"
 #include "scriptRun.hpp"
+#include "ScriptBuffer.hpp"
 #include "theme.hpp"
 
 #include <QFileDialog>
@@ -33,20 +35,43 @@ namespace stencil::gui {
                                     : result.error);
   }
 
+  // Rule 9: the script a link delivered, until the user changes it, opens web images only.
+  ScriptRunRules ScriptHost::linkRules() {
+    return ScriptRunRules{model::ScriptBuffer::instance().isFromLink()};
+  }
+
+  // A script suspends across its loads, so it holds the gate a plan holds: no chat turn, reload
+  // or second run lands between its ops and its undo checkpoints.
+  std::shared_ptr<void> ScriptHost::holdPlanGate() {
+    bool& running = w.chatSession->planRunning;
+    if (running) {
+      if (w.notify) w.notify->info(MainWindow::tr("Wait for the running plan or script to finish"));
+      return nullptr;
+    }
+    running = true;
+    // Non-null so the caller can test it; the deleter only lets go of the gate, deleting nothing.
+    return std::shared_ptr<void>(static_cast<void*>(&w), [self = QPointer<MainWindow>(&w)](void*) {
+      if (self) self->chatSession->planRunning = false;
+    });
+  }
+
   void ScriptHost::openScript() {
     ScriptDialog dlg(QString(), &w);
 
     // Run applies the script UNDER the window and leaves it open: closing and re-exec'ing
     // read as the window flickering away, and a failure's diagnostics belong in front of you.
     QObject::connect(&dlg, &ScriptDialog::runRequested, &dlg, [this, &dlg] {
+      auto gate = holdPlanGate();
+      if (!gate) return;
       const auto target = std::make_shared<ChatPlanTarget>(w);
       // The dialog's own parse — the one it coloured from — so a Run lexes the text once.
       runScriptThen(dlg.program(), *target,
-                    [this, target, shown = QPointer<ScriptDialog>(&dlg)](const ScriptRunResult& result) {
+                    [this, target, gate, shown = QPointer<ScriptDialog>(&dlg)](const ScriptRunResult& result) {
                       reportRun(result);
                       if (!result.isOk && shown) shown->showRunDiagnostics();
                       if (result.isOk || result.ops > 0) refreshAfterScript();   // part-ran still stands
-                    });
+                    },
+                    linkRules());
     });
     w.execMaybePopover(dlg, w.acts.script);
   }
@@ -58,12 +83,15 @@ namespace stencil::gui {
     ScriptMenuPanel::Hooks hooks;
     // In place: the menu stays open, with the strip and the underlines on the text that ran.
     hooks.run = [this](QString text) {
+      auto gate = holdPlanGate();
+      if (!gate) return;
       const auto target = std::make_shared<ChatPlanTarget>(w);
       runScriptThen(model::ScriptDoc::parse(text), *target,
-                    [this, target](const ScriptRunResult& result) {
+                    [this, target, gate](const ScriptRunResult& result) {
                       reportRun(result);
                       if (result.ops > 0) refreshAfterScript();
-                    });
+                    },
+                    linkRules());
     };
     // Qt closes every popup the moment a file dialog opens, native or not, so the chain is
     // dismissed deliberately and PUT BACK afterwards: the flyout is where it was, either way.
@@ -118,8 +146,10 @@ namespace stencil::gui {
 
   // Used by a dropped .stc and by an .stc opened from the OS: run it straight away.
   void ScriptHost::runScriptFromFile(const QString& path) {
+    auto gate = holdPlanGate();
+    if (!gate) return;
     const auto target = std::make_shared<ChatPlanTarget>(w);
-    runScriptFileThen(path, *target, [this, target](const ScriptRunResult& result) {
+    runScriptFileThen(path, *target, [this, target, gate](const ScriptRunResult& result) {
       reportRun(result);
       if (result.ops > 0) refreshAfterScript();
     });

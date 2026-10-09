@@ -36,13 +36,14 @@ dependency-free end.
 ## 230 lines
 
 A file stays under **230 lines** on every surface. A new file is written under it; a file
-that has grown past it is split by feature when it is next touched, not padded further. No
-source, test or stylesheet file is over it today. Nothing enforces this — the review does.
+that has grown past it is split by feature when it is next touched, not padded further.
+`node tools/caps.mjs --check` holds every source, test and stylesheet file to it, generated and
+vendored files aside, together with the folder and comment caps below.
 
 ## Folders
 
-A folder holds at most **12 direct source files**; a header and its `.cpp`, or a module and its
-`.d.ts`, count once. At thirteen the folder splits.
+A folder holds at most **12 direct source files**; a header and its `.cpp` (and its per-OS
+bodies, `xMac.mm`), or a module and its `.d.ts`, count once. At thirteen the folder splits.
 
 A split is by **feature, never by kind** — `ui/openImage/`, `app/chat/`, not
 `helpers/`, `parts/` or `misc/`. Its name is the prefix the files already share, and that prefix
@@ -80,8 +81,8 @@ see the wiring; it is not content. What earns a line is the meaning: the unit (`
 axis, the formula. Delete the rest rather than rewording it, and never write a comment that
 refers to itself ("where the comment says so").
 
-A directory's comment share stays under **a fifth of its lines**; the doc banners alone reach
-that in a folder of small files, so a body comment there has to earn its place. Never write: a
+A directory's body comments, doc banners aside, stay under **a fifth of its lines**; in a folder
+of small files the banners alone come near that, so a body comment there has to earn its place. Never write: a
 sprint or phase tag, "used to", "TODO(name)", or a sentence that restates the next line. A
 `(user report)` tag is the exception, kept on purpose: it records that a constant or rule answers
 something a user saw, which the code cannot say — leave the ones in the tree alone.

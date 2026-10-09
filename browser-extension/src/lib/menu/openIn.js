@@ -8,7 +8,8 @@ export const INLINE_WARN_CHARS = 200_000;
 export const INLINE_MAX_CHARS = 1_000_000;
 
 // server+id wins over src on the receiving side; empty fields are omitted.
-export const buildStencilSchemeUrl = ({ scheme = 'stencil', server, id, version, src, layout, frame, incognito } = {}) => {
+export const buildStencilSchemeUrl = ({ scheme = 'stencil', server, id, version, src, layout, frame, incognito,
+  script, scriptMode } = {}) => {
   const params = [];
   const add = (k, v) => params.push(`${k}=${encodeURIComponent(v)}`);
   if (server && id) {
@@ -21,6 +22,10 @@ export const buildStencilSchemeUrl = ({ scheme = 'stencil', server, id, version,
     if (frame != null) add('frame', String(frame));
   }
   if (incognito) add('incognito', '1');
+  if (script) {
+    add('script', script);
+    add('scriptMode', scriptMode === 'open' ? 'open' : 'run');
+  }
   return `${scheme}://open?${params.join('&')}`;
 };
 

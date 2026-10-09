@@ -135,6 +135,12 @@ test('an image opens by URL, or by the bytes of a picked file', async () => {
       assert.equal(calls.sessions.length, 0);
       assert.match(calls.errors.at(-1), /stencil\.webInlineImages/);
     });
+    writeFileSync(path, Buffer.alloc(1_400_000));
+    await withHost({ inputBox: [''], openDialog: [{ fsPath: path }] }, async ({ calls, web }) => {
+      await web.openImageInWeb();
+      assert.equal(calls.sessions.length, 0, 'an oversized file is never sent');
+      assert.equal(calls.errors.at(-1), web.IMAGE_TOO_BIG);
+    });
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

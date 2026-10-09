@@ -17,6 +17,7 @@
 
 #include "../support/check.hpp"
 #include "mediaLoaderDrive.hpp"
+#include "../support/heldImageServer.hpp"
 
 using stencil::gui::MediaLoader;
 using stencil::test::drive;
@@ -131,6 +132,25 @@ int main(int argc, char** argv) {
   QObject::connect(&loader, &MediaLoader::loaded, [&late] { ++late; });
   QCoreApplication::processEvents();              // …and its answer had its chance to land
   check(run.loads == 1 && run.localPath == png && late == 0, "the overtaken picture never answers");
+
+  // A fetch a newer load overtook never answers for it, even while that one is still decoding.
+  {
+    stencil::test::HeldImageServer server;
+    check(server.listen(), "the held image server listens");
+    QSize landed;
+    const QMetaObject::Connection size = QObject::connect(
+        &loader, &MediaLoader::loaded, [&landed](const QImage& img) { landed = img.size(); });
+    run = drive(loader, [&] {
+      loader.load(server.url(), 0);
+      QTimer::singleShot(200, &loader, [&] {
+        loader.load(big, 0);
+        server.release();
+      });
+    });
+    QObject::disconnect(size);
+    check(run.loads == 1 && run.localPath == big && landed == QSize(4000, 3000),
+          "the overtaken fetch's picture never lands as the newer load's");
+  }
 
   // A loader destroyed mid-decode answers nothing, and nothing lands on it.
   int answers = 0;

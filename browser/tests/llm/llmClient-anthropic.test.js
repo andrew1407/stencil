@@ -5,6 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createMemoryStorage, installMemoryStorage } from '../helpers/memoryStorage.js';
+import { makeMockFetch as recorder } from '../helpers/llmClientRig.js';
 
 const local = installMemoryStorage();
 const tab = createMemoryStorage();
@@ -20,16 +21,6 @@ const KEY = 'sk-ant-test-0123456789abcdef';
 const BASE = 'https://api.anthropic.test';
 const anthropic = (over = {}) => ({ provider: 'anthropic', baseUrl: BASE, model: '', apiKey: '', serverUrl: '', saveChats: false, ...over });
 const everyStoredValue = () => [...local._map.values()].join('\n');
-
-const recorder = (reply) => {
-  const calls = [];
-  const fetchImpl = async (url, init = {}) => {
-    calls.push({ url, init });
-    const { status = 200, body } = reply;
-    return { ok: status >= 200 && status < 300, status, json: async () => body };
-  };
-  return { calls, fetchImpl };
-};
 
 test('withSessionKey: the held key rides anthropic settings only, as a copy', () => {
   forgetSessionKey();

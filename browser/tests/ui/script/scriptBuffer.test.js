@@ -3,20 +3,12 @@
 // and neither closing throws the work away. It is session memory only — never persisted.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { uiSource as src } from '../../helpers/moduleSource.js';
 
 import { scriptText, setScriptText } from '../../../js/ui/script/buffer.js';
 import { wireScriptEditor } from '../../../js/ui/script/editor.js';
 import { createStubElement, installDom } from '../../helpers/dom.js';
 
-// ui/ is split into feature folders, so a bare module name is looked up, not assumed flat.
-const UI_DIR = new URL('../../../js/ui/', import.meta.url);
-const uiPath = (n) => {
-  const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) =>
-    e.isDirectory() ? walk(new URL(`${e.name}/`, d)) : (e.name === n ? [new URL(e.name, d)] : []));
-  return n.includes('/') ? new URL(n, UI_DIR) : walk(UI_DIR)[0];
-};
-const src = (name) => readFileSync(uiPath(name), 'utf8');
 
 const asPre = (el) => {
   return el;

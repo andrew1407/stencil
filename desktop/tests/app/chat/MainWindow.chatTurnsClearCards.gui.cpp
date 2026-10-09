@@ -1,6 +1,6 @@
 // MainWindow GUI e2e — Clearing empties everything, and a card survives its own animation.
-// Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
-#include "../../MainWindow.gui.hpp"
+// Shared ground is in chatTurnsGui.hpp, over MainWindow.gui.hpp.
+#include "chatTurnsGui.hpp"
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
@@ -12,16 +12,10 @@ class MainWindowGuiTest : public QObject {
   // and a card appearing, or clearing mid-flight, must survive its own animation.
   void chatClearEmptiesAndCardsSurvive() {
     MainWindow win(nullptr, false);
-    win.resize(1200, 800);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(showSized(win, 1200, 800));
+    auto* dock = openChatDock(win);
+    QVERIFY(dock && dock->width() > 200);
     auto* chat = win.findChild<QAction*>("actChat");
-    auto* dock = qobject_cast<stencil::gui::ChatDock*>(
-        win.findChild<QDockWidget*>("llmChatDock"));
-    QVERIFY(chat && dock);
-    chat->setChecked(true);
-    QTRY_VERIFY(dock->isVisible());
-    QTRY_VERIFY(dock->width() > 200);  // let the open slide settle before geometry
 
 
     auto* clearBtn = dock->findChild<QToolButton*>("chatClear");
@@ -30,12 +24,7 @@ class MainWindowGuiTest : public QObject {
     auto* scrollArea = dock->findChild<QScrollArea*>();
     QVERIFY(scrollArea && scrollArea->widget());
     QWidget* transcript = scrollArea->widget();
-    const auto cardCount = [transcript] {
-      // Cards are the only direct QFrame children of the transcript column
-      // (the suggestion block is a plain QWidget).
-      return transcript->findChildren<QFrame*>(QString(), Qt::FindDirectChildrenOnly)
-          .size();
-    };
+    const auto cardCount = [transcript] { return stencil::guitest::cardCount(transcript); };
     dock->appendUser("make it sepia");
     dock->appendAssistant("done");
     QCOMPARE(cardCount(), 2);

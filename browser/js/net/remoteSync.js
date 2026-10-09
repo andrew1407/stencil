@@ -1,4 +1,4 @@
-import { normalizeUrl } from './connectionManager.js';
+import { normalizeUrl } from './urlRules.js';
 import { loadSavedServers } from './connectionStore.js';
 import { ServerConnection } from './serverConnection.js';
 import { wireSource } from '../core/project/store/projectSources.js';
@@ -9,13 +9,16 @@ import { wireSource } from '../core/project/store/projectSources.js';
 export const CONFLICT_MESSAGE =
   'This project was edited elsewhere — reload it from the server before saving again.';
 
+// ms after our own save during which an event is taken for its echo.
+export const ECHO_WINDOW_MS = 150;
+
 // Only an "updated" event for THIS linked project with a newer version, not mid-stroke, and
 // outside our own save's echo window. Shared by the browser feed and the desktop poll.
 export const shouldReloadFromEvent = (msg, link, opts = {}) => {
   // version<=link.version is the real self-echo guard; echoWindowMs covers the brief race,
   // kept short so a peer's change right after our save is not mistaken for our echo.
   const { now = Date.now(), lastLocalSaveAt = 0, isDrawing = false, connUrl = null,
-          echoWindowMs = 150 } = opts;
+          echoWindowMs = ECHO_WINDOW_MS } = opts;
   if (!link || !msg || msg.type !== 'project-event' || msg.event !== 'updated') return false;
   const proj = msg.project;
   if (!proj || proj.id !== link.remoteId) return false;

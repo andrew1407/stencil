@@ -77,6 +77,7 @@ public sealed class PromptProviderTests : PromptServiceTestBase
         LlmChatRequest request = _llm.Requests[^1];
         Assert.Equal("http://h:8090", request.ServerUrl);
         Assert.Equal("tok-1", request.ServerToken);
+        Assert.True(request.ServerFromUser); // a /connect-ed server is dialled through the guard
     }
 
     [Fact]
@@ -133,6 +134,7 @@ public sealed class PromptProviderTests : PromptServiceTestBase
         LlmChatRequest request = _llm.Requests[^1];
         Assert.Equal("http://proxy:8090", request.ServerUrl);
         Assert.Equal("operator-tok", request.ServerToken);
+        Assert.False(request.ServerFromUser); // the operator's own endpoint
     }
 
     [Fact]

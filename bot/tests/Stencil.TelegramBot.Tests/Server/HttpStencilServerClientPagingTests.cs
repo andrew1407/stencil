@@ -80,4 +80,34 @@ public sealed class HttpStencilServerClientPagingTests
         Assert.Equal("badResponse", ex.Code);
         Assert.Equal(HttpStencilServerClient.MAX_LIST_PAGES, calls);
     }
+
+    [Fact]
+    public async Task Should_Fail_A_Listing_Whose_Pages_Together_Pass_The_Reply_Cap()
+    {
+        int calls = 0;
+        CannedHttpMessageHandler handler = new((_, _) =>
+            CannedHttpMessageHandler.Json($"{{\"projects\":[{{\"id\":\"p{++calls}\"}}],\"nextCursor\":\"c{calls}\"}}"));
+        HttpStencilServerClient client = new(new HttpClient(handler), "http://h:8090", "t") { MaxResponseBytes = 200 };
+
+        ServerException ex = await Assert.ThrowsAsync<ServerException>(() => client.ListProjectsAsync());
+
+        Assert.Equal("tooLarge", ex.Code);
+        Assert.True(calls < 10);
+    }
+
+    [Fact]
+    public async Task Should_Ask_For_One_Page_Only_On_List_First_Projects()
+    {
+        List<string> asked = new();
+        CannedHttpMessageHandler handler = new((req, _) =>
+        {
+            asked.Add(req.RequestUri!.PathAndQuery);
+            return CannedHttpMessageHandler.Json("{\"projects\":[{\"id\":\"p1\"}],\"nextCursor\":\"c1\"}");
+        });
+
+        IReadOnlyList<ProjectRecord> projects = await Client(handler, token: "t").ListFirstProjectsAsync(21);
+
+        Assert.Equal("p1", Assert.Single(projects).Id);
+        Assert.Equal(["/projects?limit=21"], asked);
+    }
 }

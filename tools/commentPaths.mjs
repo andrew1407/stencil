@@ -39,7 +39,7 @@ export const scanCss = (src) => {
   return spans;
 };
 
-const langFor = (file) => {
+export const langFor = (file) => {
   const ext = path.extname(file).toLowerCase();
   if (ext === '.css' || ext === '.qss') return 'css';
   if (ext === '.py') return 'py';
@@ -47,7 +47,7 @@ const langFor = (file) => {
   return langOf(file);
 };
 
-const commentsOf = (src, lang) => (lang === 'css' ? scanCss(src) : lang === 'py' ? scanPy(src) : scan(src, lang))
+export const commentsOf = (src, lang) => (lang === 'css' ? scanCss(src) : lang === 'py' ? scanPy(src) : scan(src, lang))
   .filter((s) => s.kind === 'comment');
 
 // Wrapping punctuation goes, and so does a `:line` or `#anchor` tail; a brace run stays whole.

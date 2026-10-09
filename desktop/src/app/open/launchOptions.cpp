@@ -1,4 +1,5 @@
 #include "launchOptions.hpp"
+#include "webScheme.hpp"
 #include "deepLink.hpp"
 #include <QCommandLineOption>
 #include <QCommandLineParser>
@@ -66,19 +67,23 @@ namespace stencil::gui {
       const QString p = positional.first().trimmed();
       // A stencil:// deep link (Linux scheme handlers pass the URL as argv %u); other flags still apply.
       if (p.startsWith(QLatin1String("stencil:"), Qt::CaseInsensitive)) {
-        const LaunchOptions s = parseStencilUrl(QUrl(p));
-        o.serverUrl = s.serverUrl;
-        o.serverProjectId = s.serverProjectId;
-        o.serverVersion = s.serverVersion;
-        if (!s.src.isEmpty()) o.src = s.src;
-        if (!s.layoutJson.isEmpty()) o.layoutJson = s.layoutJson;
-        if (s.frame > 0) o.frame = s.frame;
-        o.incognito = o.incognito || s.incognito;
+        adoptLinkOptions(o, parseStencilUrl(QUrl(p)));
       } else {
         o.file = p;
       }
     }
     return o;
+  }
+
+  void adoptLinkOptions(LaunchOptions& o, const LaunchOptions& link) {
+    o.serverUrl = link.serverUrl;
+    o.serverProjectId = link.serverProjectId;
+    if (!link.src.isEmpty()) o.src = link.src;
+    if (!link.layoutJson.isEmpty()) o.layoutJson = link.layoutJson;
+    if (link.frame > 0) o.frame = link.frame;
+    o.incognito = o.incognito || link.incognito;
+    o.script = link.script;
+    o.scriptDropped = link.scriptDropped;
   }
 
   LaunchOptions parseStencilUrl(const QUrl& url) {
@@ -92,15 +97,10 @@ namespace stencil::gui {
       // A server reference wins over inline content (the server copy is canonical).
       o.serverUrl = server;
       o.serverProjectId = id;
-      bool ok = false;
-      const qint64 v = q.queryItemValue("version").toLongLong(&ok);
-      o.serverVersion = (ok && v > 0) ? v : 0;
     } else {
       o.src = q.queryItemValue("src", QUrl::FullyDecoded).trimmed();
       // Deep links are remotely clickable: only web/data image sources may ride them, never LOCAL files.
-      if (!o.src.isEmpty()
-          && !o.src.startsWith(QLatin1String("http://"), Qt::CaseInsensitive)
-          && !o.src.startsWith(QLatin1String("https://"), Qt::CaseInsensitive)
+      if (!o.src.isEmpty() && !net::fetchGuard::isWebScheme(o.src)
           && !o.src.startsWith(QLatin1String("data:"), Qt::CaseInsensitive)) {
         o.src.clear();
       }

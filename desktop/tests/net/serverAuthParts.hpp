@@ -57,6 +57,8 @@ struct MockServer {
   QByteArray goodBearer;     // non-empty: non-mint paths 401 unless this bearer is sent
   QByteArray mintBearer;     // non-empty: the mint itself 401s unless this bearer is sent
   int sessionStatus = 0;     // non-zero: GET /auth/session answers this (404 = an older server)
+  QByteArray redirectTo;     // non-empty: every non-mint request answers 302 to this URL
+  qint64 claimLength = 0;    // non-zero: a non-mint answer claims this Content-Length
   int tokenRequests = 0;
   int requests = 0;
   QList<QByteArray> lines;   // each request line, in arrival order
@@ -80,9 +82,12 @@ struct MockServer {
                                  ? (head.contains("Bearer " + goodBearer) ? 200 : 401)
                                  : projectsStatus;
           const QByteArray body = mint ? "{\"token\":\"" + mintToken + "\"}" : QByteArray("[]");
-          s->write("HTTP/1.1 " + QByteArray::number(status) + " X\r\n"
+          const bool moved = !mint && !redirectTo.isEmpty();
+          const qint64 length = !mint && claimLength ? claimLength : body.size();
+          s->write("HTTP/1.1 " + QByteArray::number(moved ? 302 : status) + " X\r\n" +
+                   (moved ? "Location: " + redirectTo + "\r\n" : QByteArray()) +
                    "Content-Type: application/json\r\nContent-Length: " +
-                   QByteArray::number(body.size()) + "\r\nConnection: close\r\n\r\n" + body);
+                   QByteArray::number(length) + "\r\nConnection: close\r\n\r\n" + body);
           s->flush();
           s->disconnectFromHost();
         });

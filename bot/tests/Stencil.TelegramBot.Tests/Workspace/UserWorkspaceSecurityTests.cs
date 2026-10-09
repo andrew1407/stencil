@@ -13,20 +13,13 @@ public sealed class UserWorkspaceSecurityTests : IDisposable
 
     public UserWorkspaceSecurityTests()
     {
-        _root = Path.Combine(Path.GetTempPath(), "stencil-bot-sec-" + Guid.NewGuid().ToString("N"));
+        _root = TempDirs.New("bot-sec");
         _workspace = new UserWorkspace(new BotOptions { DataDir = _root });
     }
 
     public void Dispose()
     {
-        try
-        {
-            Directory.Delete(_root, recursive: true);
-        }
-        catch
-        {
-            // Best effort — temp dir.
-        }
+        TempDirs.Delete(_root);
     }
 
     [Theory]

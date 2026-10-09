@@ -12,11 +12,6 @@ import (
 // listAll is the unpaged ListProjects argument the assertions use.
 var listAll = store.ProjectPage{}
 
-// fakeCounter stands in for the hub's live connection count.
-type fakeCounter int
-
-func (f fakeCounter) ConnectionCount(string) int { return int(f) }
-
 // fakeFiles records what the byte store was asked to do, and can fail a write.
 type fakeFiles struct {
 	mu          sync.Mutex

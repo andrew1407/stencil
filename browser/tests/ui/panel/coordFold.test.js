@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { createStubElement } from '../../helpers/dom.js';
-import { installDustDom, rect } from '../../helpers/dustCloudRig.js';
+import { installDustDom, rect } from '../../helpers/dustRig.js';
 
 let clock = 0;
 let reduced = false;

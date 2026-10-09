@@ -5,6 +5,8 @@ import (
 	"log"
 	"sync"
 	"time"
+
+	"stencil/server/internal/clock"
 )
 
 // maintenance is what one expiry pass drives: expired projects in batches (their bytes dropped over a
@@ -78,11 +80,8 @@ func (m maintenance) pass(ctx context.Context) {
 }
 
 func (m maintenance) deleteSessions(ctx context.Context) (int, error) {
-	if m.timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, m.timeout)
-		defer cancel()
-	}
+	ctx, cancel := clock.WithTimeout(ctx, m.timeout)
+	defer cancel()
 	return m.sessions.DeleteExpiredSessions(ctx, time.Now().UnixMilli(), m.batch)
 }
 

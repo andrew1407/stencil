@@ -22,6 +22,7 @@ namespace stencil::gui {
     struct Hooks {
       std::function<bool()> syncToServer;
       std::function<bool()> incognito;
+      // Every push, landed, failed or refused, ends in pushFinished().
       std::function<void()> saveToServer;
       std::function<void(const QString& addr, const QString& id, bool silent)> openServerProject;
       std::function<void()> serverProjectDeleted;
@@ -46,6 +47,10 @@ namespace stencil::gui {
     bool resultBusy() const { return resultDirty || resultInFlight; }
     // A closing window waits for its last result, capped; true once, when it must close again.
     bool holdCloseForResult(std::function<void()> reclose);
+    // A pending or in-flight layout push: fired now and waited for, capped like the result.
+    bool holdCloseForPush(std::function<void()> reclose);
+    // Every push calls it once it has settled, whatever started it.
+    void pushFinished();
     void setResultTiming(int idleMs, int gapMs) { resultIdleMs = idleMs; resultGapMs = gapMs; }
 
     // ms, constants.json COEDIT.resultIdleMs / resultMinGapMs and POLL.remoteMs, read once; the
@@ -58,6 +63,7 @@ namespace stencil::gui {
 
    private:
     void ensureLiveFeed();
+    void firePush();
     void pollRemoteForUpdate();
     void armResultTimer();
     void startResultUpload();
@@ -73,12 +79,15 @@ namespace stencil::gui {
     qint64 reloadVersion = 0;    // the newest peer version queued; our own echo never reloads
     bool resultDirty = false;
     bool resultInFlight = false;
+    int resultSeq = 0;   // the upload that owns resultInFlight; a left project's late answer is ignored
     qint64 resultDirtySince = 0;   // ms epoch; caps the idle wait under continuous editing
     qint64 lastResultAt = 0;
     int resultIdleMs = tableMs("COEDIT", "resultIdleMs", RESULT_IDLE_MS);
     int resultGapMs = tableMs("COEDIT", "resultMinGapMs", RESULT_GAP_MS);
     std::function<void()> resultSettled;
     bool closeHeld = false;
+    std::function<void()> pushSettled;
+    bool pushCloseHeld = false;
     RemoteSession* session;       // the server-project session (link state + connections)
     const bool* remoteReloading;  // owned by MainWindow (true while an async reload is in flight)
     const bool* remotePushing;    // owned by MainWindow (true while an async push is in flight)

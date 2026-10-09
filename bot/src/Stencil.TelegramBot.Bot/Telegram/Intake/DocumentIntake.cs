@@ -8,6 +8,7 @@ using Stencil.TelegramBot.Domain.Sessions;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Stencil.TelegramBot.Bot.Telegram.Commands;
+using Stencil.TelegramBot.Bot.Telegram.Messaging;
 
 namespace Stencil.TelegramBot.Bot.Telegram.Intake;
 
@@ -17,12 +18,12 @@ public sealed class DocumentIntake
 {
     private readonly MediaIntake _media;
     private readonly CommandHandlers _handlers;
-    private readonly IEditingService _editing;
+    private readonly EditingService _editing;
     private readonly ISessionStore _store;
     private readonly ITelegramBotClient _bot;
 
     public DocumentIntake(
-        MediaIntake media, CommandHandlers handlers, IEditingService editing,
+        MediaIntake media, CommandHandlers handlers, EditingService editing,
         ISessionStore store, ITelegramBotClient bot)
     {
         _media = media;
@@ -66,11 +67,7 @@ public sealed class DocumentIntake
             await _media.AdoptVideoAsync(userId, chatId, document.FileId, ext, label, caption, ct);
             return;
         }
-        await _bot.SendMessage(
-            chatId,
-            "Unsupported file. Send an image or video to edit, a .stc script to run, a .stencil project "
-            + "to open, or a .json layout with caption /apply.",
-            cancellationToken: ct);
+        await _bot.SendMessage(chatId, Replies.UnsupportedFile(), cancellationToken: ct);
     }
 
     private async Task applyLayoutDocumentAsync(long userId, long chatId, string fileId, string? caption, CancellationToken ct)
@@ -79,17 +76,14 @@ public sealed class DocumentIntake
         UserSession session = await _store.GetAsync(userId, ct);
         if (!explicitApply && !session.HasImage)
         {
-            await _bot.SendMessage(
-                chatId,
-                "Send an image first, then upload a .json layout (or add the caption /apply).",
-                cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.LayoutNeedsImage(), cancellationToken: ct);
             return;
         }
         byte[] bytes = await _media.DownloadDocumentBytesAsync(fileId, ".json", ct);
         StencilLayout? layout = StencilLayoutParser.Parse(bytes);
         if (layout is null)
         {
-            await _bot.SendMessage(chatId, "That file isn't a valid Stencil layout JSON.", cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.LayoutFileInvalid(), cancellationToken: ct);
             return;
         }
         await _editing.ApplyLayoutAsync(userId, layout, ct: ct);
@@ -102,7 +96,7 @@ public sealed class DocumentIntake
         byte[] bytes = await _media.DownloadDocumentBytesAsync(fileId, ".stc", ct);
         if (bytes.Length > ScriptService.MAX_SCRIPT_BYTES)
         {
-            await _bot.SendMessage(chatId, "That .stc file is too large to run.", cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.ScriptFileTooLarge(), cancellationToken: ct);
             return;
         }
         // A BOM would otherwise reach the lexer as a stray token on line 1.
@@ -116,7 +110,7 @@ public sealed class DocumentIntake
         StencilProject? project = StencilProjectFile.Parse(bytes);
         if (project is null)
         {
-            await _bot.SendMessage(chatId, "That file isn't a valid .stencil project.", cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.ProjectFileInvalid(), cancellationToken: ct);
             return;
         }
         await _editing.OpenProjectFileAsync(userId, project, ct);

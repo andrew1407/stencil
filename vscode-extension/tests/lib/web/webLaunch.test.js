@@ -88,14 +88,39 @@ test('localSources names what the browser cannot open, and nothing it can', () =
 });
 
 test('a .stencil becomes the fragment\'s own parts: its image and its layout', () => {
+  // The format stores `ext` bare, as the e2e fixture project does.
+  const fixture = JSON.parse(readFileSync(new URL('../../../../e2e/fixtures/project.stencil', import.meta.url), 'utf8'));
+  assert.equal(fixture.image.ext, 'png');
+  assert.equal(web.projectLaunch(JSON.stringify(fixture)).name, `${fixture.name}.png`);
   const doc = {
     format: 'stencil-project', version: 1, name: 'roof',
-    image: { dataUrl: 'data:image/png;base64,AAAA', ext: '.png' },
+    image: { dataUrl: 'data:image/png;base64,AAAA', ext: fixture.image.ext },
     layout: { imageWidth: 10, imageHeight: 20, lines: [] },
   };
   assert.deepEqual(web.projectLaunch(JSON.stringify(doc)), {
     dataUrl: 'data:image/png;base64,AAAA', name: 'roof.png',
     layout: { imageWidth: 10, imageHeight: 20, lines: [] },
+  });
+});
+
+test('a dotted ext is taken as it is, and a missing one is png', () => {
+  const name = (image) => web.projectLaunch(JSON.stringify({ name: 'n', image: { dataUrl: 'data:,', ...image } })).name;
+  assert.equal(name({ ext: '.jpg' }), 'n.jpg');
+  assert.equal(name({ ext: 'webp' }), 'n.webp');
+  assert.equal(name({}), 'n.png');
+});
+
+test('a local image past MAX_INLINE_BYTES is refused by its size, before it is read', () => {
+  assert.equal(web.MAX_INLINE_BYTES, Math.floor((web.MAX_PAYLOAD * 3) / 4), 'its base64 fits the fragment');
+  withDir((dir) => {
+    const path = join(dir, 'big.png');
+    writeFileSync(path, Buffer.alloc(web.MAX_INLINE_BYTES + 1));
+    assert.equal(web.fitsInline(path), false);
+    assert.equal(web.imageDataUrl(path), null);
+    writeFileSync(path, Buffer.alloc(web.MAX_INLINE_BYTES));
+    assert.equal(web.fitsInline(path), true);
+    assert.ok(web.imageDataUrl(path).dataUrl.startsWith('data:image/png;base64,'));
+    assert.equal(web.fitsInline(join(dir, 'gone.png')), true, 'the read reports a missing file');
   });
 });
 

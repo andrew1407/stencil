@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { FormulaEngine } from '../../../js/core/parse/formulaEngine.js';
+import { readFileSync } from 'node:fs';
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
+import { FormulaEngine, FORMULA_MAX_CHARS, formulaText } from '../../../js/core/parse/formulaEngine.js';
 
 const fe = new FormulaEngine();
 
@@ -51,9 +53,42 @@ test('deeply nested parens are invalid (identity), not a stack overflow', () => 
     assert.strictEqual(fe.validate('-'.repeat(200000) + 'x', 'x'), false);
 });
 
+test('past the recursion cap is invalid within the length cap too', () => {
+    const over = '('.repeat(300) + 'x' + ')'.repeat(300);
+    assert.ok(over.length <= FORMULA_MAX_CHARS);
+    assert.strictEqual(fe.validate(over, 'x'), false);
+    assert.strictEqual(fe.validate('('.repeat(100) + 'x' + ')'.repeat(100), 'x'), true);
+});
+
 test('a long flat expression stays linear and valid', () => {
-    const flat = '0' + '+1'.repeat(20000);
-    assert.strictEqual(fe.apply(flat, 'x', 0, true), 20000);
+    const flat = '0' + '+1'.repeat(499);
+    assert.strictEqual(flat.length, 999);
+    assert.strictEqual(fe.apply(flat, 'x', 0, true), 499);
+});
+
+// Core parses no JSON, so MAX_CHARS is pinned in its header; this guards that literal.
+test('the length cap is one value: constants.json, the JS twin and the core header', () => {
+    assert.strictEqual(FORMULA_MAX_CHARS, constants.LIMITS.formulaMaxChars);
+    const hpp = readFileSync(new URL('../../../../core/parse/formulaParser.hpp', import.meta.url), 'utf8');
+    assert.strictEqual(Number(/MAX_CHARS\s*=\s*(\d+)/.exec(hpp)?.[1]), FORMULA_MAX_CHARS);
+});
+
+test('an expression past the cap is invalid (identity), however simple; a blank one is identity', () => {
+    const at = 'x' + ' '.repeat(FORMULA_MAX_CHARS - 1);
+    assert.strictEqual(fe.validate(at, 'x'), true);
+    assert.strictEqual(fe.validate(at + ' ', 'x'), false);
+    assert.strictEqual(fe.apply(at + ' ', 'x', 7, true), 7);
+    assert.strictEqual(fe.applyCtx('1' + ' '.repeat(FORMULA_MAX_CHARS), 'x', 7, true, {}), 7);
+    assert.strictEqual(fe.validate(' '.repeat(5000), 'x'), true);
+});
+
+test('formulaText keeps a stored formula within the cap and drops anything else', () => {
+    const at = 'x'.repeat(FORMULA_MAX_CHARS);
+    assert.strictEqual(formulaText('x*2'), 'x*2');
+    assert.strictEqual(formulaText(at), at);
+    assert.strictEqual(formulaText(at + 'x'), '');
+    assert.strictEqual(formulaText(undefined), '');
+    assert.strictEqual(formulaText(42), '');
 });
 
 test('numeric overflow yields invalid (identity)', () => {

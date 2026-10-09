@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"io"
-	"time"
 
 	"stencil/server/internal/filestore"
 	"stencil/server/internal/protocol"
@@ -37,41 +36,7 @@ type ChargeLedger interface {
 	Credit(ctx context.Context, projectID, kind string) error
 }
 
-// SessionCounter reports how many clients are in a project's live edit session.
-// The hub satisfies it; nil means "treat every project as having none".
-type SessionCounter interface {
-	ConnectionCount(projectID string) int
-}
-
-// ExpiredStore is the sweep's query: expired rows, minus the ids to keep. *store.Store satisfies it.
+// ExpiredStore is the sweep's query: expired rows. *store.Store satisfies it.
 type ExpiredStore interface {
-	DeleteExpiredProjects(ctx context.Context, now int64, limit int, keep []string) ([]string, error)
-}
-
-// LiveProjects lists every project with a live edit session. The hub satisfies it.
-type LiveProjects interface {
-	LiveProjectIDs() []string
-}
-
-// RemoteLive lists the projects live on the other instances sharing the database. *Presence satisfies it.
-type RemoteLive interface {
-	LiveElsewhere(ctx context.Context) ([]string, error)
-}
-
-// RemoteSessions counts a project's live editors on the other instances. *Presence satisfies it;
-// nil means this instance is the only one.
-type RemoteSessions interface {
-	RemoteMembers(ctx context.Context, projectID string) (int, error)
-}
-
-// PresenceStore is the shared liveness table. *store.Store satisfies it.
-type PresenceStore interface {
-	BeatPresence(ctx context.Context, instance string, live map[string]int, ttl time.Duration) error
-	LiveElsewhere(ctx context.Context, instance string) ([]string, error)
-	MembersElsewhere(ctx context.Context, instance, projectID string) (int, error)
-}
-
-// LiveCounts maps each project live on this instance to its member count. The hub satisfies it.
-type LiveCounts interface {
-	LiveCounts() map[string]int
+	DeleteExpiredProjects(ctx context.Context, now int64, limit int) ([]string, error)
 }

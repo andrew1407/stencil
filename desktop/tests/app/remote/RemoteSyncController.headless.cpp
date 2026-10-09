@@ -101,6 +101,17 @@ int main(int argc, char** argv) {
   pump(700);
   check(pushes == 1, "an edit flushes to the server once the burst settles");
   pushes = 0;
+
+  // A push in flight owns the link's version: the next one waits for it, then leaves once.
+  pushing = true;
+  ctrl.scheduleRemotePush();
+  pump(800);
+  check(pushes == 0, "no push starts while another is in flight");
+  pushing = false;
+  ctrl.pushFinished();
+  pump(300);
+  check(pushes == 1, "the waiting push leaves once the one in flight has settled");
+  pushes = 0;
   incognito = true;
   ctrl.scheduleRemotePush();
   pump(700);
@@ -140,6 +151,15 @@ int main(int argc, char** argv) {
   check(!settled, "…and has not settled while it is");
   std::exchange(finishUpload, {})();
   check(settled && !ctrl.resultBusy(), "the flush settles once the last result has landed");
+
+  // Leaving the project clears an upload still in flight; its late answer changes nothing.
+  ctrl.scheduleResultUpload();
+  pump(450);
+  check(uploads == 4 && ctrl.resultBusy(), "a fourth result is in flight");
+  ctrl.stopRemotePoll();
+  check(!ctrl.resultBusy(), "leaving the project clears the result in flight");
+  std::exchange(finishUpload, {})();
+  check(!ctrl.resultBusy(), "…and the left project's late answer leaves it clear");
 
   // The guarded write behind every push lets go of its callbacks once done: they hold the
   // push guard, and a flag that never clears stops every later poll and reload.

@@ -1,6 +1,7 @@
 // The .stc runner: each lowered op onto the PlanTarget, in order. An @source or @frame load waits
 // on I/O, so it suspends the run, and its answer resumes it at the next op (contracts/stc §3, §10).
 #include "scriptRunParts.hpp"
+#include "webScheme.hpp"
 
 #include <QFile>
 
@@ -53,7 +54,7 @@ namespace stencil::gui {
       void startLoad(const ScriptOp& op, llm::OpDone done) {
         if (op.kind == ScriptOpKind::OPEN) {
           const QString spec = strAt(op, 0);
-          if (isWebUrl(spec)) return target.openUrlThen(spec, false, std::move(done));
+          if (net::fetchGuard::isWebScheme(spec)) return target.openUrlThen(spec, false, std::move(done));
           if (rules.webSourcesOnly) return done(false, localRefusal(spec));
           return target.openFileThen(spec, std::move(done));
         }
@@ -62,13 +63,9 @@ namespace stencil::gui {
         const ScriptBlock block = op.block >= 0 && op.block < blocks.size() ? blocks.at(op.block)
                                                                            : ScriptBlock{};
         const int frame = op.nums.isEmpty() ? block.frame : static_cast<int>(op.nums[0]);
-        if (rules.webSourcesOnly && !isWebUrl(block.source)) return done(false, localRefusal(block.source));
+        if (rules.webSourcesOnly && !net::fetchGuard::isWebScheme(block.source))
+          return done(false, localRefusal(block.source));
         target.openSourceFrameThen(block.source, frame, std::move(done));
-      }
-
-      static bool isWebUrl(const QString& spec) {
-        return spec.startsWith(QStringLiteral("http://"), Qt::CaseInsensitive)
-            || spec.startsWith(QStringLiteral("https://"), Qt::CaseInsensitive);
       }
 
       static QString localRefusal(const QString& spec) {

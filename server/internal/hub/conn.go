@@ -1,26 +1,24 @@
 package hub
 
-// Connection handling: the two listeners (WebSocket, raw TCP), the hello
-// handshake, and the two things a connection can be — a project session member
-// or a subscriber to the global events feed.
+// Connection handling: the two listeners (WebSocket, raw TCP), the hello handshake, and the global
+// events feed a connection listens to afterwards.
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"log"
 	"net"
 	"net/http"
 	"sync"
+	"time"
 
-	"stencil/server/internal/eventbus"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/transport"
+	"stencil/server/internal/validate"
 )
 
-// WSHandler returns an http.Handler that upgrades to WebSocket and joins a
-// session/feed. The route carries no id; the hello frame selects the target.
+// WSHandler returns an http.Handler that upgrades to WebSocket and serves the feed.
 func (h *Hub) WSHandler() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		conn, err := transport.AcceptWS(rw, req)
@@ -34,16 +32,30 @@ func (h *Hub) WSHandler() http.Handler {
 	})
 }
 
-// ServeListener accepts TCP connections and handles each as an edit connection (NDJSON framing). It
-// blocks until the listener is closed, then waits for in-flight connections to drain.
+// ServeListener accepts TCP connections and handles each as a feed connection (NDJSON framing). Any
+// accept error but a closed listener (EMFILE, ECONNABORTED) is logged and retried after a capped backoff,
+// as net/http does; once the listener is closed it waits for in-flight connections to drain.
 func (h *Hub) ServeListener(ln net.Listener) error {
 	var wg sync.WaitGroup
+	var backoff time.Duration
 	for {
 		c, err := ln.Accept()
-		if err != nil {
+		if errors.Is(err, net.ErrClosed) {
 			wg.Wait()
 			return err
 		}
+		if err != nil {
+			backoff = min(max(2*backoff, acceptBackoffMin), acceptBackoffMax)
+			log.Printf("hub: tcp accept: %v; retrying in %v", err, backoff)
+			select {
+			case <-time.After(backoff):
+				continue
+			case <-h.ctx.Done():
+				wg.Wait()
+				return err
+			}
+		}
+		backoff = 0
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -54,87 +66,72 @@ func (h *Hub) ServeListener(ln net.Listener) error {
 	}
 }
 
-// HandleConn performs the hello handshake then routes the connection to either a
-// project session or the global events feed. It blocks until the connection ends.
+// The accept retry starts at acceptBackoffMin and doubles to acceptBackoffMax, net/http's own bounds.
+var (
+	acceptBackoffMin = 5 * time.Millisecond
+	acceptBackoffMax = time.Second
+)
+
+// HandleConn takes the per-IP slot, performs the hello handshake and serves the global events feed. It
+// blocks until the connection ends.
 func (h *Hub) HandleConn(ctx context.Context, conn transport.Conn) error {
-	// Track this connection so a shutdown CloseAll can cancel it and drain the
-	// conn (WebSocket conns are hijacked, so httpSrv.Shutdown can't close them).
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	untrack := h.trackConn(conn, cancel)
 	defer untrack()
 
-	// First frame must be a hello within the deadline.
-	hctx, hcancel := context.WithTimeout(ctx, h.tune.HelloTimeout)
-	raw, err := conn.Read(hctx)
-	hcancel()
-	if err != nil {
-		_ = conn.Close(transport.ClosePolicyViolation, "expected hello")
-		return err
+	ip := h.hello.connIP(ctx, conn)
+	if !h.perIP.take(ip) {
+		refuseHello(ctx, conn, protocol.CodeRateLimited, "too many connections from this address")
+		return errTooManyConns
 	}
-	var hello protocol.WSMessage
-	if err := json.Unmarshal(raw, &hello); err != nil || hello.Type != protocol.WSHello {
-		_ = conn.Close(transport.ClosePolicyViolation, "expected hello")
+	defer h.perIP.drop(ip)
+
+	hello, err := h.readHello(ctx, conn)
+	if err != nil {
 		return err
 	}
 	sess, err := h.checkHello(ctx, conn, hello)
 	if err != nil {
 		return err
 	}
-	defer h.expireAt(sess.ExpiresAt, conn, cancel)()
-
-	if hello.ProjectID == "" {
-		return h.serveEvents(ctx, conn)
-	}
-	if err := h.checkProject(ctx, conn, hello.ProjectID); err != nil {
+	if err := checkHelloFields(ctx, conn, hello); err != nil {
 		return err
 	}
-	return h.serveProject(ctx, conn, hello)
+	conn.SetReadLimit(transport.MaxMessageBytes)
+	defer h.expireAt(sess.ExpiresAt, conn, cancel)()
+	return h.serveEvents(ctx, conn)
 }
 
-// serveProject registers the connection as a member of a project session and
-// pumps frames until it disconnects.
-func (h *Hub) serveProject(ctx context.Context, conn transport.Conn, hello protocol.WSMessage) error {
-	clientID := hello.ClientID
-	if clientID == "" {
-		clientID = randomID()
+// readHello reads the first frame under the hello deadline and the hello read limit; anything but a
+// hello closes the connection.
+func (h *Hub) readHello(ctx context.Context, conn transport.Conn) (protocol.WSMessage, error) {
+	hctx, hcancel := context.WithTimeout(ctx, h.tune.HelloTimeout)
+	raw, err := conn.Read(hctx)
+	hcancel()
+	if err != nil {
+		_ = conn.Close(transport.ClosePolicyViolation, "expected hello")
+		return protocol.WSMessage{}, err
 	}
-	m := newMember(clientID, hello.Name, conn, h.tune)
-
-	s := h.acquire(hello.ProjectID)
-	defer h.release(s)
-
-	writerDone := make(chan struct{})
-	go m.writeLoop(ctx, writerDone)
-
-	s.register <- m
-
-readLoop:
-	for {
-		raw, err := conn.Read(ctx)
-		if err != nil {
-			break
-		}
-		var msg protocol.WSMessage
-		if json.Unmarshal(raw, &msg) != nil {
-			continue
-		}
-		select {
-		case s.incoming <- inbound{member: m, msg: msg}:
-		case <-s.done:
-			break readLoop
-		case <-ctx.Done():
-			break readLoop
-		}
+	var hello protocol.WSMessage
+	if err := json.Unmarshal(raw, &hello); err != nil || hello.Type != protocol.WSHello {
+		_ = conn.Close(transport.ClosePolicyViolation, "expected hello")
+		return protocol.WSMessage{}, err
 	}
-	_ = conn.Close(transport.CloseNormal, "bye")
-	// Unregister BEFORE waiting on the writer: the run-loop's unregister handler closes m.out, which is what
-	// lets writeLoop finish. Waiting first would deadlock a member whose out channel is idle.
-	select {
-	case s.unregister <- m:
-	case <-s.done:
+	return hello, nil
+}
+
+// checkHelloFields refuses a hello that names a project (no session is served) or carries a name past
+// its cap, after the token was good so neither spends the hello budget.
+func checkHelloFields(ctx context.Context, conn transport.Conn, hello protocol.WSMessage) error {
+	if hello.ProjectID != "" {
+		refuseHello(ctx, conn, protocol.CodeBadRequest, "project sessions are not served; omit projectId for the events feed")
+		return errProjectHello
 	}
-	<-writerDone
+	if err := validate.Name(hello.Name); err != nil {
+		refuseHello(ctx, conn, protocol.CodeBadRequest, err.Error())
+		return err
+	}
 	return nil
 }
 
@@ -144,7 +141,7 @@ func (h *Hub) serveEvents(ctx context.Context, conn transport.Conn) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	ch, unsub := h.bus.Subscribe(eventbus.ChannelEvents)
+	ch, unsub := h.feed.listen()
 	defer unsub()
 
 	// Detect client disconnect by reading; any read error cancels the loop.
@@ -162,19 +159,14 @@ func (h *Hub) serveEvents(ctx context.Context, conn transport.Conn) error {
 		case <-ctx.Done():
 			_ = conn.Close(transport.CloseNormal, "bye")
 			return nil
-		case env, ok := <-ch:
+		case data, ok := <-ch:
 			if !ok {
+				_ = conn.Close(transport.CloseNormal, "feed ended")
 				return nil
 			}
-			if err := conn.Write(ctx, env.Data); err != nil {
+			if err := conn.Write(ctx, data); err != nil {
 				return err
 			}
 		}
 	}
-}
-
-func randomID() string {
-	var b [8]byte
-	_, _ = rand.Read(b[:])
-	return "c_" + hex.EncodeToString(b[:])
 }

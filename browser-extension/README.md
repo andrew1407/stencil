@@ -109,7 +109,8 @@ imports into your editor tab. The DevTools panel stays the classic surface.
 
 On the configured editor origin the extension adds a `stencil.extension` slot to the
 editor's own `window.stencil` facade (gated by **Options → Editor page scripting API**,
-default **on**; `null` when the extension isn't installed or the toggle is off). Every method
+**off** until you save an Editor URL of your own, then on; `null` when the extension isn't
+installed or the API is off). Every method
 with an answer is async and rejects with a real `Error` when the call can't be served;
 `openInNewTab` and `crop` are one-way and return the facade.
 

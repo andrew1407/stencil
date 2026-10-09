@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { buildLayoutPayload, mergeLines } from '../../js/core/layout.js';
+import { buildLayoutPayload, mergeLines, sanitizeLines } from '../../js/core/layout.js';
 
 // ── mergeLines (concurrent co-edit conflict resolution) ──
 test('mergeLines: unions distinct lines from both editors', () => {
@@ -148,3 +148,16 @@ test('buildLayoutPayload includes page format + formulas only when provided', ()
 
 // A plain state object identical to what Storage.#buildLayout resolves from the live app and viewport;
 // order and values stay byte-identical, since the cross-tab / reopen round-trip reads it back.
+
+test('sanitizeLines floors a line\'s thickness and point size at 0 and keeps every other value', () => {
+  const pts = [{ x: 0, y: 0 }];
+  const [neg, big, mid] = sanitizeLines([
+    { points: pts, thickness: -4, pointSize: -3 },
+    { points: pts, thickness: 99, pointSize: 1e9 },
+    { points: pts, thickness: 0.5, pointSize: 0 },
+  ]);
+  assert.deepEqual([neg.thickness, neg.pointSize], [0, 0]);
+  assert.deepEqual([big.thickness, big.pointSize], [99, 1e9], 'a stored layout comes back as written');
+  assert.deepEqual([mid.thickness, mid.pointSize], [0.5, 0], 'a fraction and pointSize 0 (no points) are kept');
+  assert.equal('pointSize' in sanitizeLines([{ points: pts, pointSize: 'x' }])[0], false);
+});

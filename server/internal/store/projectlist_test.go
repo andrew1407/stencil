@@ -77,7 +77,7 @@ func TestListProjectsOmitsPayload(t *testing.T) {
 	if p.Layout != nil {
 		t.Fatal("CreateProject echoed the layout back")
 	}
-	snap, err := s.GetProjectSnapshot(ctx, p.ID)
+	snap, err := s.GetProject(ctx, p.ID)
 	if err != nil || snap.Layout == nil {
 		t.Fatalf("a snapshot carries the layout: %v %+v", err, snap)
 	}

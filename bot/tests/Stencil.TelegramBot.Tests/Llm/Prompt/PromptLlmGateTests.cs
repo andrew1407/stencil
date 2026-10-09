@@ -23,14 +23,14 @@ public sealed class PromptLlmGateTests : IDisposable
 
     public PromptLlmGateTests()
     {
-        _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-llmgate-" + Guid.NewGuid().ToString("N"));
+        _dataDir = TempDirs.New("bot-llmgate");
         BotOptions options = new() { DataDir = _dataDir };
         _editing = new EditingService(_cli, new UserWorkspace(options), _store);
     }
 
     public void Dispose()
     {
-        try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
+        TempDirs.Delete(_dataDir);
     }
 
     private PromptService makeService(int maxConcurrent) => new(

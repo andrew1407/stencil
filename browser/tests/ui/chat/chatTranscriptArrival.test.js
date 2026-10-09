@@ -3,9 +3,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { dustFitsScroller, chatArrivalPoint, CHAT_ENTER_REACH } from '../../../js/ui/motion.js';
-import { chatViewSource } from '../../helpers/chatViewSource.js';
+import { chatViewSource } from '../../helpers/moduleSource.js';
 import { makeEl, stubDom, rowsOf } from '../../helpers/chatTranscriptRig.js';
-import { installDustPage, rect, cloudAim } from '../../helpers/dustPageRig.js';
+import { installDustPage, rect, cloudAim } from '../../helpers/dustRig.js';
 
 // Every arriving entry gathers out of its own dust on the same fine mesh the removal uses,
 // so the two directions read as one surface (motion.js chatIn).

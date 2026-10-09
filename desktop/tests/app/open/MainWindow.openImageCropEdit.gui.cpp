@@ -1,27 +1,9 @@
 // MainWindow GUI e2e — the Open Image crop stage reacting to what happens AROUND it: an
 // edited URL clearing its stale rect at once (not waiting for a new decode), and a cached
-// image tab not keeping a video tab's Frame row. Shared ground in MainWindow.gui.hpp.
-#include "../../MainWindow.gui.hpp"
+// image tab not keeping a video tab's Frame row. Shared ground in openImageGui.hpp.
+#include "openImageGui.hpp"
 
-#include "OpenImageDialog.hpp"
 #include "openImageDialogParts.hpp"
-#include <QCheckBox>
-#include <QLineEdit>
-#include <QPushButton>
-#include <QTabWidget>
-
-using stencil::gui::OpenImageDialog;
-
-namespace {
-
-  // The dialog's crop toggle: the one visible check with no text of its own.
-  QCheckBox* cropBox(OpenImageDialog* dlg) {
-    for (QCheckBox* c : dlg->findChildren<QCheckBox*>())
-      if (c->isVisible() && c->text().isEmpty()) return c;
-    return nullptr;
-  }
-
-}  // namespace
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
@@ -34,21 +16,12 @@ class MainWindowGuiTest : public QObject {
   void editingTheUrlMidCropClearsTheStageInstantly() {
     bool stagedBefore = false, stagedAfter = true, pictureVisible = false, stillChecked = false;
     MainWindow win(nullptr, false);
-    win.resize(1250, 980);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(showForOpenImage(win));
     QTimer::singleShot(0, &win, [&] {
       auto* dlg = qobject_cast<OpenImageDialog*>(QApplication::activeModalWidget());
       if (!dlg) return;
-      auto* tabs = dlg->findChild<QTabWidget*>(QStringLiteral("oiTabs"));
-      tabs->setCurrentIndex(1);
-      QWidget* page = tabs->currentWidget();
-      auto* url = page->findChild<QLineEdit*>();
-      auto* pv = page->findChild<QPushButton*>();
-      QTest::keyClicks(url, guiTestImage());
-      settle([&] { return pv->isEnabled(); }, 1000);
-      pv->click();
-      settle([&] { return !dlg->previewedImage().isNull(); }, 4000);
+      const UrlTab tab = previewByUrl(dlg, guiTestImage());
+      QLineEdit* url = tab.url;
       QCheckBox* crop = cropBox(dlg);
       if (!crop) { dlg->reject(); return; }
       crop->setChecked(true);
@@ -73,9 +46,7 @@ class MainWindowGuiTest : public QObject {
   void restoringAnImageTabHidesTheOtherTabsFrameRow() {
     bool frameShownAfterVideo = false, frameShownAfterImage = true;
     MainWindow win(nullptr, false);
-    win.resize(1250, 980);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(showForOpenImage(win));
     QTimer::singleShot(0, &win, [&] {
       auto* dlg = qobject_cast<OpenImageDialog*>(QApplication::activeModalWidget());
       if (!dlg) return;

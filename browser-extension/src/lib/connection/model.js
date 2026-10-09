@@ -6,7 +6,7 @@ export const CONNECTIONS_KEY = 'stencil-connections';
 // Port of the browser's connectionManager.js isLoopbackHost.
 export const isLoopbackHost = (host) => {
   if (!host) return false;
-  const h = host.toLowerCase().replace(/^\[|\]$/g, '');
+  const h = host.toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, '');   // brackets; one trailing dot
   if (h === 'localhost' || h.endsWith('.localhost')) return true;
   if (h === '::1') return true;
   return /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(h);

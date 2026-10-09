@@ -7,7 +7,7 @@ export const REMOTE_FLAG = 'remote';
 // Plaintext http is safe on loopback: the bytes never leave the machine.
 export const isLoopbackHost = (host) => {
   if (!host) return false;
-  const h = host.toLowerCase().replace(/^\[|\]$/g, ''); // strip any IPv6 brackets
+  const h = host.toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, '');   // brackets; one trailing dot
   if (h === 'localhost' || h.endsWith('.localhost')) return true;
   if (h === '::1') return true;
   return /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(h);
@@ -22,8 +22,7 @@ export const normalizeUrl = (raw) => {
     const host = new URL('http://' + s).hostname;
     s = (isLoopbackHost(host) ? 'http://' : 'https://') + s;
   }
-  const u = new URL(s);
-  return u.origin;
+  return new URL(s).origin;
 };
 
 // `<url>#token=<value>`: the fragment never goes over the wire. Split before normalizeUrl.

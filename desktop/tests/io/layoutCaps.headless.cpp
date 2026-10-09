@@ -79,6 +79,15 @@ int main(int argc, char** argv) {
           "a parsed layout document is capped the same way");
   }
 
+  {
+    QJsonObject neg = lineWith(pointsOf(2));
+    neg["thickness"] = -4;
+    neg["pointSize"] = -3;
+    const stencil::core::Lines kept = linesFromJson(QJsonArray{neg});
+    check(kept.size() == 1 && kept[0].thickness == 0.0 && kept[0].pointSize == 0.0,
+          "a negative thickness or pointSize reads as 0 (browser limits.js storedSize)");
+  }
+
   std::printf("%s (%d failure(s))\n", failures ? "FAILED" : "OK", failures);
   return failures ? 1 : 0;
 }

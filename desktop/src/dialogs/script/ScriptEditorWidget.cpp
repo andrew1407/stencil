@@ -81,6 +81,7 @@ namespace stencil::gui {
       if (painting) return;
       const QString text = edit->toPlainText();   // QPlainTextEdit reassembles it, so read once
       parseAndPaint(text, false);   // editing also clears the verdict: it was about older text
+      model::ScriptBuffer::instance().setText(text);
       emit edited();
     });
     recolour();
@@ -90,28 +91,37 @@ namespace stencil::gui {
      * a script may be pasted from anywhere, so it dies with the process. */
     model::ScriptBuffer& shared = model::ScriptBuffer::instance();
     if (!shared.getText().isEmpty()) setScript(shared.getText());
-    connect(this, &ScriptEditorWidget::edited, this,
-            [this] { model::ScriptBuffer::instance().setText(script()); });
-    connect(&shared, &model::ScriptBuffer::changed, this,
-            [this](const QString& text) { if (text != script()) setScript(text); });
+    connect(&shared, &model::ScriptBuffer::changed, this, [this](const QString& text) {
+      if (text == edit->toPlainText()) return;
+      if (isVisible()) setScript(text);
+      else stale = true;
+    });
   }
 
-  QString ScriptEditorWidget::script() const { return edit->toPlainText(); }
+  QString ScriptEditorWidget::script() const {
+    return stale ? model::ScriptBuffer::instance().getText() : edit->toPlainText();
+  }
 
   void ScriptEditorWidget::setScript(const QString& text) {
+    stale = false;
     edit->setPlainText(text);
     applyLineHeight();   // setPlainText resets the document's block formats
     edit->moveCursor(QTextCursor::End);
   }
 
-  bool ScriptEditorWidget::isEmpty() const { return edit->toPlainText().trimmed().isEmpty(); }
+  bool ScriptEditorWidget::isEmpty() const { return script().trimmed().isEmpty(); }
 
   bool ScriptEditorWidget::isIdle() const {
     return program.getOps().isEmpty() && program.getDiagnostics().isEmpty();
   }
 
   void ScriptEditorWidget::copyToClipboard() const {
-    QApplication::clipboard()->setText(edit->toPlainText());
+    QApplication::clipboard()->setText(script());
+  }
+
+  void ScriptEditorWidget::showEvent(QShowEvent* event) {
+    QWidget::showEvent(event);
+    if (stale) setScript(model::ScriptBuffer::instance().getText());
   }
 
   void ScriptEditorWidget::recolour() { parseAndPaint(edit->toPlainText(), false); }

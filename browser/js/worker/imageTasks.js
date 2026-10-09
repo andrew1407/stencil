@@ -4,6 +4,7 @@
 // the worker URL throws — the same imageRaster.js sequence runs inline on a document canvas.
 import { core } from '../core/abi/stencilCore.js';
 import { applyContourRGBA } from '../core/image/contourFilter.js';
+import { dataUrlOfBlob } from '../core/project/store/imageBlobs.js';
 import { IMAGE_TASK } from './imageMessages.js';
 import { fitSize, paintScaled, contourCanvas, paintResult } from './imageRaster.js';
 
@@ -44,13 +45,6 @@ const post = (msg, transfer) => new Promise((resolve, reject) => {
   spawn().postMessage({ ...msg, id }, transfer);
 });
 
-const blobToDataUrl = (blob) => new Promise((resolve, reject) => {
-  const r = new FileReader();
-  r.onload = () => resolve(r.result);
-  r.onerror = () => reject(r.error);
-  r.readAsDataURL(blob);
-});
-
 const makeCanvas = (w, h) => {
   const c = document.createElement('canvas');
   c.width = w;
@@ -62,7 +56,7 @@ const makeCanvas = (w, h) => {
 const run = async (job, inline) => {
   if (imageWorkerUsable()) {
     try {
-      return await blobToDataUrl((await job()).blob);
+      return await dataUrlOfBlob((await job()).blob);
     } catch (err) {
       if (!worker) dead = true;
     }

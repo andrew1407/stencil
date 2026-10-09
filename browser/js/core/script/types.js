@@ -94,6 +94,24 @@ export const unitIndexOfColumn = (line, col) => {
   return k;
 };
 
+// unitIndexOfColumn for every column of `line`, built in one pass: a span lookup is then O(1).
+// `bytes` is the line's UTF-8 length; a column inside a character lands after it, as above.
+export const columnIndex = (line) => {
+  const bytes = utf8Length(line);
+  const at = new Uint32Array(bytes + 1);
+  let b = 0;
+  for (let k = 0; k < line.length;) {
+    const step = line.codePointAt(k) > 0xffff ? 2 : 1;
+    const size = utf8Length(line, k, k + step);
+    at[b] = k;
+    for (let j = 1; j < size; j += 1) at[b + j] = k + step;
+    b += size;
+    k += step;
+  }
+  at[bytes] = line.length;
+  return { bytes, unitOf: (col) => (col <= 1 ? 0 : col - 1 >= bytes ? line.length : at[col - 1]) };
+};
+
 export const unquoteWord = (s) =>
   s.length >= 2 && s.startsWith('"') && s.endsWith('"') ? s.slice(1, -1) : s;
 

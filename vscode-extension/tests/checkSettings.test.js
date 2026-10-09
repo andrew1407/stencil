@@ -23,12 +23,12 @@ const withHost = async (settings, body) => {
 };
 
 // A CLI answering with a code no parser can produce, so its absence from the answer is visible.
-const withCli = async (settings, body) => {
+const withCli = async (settings, body, { sleep = 0 } = {}) => {
   const dir = mkdtempSync(join(tmpdir(), 'stencil-vsce-'));
   const script = join(dir, 'demo.stc');
   const cli = join(dir, 'stencil');
   writeFileSync(script, TEXT);
-  writeFileSync(cli, '#!/bin/sh\necho "$2:9:4: error: from the CLI [E_FROM_CLI]"\nexit 1\n', { mode: 0o755 });
+  writeFileSync(cli, `#!/bin/sh\nsleep ${sleep}\necho "$2:9:4: error: from the CLI [E_FROM_CLI]"\nexit 1\n`, { mode: 0o755 });
   try {
     await withHost({ 'stencil.cliPath': cli, ...settings },
       (booted) => body({ ...booted, document: makeDocument({ path: script, text: TEXT }) }));
@@ -70,4 +70,15 @@ test('disposing the context cancels a pending typing check', async () => {
     await delay(diagnostics.DEBOUNCE_MS * 2);
     assert.equal(calls.collections[0].entries.size, 0, 'no check ran after deactivation');
   });
+});
+
+test('a CLI check that finishes after the document closed adds no Problems back', POSIX_ONLY, async () => {
+  await withCli({}, async ({ calls, diagnostics, document }) => {
+    diagnostics.register({ subscriptions: [] });
+    const pending = calls.events.open[0](document);
+    document.isClosed = true;
+    calls.events.close[0](document);
+    await pending;
+    assert.equal(calls.collections[0].entries.size, 0, 'the closed file keeps no entry');
+  }, { sleep: 0.3 });
 });

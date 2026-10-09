@@ -45,6 +45,8 @@ namespace stencil::gui {
     autosaveTimer->start(800);
   }
 
+  bool StencilFileSync::autosavePending() const { return autosaveTimer && autosaveTimer->isActive(); }
+
   void StencilFileSync::setLiveSync(bool on) {
     liveSync = on;
     if (on && !path.isEmpty()) {

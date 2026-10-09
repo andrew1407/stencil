@@ -70,7 +70,7 @@
   #sec-assistant .msg:hover .msg-menu-btn { opacity: .7; transition-delay: 0s; }
   #sec-assistant .msg:hover .msg-menu-btn:hover { opacity: 1; }
 }
-/* On a bubble too short to lift it clear (msgMenuLiftFits), the trigger yields to the pills. */
+/* On a bubble too short to lift it clear (rowMenuLiftFits), the trigger yields to the pills. */
 .msg-menu-btn.msg-menu-btn-yield { opacity: 0 !important; pointer-events: none !important; }
 #sec-assistant .msg.user {
   align-self: flex-end;

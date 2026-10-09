@@ -3,6 +3,7 @@
 // browser/tests/wasm/wasm-parity-state.test.js drives both through one script.
 
 import { encodeLines, decodeLines } from '../line/linesCodec.js';
+import { heapAlloc, heapAllocAll } from './coreMarshal.js';
 import { buildProjectRules, projectRuleExports } from '../project/meta/projectRules.js';
 import constants from '../../../../common/config/constants.json' with { type: 'json' };
 
@@ -38,7 +39,7 @@ const holdDrawClass = (mod) => {
     constructor({ holdDelay = HOLD_DRAW.delayMs, moveTolerance = HOLD_DRAW.moveTolerancePx,
       rearmDistance = HOLD_DRAW.rearmDistancePx } = {}) {
       this.#handle = c.create(holdDelay, moveTolerance, rearmDistance);
-      this.#out = mod._malloc(2 * F64);
+      this.#out = heapAlloc(mod, 2 * F64);
     }
 
 // Idempotent; the instance is unusable after.
@@ -104,9 +105,8 @@ const historyClass = (mod) => {
   const withSnapshot = (snapshot, use) => {
     const isMemento = !Array.isArray(snapshot);
     const { nums, text } = encodeLines(isMemento ? snapshot.lines : snapshot);
-    const numsPtr = mod._malloc(Math.max(1, nums.length * F64));
-    const textPtr = mod._malloc(Math.max(1, text.length));
-    const viewPtr = isMemento ? mod._malloc(6 * F64) : 0;
+    const [numsPtr, textPtr, viewPtr = 0] = heapAllocAll(mod,
+      [Math.max(1, nums.length * F64), Math.max(1, text.length), ...(isMemento ? [6 * F64] : [])]);
     try {
       new Float64Array(mod.HEAPF64.buffer, numsPtr, nums.length).set(nums);
       mod.HEAPU8.set(text, textPtr);
@@ -130,7 +130,7 @@ const historyClass = (mod) => {
 
     constructor() {
       this.#handle = c.create();
-      this.#sizes = mod._malloc(2 * I32);
+      this.#sizes = heapAlloc(mod, 2 * I32);
     }
 
     destroy() {
@@ -167,9 +167,7 @@ const historyClass = (mod) => {
       if (!ok) return null;
       const numsLen = mod.getValue(this.#sizes, 'i32');
       const textLen = mod.getValue(this.#sizes + I32, 'i32');
-      const numsPtr = mod._malloc(Math.max(1, numsLen * F64));
-      const textPtr = mod._malloc(Math.max(1, textLen));
-      const viewPtr = mod._malloc(6 * F64);
+      const [numsPtr, textPtr, viewPtr] = heapAllocAll(mod, [Math.max(1, numsLen * F64), Math.max(1, textLen), 6 * F64]);
       try {
         c.read(this.#handle, numsPtr, textPtr);
         const lines = decodeLines(new Float64Array(mod.HEAPF64.buffer, numsPtr, numsLen),

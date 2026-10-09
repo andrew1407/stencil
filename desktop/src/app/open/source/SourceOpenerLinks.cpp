@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "SharedState.hpp"
 #include "SourceOpener.hpp"
 #include "mainWindowHelpers.hpp"
 #include "CanvasWidget.hpp"
@@ -58,7 +59,7 @@ namespace stencil::gui {
         pr->meta.source = w.docSource.currentSource.toStdString();
         pr->meta.resource = w.docSource.currentResource.toStdString();
         pr->meta.updatedAt = nowMs();
-        fileStore::saveProjects(w.projectList);
+        SharedState::instance().saveProjects(&w);
         w.notify->success("Links saved");
         return;
       }

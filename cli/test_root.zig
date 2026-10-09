@@ -9,6 +9,9 @@ test {
     _ = @import("tests/media/layout_filter_test.zig");
     _ = @import("tests/pipeline/pipeline_e2e_test.zig");
     _ = @import("tests/pipeline/thumbnail_test.zig");
+    _ = @import("tests/pipeline/pipeline_run_test.zig");
+    _ = @import("tests/inspect/merge_lines_test.zig");
+    _ = @import("tests/media/layout_line_check_test.zig");
     _ = @import("tests/net/net_guard_test.zig");
     _ = @import("tests/net/pin_test.zig");
     _ = @import("tests/net/hosts_fixtures_test.zig");
@@ -24,8 +27,7 @@ test {
     _ = @import("tests/console/scrollback_test.zig");
     _ = @import("tests/console/worker_print_test.zig");
     _ = @import("tests/console/script_runs_test.zig");
-    _ = @import("tests/console/rotate_lines_test.zig");
-    _ = @import("tests/console/flip_lines_test.zig");
+    _ = @import("tests/console/rotate_flip_lines_test.zig");
     _ = @import("tests/console/crop_lines_test.zig");
     _ = @import("tests/line_edit/markers_test.zig");
     _ = @import("tests/line_edit/keys_test.zig");
@@ -37,7 +39,7 @@ test {
     _ = @import("tests/script/script_fixtures_test.zig");
     _ = @import("tests/llm/llm_prompt_core_test.zig");
     _ = @import("tests/llm/llm_prompt_images_test.zig");
-    _ = @import("tests/llm/llm_prompt_console_test.zig");
+    _ = @import("tests/llm/llm_prompt_servers_test.zig");
     _ = @import("tests/llm/llm_prompt_ops_test.zig");
     _ = @import("tests/llm/sanitizer_fixtures_test.zig");
     _ = @import("tests/llm/chatdoc_fixtures_test.zig");

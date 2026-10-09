@@ -10,10 +10,10 @@ export interface MenuBox { left: number; top: number; }
 export declare const clampMenuPosition: (args: { x: number; y: number; size?: { width: number; height: number };
   viewport: { width: number; height: number }; margin?: number }) => MenuBox;
 
-export declare const MSG_MENU_JUMP_GAP: number;
+export declare const CHAT_ROW_MENU_JUMP_GAP: number;
 export interface PillRect { left: number; right: number; top: number; bottom: number; width: number; height: number; }
-export declare const msgMenuLiftPx: (btn: PillRect | null, pills?: PillRect[], gap?: number) => number;
-export declare const msgMenuLiftFits: (bubble: { top: number } | null, btn: { top: number } | null, lift: number) => boolean;
+export declare const rowMenuLiftPx: (btn: PillRect | null, pills?: PillRect[], gap?: number) => number;
+export declare const rowMenuLiftFits: (row: { top: number } | null, btn: { top: number } | null, lift: number) => boolean;
 export declare const menuTransformOrigin: (args: { x: number; y: number; left: number; top: number;
   size?: { width: number; height: number } }) => string;
 

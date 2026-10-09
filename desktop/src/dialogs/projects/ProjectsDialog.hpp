@@ -83,6 +83,9 @@ namespace stencil::gui {
     void clearAllRequested();
     void removeRequested(const QVector<QPair<QString, QString>>& items);
     void renameRequested(const QString& id, const QString& newName);
+    // The row menu's Description and Keywords edits; `server` is empty for a local row.
+    void descriptionRequested(const QString& id, const QString& server, const QString& text);
+    void keywordsRequested(const QString& id, const QString& server, const QStringList& keywords);
     void expirationRequested(const QString& id, long long expiresAt,
                              const QString& refreshPeriod, bool autoRefresh);
     // `closeRect` is the row's "⋯" chip in GLOBAL coords, where the dialog flies back to.
@@ -102,11 +105,6 @@ namespace stencil::gui {
     void done(int result) override;
 
    private:
-    void commitRowEdit(const QString& id, const QString& server,
-                       const std::function<void(Project&)>& mutate,
-                       const std::function<void(stencil::net::ServerClient*, qint64,
-                                                std::function<void(bool, qint64)>)>& push,
-                       const std::function<void(stencil::net::ServerProject&)>& cache);
     // Construction order is observable (tab order, findChildren) — tests/dialogs/projects/list/ProjectsDialogRows.headless.cpp pins it.
     void buildSearchRow(QVBoxLayout* layout);
     void buildBatchBar(QVBoxLayout* layout);

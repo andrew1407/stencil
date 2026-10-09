@@ -7,9 +7,12 @@ export const DEFAULT_PAGE = 'A3';
 const DEFAULT_DESKTOP_SCHEME = 'stencil';
 
 export const getSettings = async () => {
-  const s = await chrome.storage.sync.get({ editorUrl: DEFAULT_EDITOR_URL, page: DEFAULT_PAGE, markOpened: true, openedFirst: true, showPinned: true, hoverHighlight: false, highlightColor: 'theme', exposeWindowStencil: false, editorPageApi: true, desktopScheme: DEFAULT_DESKTOP_SCHEME, telegramBotUsername: '' });
+  const s = await chrome.storage.sync.get({ editorUrl: '', page: DEFAULT_PAGE, markOpened: true, openedFirst: true, showPinned: true, hoverHighlight: false, highlightColor: 'theme', exposeWindowStencil: false, editorPageApi: true, desktopScheme: DEFAULT_DESKTOP_SCHEME, telegramBotUsername: '' });
+  const typedUrl = typeof s.editorUrl === 'string' ? s.editorUrl.trim() : '';
+  const editorPageApiToggle = s.editorPageApi !== false;
   return {
-    editorUrl: (s.editorUrl || DEFAULT_EDITOR_URL).trim() || DEFAULT_EDITOR_URL,
+    editorUrl: typedUrl || DEFAULT_EDITOR_URL,
+    editorUrlSet: typedUrl !== '',
     page: s.page || DEFAULT_PAGE,
     // "Open in…" targets; an empty Telegram username hides the Telegram action.
     desktopScheme: typeof s.desktopScheme === 'string' ? s.desktopScheme.trim() : DEFAULT_DESKTOP_SCHEME,
@@ -22,8 +25,9 @@ export const getSettings = async () => {
     hoverHighlight: s.hoverHighlight === true,
     // Default OFF: it touches every page's main world, so strictly opt-in.
     exposeWindowStencil: s.exposeWindowStencil === true,
-    // Default ON: it touches exactly one origin — the configured editor, our own front-end.
-    editorPageApi: s.editorPageApi !== false
+    // OFF until the user sets editorUrl: the privileged relay trusts only an origin they chose.
+    editorPageApi: editorPageApiToggle && typedUrl !== '',
+    editorPageApiToggle
   };
 };
 

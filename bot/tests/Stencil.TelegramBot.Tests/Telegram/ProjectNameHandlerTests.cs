@@ -22,14 +22,14 @@ public sealed class ProjectNameHandlerTests : IDisposable
 
     public ProjectNameHandlerTests()
     {
-        _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-name-" + Guid.NewGuid().ToString("N"));
+        _dataDir = TempDirs.New("bot-name");
         BotOptions options = new() { DataDir = _dataDir };
         _handlers = TestHandlers.Create(options, _store, _cli, _bot);
     }
 
     public void Dispose()
     {
-        try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
+        TempDirs.Delete(_dataDir);
     }
 
     private Task dispatch(string text) =>

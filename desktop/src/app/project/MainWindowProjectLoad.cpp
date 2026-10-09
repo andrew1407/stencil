@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "SharedState.hpp"
 #include "ChatSessionController.hpp"
 #include "mainWindowShared.hpp"
 #include "mainWindowHelpers.hpp"
@@ -43,7 +44,7 @@ namespace stencil::gui {
           // Mirrors the browser storage.loadProject snap; keep-forever (expiresAt 0) is untouched.
           if (pr->meta.autoRefresh && pr->meta.expiresAt != 0) {
             pr->meta.expiresAt = core::ProjectsStore::addPeriod(nowMs(), pr->meta.refreshPeriod);
-            fileStore::saveProjects(projectList);
+            SharedState::instance().saveProjects(this);
           }
           activeProjectId = id;
           remote.session->getLink().unbind();  // a local project is not server-linked

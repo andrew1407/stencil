@@ -53,7 +53,7 @@ imports a spec. `playwright.config.js` sits above all three, reading `config.js`
 | `helpers/extension.js` | the persistent-context launch + extension-id resolution | headed; CI wraps in xvfb |
 | `helpers/cli/` | one run of the Zig binary read by its argv/outcome contract; lines piped into `stencil --console` | the stderr grammar mcp and bot parse; the console spawns async so the in-process stub stays reachable |
 | `helpers/stcCases.js` | reads the shared `.stc` corpus (`common/fixtures/script/cases.txt`) | script inputs come from the corpus, so the cli and the browser run what the core is proved on |
-| `helpers/server/` | REST helpers; WS + raw-TCP clients for the live-edit protocol | |
+| `helpers/server/` | REST helpers; WS + raw-TCP clients for the events feed | |
 | `helpers/chat.js`, `drag.js`, `uiPin.js`, `openImage.js` | the chat readers and gestures; the touch driver; the pin recorder; the Open Image driver | |
 | `helpers/png.js` | a real PNG encoded with Node's own `zlib` | the picture a spec hands a file input |
 | `helpers/llm-stub.js` | the scriptable stub LLM for every wire shape | **all model traffic ends here** |
@@ -128,7 +128,7 @@ classDiagram
     CliRun --> WroteLine : parseWrote
     CliRun ..> StcCase : --script
     StencilWindow ..> StcCase : script window
-    Client --> ProjectRecord : joins
+    Client ..> ProjectRecord : hears events about
     LlmStub *-- StubRequest : records
     StencilWindow --> Pin : capturePin
     StencilWindow ..> LlmStub : chat
@@ -144,8 +144,8 @@ classDiagram
 | `CliRun` | `runCli()`'s exit code and output of one run of `CLI_BIN` | the test; `cwd` is `testInfo.outputPath()` | `parseWrote`, `pngSize` on the written file |
 | `StcCase` | one corpus case as `{ script, diagnostics }` | the repo; read per call | the cli's script flags and console verb, the browser's script window |
 | `WroteLine` | `parseWrote()`: the `wrote` success line as `{ path, w, h }` | derived from `CliRun.out` | the CLI contract mcp and bot also parse |
-| `ProjectRecord` | the server's project as the REST helpers return it | the running server; per test | `Client.join` targets its `id`; PUT guards on its `version`. Canonical in `server/internal/protocol` |
-| `Client` | one promise-based shape over WS (`dialWS`) and raw TCP (`dialTCP`); `T` names the frame types | the test, `close()` in `finally` | the `WSMessage` envelope, canonical in `server/internal/protocol` |
+| `ProjectRecord` | the server's project as the REST helpers return it | the running server; per test | a feed event names its `id`; PUT guards on its `version`. Canonical in `server/internal/protocol` |
+| `Client` | one promise-based shape over WS (`dialWS`) and raw TCP (`dialTCP`); `T` names the frame types; `closed()` resolves on the peer's hang-up | the test, `close()` in `finally` | the `WSMessage` envelope, canonical in `server/internal/protocol` |
 | `LlmStub` | `startLlmStub()`'s scriptable server: its recorded `requests` and its reply `queue` | a `test.describe`, `reset()` per test | the app, the CLI and the server dial it |
 | `StubRequest` | one recorded POST, `{ method, path, headers, body }` | `LlmStub.requests` | read by the helpers in `helpers/chat.js` |
 | `Pin` | `capturePin()`'s `{ name, root, nodes }`, settled by two agreeing reads | `pins/<PIN_PLATFORM>/<name>.json` | `diffPins(baseline, actual)` names the first differing paths |
@@ -159,7 +159,7 @@ classDiagram
 | Stub / Fake | `startLlmStub` (`helpers/llm-stub.js`) | one Node `http` server for every wire shape; a FIFO `queue` of scripted replies; `hold` / `release` keep calls in flight |
 | Golden / Pin | `expectPin`, `capturePin`, `diffPins` (`helpers/uiPin.js`); `pins/<platform>/` | computed styles + DOM shape, never screenshots |
 | Driver (page-object style) | `boot.js`, `chat.js`, `drag.js`, `openImage.js`, `extension.js` | each helper wraps one seam of the artifact; specs hold no selectors for those seams |
-| Adapter over the wire | `Client` and `join` (`server/wire.js`); the REST helpers (`server/api.js`) | one `send` / `readUntil` shape over two transports; `T` follows `protocol.go` |
+| Adapter over the wire | `Client` (`server/wire.js`); the REST helpers (`server/api.js`) | one `send` / `readUntil` shape over two transports; `T` follows `protocol.go` |
 | Adapter over the CLI | `runCli`, `parseWrote`, `pngSize` (`cli/run.js`) | the argv/stderr grammar of `cli/`; `pngSize` checks the IHDR so the file, not the claim, is asserted |
 | Serial-vs-parallel project split | `playwright.config.js` | projects sharing one server and stub port run serially; the rest are `fullyParallel` |
 | Capability gate (self-skip) | `stackEnabled` (`server/api.js`), `cliAvailable` (`cli/run.js`), the `PINS_DIR` check in `expectPin`, `GET /llm/info` in the LLM specs | a missing prerequisite is a reported skip, never a pass |
@@ -178,9 +178,9 @@ classDiagram
   `/healthz`. The spec takes a token, boots a page, calls `window.stencil.connect`, then drives
   a second client or chats through the server; the stub's recorded request carries the
   upstream wire.
-- **A server-protocol spec.** No browser: a token and a project over REST, then `dialWS()` or
-  `dialTCP()` and `join`, which resolves `welcome`. One client sends an edit, the other reads
-  it; a save resolves `T.synced` with the bumped version.
+- **A server-protocol spec.** No browser: a token over REST, then `dialWS()` or `dialTCP()`
+  and a `hello`. The spec drives a project through REST and reads each `project-event` the
+  feed announces; a hello that names a project resolves `T.error` and the socket's close.
 - **A cli spec.** `runCli` runs the binary once; `parseWrote` reads the outcome line and
   `pngSize` the file it names. The `/prompt` spec spawns `--console` with `STENCIL_LLM_*` at the
   stub and asserts the queued op plan changed the written PNG.
@@ -248,7 +248,7 @@ A smoke harness: each project proves one surface's public contract end to end. `
 drives the facade, deep links, `.stencil` files, the chat panel, drag gestures and the UI pins;
 `browser-extension` the scanner, the editor hand-offs and the panel; `fullstack` two browser
 clients through one server and the browser-to-server-to-stub LLM round trip; `server-protocol`
-the REST lifecycle, the handshake, edit fan-out and presence, with no browser; `cli` the argv
+the REST lifecycle, the handshake and the events feed over both transports, with no browser; `cli` the argv
 and stderr grammar against the written PNG's real dimensions, and the `.stc` flags over the
 shared corpus.
 

@@ -94,7 +94,7 @@ int main(int argc, char** argv) {
   canvas.applyCrop(core::CropRect{0, 0, 120, 80}, /*recalc=*/false);
   check(!canvas.canUndo() && !canvas.canRedo(), "a load's placed crop (no recalc) is the new floor, not a step");
   canvas.commitLines({lineAt(5)});
-  canvas.setFilter(QStringLiteral("sepia"));
+  canvas.setImageFilter(QStringLiteral("sepia"), canvas.getFilterColor());
   canvas.undo();
   check(canvas.getLines().empty() && canvas.getImageFilter() == QStringLiteral("none"),
         "an adopted filter is no step of its own: undo lands on the step below, filter and all");

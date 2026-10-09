@@ -93,7 +93,7 @@
     const v = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
     return v - Math.floor(v);
   };
-  // motion.js bezierY, verbatim.
+  // browser/js/ui/dust/flight.js bezierY, in function form.
   const bezierY = function (t, x1, y1, x2, y2) {
     let lo = 0, hi = 1, u = t, x, i;
     for (i = 0; i < 24; i++) {

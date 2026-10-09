@@ -57,3 +57,23 @@ pub const MockIo = struct {
         try self.files.put(try self.a.dupe(u8, path), try self.a.dupe(u8, data));
     }
 };
+
+/// One run test's world, set up in place (the mock's allocator points into the arena):
+/// `const a, const io, const mock = rig.open();` then `defer rig.close();`.
+pub const Rig = struct {
+    arena: std.heap.ArenaAllocator,
+    threaded: std.Io.Threaded,
+    mock: MockIo,
+
+    pub fn open(self: *Rig) struct { std.mem.Allocator, std.Io, *MockIo } {
+        self.arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+        self.threaded = std.Io.Threaded.init(std.testing.allocator, .{});
+        self.mock = MockIo.init(self.arena.allocator());
+        return .{ self.arena.allocator(), self.threaded.io(), &self.mock };
+    }
+
+    pub fn close(self: *Rig) void {
+        self.threaded.deinit();
+        self.arena.deinit();
+    }
+};

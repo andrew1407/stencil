@@ -1,4 +1,5 @@
 #include "ProjectTransferController.hpp"
+#include "SharedState.hpp"
 #include "projectTransferParts.hpp"
 #include "../../support/rowWork.hpp"
 #include "CanvasWidget.hpp"
@@ -120,7 +121,7 @@ namespace stencil::gui {
           pr.lines = fileStore::parseLayoutJson(layout, lw, lh, &pr.cropRect, &pr.rotationQuarters, &pr.mirrored);
           const QString localId = QString::fromStdString(newId);
           projectList->push_back(pr);
-          fileStore::saveProjects(*projectList);
+          SharedState::instance().saveProjects(nullptr);
           if (removeFromServer) {
             c->deleteProjectAsync(id, [this, c, localId, done](bool dok) {
               if (!dok)

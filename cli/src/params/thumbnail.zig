@@ -13,7 +13,7 @@ const Options = options.Options;
 
 /// The longer-side bound in pixels: a positive integer.
 pub fn side(v: []const u8) Error!u32 {
-    const px = try state.parseU32(v);
+    const px = try state.parseU32("--thumbnail", v);
     if (px == 0) {
         logo.err("--thumbnail expects a size of at least 1 px, got '{s}'\n", .{v});
         return Error.BadValue;

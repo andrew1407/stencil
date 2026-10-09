@@ -12,6 +12,7 @@ const save = @import("../../src/script/save.zig");
 const scriptCore = @import("../../src/script/core.zig");
 const sources = @import("../../src/script/sources.zig");
 const steps = @import("../../src/pipeline/steps.zig");
+const output = @import("../../src/pipeline/output.zig");
 const pixelsOf = @import("pixels.zig").pixelsOf;
 
 test "the save matrix: bare, directory, named and exact targets" {
@@ -166,7 +167,7 @@ test "a save that cannot be written says so instead of exiting silently" {
 
     try testing.expectError(
         error.FileNotFound,
-        steps.writeOutputLabeled(gpa, threaded.io(), img, "no-such-dir/out.png", .png, ""),
+        output.writeOutputLabeled(gpa, threaded.io(), img, "no-such-dir/out.png", .png, ""),
     );
     try testing.expectEqual(report.Severity.err, Cap.sev);
     try testing.expect(std.mem.startsWith(u8, Cap.buf[0..Cap.len], "could not write no-such-dir/out.png"));

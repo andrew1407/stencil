@@ -3,31 +3,11 @@
 // starts no second reload while the first is in flight.
 #include "../../MainWindow.gui.hpp"
 #include "../../support/connectNow.hpp"
-#include "../../support/mockRest.hpp"
+#include "coEditGui.hpp"
+#include "../../../src/app/remote/RemoteSession.hpp"
 #include "../../../src/app/remote/RemoteSyncController.hpp"
 
 namespace {
-
-  QByteArray pngOf(const QColor& fill) {
-    QImage img(120, 80, QImage::Format_RGB32);
-    img.fill(fill);
-    QByteArray png;
-    QBuffer buf(&png);
-    buf.open(QIODevice::WriteOnly);
-    img.save(&buf, "PNG");
-    return png;
-  }
-
-  stencil::core::Line lineAt(double y) {
-    stencil::core::Line l;
-    l.points = {{10, y}, {100, y}};
-    return l;
-  }
-
-  QJsonObject layoutOf(const stencil::core::Lines& lines) {
-    return stencil::gui::fileStore::buildLayoutJson(120, 80, lines, "none", stencil::gui::DEFAULT_ACCENT_HEX,
-                                                   stencil::core::CropRect{0, 0, 120, 80});
-  }
 
   bool hasLineAt(const stencil::core::Lines& lines, double y) {
     for (const auto& l : lines)
@@ -46,14 +26,8 @@ class MainWindowGuiTest : public QObject {
   void strokeDuringReloadSurvivesAndPushes() {
     stencil::test::MockRest mock;
     QVERIFY(mock.listen());
-    stencil::test::MockProject& shared = mock.projects[QStringLiteral("p1")];
-    shared.name = QStringLiteral("Shared");
-    shared.original = pngOf(Qt::white);
-    shared.layout = layoutOf({});
-    QPointer<MainWindow> win = new MainWindow(nullptr, false);
-    win->setAttribute(Qt::WA_DeleteOnClose);
-    win->resize(1000, 760);
-    win->show();
+    stencil::test::MockProject& shared = seedProject(mock, QStringLiteral("p1"), QStringLiteral("Shared"));
+    QPointer<MainWindow> win = newShownWindow();
     QVERIFY(QTest::qWaitForWindowExposed(win.data()));
     win->settings.syncToServer = true;
     QString err;
@@ -95,6 +69,40 @@ class MainWindowGuiTest : public QObject {
              "…and reaches the server");
 
     QTRY_VERIFY(!win->remote.reloading && !win->remote.pushing);
+    win->close();
+    QTRY_VERIFY(win.isNull());
+  }
+
+  // An open the user overtook never lands: p1's picture answering after p2's has landed leaves
+  // the editor on p2.
+  void anOvertakenOpenNeverLands() {
+    stencil::test::MockRest mock;
+    QVERIFY(mock.listen());
+    seedProject(mock, QStringLiteral("p1"), QStringLiteral("p1"), Qt::white);
+    seedProject(mock, QStringLiteral("p2"), QStringLiteral("p2"), Qt::black);
+    QPointer<MainWindow> win = newShownWindow();
+    QVERIFY(QTest::qWaitForWindowExposed(win.data()));
+    QString err;
+    QVERIFY2(stencil::test::connectNow(*win->ensureConnections(), mock.url(), QString(), err),
+             qPrintable(err));
+    mock.holdOriginals = true;
+    win->parts.projects.openServerProject(mock.url(), QStringLiteral("p1"));
+    QTRY_COMPARE(int(mock.heldOriginals.size()), 1);
+    win->parts.projects.openServerProject(mock.url(), QStringLiteral("p2"));
+    QTRY_COMPARE(int(mock.heldOriginals.size()), 2);
+    const auto answer = [&mock](int i) {
+      const auto held = mock.heldOriginals.at(i);
+      if (held.socket) stencil::test::MockRest::reply(held.socket, mock.route(held.line, held.body));
+    };
+    answer(1);
+    QTRY_COMPARE(win->remote.session->getLink().id, QStringLiteral("p2"));
+    QTRY_COMPARE(QColor(win->canvas->getOriginalImage().pixel(5, 5)), QColor(Qt::black));
+    answer(0);
+    QTest::qWait(400);
+    QCOMPARE(win->remote.session->getLink().id, QStringLiteral("p2"));
+    QCOMPARE(QColor(win->canvas->getOriginalImage().pixel(5, 5)), QColor(Qt::black));
+    mock.heldOriginals.clear();
+    mock.holdOriginals = false;
     win->close();
     QTRY_VERIFY(win.isNull());
   }

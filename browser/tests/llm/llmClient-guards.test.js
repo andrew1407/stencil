@@ -1,28 +1,10 @@
-// js/llm/client.js guards: the off switch, the AbortSignal, missing configuration and
-// fetchLlmInfo's bearer token. Split from llmClient.test.js.
+// js/llm/client.js guards: the off switch, the AbortSignal and missing configuration.
+// Split from llmClient.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { createLlmClient, fetchLlmInfo, probeProvider, listModels, LlmError } from '../../js/llm/client.js';
+import { createLlmClient, probeProvider, listModels, LlmError } from '../../js/llm/client.js';
+import { makeMockFetch, MSGS } from '../helpers/llmClientRig.js';
 
-// ── A mock fetch that records every request and replies from a queue ──
-// (the mock-fetch idiom from connections.test.js).
-const makeMockFetch = (responses) => {
-  const calls = [];
-  const queue = Array.isArray(responses) ? responses.slice() : [responses];
-  const fetchImpl = async (url, init = {}) => {
-    calls.push({ url, init });
-    const next = queue.length > 1 ? queue.shift() : queue[0];
-    const { status = 200, body = {} } = next || {};
-    return { ok: status >= 200 && status < 300, status, json: async () => body };
-  };
-  return { calls, fetchImpl };
-};
-
-const MSGS = [
-  { role: 'user', text: 'hello', images: [{ mediaType: 'image/png', data: 'AAAA' }, { mediaType: 'image/jpeg', data: 'BBBB' }] },
-  { role: 'assistant', text: 'prior reply' },
-  { role: 'user', text: 'again' },
-];
 
 test('provider "none": chat throws a typed config error, probe fails offline, no fetch ever fires', async () => {
   const { calls, fetchImpl } = makeMockFetch({ body: {} });
@@ -53,12 +35,4 @@ test('missing configuration and unknown providers throw clearly', async () => {
   await assert.rejects(() => createLlmClient({ settings: { provider: 'ollama', baseUrl: '' }, fetchImpl }).chat({ system: 'S', messages: [] }), /base URL/i);
   await assert.rejects(() => createLlmClient({ settings: { provider: 'stencil-server', serverUrl: '' }, fetchImpl }).chat({ system: 'S', messages: [] }), /server/i);
   await assert.rejects(() => createLlmClient({ settings: { provider: 'weird' }, fetchImpl }).chat({ system: 'S', messages: [] }), /Unknown LLM provider/);
-});
-
-test('fetchLlmInfo GETs /llm/info with the bearer token', async () => {
-  const { calls, fetchImpl } = makeMockFetch({ body: { enabled: true, model: 'claude-opus-5' } });
-  const info = await fetchLlmInfo('http://srv:8090', { token: 'tkn', fetchImpl });
-  assert.deepStrictEqual(info, { enabled: true, model: 'claude-opus-5' });
-  assert.strictEqual(calls[0].url, 'http://srv:8090/llm/info');
-  assert.deepStrictEqual(calls[0].init.headers, { Authorization: 'Bearer tkn' });
 });

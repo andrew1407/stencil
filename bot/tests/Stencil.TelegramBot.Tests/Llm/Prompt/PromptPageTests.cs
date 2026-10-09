@@ -121,7 +121,8 @@ public sealed class PromptPageTests : PromptServiceTestBase
         string system = _llm.Requests[^1].System!;
         Assert.Contains("Projects on http://alpha:8090: proj-01", system);
         Assert.Contains("proj-20", system);
-        Assert.Contains("(+2 more)", system);
+        // One page of 21 proves there are more, not how many.
+        Assert.Contains("proj-20 (+more).", system);
         Assert.DoesNotContain("proj-21", system);
     }
 

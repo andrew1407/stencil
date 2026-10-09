@@ -60,6 +60,35 @@ pub fn lineOf(a: std.mem.Allocator, lo: std.json.ObjectMap, max_points: usize) !
     };
 }
 
+/// A line a user-named layout may not carry: `points` that is not an array, or a thickness or
+/// pointSize that is a negative or non-finite number (opRegistry.json's layout rule: >= 0).
+pub const BadLine = struct {
+    index: usize,
+    field: []const u8,
+
+    /// "lines[2].thickness must be a number >= 0", the registry's wording for the same rule.
+    pub fn describe(self: BadLine, buf: []u8) []const u8 {
+        const want = if (std.mem.eql(u8, self.field, "points")) "must be an array" else "must be a number >= 0";
+        return std.fmt.bufPrint(buf, "lines[{d}].{s} {s}", .{ self.index, self.field, want }) catch self.field;
+    }
+};
+
+/// The first such line in a `lines` value; a non-number field stays the tolerant default.
+pub fn firstBadLine(lines_v: ?std.json.Value) ?BadLine {
+    const v = lines_v orelse return null;
+    if (v != .array) return null;
+    for (v.array.items, 0..) |line_v, i| {
+        if (line_v != .object) continue;
+        const lo = line_v.object;
+        if (lo.get("points")) |pv| if (pv != .array) return .{ .index = i, .field = "points" };
+        for ([_][]const u8{ "thickness", "pointSize" }) |key| {
+            const n = asF64(lo.get(key) orelse continue, 0);
+            if (n < 0 or !std.math.isFinite(n)) return .{ .index = i, .field = key };
+        }
+    }
+    return null;
+}
+
 /// The drawable lines of a `lines` value under `caps`. A line object with no points still
 /// counts against the line cap, as the browser keeps it, but draws nothing and is left out.
 pub fn readLines(a: std.mem.Allocator, lines_v: ?std.json.Value, caps: core.LayoutCaps) ![]core.LineDraw {

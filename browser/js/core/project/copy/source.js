@@ -4,7 +4,7 @@
 import { buildLayoutState, buildProjectMeta } from '../meta/projectMeta.js';
 import { resolveSource } from '../store/projectSources.js';
 import { requireConnection } from '../../../net/remoteSync.js';
-import { blobToDataUrl } from '../serverTransfer.js';
+import { dataUrlOfBlob } from '../store/imageBlobs.js';
 
 // The live editor as a registry row + payload: its saved row's meta under what is on screen now.
 export const liveProjectSnapshot = (app) => {
@@ -57,6 +57,6 @@ export const readRemoteSource = async (c, row) => {
     expiresAt: p.expiresAt || 0, source: src || null, resource: p.resource || null,
     imageW: layout.imageWidth || 0, imageH: layout.imageHeight || 0,
   };
-  const image = await blobToDataUrl(c, blob);
+  const image = await dataUrlOfBlob(blob);
   return { srcId: null, meta, payload: { image, layout }, blob, remote: { address: row.serverUrl, remoteId: row.id } };
 };

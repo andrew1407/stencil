@@ -60,10 +60,10 @@ forbids `Telegram.Bot`, `System.Net.Http`, `System.Diagnostics.Process` and
 | `Infrastructure/Llm/` | `HttpLlmClient` + one `IProviderMapping` per wire shape | the platform's `HttpClient`; endpoint from configuration only |
 | `Infrastructure/Sessions/`, `Infrastructure/Workspace/` | the in-memory and Redis session stores; `UserWorkspace` | bytes live in the workspace, never in a session |
 | `Infrastructure/Configuration/`, `Links/`, `Media/` | `BotOptions`; deep and desktop links, `LayoutFetcher`; the ffmpeg downscaler | operator environment in, never chat text |
-| `src/Stencil.TelegramBot.Bot/` | `Program` + `BotComposition` (the DI root), `UpdatePump` | `Program` registers nothing else; it builds the `UpdatePump` itself, outside DI, and loads the dotenv files beside the app (`AppContext.BaseDirectory`), in the CWD, then in `bot/` of the CWD and its parents, real environment variables winning |
+| `src/Stencil.TelegramBot.Bot/` | `Program` + `BotComposition` (the DI root), `UpdatePump`, `UpdateIntake` | `Program` registers nothing else; it builds the `UpdatePump` and the `UpdateIntake` in front of it itself, outside DI, and loads the dotenv files beside the app (`AppContext.BaseDirectory`), in the CWD, then in `bot/` of the CWD and its parents, real environment variables winning |
 | `Bot/Telegram/` (+ `Commands/`, `Intake/`, `Messaging/`, `Access/`, `Sync/`) | the routers, then a folder per step of an update's path | the only code that sees `Telegram.Bot` |
 | `Bot/Assets/` | `botCommands.json`, `botStrings.json` | `<EmbeddedResource>`s; the dispatch table, the `/` menu and every reply |
-| `tests/` | xUnit, offline: `Doubles/` (mocks and `planChecks.json`, core's recorded verdicts), `Goldens/` | no token, server, CLI or Redis unless `BOT_TEST_CLI` names a built CLI |
+| `tests/` | xUnit, offline: `Doubles/` (mocks and `planChecks.json`, core's recorded verdicts), `Goldens/`, the shared `TempDirs` scratch fixture and `TestHandlers` (the handler graph, a button `Tap`) | no token, server, CLI or Redis unless `BOT_TEST_CLI` names a built CLI |
 
 ## Entities
 
@@ -119,22 +119,28 @@ classDiagram
 
 ## Design
 
-- **An update.** `UpdatePump` puts each update in the sender's lane (a `STOP_TOKEN` tap takes
+- **An update.** `UpdateIntake` drops an edited message — it is no new request — and asks
+  `UpdateRouter.AdmitAsync` on the polling loop — the allowlist, unless the command `IsUngated` —
+  so an unlisted sender's update never takes a pump slot. `UpdatePump` puts each admitted update in the sender's lane (a `STOP_TOKEN` tap takes
   none, since the turn it cancels heads its own). `UpdateRouter` runs under `ErrorGuard`, asks
-  `AccessGate` unless the command `IsUngated`, buffers album members into `AlbumRouter`, takes
-  `UserGate`, then walks `MessageRouter`; a verb is looked up in `CommandHandlers._routes`, a tap
-  goes to `CallbackAction`.
+  `AccessGate` again unless the command `IsUngated`, buffers album members into `AlbumRouter` (a
+  settled album is queued on the sender's lane like any update), takes `UserGate`, re-registers a
+  chat whose session is `SyncEnabled` with `SyncRegistry`, then walks `MessageRouter`; a verb is
+  looked up in `CommandHandlers._routes`, a tap goes to `CallbackAction`.
 - **A photo turn.** An upload is downloaded through a capping stream into `UserWorkspace`, which
   resets the session. A render replays `EditState` as an `EditRequest`; `ProcessStencilCli`
-  parses the `wrote` line into a `RenderResult`. Every mutating command pushes the previous state
-  onto the history.
+  parses the `wrote` line into a `RenderResult`; the layout file a render wrote and a result once
+  sent or uploaded are deleted, the janitor only sweeping what a failure left. `/crop` answers a
+  spec `CropSpecResolver` (the port of core's `cropSpec.cpp`) refuses — malformed, an edge outside
+  the image, an overflowing ratio — with the crop help and stores nothing. Every mutating command
+  pushes the previous state onto the history.
 - **An LLM turn.** `/prompt` or chat mode calls `PromptService` under `LlmGate`; `BuildTurn`
   replays the history plus the contour edge map, and `ILlmClient` posts through an
   `IProviderMapping`. `OpPlanParser` hands the reply to `IStencilCli.PlanCheckAsync` — core
   extracts, validates and normalizes it under the bot's surface — and maps the verdict onto
   `PlanAction`s in core's words. `executeAsync` pre-flights the whole plan (forbidden ops, the
   `openUrl` user-echo guard), then applies each action through `OpRegistry.HandlerFor` onto the
-  `IEditingService` methods the slash commands use, `PlanFrameMapper` re-mapping coordinates. An
+  `EditingService` methods the slash commands use, `PlanFrameMapper` re-mapping coordinates. An
   `AskCard` becomes an inline keyboard.
 - **A script turn.** `/script <text>` or an uploaded `.stc` is written to a temp file in the
   workspace and lowered by `--script-plan` with `--plan-surface bot`, so every chunk arrives
@@ -142,17 +148,33 @@ classDiagram
   fetches). An error diagnostic ends it — nothing runs. Otherwise each chunk takes the model
   plan's mapper, pre-flight and executor. A local path, directory or glob block is refused.
 - **Save and sync.** `/save` renders, merges `EditState` into the active project's layout JSON
-  and updates it guarded by `ActiveProjectVersion` (409 is a conflict). `/fetch` rebuilds the
-  state with `ProjectLayoutMapper.ToEditState`. `SyncWatcher` polls a `/sync`ed chat under the
-  user's gate and pulls a newer version; a mutating edit on a synced project auto-saves. Clients
-  are rebuilt per call from `ServerConnectionInfo`, re-minting from `Credential` when the token
-  goes stale.
+  and updates it guarded by `ActiveProjectVersion`. A 409 re-reads the project and hands its
+  lines, the session's and the previous pass's peer lines (`seen`) to `IStencilCli.MergeLinesAsync`
+  — core's `mergeLines` through `--merge-lines` — then retries at the server's version over the
+  server's layout; the bot keeps its own filter, rotation and page fields. Six tries, the
+  browser's bound; a 409 after them is the conflict reply. The merged lines become the session's
+  together with the version that names them, and a merged save re-renders the result before the
+  upload. A version is adopted only with the layout it names: a metadata write, or the re-read
+  after the result upload, adopts the server's version only when no peer wrote in between, else
+  the stored one stays and the next save meets the peer's 409. `/fetch` opens an id with one
+  `GET /projects/{id}` and walks the listing only for a name, rebuilding the state with
+  `ProjectLayoutMapper.ToEditState`; the original is downloaded again only when its
+  `originalHash` changed. `SyncWatcher` polls each `/sync`ed chat under the user's gate, skipping
+  a user whose gate is busy until the next tick and logging a user's failed pull without
+  stopping the rest; a mutating edit on a synced project auto-saves the render it just sent.
+  Clients are rebuilt per call from `ServerConnectionInfo`, re-minting from `Credential` when the
+  token goes stale; a re-minted token is written back to the connection, so the next call does
+  not mint again. The assistant's context line lists one page of 21 per server.
 - **A connect.** `/connect` → `RemoteImageUrl.ValidateServerUrlAsync` refuses what the
   `serverTarget` policy refuses, and loopback / private hosts too unless `AllowPrivateServers`.
   The handshake probes the token, re-minting once from the credential on 401/403. Every server
   client dials through `GuardedConnect` with `RemoteImageUrl.ServerAddressGuard` — the same
-  verdict for the address actually connected — and never follows a redirect; a looping or
-  unbounded cursor fails a listing, never truncates it.
+  verdict for the address actually connected — with no proxy and no redirect followed; a host
+  with no allowed address is refused, one whose allowed address does not answer is unreachable,
+  and a reply past `HttpClient.Timeout` is a timeout, each a sentence in the chat. A looping or
+  unbounded cursor, or pages past the reply cap together, fail a listing, never truncate it. The
+  `stencil-server` LLM provider dials a server the user connected through the same guard; only
+  the operator's own `STENCIL_LLM_SERVER_URL` uses the unguarded client.
 - **A fetch.** `/url` → `RemoteImageUrl.ValidateAsync` (http(s) only; every resolved address
   passes `IsBlockedAddress`, the table's `fetch` policy), then the CLI fetches. `/layout <url>`
   goes through `LayoutFetcher` with the same predicate; `/sourcesite` scrapes through the CLI into
@@ -175,13 +197,14 @@ and every semaphore below hold for one process only, whichever session store is 
 
 | Owner | Runs on | Shares | Guard | On overflow or teardown |
 |---|---|---|---|---|
-| `UpdatePump` (`Bot/UpdatePump.cs`) | `STENCIL_BOT_UPDATE_WORKERS` (32) worker tasks; the Stop tap on a task of its own, off every lane | the lanes and the ready channel | `_lanes` lock; `UpdateQueueCapacity` (256) process-wide slots, a full pump holding the poller back, the Stop tap included; `MaxPendingPerUser` (64) per lane | a full lane drops the update and logs it; dispose stops intake and waits up to `ShutdownDrainTimeout` (10 s) |
-| `UserGate` (`Telegram/Access/UserGate.cs`) | the message and callback routers, the album flush, the sync poller | one user's session read-modify-write | a `SemaphoreSlim(1)` per user, never nested: the album buffer and the Stop tap run outside it | a gate is forgotten once its last holder leaves |
-| `AlbumCollector` (`Telegram/Intake/`) | a flush task per album group | the group's photos | the group lock; a flushed group is marked under it, so a late photo starts a new group | cancellation drops the buffered group unflushed |
+| `UpdatePump` (`Bot/UpdatePump.cs`) | `STENCIL_BOT_UPDATE_WORKERS` (32) worker tasks; the Stop tap on a task of its own, off every lane | the lanes and the ready channel | `_lanes` lock; `UpdateQueueCapacity` (256) process-wide slots, a full pump holding the poller back, the Stop tap included; `MaxPendingPerUser` (64) per lane; only an update `UpdateIntake` admitted takes a slot | a full lane drops the update and logs it; dispose stops intake and waits up to `ShutdownDrainTimeout` (10 s) |
+| `UserGate` (`Telegram/Access/UserGate.cs`) | the message and callback routers, the album flush, the sync poller | one user's session read-modify-write, a save across all its merge passes | a `SemaphoreSlim(1)` per user, never nested: the album buffer and the Stop tap run outside it; the sync poller only tries it | a gate is forgotten once its last holder leaves |
+| `AlbumCollector` (`Telegram/Intake/`) | a settle task per album group, whose flush is queued on the user's lane | the group's photos | the group lock; a flushed group is marked under it, so a late photo starts a new group | cancellation drops the buffered group unflushed |
 | CLI spawns (`Infrastructure/Cli/ProcessStencilCli.cs`) | the calling handler | the process budget | `STENCIL_BOT_MAX_CONCURRENT_CLI` (one per CPU) awaited slots; a per-run deadline | a run past its deadline is killed |
 | ffmpeg (`Infrastructure/Media/FfmpegImageDownscaler.cs`) | the calling handler, outside the CLI semaphore | — | the CLI's per-run deadline | a failure keeps the original image |
+| `AccessGate` (`Telegram/Access/AccessGate.cs`) | the polling loop, then the lane | the last refusal per unlisted id | a lock over that map | a refused id is answered once per `STENCIL_BOT_REFUSAL_WINDOW_SECONDS` (300); the map resets past 1024 ids; a failed send is logged, never thrown |
 | `LlmGate` (`Domain/Llm/LlmGate.cs`) | prompt and chat turns | in-flight model calls | `STENCIL_BOT_MAX_CONCURRENT_LLM` (8) slots, taken without waiting | over the cap the turn is refused at once |
-| `SyncWatcher` | a hosted loop | synced users' sessions | `UserGate` per pull | SIGTERM cancels and awaits it |
+| `SyncWatcher` | a hosted loop | synced users' sessions | `UserGate.TryAcquire` per pull; a busy user waits for the next tick | a user's failure is logged and the tick goes on; SIGTERM cancels and awaits it |
 | `WorkspaceJanitor` | a hosted loop | the workspace files | prunes only files older than `WorkspaceTtl` that no session references, so a render in flight survives | SIGTERM cancels and awaits it |
 
 ## Rules
@@ -189,8 +212,8 @@ and every semaphore below hold for one process only, whichever session store is 
 1. **The CLI is the pixel engine.** Located `STENCIL_CLI` → `cli/zig-out/bin/stencil` → `PATH`,
    run with `NO_COLOR=1`, its stderr parsed. `--confine-output` refuses an absolute path, so the
    child is spawned *in* the output's folder with only the leaf name, and the relative paths it
-   prints are re-rooted on the way back. `--script-plan` and `--plan-check` carry no
-   `--confine-output`: they write nothing and print their envelope on stdout.
+   prints are re-rooted on the way back. `--script-plan`, `--plan-check` and
+   `--merge-lines` carry no `--confine-output`: they write nothing and print their envelope on stdout.
 2. **Core judges every plan.** The bot validates none itself: a model reply goes through
    `--plan-check`, a script chunk arrives judged, and the mapper only types core's normalized
    result and shows its `message`.
@@ -200,8 +223,9 @@ and every semaphore below hold for one process only, whichever session store is 
 4. **One command vocabulary, one copy deck.** `botCommands.json` drives the dispatch table, the
    Telegram `/` menu, `/help` and the README's generated tables; `botStrings.json` holds every
    reply, button label and callback token. Both are `<EmbeddedResource>`s pinned by goldens.
-5. **Fail closed.** `STENCIL_BOT_ALLOWED_USERS` gates everything but `/start` and `/help`; an
-   unlisted caller gets one sentence, the id goes to the log.
+5. **Fail closed.** `STENCIL_BOT_ALLOWED_USERS` gates everything but `/start` and `/help`, before
+   the update takes a pump slot; an unlisted caller gets one sentence per refusal window, the id
+   goes to the log.
 6. **Bounded and single-instance.** One user never holds more than one worker; every outbound
    call carries a timeout and every read a size cap; a CLI run past its deadline is killed. The
    locks are per process, so the bot runs as one instance.
@@ -227,7 +251,8 @@ Plans are judged offline by `MockStencilCli`, which replays core's verdict per r
 `Doubles/planChecks.json`; a reply without a recording fails its test. The op-plan walker feeds
 `generated/normalized.json`'s bot results through the typed mapper. With `BOT_TEST_CLI` set,
 `PlanCheckCliParityTests` prove the live CLI judges every case as recorded and embeds the bot's
-registry.
+registry. A save's merge runs offline on `MockStencilCli`'s `mergeLines` in miniature;
+`CliMergeLinesTests` prove the live `--merge-lines` merges every case as it does.
 
 The fixture walkers replay the shared corpora under `common/fixtures/` through the real parsers,
 measured divergences pinned in `FixtureOverrides.json`; `SharedOutcomeFixturesTests` replays

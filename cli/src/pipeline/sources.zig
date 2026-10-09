@@ -29,15 +29,10 @@ pub fn loadSource(gpa: std.mem.Allocator, io: std.Io, input: []const u8, frame: 
     return readLocal(gpa, io, input);
 }
 
+/// A text document (a layout's JSON) from a file path or an http(s) URL, as raw bytes. Prints on failure.
 pub fn loadText(gpa: std.mem.Allocator, io: std.Io, src: []const u8) ![]u8 {
     if (net.isUrl(src)) return net.fetch(gpa, io, src, false) catch |e| return mapMediaError(e);
     return readLocal(gpa, io, src);
-}
-
-/// Load a layout JSON document (file path or http(s) URL) as raw bytes — for the console's
-/// structured model, which records the lines rather than baking them. Prints on failure.
-pub fn loadLayoutBytes(gpa: std.mem.Allocator, io: std.Io, src: []const u8) ![]u8 {
-    return loadText(gpa, io, src);
 }
 
 pub fn readLocal(gpa: std.mem.Allocator, io: std.Io, path: []const u8) ![]u8 {

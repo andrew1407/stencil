@@ -28,8 +28,8 @@ public sealed class EditingRenderTests : EditingServiceTestBase
         Assert.Equal("x1=5% x2=95%", request.CropSpec);
         Assert.Equal(1, request.Rotate);
         Assert.Equal("bw", request.Filter);
-        Assert.NotNull(request.LayoutPath);
-        Assert.True(File.Exists(request.LayoutPath));
+        Assert.NotNull(_cli.LayoutJson(request));
+        Assert.False(File.Exists(request.LayoutPath)); // written for the run, deleted after it
         Assert.True(File.Exists(result.Path));
     }
 

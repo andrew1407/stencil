@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert';
 import { createStubElement } from '../helpers/dom.js';
-import { installDustDom, rect, boxEl } from '../helpers/dustCloudRig.js';
+import { installDustDom, rect, boxEl } from '../helpers/dustRig.js';
 import { FLIGHTS, alphaAt } from '../../js/ui/dust/cloud.js';
 import { ANIMATIONS_CSS } from '../helpers/css.js';
 

@@ -16,37 +16,55 @@ namespace stencil::gui {
   // Version-guarded name/layout PUT; the baked result follows on its own throttle. A 409 leaves
   // the link untouched. Mirrors the browser's saveToServer.
   void ProjectFlows::saveToServer() {
-    if (!w.settings.syncToServer) return;  // sync off — fetched project stays edit-in-memory only
+    // One push at a time: a second waits for the first on the push timer.
+    if (w.remote.pushing) { w.remoteSync->scheduleRemotePush(); return; }
+    if (!w.settings.syncToServer) {  // sync off — fetched project stays edit-in-memory only
+      w.remoteSync->pushFinished();
+      return;
+    }
     stencil::net::ServerClient* c = w.remote.session->requireClient(
         w.remote.session->getLink().address, QString("Not connected to %1 — reconnect it first").arg(w.remote.session->getLink().address));
-    if (!c) return;
+    if (!c) {
+      w.remoteSync->pushFinished();
+      return;
+    }
     // remotePushing guards the poll for the whole async push; the shared clearer drops it on
-    // every exit path.
+    // every exit path, unless a newer push owns it.
     w.remote.pushing = true;
-    auto pushGuard = std::shared_ptr<void>(nullptr, [self = QPointer<MainWindow>(&w)](void*) {
-      if (self) self->remote.pushing = false;
+    const int seq = ++w.remote.pushSeq;
+    auto pushGuard = std::shared_ptr<void>(nullptr, [self = QPointer<MainWindow>(&w), seq](void*) {
+      if (!self || self->remote.pushSeq != seq) return;
+      self->remote.pushing = false;
+      if (self->remoteSync) self->remoteSync->pushFinished();
     });
     QPointer<MainWindow> self(&w);
     const int width = w.canvas->imageWidth();
     const int h = w.canvas->imageHeight();
+    // The push carries the project it started on, and touches the link only while it still holds it.
+    const QString id = w.remote.session->getLink().id;
+    const QString name = w.remote.session->getLink().name;
+    const QString addr = w.remote.session->getLink().address;
+    const auto stillLinked = [this, id, addr] {
+      return w.remote.session->getLink().id == id && w.remote.session->getLink().address == addr;
+    };
     // On a version conflict, union-merge the server's lines with ours and retry (up to 6) so a
     // tight race still converges.
     typedef stencil::net::ServerClient::GuardOutcome GO;
     stencil::net::ServerClient::runGuardedWriteAsync(
         /*attempts=*/6, /*startVersion=*/w.remote.session->getLink().version,
-        [this, self, c, width, h, pushGuard](qint64 version, std::function<void(GO)> cb) {
-          if (!self) { cb(GO::FAILED); return; }
+        [this, self, c, width, h, id, name, stillLinked, pushGuard](qint64 version, std::function<void(GO)> cb) {
+          if (!self || !stillLinked()) { cb(GO::FAILED); return; }
           const QJsonObject layout =
               fileStore::buildLayoutJson(width, h, w.canvas->allLines(),
                                          w.settings.imageFilter, w.settings.filterColor,
                                          w.canvas->getCropRect(), w.canvas->getRotationQuarters(),
                                          w.currentLayoutMeta(), w.canvas->getMirrored());
           c->updateProjectAsync(
-              w.remote.session->getLink().id, w.remote.session->getLink().name, layout, version,
-              [this, self, cb](bool ok, qint64 newVersion, bool conflict) {
+              id, name, layout, version,
+              [this, self, cb, stillLinked](bool ok, qint64 newVersion, bool conflict) {
                 if (!self) { cb(GO::FAILED); return; }
                 if (ok) {
-                  w.remote.session->getLink().version = newVersion;
+                  if (stillLinked()) w.remote.session->getLink().version = newVersion;
                   cb(GO::COMMITTED);
                   return;
                 }
@@ -54,12 +72,13 @@ namespace stencil::gui {
                 cb(GO::CONFLICT);
               });
         },
-        [this, self, c, pushGuard](qint64 /*version*/, std::function<void(bool, qint64)> cb) {
-          if (!self) { cb(false, 0); return; }
+        [this, self, c, id, stillLinked, pushGuard](qint64 /*version*/, std::function<void(bool, qint64)> cb) {
+          if (!self || !stillLinked()) { cb(false, 0); return; }
           c->getProjectAsync(
-              w.remote.session->getLink().id,
-              [this, self, cb](bool ok, stencil::net::ServerProject meta, QJsonObject srvLayout) {
-                if (!self || !ok) { cb(false, 0); return; }  // give up (re-read failed)
+              id,
+              [this, self, cb, stillLinked](bool ok, stencil::net::ServerProject meta, QJsonObject srvLayout) {
+                // The re-read merges into the canvas, which must still hold this project.
+                if (!self || !ok || !stillLinked()) { cb(false, 0); return; }
                 int sw = 0, sh = 0;
                 const model::LineUnion merged =
                     model::unionLines(fileStore::parseLayoutJson(srvLayout, sw, sh), w.canvas->allLines());
@@ -82,10 +101,8 @@ namespace stencil::gui {
                 cb(true, meta.version);
               });
         },
-        [this, self, c, pushGuard](GO outcome) {
-          if (!self) return;
-          const QString name = w.remote.session->getLink().name;
-          const QString addr = w.remote.session->getLink().address;
+        [this, self, c, name, addr, stillLinked, pushGuard](GO outcome) {
+          if (!self || !stillLinked()) return;   // the editor left this project meanwhile
           // A lingering Conflict means the attempts were exhausted; toasts follow the outcome
           // changing, so a steady stream of saves stays quiet.
           if (outcome != GO::COMMITTED) {

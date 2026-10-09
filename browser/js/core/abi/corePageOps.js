@@ -1,5 +1,7 @@
 // The core's page-metric and point-geometry ops over the wasm ABI: page dimensions and the
 // format table, the pixel→page mapping, and the in-place rotate / flip / bounding-box centre.
+import { heapAlloc } from './coreMarshal.js';
+
 export const buildPageOps = (core, { F64, allocPoints }) => {
   const cPageFormats = core.cwrap('stencil_pageFormats', 'string', []);
   // cwrap resolves the export once where ccall looked it up per call; a page name is a few
@@ -23,7 +25,7 @@ export const buildPageOps = (core, { F64, allocPoints }) => {
 
   return {
     pageDimensions(name, cw, ch, customW, customH) {
-      const out = core._malloc(2 * F64);
+      const out = heapAlloc(core, 2 * F64);
       try {
         cPageDims(name, cw, ch, customW, customH, out);
         return { width: core.getValue(out, 'double'), height: core.getValue(out + F64, 'double') };
@@ -38,7 +40,7 @@ export const buildPageOps = (core, { F64, allocPoints }) => {
     },
 
     pixelToPageRaw(x, y, dims, cw, ch) {
-      const out = core._malloc(2 * F64);
+      const out = heapAlloc(core, 2 * F64);
       try {
         cPixelRaw(x, y, dims.width, dims.height, cw, ch, out);
         return { x: core.getValue(out, 'double'), y: core.getValue(out + F64, 'double') };
@@ -72,7 +74,7 @@ export const buildPageOps = (core, { F64, allocPoints }) => {
 
     boundingBoxCenter(points) {
       const { ptr, n } = allocPoints(points);
-      const out = core._malloc(2 * F64);
+      const out = heapAlloc(core, 2 * F64);
       try {
         cBboxCenter(ptr, n, out);
         return { x: core.getValue(out, 'double'), y: core.getValue(out + F64, 'double') };

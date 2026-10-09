@@ -1,11 +1,39 @@
 #include "SiblingWindows.hpp"
 #include "MainWindow.hpp"
 
+#include <QApplication>
 #include <QMenu>
+#include <QSet>
+#include <QTimer>
 
-// Spawning sibling windows, and the macOS Dock menu they share.
+// Spawning sibling windows, the open-window registry the quit rule reads, and the macOS Dock
+// menu they share.
 
 namespace stencil::gui {
+
+  namespace {
+    QSet<MainWindow*>& openWindows() {
+      static QSet<MainWindow*> windows;
+      return windows;
+    }
+    bool quitWhenAllClosed = false;
+  }  // namespace
+
+  void SiblingWindows::noteOpened(MainWindow* w) { openWindows().insert(w); }
+
+  void SiblingWindows::noteClosed(MainWindow* w) {
+    if (!openWindows().remove(w) || !openWindows().isEmpty() || !quitWhenAllClosed) return;
+    QTimer::singleShot(0, qApp, &QCoreApplication::quit);
+  }
+
+  int SiblingWindows::openCount() { return openWindows().size(); }
+
+  void SiblingWindows::setQuitWhenAllClosed(bool on) { quitWhenAllClosed = on; }
+
+  void SiblingWindows::closeAll() {
+    if (openWindows().isEmpty()) { if (quitWhenAllClosed) qApp->quit(); return; }
+    for (MainWindow* w : QList<MainWindow*>(openWindows().begin(), openWindows().end())) w->close();
+  }
 
   // Each opens a self-owned top-level window, independent of the window that triggered it.
   void SiblingWindows::openIncognitoWindow() {

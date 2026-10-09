@@ -21,7 +21,7 @@
 namespace stencil::test {
 
   struct MockProject {
-    QString name, color;
+    QString name, color, description;
     QStringList keywords;
     qint64 expiresAt = 0;
     qint64 version = 1;
@@ -42,17 +42,20 @@ namespace stencil::test {
     QString lastAfter;      // the decoded ?after= of the last list request
     QJsonObject lastCreate;   // the body of the last POST /projects
     bool holdOriginals = false;   // GET …/original waits in `heldOriginals` until releaseOriginals()
+    bool holdPuts = false;        // every PUT waits there too, until releasePuts()
     struct Held {
       QPointer<QTcpSocket> socket;
       QString line;
+      QByteArray body;
     };
     QList<Held> heldOriginals;
 
     void releaseOriginals() {
       holdOriginals = false;
       for (const Held& held : std::exchange(heldOriginals, {}))
-        if (held.socket) reply(held.socket, route(held.line, {}));
+        if (held.socket) reply(held.socket, route(held.line, held.body));
     }
+    void releasePuts() { holdPuts = false; releaseOriginals(); }
 
     bool listen() {
       QObject::connect(&server, &QTcpServer::newConnection, [this] {
@@ -67,9 +70,10 @@ namespace stencil::test {
             const int len = m.hasMatch() ? m.captured(1).toInt() : 0;
             if (buf->size() < headEnd + 4 + len) return;
             const QString line = QString::fromLatin1(buf->left(buf->indexOf("\r\n")));
-            if (holdOriginals && line.startsWith(QLatin1String("GET ")) &&
-                line.contains(QLatin1String("/original "))) {
-              heldOriginals.append({s, line});
+            if ((holdOriginals && line.startsWith(QLatin1String("GET ")) &&
+                 line.contains(QLatin1String("/original "))) ||
+                (holdPuts && line.startsWith(QLatin1String("PUT ")))) {
+              heldOriginals.append({s, line, buf->mid(headEnd + 4, len)});
               return;
             }
             reply(s, route(line, buf->mid(headEnd + 4, len)));
@@ -92,6 +96,7 @@ namespace stencil::test {
       QJsonObject o{{"id", id}, {"name", p.name}, {"color", p.color}, {"version", double(p.version)},
                     {"hasImage", !p.original.isEmpty()}};
       if (!p.keywords.isEmpty()) o.insert("keywords", QJsonArray::fromStringList(p.keywords));
+      if (!p.description.isEmpty()) o.insert("description", p.description);
       if (p.expiresAt) o.insert("expiresAt", double(p.expiresAt));
       if (withHash && !p.original.isEmpty())
         o.insert("originalHash", QString::fromLatin1(
@@ -156,6 +161,11 @@ namespace stencil::test {
         ++puts;
         if (in.contains("name")) p.name = in.value("name").toString();
         if (in.contains("color")) p.color = in.value("color").toString();
+        if (in.contains("description")) p.description = in.value("description").toString();
+        if (in.contains("keywords")) {
+          p.keywords.clear();
+          for (const auto& k : in.value("keywords").toArray()) p.keywords << k.toString();
+        }
         if (in.contains("layout")) p.layout = in.value("layout").toObject();
         return {200, json({{"version", double(++p.version)}})};
       }

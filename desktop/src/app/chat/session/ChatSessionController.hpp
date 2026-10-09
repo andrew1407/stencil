@@ -56,6 +56,7 @@ namespace stencil::gui {
       std::function<bool()> dockClosing;
       std::function<void()> openChat;
       std::function<void(QRect anchorRect)> openSettings;
+      std::function<void()> persistSettings;
     };
 
     ChatSessionController(QWidget* host, CanvasWidget* canvas, ChatDock* chatDock,

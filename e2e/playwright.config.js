@@ -27,10 +27,10 @@ export default defineConfig({
 
   webServer: {
     command: 'node helpers/static-server.js',
-    // A dedicated port on 127.0.0.1 (see helpers/config.js) so nothing else is ever
-    // reused in its place; `url` (not `port`) pins the readiness probe to that host.
+    // A dedicated port on 127.0.0.1 (see helpers/config.js); a busy port fails the run rather
+    // than serving another checkout's tree. `url` pins the readiness probe to that host.
     url: APP_URL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     stdout: 'ignore',
     stderr: 'pipe',
   },

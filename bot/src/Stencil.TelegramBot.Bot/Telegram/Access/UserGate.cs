@@ -41,6 +41,24 @@ public sealed class UserGate
         return new Releaser(this, userId, gate);
     }
 
+    // Null while another holder has the user: a background pass skips a busy user instead of waiting.
+    public IDisposable? TryAcquire(long userId)
+    {
+        lock (_gates)
+        {
+            if (!_gates.TryGetValue(userId, out Gate? gate))
+            {
+                _gates[userId] = gate = new Gate();
+            }
+            if (!gate.Semaphore.Wait(0))
+            {
+                return null;
+            }
+            gate.Holders++;
+            return new Releaser(this, userId, gate);
+        }
+    }
+
     // Forgotten only when no holder is left, so a caller can never be handed a replacement while
     // still holding it.
     private void drop(long userId, Gate gate)

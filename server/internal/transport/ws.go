@@ -25,13 +25,13 @@ type wsConn struct {
 }
 
 // AcceptWS upgrades an HTTP request to a WebSocket Conn. Origin checking is off because the in-band hello
-// frame's bearer token is the auth: any origin may connect, none can join a session without a valid token.
+// frame's bearer token is the auth: any origin may connect, none is served without a valid token.
 func AcceptWS(rw http.ResponseWriter, req *http.Request) (Conn, error) {
 	c, err := websocket.Accept(rw, req, &websocket.AcceptOptions{InsecureSkipVerify: true})
 	if err != nil {
 		return nil, err
 	}
-	c.SetReadLimit(MaxMessageBytes)
+	c.SetReadLimit(MaxHelloBytes)
 	x := &wsConn{c: c, remote: req.RemoteAddr, done: make(chan struct{})}
 	go x.keepalive()
 	return x, nil
@@ -75,6 +75,8 @@ func (x *wsConn) Read(ctx context.Context) ([]byte, error) {
 func (x *wsConn) Write(ctx context.Context, data []byte) error {
 	return x.c.Write(ctx, websocket.MessageText, data)
 }
+
+func (x *wsConn) SetReadLimit(n int64) { x.c.SetReadLimit(n) }
 
 func (x *wsConn) Close(code int, reason string) error {
 	x.stop()

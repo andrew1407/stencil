@@ -37,18 +37,33 @@ export const resumeInOpenEditor = async ({ source, name }) => {
 };
 
 
-export const CROP_SRC_KEY = 'stencil-crop-src';
-// Provenance, threaded through so the cropped image keeps where it came from.
-export const CROP_META_KEY = 'stencil-crop-meta';
+// One session entry per launch, named by the nonce in the crop page's `?k=`: two launches never
+// share it, and the page removes it once read.
+export const CROP_KEY_PREFIX = 'stencil-crop:';
+// ms an unread entry is kept (its page never opened); swept by the next launch.
+const CROP_ENTRY_TTL_MS = 60_000;
 
-// Falls back to a real tab when the modal cannot be injected or the frame is CSP-blocked.
-export const launchCrop = async ({ src, source, resource, tabId }) => {
+const sweepStaleCrops = async (now) => {
   try {
-    await chrome.storage.session.set({ [CROP_SRC_KEY]: src, [CROP_META_KEY]: { source: source || '', resource: resource || '' } });
-  } catch {
-    /* crop page shows a message */
+    const all = await chrome.storage.session.get(null);
+    const stale = Object.keys(all).filter((k) => k.startsWith(CROP_KEY_PREFIX) && !(now - (all[k]?.t || 0) < CROP_ENTRY_TTL_MS));
+    if (stale.length) await chrome.storage.session.remove(stale);
+  } catch { /* the set below reports a storage that does not answer */ }
+};
+
+// Falls back to a real tab when the modal cannot be injected or the frame is CSP-blocked. A
+// refused `set` (over quota) still opens the page, with `?error=` saying why it has no image.
+export const launchCrop = async ({ src, source, resource, tabId }) => {
+  const nonce = crypto.randomUUID();
+  const params = new URLSearchParams({ k: nonce });
+  const now = Date.now();
+  await sweepStaleCrops(now);
+  try {
+    await chrome.storage.session.set({ [CROP_KEY_PREFIX + nonce]: { src, source: source || '', resource: resource || '', t: now } });
+  } catch (err) {
+    params.set('error', err?.message || String(err));
   }
-  const url = chrome.runtime.getURL('src/crop/crop.html');
+  const url = `${chrome.runtime.getURL('src/crop/crop.html')}?${params}`;
   if (tabId == null) return chrome.tabs.create({ url });
   try {
     // The 8000 ms watchdog only catches a CSP-blocked frame; a short one would close a
@@ -59,4 +74,23 @@ export const launchCrop = async ({ src, source, resource, tabId }) => {
   } catch {
     return chrome.tabs.create({ url });
   }
+};
+
+// The crop page's side: `?src=` wins, else the launch's entry, read once and removed.
+export const takeCropHandoff = async (search) => {
+  const params = new URLSearchParams(search);
+  const key = params.get('k') ? CROP_KEY_PREFIX + params.get('k') : '';
+  let entry = {};
+  if (key) {
+    try {
+      entry = (await chrome.storage.session.get(key))[key] || {};
+      await chrome.storage.session.remove(key);
+    } catch { /* no entry → the page says there is no image */ }
+  }
+  return {
+    src: params.get('src') || entry.src || '',
+    source: entry.source || '',
+    resource: entry.resource || '',
+    error: params.get('error') || '',
+  };
 };

@@ -1,3 +1,4 @@
+using Stencil.TelegramBot.Domain.Editing;
 using Stencil.TelegramBot.Application.Servers;
 using Stencil.TelegramBot.Domain.Projects;
 using Stencil.TelegramBot.Domain.Sessions;
@@ -39,7 +40,7 @@ public sealed class RecordingServerService : IServerService
     /// <summary>Connections returned by <see cref="ConnectionsAsync"/> (null = throw like before).</summary>
     public List<ServerConnectionInfo>? Connections { get; set; }
 
-    public Task<ProjectRecord> SaveActiveProjectAsync(long userId, CancellationToken ct = default)
+    public Task<ProjectRecord> SaveActiveProjectAsync(long userId, RenderResult? rendered = null, CancellationToken ct = default)
     {
         if (FailWith is string message)
         {
@@ -85,6 +86,12 @@ public sealed class RecordingServerService : IServerService
         Projects is null
             ? fail<Task<IReadOnlyList<ServerProjectInfo>>>()
             : Task.FromResult<IReadOnlyList<ServerProjectInfo>>(Projects);
+
+    public Task<IReadOnlyList<ServerProjectInfo>> ListRecentProjectsAsync(long userId, int perServer, CancellationToken ct = default) =>
+        Projects is null
+            ? fail<Task<IReadOnlyList<ServerProjectInfo>>>()
+            : Task.FromResult<IReadOnlyList<ServerProjectInfo>>(
+                [.. Projects.GroupBy(p => p.ServerUrl).SelectMany(g => g.Take(perServer))]);
 
     private static T fail<T>() => throw new NotSupportedException("this server call is not part of the §2.1 save path");
 
@@ -132,12 +139,20 @@ public sealed class RecordingServerService : IServerService
     /// <summary>How many times <see cref="ActiveServerVersionAsync"/> ran.</summary>
     public int VersionPolls { get; private set; }
 
-    /// <summary>How many times <see cref="PullActiveAsync"/> ran.</summary>
+    /// <summary>How many times <see cref="PullActiveAsync"/> ran, and for whom.</summary>
     public int Pulls { get; private set; }
+    public List<long> PulledUsers { get; } = new();
+
+    /// <summary>Users whose version poll throws, while everyone else's answers.</summary>
+    public HashSet<long> FailingUsers { get; } = new();
 
     public Task<long?> ActiveServerVersionAsync(long userId, CancellationToken ct = default)
     {
         VersionPolls++;
+        if (FailingUsers.Contains(userId))
+        {
+            throw new InvalidOperationException("this user's server is down");
+        }
         if (VersionThrows is Exception failure)
         {
             throw failure;
@@ -148,6 +163,7 @@ public sealed class RecordingServerService : IServerService
     public Task<UserSession?> PullActiveAsync(long userId, CancellationToken ct = default)
     {
         Pulls++;
+        PulledUsers.Add(userId);
         return Task.FromResult<UserSession?>(null);
     }
     public Task SaveChatAsync(long userId, string chatJson, CancellationToken ct = default) => fail<Task>();

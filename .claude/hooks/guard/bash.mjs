@@ -96,11 +96,35 @@ export function bashDecision(cmd, ctx) {
   if (/\b(crontab|launchctl|schtasks|systemctl)\b/.test(c)) return ask('schedules/daemonizes a process');
   // redirected write to a path outside the repo (and not a device/tmp)
   const redir = c.match(/>>?\s*("?)([^\s"'|;&<>]+)\1/);
-  if (redir) {
-    const target = redir[2];
-    if (!/^\/dev\/(null|stdout|stderr|tty)$/.test(target) && isOutsideRepo(target, ctx) && !isTmp(resolveAbs(target, ctx))) {
-      return ask('redirects output to a path outside the repository');
-    }
+  if (redir && writesOutside(redir[2], ctx)) return ask('redirects output to a path outside the repository');
+  if (copyTargets(c).some((t) => writesOutside(t, ctx))) {
+    return ask('copies, moves, links or writes a file to a path outside the repository');
   }
   return allow();
+}
+
+const writesOutside = (target, ctx) => !/^\/dev\/(null|stdout|stderr|tty)$/.test(target) &&
+  isOutsideRepo(target, ctx) && !isTmp(resolveAbs(target, ctx));
+
+// The destinations of cp / mv / install / ln (the last operand, or -t DIR), tee (every operand)
+// and dd (of=PATH), read one command at a time.
+export function copyTargets(cmd) {
+  const out = [];
+  for (const m of String(cmd).matchAll(/(?:^|[;&|(]\s*|\s)(cp|mv|install|ln|tee|dd)\s+([^;&|\n)]*)/g)) {
+    const words = m[2].trim().split(/\s+/).map((w) => w.replace(/^["']|["']$/g, '')).filter(Boolean);
+    if (m[1] === 'dd') {
+      out.push(...words.filter((w) => w.startsWith('of=')).map((w) => w.slice(3)));
+      continue;
+    }
+    const operands = [];
+    for (let i = 0; i < words.length; i++) {
+      const w = words[i];
+      if (w === '-t' || w === '--target-directory') { if (words[i + 1]) out.push(words[++i]); continue; }
+      if (w.startsWith('--target-directory=')) { out.push(w.slice(19)); continue; }
+      if (!w.startsWith('-') && !/^[<>]/.test(w)) operands.push(w);
+    }
+    if (m[1] === 'tee') out.push(...operands);
+    else if (operands.length > 1) out.push(operands[operands.length - 1]);
+  }
+  return out;
 }

@@ -58,6 +58,18 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(!canvas->getLines()[0].hidden);
   }
 
+  // A refresh that changes nothing in the table rebuilds nothing (a stroke asks twice); a change does.
+  void anUnchangedRefreshKeepsTheRows() {
+    MainWindow win(nullptr, false);
+    CanvasWidget* canvas = seed(win);
+    QTableWidget* list = listOf(win);
+    QTableWidgetItem* before = list->item(1, NAME_COL);
+    win.onSelectionChanged();
+    QCOMPARE(list->item(1, NAME_COL), before);
+    canvas->setLineName(1, QStringLiteral("Edge"));
+    QTRY_COMPARE(list->item(1, NAME_COL)->text(), QString("Edge"));
+  }
+
   void aNameTypedInPlaceIsOneStepAndEscapeKeepsIt() {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = seed(win);

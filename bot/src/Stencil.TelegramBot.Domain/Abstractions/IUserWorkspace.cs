@@ -10,10 +10,12 @@ public interface IUserWorkspace
 
     void Clear(long userId);
 
+    // A render the caller is done with; a missing file is no error.
+    void Discard(string path);
+
     // Streamed: a busy bot's data dir is large.
     IEnumerable<long> ActiveUserIds();
 
-    // Orphans not in keep, last written before cutoffUtc; a referenced file is kept regardless of
-    // age.
+    // Orphans not in keep and last written before cutoffUtc; a referenced file is kept at any age.
     int PruneStale(long userId, IReadOnlyCollection<string> keep, DateTime cutoffUtc);
 }

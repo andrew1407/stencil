@@ -1,4 +1,6 @@
+import { notify } from '../../utils.js';
 import { settleLoadedImage } from './settle.js';
+import { imageTooLarge, IMAGE_TOO_LARGE } from './decodeLimit.js';
 
 // Loading a picture into the editor: the session bookkeeping a load does up front, then
 // the decode. What the decoded image settles is settle.js.
@@ -76,11 +78,20 @@ export const loadImageFromFile = (app, file, opts = {}) => {
 
   const reader = new FileReader();
   reader.onload = event => {
-    app.originalImage = new Image();
-    app.originalImage.onload = () => settleLoadedImage(app, file, opts, plan);
-    app.originalImage.src = event.target.result;
+    const img = new Image();
+// Measured before anything is drawn: a picture past the cap never becomes the original.
+    img.onload = () => {
+      if (imageTooLarge(img.naturalWidth || img.width, img.naturalHeight || img.height)) {
+        notify(IMAGE_TOO_LARGE, 'fail');
+        return;
+      }
+      app.originalImage = img;
 // The ORIGINAL's base64 is what persists (the crop is stored as a rect, never baked in).
-    app.imageDataUrl = event.target.result;
+      app.imageDataUrl = event.target.result;
+      settleLoadedImage(app, file, opts, plan)
+        .catch((err) => notify(`Could not open the image: ${err.message || err}`, 'fail'));
+    };
+    img.src = event.target.result;
   };
   reader.readAsDataURL(file);
 };

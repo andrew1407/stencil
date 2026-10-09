@@ -3,36 +3,30 @@ package hub
 import (
 	"time"
 
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/store"
 )
 
-// Tuning sizes a hub: its queues, one member's byte budget, and its deadlines. A zero field keeps
-// the default.
+// Tuning sizes a hub: its deadlines and the per-IP connection cap. A zero field keeps the default.
 type Tuning struct {
-	OutBuffer      int           // frames queued per member, and per session's store arm
-	OutBudgetBytes int64         // one member's queued backlog; a frame may be transport.MaxMessageBytes
-	OpTimeout      time.Duration // deadline around one store call, the hello's token lookup included
-	HelloTimeout   time.Duration // how long a fresh connection may take to send its hello
-	NoticeTimeout  time.Duration // one goodbye write (shutdown, token expiry), so a wedged peer cannot stall
+	OpTimeout     time.Duration // deadline around the hello's token lookup
+	HelloTimeout  time.Duration // how long a fresh connection may take to send its hello
+	NoticeTimeout time.Duration // one goodbye write (shutdown, token expiry), so a wedged peer cannot stall
+	MaxConnsPerIP int           // live connections one client IP may hold; 0 = unlimited
+	FeedBuffer    int           // events queued per connection before one drops (BUS_SUB_BUFFER)
 }
 
 var defaultTuning = Tuning{
-	OutBuffer:      256,
-	OutBudgetBytes: 8 << 20, // one frame still always fits on an empty queue
-	OpTimeout:      store.DefaultOpTimeout,
-	HelloTimeout:   10 * time.Second,
-	NoticeTimeout:  time.Second,
+	OpTimeout:     store.DefaultOpTimeout,
+	HelloTimeout:  10 * time.Second,
+	NoticeTimeout: time.Second,
+	MaxConnsPerIP: 64,
+	FeedBuffer:    eventbus.DefaultSubBuffer,
 }
 
-// WithTuning overrides the hub's sizing field by field.
+// WithTuning overrides the hub's sizing field by field; a negative MaxConnsPerIP lifts the cap.
 func WithTuning(t Tuning) Option {
 	return func(h *Hub) {
-		if t.OutBuffer > 0 {
-			h.tune.OutBuffer = t.OutBuffer
-		}
-		if t.OutBudgetBytes > 0 {
-			h.tune.OutBudgetBytes = t.OutBudgetBytes
-		}
 		if t.OpTimeout > 0 {
 			h.tune.OpTimeout = t.OpTimeout
 		}
@@ -41,6 +35,12 @@ func WithTuning(t Tuning) Option {
 		}
 		if t.NoticeTimeout > 0 {
 			h.tune.NoticeTimeout = t.NoticeTimeout
+		}
+		if t.FeedBuffer > 0 {
+			h.tune.FeedBuffer = t.FeedBuffer
+		}
+		if t.MaxConnsPerIP != 0 {
+			h.tune.MaxConnsPerIP = max(t.MaxConnsPerIP, 0)
 		}
 	}
 }

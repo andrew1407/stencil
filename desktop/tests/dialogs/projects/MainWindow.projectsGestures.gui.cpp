@@ -1,6 +1,6 @@
 // MainWindow GUI e2e — The gestures that open a row in the projects list.
-// Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
-#include "../../MainWindow.gui.hpp"
+// Shared ground is in projectsHeld.gui.hpp, over MainWindow.gui.hpp.
+#include "projectsHeld.gui.hpp"
 #include "../../../src/support/theme/filterFade.hpp"
 
 #include <QThreadPool>
@@ -19,9 +19,7 @@ class MainWindowGuiTest : public QObject {
     if (qApp->platformName() != QLatin1String("offscreen"))
       QSKIP("modal-dialog gestures need the offscreen platform");
     MainWindow win(nullptr, false);
-    win.resize(1100, 800);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(held::showForProjects(win));
     // A project to click on.
     QImage img(40, 30, QImage::Format_RGB32);
     img.fill(Qt::magenta);
@@ -73,9 +71,7 @@ class MainWindowGuiTest : public QObject {
         if (!list) { bailOut(); return; }
         // OUR project's row specifically — the store may hold hundreds, and a
         // stale one could fail to load and mask the result.
-        QListWidgetItem* item = nullptr;
-        for (int i = 0; i < list->count() && !item; ++i)
-          if (list->item(i)->data(Qt::UserRole).toString() == id) item = list->item(i);
+        QListWidgetItem* item = held::rowFor(list, id);
         if (!item) { bailOut(); return; }
         list->scrollToItem(item);
         settleLayout(list, 30);

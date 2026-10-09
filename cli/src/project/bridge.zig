@@ -17,7 +17,7 @@ const build = codec.build;
 /// Load a `.stencil` at `path` (local file or http(s) URL) into `session`, retaining the encoded source
 /// bytes for lossless re-bundling, then adopt its layout. Caller owns the returned Project (deinit).
 pub fn loadInto(session: *Session, io: std.Io, path: []const u8) !Project {
-    const bytes = try pipeline.loadLayoutBytes(session.gpa, io, path); // prints its own error
+    const bytes = try pipeline.loadText(session.gpa, io, path); // prints its own error
     defer session.gpa.free(bytes);
     var proj = parse(session.gpa, bytes) catch |e| {
         report.err("'{s}' is not a valid .stencil project ({s})\n", .{ path, @errorName(e) });

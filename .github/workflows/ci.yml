@@ -551,9 +551,10 @@ jobs:
 
   # Harness: the PreToolUse AI-harness guard (.claude/hooks/guard.mjs) is security-relevant
   # code, tested when it changes. The tools suites run on every push, docs-only included: a
-  # move anywhere can strand a path in any doc, and an edit to any original can drift a twin.
+  # move anywhere can strand a path in any doc, an edit to any original can drift a twin, and
+  # any source edit can pass a size cap.
   guard-hook:
-    name: Harness (guard hook, doc paths, twins)
+    name: Harness (guard hook, doc paths, twins, caps)
     runs-on: ubuntu-latest
     needs: changes
     steps:
@@ -565,7 +566,7 @@ jobs:
       - name: Run guard tests
         if: needs.changes.outputs.guard == 'true'
         run: node --test .claude/hooks/guard.test.mjs .claude/hooks/guard/*.test.mjs
-      - name: Run tools tests (doc paths resolve, twins in step)
+      - name: Run tools tests (doc paths resolve, twins in step, caps held)
         run: node --test tools/*.test.mjs
 
   # Docker images: assert every shipped Dockerfile still builds (packaging guard, no push).

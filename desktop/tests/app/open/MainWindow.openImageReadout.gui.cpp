@@ -1,17 +1,10 @@
 // MainWindow GUI e2e — the crop size READ-OUT ("5040 x 3564 px · Album"): its line slides
 // in and out with the Crop toggle, and its motes form and fall on the keyword chip's
 // recipe, landing on that line. Browser twin: openImageModal.js syncCropDims.
-#include "../../MainWindow.gui.hpp"
+#include "openImageGui.hpp"
 
-#include "OpenImageDialog.hpp"
 #include "../../../src/support/motion/DisintegrateOverlay.hpp"
-#include <QCheckBox>
 #include <QLabel>
-#include <QLineEdit>
-#include <QPushButton>
-#include <QTabWidget>
-
-using stencil::gui::OpenImageDialog;
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
@@ -24,25 +17,14 @@ class MainWindowGuiTest : public QObject {
   void theReadOutsCloudLandsOnItWhileTheColumnEases() {
     const auto motion = withMotion();
     MainWindow win(nullptr, false);
-    win.resize(1250, 980);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(showForOpenImage(win));
     int dx = 999, dy = 999, steps = 0;
     QTimer::singleShot(0, &win, [&] {
       auto* dlg = qobject_cast<OpenImageDialog*>(QApplication::activeModalWidget());
       if (!dlg) return;
-      auto* tabs = dlg->findChild<QTabWidget*>(QStringLiteral("oiTabs"));
-      tabs->setCurrentIndex(1);
-      QWidget* page = tabs->currentWidget();
-      QTest::keyClicks(page->findChild<QLineEdit*>(), guiTestImage());
-      auto* pv = page->findChild<QPushButton*>();
-      settle([&] { return pv->isEnabled(); }, 1000);
-      pv->click();
-      settle([&] { return !dlg->previewedImage().isNull(); }, 4000);
+      previewByUrl(dlg, guiTestImage());
       settle([] { return false; }, 600);
-      QCheckBox* crop = nullptr;
-      for (QCheckBox* c : dlg->findChildren<QCheckBox*>())
-        if (c->isVisible() && c->text().isEmpty()) { crop = c; break; }
+      QCheckBox* crop = cropBox(dlg);
       if (!crop) { dlg->reject(); return; }
       QLabel* dims = dlg->cropDims;
       int last = dlg->height();
@@ -81,9 +63,7 @@ class MainWindowGuiTest : public QObject {
     im.fill(Qt::darkGreen);
     QVERIFY(im.save(big, "PNG"));
     MainWindow win(nullptr, false);
-    win.resize(1250, 980);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(showForOpenImage(win));
     double cw = 0, ch = 0;
     int dx = 999, dy = 999;
     QTimer::singleShot(0, &win, [&] {
@@ -98,9 +78,7 @@ class MainWindowGuiTest : public QObject {
       pv->click();
       settle([&] { return !dlg->previewedImage().isNull(); }, 6000);
       settle([] { return false; }, 900);   // the arrival's own cloud is gone by now
-      QCheckBox* crop = nullptr;
-      for (QCheckBox* c : dlg->findChildren<QCheckBox*>())
-        if (c->isVisible() && c->text().isEmpty()) { crop = c; break; }
+      QCheckBox* crop = cropBox(dlg);
       if (!crop) { dlg->reject(); return; }
       QLabel* dims = dlg->cropDims;
       QWidget* host = dims->parentWidget();
@@ -135,28 +113,17 @@ class MainWindowGuiTest : public QObject {
   void theCropReadOutFormsAndFallsWithItsOwnCloud() {
     const auto motion = withMotion();
     MainWindow win(nullptr, false);
-    win.resize(1250, 980);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(showForOpenImage(win));
     int cloudsOnTick = 0, cloudsOnUntick = 0;
     QTimer::singleShot(0, &win, [&] {
       auto* dlg = qobject_cast<OpenImageDialog*>(QApplication::activeModalWidget());
       if (!dlg) return;
-      auto* tabs = dlg->findChild<QTabWidget*>(QStringLiteral("oiTabs"));
-      tabs->setCurrentIndex(1);
-      QWidget* page = tabs->currentWidget();
-      QTest::keyClicks(page->findChild<QLineEdit*>(), guiTestImage());
-      auto* pv = page->findChild<QPushButton*>();
-      settle([&] { return pv->isEnabled(); }, 1000);
-      pv->click();
-      settle([&] { return !dlg->previewedImage().isNull(); }, 4000);
+      previewByUrl(dlg, guiTestImage());
       const auto clouds = [dlg] {
         return dlg->findChildren<QWidget*>(
                       QString::fromLatin1(stencil::gui::DisintegrateOverlay::OBJECT_NAME)).size();
       };
-      QCheckBox* crop = nullptr;
-      for (QCheckBox* c : dlg->findChildren<QCheckBox*>())
-        if (c->isVisible() && c->text().isEmpty()) { crop = c; break; }
+      QCheckBox* crop = cropBox(dlg);
       if (!crop) { dlg->reject(); return; }
       crop->setChecked(true);
       settle([&] { return clouds() > 0; }, 1500);   // the gather waits out the height ease
@@ -176,26 +143,15 @@ class MainWindowGuiTest : public QObject {
   void theReadOutSlidesIntoTheColumnAndBackOut() {
     const auto motion = withMotion();
     MainWindow win(nullptr, false);
-    win.resize(1250, 980);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(showForOpenImage(win));
     QList<int> inward, outward;
     int before = 0, after = 0, full = 0, closedH = 0;
     QTimer::singleShot(0, &win, [&] {
       auto* dlg = qobject_cast<OpenImageDialog*>(QApplication::activeModalWidget());
       if (!dlg) return;
-      auto* tabs = dlg->findChild<QTabWidget*>(QStringLiteral("oiTabs"));
-      tabs->setCurrentIndex(1);
-      QWidget* page = tabs->currentWidget();
-      QTest::keyClicks(page->findChild<QLineEdit*>(), guiTestImage());
-      auto* pv = page->findChild<QPushButton*>();
-      settle([&] { return pv->isEnabled(); }, 1000);
-      pv->click();
-      settle([&] { return !dlg->previewedImage().isNull(); }, 4000);
+      previewByUrl(dlg, guiTestImage());
       settle([] { return false; }, 700);
-      QCheckBox* crop = nullptr;
-      for (QCheckBox* c : dlg->findChildren<QCheckBox*>())
-        if (c->isVisible() && c->text().isEmpty()) { crop = c; break; }
+      QCheckBox* crop = cropBox(dlg);
       if (!crop) { dlg->reject(); return; }
       QLabel* dims = dlg->cropDims;
       before = dlg->height();

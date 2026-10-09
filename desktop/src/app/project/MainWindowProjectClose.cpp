@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "SharedState.hpp"
 #include "ChatSessionController.hpp"
 #include <QScrollBar>
 #include "mainWindowHelpers.hpp"
@@ -81,7 +82,7 @@ namespace stencil::gui {
     if (!docSource.currentResource.isEmpty()) pr->meta.resource = docSource.currentResource.toStdString();
     // Chat persistence (§12): with the opt-in off, an earlier saved chat is left alone.
     if (settings.saveChatsWithProject) pr->chat = chatSession->buildActiveChatDoc();
-    fileStore::saveProjects(projectList);
+    SharedState::instance().saveProjects(this);
     SiblingWindows::refreshDockMenu(projectList);  // bump it to the top of the Dock "recent" list
     notify->success(
         QString("Saved to \"%1\"").arg(support::shortName(QString::fromStdString(pr->meta.name))));

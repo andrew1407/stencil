@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
-import { HistoryStack, MAX_STEPS } from '../../js/core/historyStack.js';
+import { HistoryStack, MAX_STEPS, MAX_POINTS } from '../../js/core/historyStack.js';
 import constants from '../../../common/config/constants.json' with { type: 'json' };
 
 test('fresh stack cannot undo at base', () => {
@@ -102,6 +102,30 @@ test('the depth cap is one value: constants.json, the JS twin and the core heade
     const found = /MAX_STEPS\s*=\s*(\d+)/.exec(hpp);
     assert.ok(found, 'core/state/HistoryStack.hpp must declare MAX_STEPS');
     assert.strictEqual(Number(found[1]), constants.LIMITS.historyMax);
+});
+
+test('the points budget is one value: constants.json, the JS twin and the core header', () => {
+    assert.strictEqual(MAX_POINTS, constants.LIMITS.historyPointsMax);
+    assert.ok(MAX_POINTS >= 2 * constants.LIMITS.layoutPointsMax, 'a full layout keeps one undo step');
+    const hpp = readFileSync(new URL('../../../core/state/HistoryStack.hpp', import.meta.url), 'utf8');
+    assert.strictEqual(Number(/MAX_POINTS\s*=\s*(\d+)/.exec(hpp)?.[1]), MAX_POINTS);
+});
+
+// Steps of 0.35 × the budget: the third push holds 1.05 × it, so the oldest goes and its view floors undo.
+test('push keeps the points of every step under MAX_POINTS, oldest first, never the newest', () => {
+    const big = (id) => ({ lines: [{ id, points: Array.from({ length: Math.ceil(MAX_POINTS * 0.35) }, (_, x) => ({ x, y: 0 })) }],
+        cropRect: { x: id, y: 0, width: 1, height: 1 }, rotationQuarters: 0 });
+    const h = new HistoryStack();
+    h.push(big(0)); h.push(big(1));
+    assert.strictEqual(h.history.length, 2);
+    h.push(big(2));
+    assert.deepStrictEqual(h.history.map((s) => s.lines[0].id), [1, 2]);
+    assert.strictEqual(h.historyStep, 1);
+    assert.deepStrictEqual(h.floor, { ...big(0), lines: [] }, 'the floor is the dropped step\'s view');
+    const huge = { lines: [{ id: 3, points: Array.from({ length: MAX_POINTS + 1 }, () => ({ x: 0, y: 0 })) }] };
+    h.push(huge);
+    assert.strictEqual(h.history.length, 1, 'a step over the budget alone is still kept');
+    assert.strictEqual(h.history[0].lines[0].id, 3);
 });
 
 test('push caps the depth at MAX_STEPS, evicting the oldest snapshot', () => {

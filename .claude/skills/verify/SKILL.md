@@ -5,7 +5,7 @@ description: >-
   pins and the test-count floors — one surface at a time. Use before
   claiming a refactor is green, at a plan phase gate, or when asked to "run
   everything" / "verify" / "check the matrix". Runs sequentially with capped
-  parallelism because the whole matrix at once locks this machine up.
+  parallelism because the whole matrix at once can lock a laptop up.
 allowed-tools:
   - Bash
   - Read
@@ -15,8 +15,8 @@ allowed-tools:
 
 Every surface, then the cross-surface gates. **Run them one at a time, in this order** —
 cheapest first, so a break surfaces in seconds rather than after the 3-minute desktop build.
-Never run two native builds concurrently and never pass a bare `-j`: this machine locks up
-under a full-width parallel build, which is why the order and the caps below exist.
+Never run two native builds concurrently and never pass a bare `-j`: a full-width parallel build
+over hundreds of Qt and core units locks a laptop up, which is why the order and the caps below exist.
 
 Report the result of every chunk you ran, including the ones that failed. A chunk you skipped
 is not a pass.
@@ -25,14 +25,14 @@ is not a pass.
 
 | # | Surface | Command (from the repo root) | Expected |
 |---|---|---|---|
-| 0 | harness | `node --test .claude/hooks/guard.test.mjs .claude/hooks/guard/*.test.mjs tools/*.test.mjs` | 0 fail — this includes the live doc-path check and the twin check |
+| 0 | harness | `node --test .claude/hooks/guard.test.mjs .claude/hooks/guard/*.test.mjs tools/*.test.mjs` | 0 fail — this includes the live doc-path, twin and size-cap checks |
 | 1 | browser | `cd browser && npm test` | 0 fail |
 | 2 | browser-extension | `cd browser-extension && npm test` | 0 fail |
 | 3 | vscode-extension | `cd vscode-extension && npm test` | 0 fail |
 | 4 | core | `cmake -S core -B core/build -DCMAKE_BUILD_TYPE=Release && nice -n 10 cmake --build core/build -j 4 && ctest --test-dir core/build --output-on-failure` | 1/1 — the bench cases skipped |
 | 5 | cli | `cd cli && ZIG_LIBC="$TMPDIR/zig-libc.txt" zig build test --summary all` | 0 fail |
 | 6 | pystencil | `cd pystencil && python3 -m unittest discover -s tests` | OK |
-| 7 | server | `cd server && go test ./...` then `go test -race ./internal/hub/...` | all ok |
+| 7 | server | `cd server && go vet ./... && go test -race ./...` | all ok — the race run covers every package's concurrent tests, as CI's does |
 | 8 | bot | `cd bot && BOT_TEST_CLI=$PWD/../cli/zig-out/bin/stencil dotnet test Stencil.TelegramBot.slnx -m:2` | 0 fail |
 | 9 | mcp | `cd mcp && STENCIL_CLI=$PWD/../cli/zig-out/bin/stencil CARGO_BUILD_JOBS=2 cargo test --locked -j 2` | 0 failed, benches ignored |
 | 10 | desktop | see below | all targets pass |
@@ -90,13 +90,17 @@ blaming a change. Two or more failures, or the same case twice, is real.
 **`uiPins` run bare fails wholesale** — it needs `QT_QPA_PLATFORM=offscreen` and
 `STENCIL_NO_ANIM=1`, which only ctest sets.
 
-**`ZIG_LIBC` is not optional on this machine.** Both SDKs `xcrun` hands Zig are MacOSX27.0 (the
-Command Line Tools symlink and Xcode 27), which Zig 0.16 cannot compile the C++ core against
-(`INFINITY` undeclared). The Command Line Tools still ship 26.5, and a libc file naming it works:
-`zig libc | sed -E 's#MacOSX[0-9.]*\.sdk#MacOSX26.5.sdk#' > "$TMPDIR/zig-libc.txt"`. `SDKROOT` and `--sysroot` do not reach Zig's libc++ build, and Xcode's `DEVELOPER_DIR`
-now stops every `xcrun` shim (git included) at its unaccepted licence. A bare `zig build` can
-look fine purely because the C++ compile was cached, so the break only shows up once something
-forces a recompile.
+**Zig must be 0.16.x** (`cli/build.zig.zon`): a newer Zig fails inside `build.zig` on the changed
+build API. If `zig version` says otherwise, fetch the pinned tarball named in
+`https://ziglang.org/download/index.json` under `0.16.0`, check its `shasum`, unpack it into a
+scratch folder and run that `zig` for chunk 5 and the CLI builds below.
+
+**`ZIG_LIBC` is not optional on macOS when every SDK `xcrun` offers is newer than Zig 0.16
+supports**: the C++ core then fails with `INFINITY` undeclared. A libc file naming an older SDK
+still on disk works: `zig libc | sed -E 's#MacOSX[0-9.]*\.sdk#MacOSX<older>.sdk#' >
+"$TMPDIR/zig-libc.txt"`. `SDKROOT` and `--sysroot` do not reach Zig's libc++ build. A bare
+`zig build` can look fine purely because the C++ compile was cached, so the break only shows up
+once something forces a recompile.
 
 ## Cross-surface gates
 
@@ -106,15 +110,13 @@ forces a recompile.
   --prefix "$TMPDIR/stencil-win"` must compile, as must `x86_64-linux-musl` (the other
   `cli-packages.yml` targets rarely differ).
 - **wasm parity** — required whenever a `core/` file or a `browser/js` pure-logic module
-  changed. The node runner never loads wasm on its own, so rebuild first:
+  changed. The node runner never loads wasm on its own, so rebuild first, with emscripten's
+  clang and binaryen on `PATH` (for Homebrew's: `EM=$(brew --prefix emscripten)/libexec`):
   ```
-  export EMSDK_PYTHON=/opt/homebrew/bin/python3.14
-  export EM_LLVM_ROOT=/opt/homebrew/opt/emscripten/libexec/llvm/bin
-  export EM_BINARYEN_ROOT=/opt/homebrew/opt/emscripten/libexec/binaryen
-  export PATH=/opt/homebrew/opt/emscripten/libexec/llvm/bin:/opt/homebrew/opt/emscripten/libexec/binaryen/bin:$PATH
+  export PATH=$EM/llvm/bin:$EM/binaryen/bin:$PATH
   cd browser && npm run build-wasm && node --test tests/wasm/*.test.js
   ```
-  Emscripten 6 ignores the `EM_*` variables without a config file, so the `PATH` line is what
+  Emscripten 6 ignores the `EM_*` variables without a config file, so `PATH` is what
   finds clang and binaryen — without it the build prints an error, exits 0 and leaves the old
   `stencilCore.js` in place: check the file's timestamp. Every spec under `tests/wasm/` passes
   with **0 skipped** — a nonzero `skipped` means the module was not built and the gate proved
@@ -142,6 +144,6 @@ forces a recompile.
 - Report the counts you saw. They are a sanity signal, not a gate — the floors in the suites
   are the gate. A count far *below* the previous run's with everything still green means the
   run was narrower than you think: check the command, not the code. Never wrap a suite in
-  `timeout` — there is none on this Mac, and the trailing `echo` reports a green that never ran.
+  `timeout` — macOS ships none, and the trailing `echo` reports a green that never ran.
 - Never time a run inside `$(…)` beside a background watcher: the substitution waits for the
   watcher to release stdout. Under zsh, `grep --include=*.x` dies on `no matches found`.

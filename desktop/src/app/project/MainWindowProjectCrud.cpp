@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "SharedState.hpp"
 #include "SiblingWindows.hpp"
 #include "mainWindowHelpers.hpp"
 #include "displayName.hpp"
@@ -26,7 +27,7 @@ namespace stencil::gui {
   }
 
   void MainWindow::persistSettings() {
-    if (!incognito) fileStore::saveSettings(settings);
+    if (!incognito) SharedState::instance().saveSettings(settings, this);
   }
 
   // pr.meta.name == the passed name.
@@ -70,7 +71,7 @@ namespace stencil::gui {
     parts.view.stampCanvasMeta(pr.meta);     // cache image px dims + line length (cm) for the projects-list tooltip
     projectList.push_back(pr);
     activeProjectId = QString::fromStdString(pr.meta.id);
-    fileStore::saveProjects(projectList);
+    SharedState::instance().saveProjects(this);
     refreshActions();
     SiblingWindows::refreshDockMenu(projectList);  // surface the new project in the Dock "recent" list
     if (announce) notify->success(QString("Created \"%1\"").arg(support::shortName(name)));

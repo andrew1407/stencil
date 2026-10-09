@@ -19,25 +19,24 @@ public abstract class ServerServiceTestBase : IDisposable
     protected readonly string _root;
     protected readonly InMemorySessionStore _store;
     protected readonly MockServerClientFactory _factory;
+    protected readonly MockStencilCli _cli = new();
+    protected readonly EditingService _editing;
     protected readonly ServerService _service;
 
     protected ServerServiceTestBase()
     {
-        _root = Path.Combine(Path.GetTempPath(), "stencil-server-" + Guid.NewGuid().ToString("N"));
+        _root = TempDirs.New("server");
         BotOptions options = new() { DataDir = _root };
         UserWorkspace workspace = new(options);
         _store = new InMemorySessionStore();
-        EditingService editing = new(new MockStencilCli(), workspace, _store);
+        _editing = new EditingService(_cli, workspace, _store);
         _factory = new MockServerClientFactory();
-        _service = new ServerService(_factory, _store, editing);
+        _service = new ServerService(_factory, _store, _editing, _cli);
     }
 
     public void Dispose()
     {
-        if (Directory.Exists(_root))
-        {
-            Directory.Delete(_root, recursive: true);
-        }
+        TempDirs.Delete(_root);
         GC.SuppressFinalize(this);
     }
 

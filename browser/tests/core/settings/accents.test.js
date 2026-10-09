@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   normalizeHex, isAccent, accentHex, DEFAULT_ACCENT,
-  needsDarkGlyph, onAccentInk, contrastWithWhite, contrastWithBlack, relativeLuminance,
+  needsDarkGlyph, onAccentInk, relativeLuminance,
   ON_ACCENT_LIGHT, ON_ACCENT_DARK, LIGHT_ACCENT_KEYS,
 } from '../../../js/core/settings/accents.js';
 
@@ -54,12 +54,7 @@ test('onAccentInk hands back the ink itself', () => {
   assert.equal(ON_ACCENT_LIGHT, '#ffffff');
 });
 
-test('contrast helpers: the white/black anchors and the crossover', () => {
-  assert.equal(Math.round(contrastWithWhite('#000000') * 100) / 100, 21);
-  assert.equal(Math.round(contrastWithWhite('#ffffff') * 100) / 100, 1);
-  assert.equal(Math.round(contrastWithBlack('#ffffff') * 100) / 100, 21);
-  assert.equal(Math.round(contrastWithBlack('#000000') * 100) / 100, 1);
-  assert.equal(contrastWithBlack('nope'), null);
+test('relative luminance: the white/black anchors and the crossover', () => {
   assert.equal(relativeLuminance('#ffffff'), 1);
   assert.equal(relativeLuminance('#000000'), 0);
   assert.equal(relativeLuminance('nope'), null);

@@ -1,7 +1,7 @@
 #pragma once
-// Shared ground for the Projects window's held-row suites (MainWindow.projectsDrag / .projectsClose):
-// the modal window and the parts a held row reaches, the cursor the header polls, and an answer to
-// the close question that never mistakes a window's Close pill for its own button.
+// Shared ground for the Projects window's suites: the window they open it over, the modal window
+// and the parts a held row reaches, the cursor the header polls, and an answer to the close
+// question that never mistakes a window's Close pill for its own button.
 #include "../../MainWindow.gui.hpp"
 #include "../../../src/dialogs/projects/list/ReorderableListWidget.hpp"
 
@@ -12,6 +12,18 @@
 namespace stencil::guitest::held {
 
   using stencil::gui::ReorderableListWidget;
+
+  // Shown at the size the Projects window's rows were tuned against.
+  inline bool showForProjects(MainWindow& win) {
+    win.resize(1100, 800);
+    win.show();
+    return QTest::qWaitForWindowExposed(&win);
+  }
+
+  // Whatever modal is up goes: a case that cannot find its row leaves no loop behind.
+  inline void rejectModal() {
+    if (auto* d = qobject_cast<QDialog*>(QApplication::activeModalWidget())) d->reject();
+  }
 
   // The modal Projects window openProjects() raised, and what a held row reaches in it.
   struct ProjectsWindow {

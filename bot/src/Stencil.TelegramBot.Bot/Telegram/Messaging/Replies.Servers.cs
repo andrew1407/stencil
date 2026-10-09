@@ -130,4 +130,58 @@ public static partial class Replies
 
     public static string FmtDate(long ms) =>
         ms <= 0 ? "" : DateTimeOffset.FromUnixTimeMilliseconds(ms).ToString("yyyy-MM-dd");
+
+    public static string LinkNeedsProject() => BotStrings.Reply("linkNeedsProject");
+
+    public static string SharedProjectLoaded(string? name, string url) => BotStrings.Reply("sharedProjectLoaded", name, url);
+
+    public static string SharedProjectFailed(string reason, string url, string projectId) => BotStrings.Reply("sharedProjectFailed", reason, url, projectId);
+
+    public static string Connected(string url) => BotStrings.Reply("connected", url);
+
+    public static string Disconnected() => BotStrings.Reply("disconnected");
+
+    public static string DisconnectNone() => BotStrings.Reply("disconnectNone");
+
+    public static string FetchUsage() => BotStrings.Reply("fetchUsage");
+
+    public static string ProjectLoaded(string? name) => BotStrings.Reply("projectLoaded", name);
+
+    public static string ProjectCreated(string name, string id, long version) => BotStrings.Reply("projectCreated", name, id, version);
+
+    public static string ProjectSaved(string name, long version) => BotStrings.Reply("projectSaved", name, version);
+
+    public static string SyncNeedsProject() => BotStrings.Reply("syncNeedsProject");
+
+    public static string SyncOn() => BotStrings.Reply("syncOn");
+
+    public static string SyncOff() => BotStrings.Reply("syncOff");
+
+    public static string ProjectColorUsage() => BotStrings.Reply("projectColorUsage");
+
+    public static string ProjectColorSet(string color) => color.Length == 0 ? BotStrings.Reply("projectColorCleared") : BotStrings.Reply("projectColorSet", color, ColorDot(color));
+
+    public static string ProjectNameUsage() => BotStrings.Reply("projectNameUsage");
+
+    public static string ProjectRenamed(string name) => BotStrings.Reply("projectRenamed", name);
+
+    public static string ImageRenamed(string name) => BotStrings.Reply("imageRenamed", name);
+
+    public static string ProjectDescriptionSet(string text) => text.Length == 0 ? BotStrings.Reply("projectDescriptionCleared") : BotStrings.Reply("projectDescriptionSet", text);
+
+    public static string DescriptionHeld(string text) => text.Length == 0 ? BotStrings.Reply("descriptionCleared") : BotStrings.Reply("descriptionHeld", text);
+
+    public static string BlankColorCurrent(string color) => color.Length == 0 ? BotStrings.Reply("blankColorNone") : BotStrings.Reply("blankColorCurrent", color, ColorDot(color));
+
+    public static string BlankColorSet(string color) => color.Length == 0 ? BotStrings.Reply("blankColorNotBlank") : BotStrings.Reply("blankColorSet", color, ColorDot(color));
+
+    public static string ExpiryNeedsProject() => BotStrings.Reply("expiryNeedsProject");
+
+    public static string ExpiryCustomAsk() => BotStrings.Reply("expiryCustomAsk");
+
+    public static string ExpirySet(long expiresAtMs, object duration) => expiresAtMs <= 0 ? BotStrings.Reply("expiryCleared") : BotStrings.Reply("expirySet", FmtDate(expiresAtMs), duration);
+
+    public static string DeleteNeedsProject() => BotStrings.Reply("deleteNeedsProject");
+
+    public static string ProjectRemoved(string name) => BotStrings.Reply("projectRemoved", name);
 }

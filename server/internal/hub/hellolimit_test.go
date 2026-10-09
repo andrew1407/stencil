@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
-	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -41,11 +40,10 @@ func (c *countingResolver) ResolveToken(ctx context.Context, hash []byte) (auth.
 func limitedHub(t *testing.T, perMin int, trusted []netip.Prefix) (*Hub, *countingResolver) {
 	t.Helper()
 	res := &countingResolver{MemStore: testutil.NewMemStore()}
-	res.Seed(protocol.ProjectRecord{ID: "p_t_a", Name: "P", Version: 0})
 	if _, err := res.CreateSession(context.Background(), auth.HashToken(goodToken), "test", 0, 0); err != nil {
 		t.Fatal(err)
 	}
-	h := New(context.Background(), res, eventbus.NewInProc(), res, WithHelloLimit(perMin, trusted))
+	h := New(context.Background(), eventbus.NewInProc(), res, WithHelloLimit(perMin, trusted))
 	t.Cleanup(h.Close)
 	return h, res
 }
@@ -58,7 +56,7 @@ func helloOnce(t *testing.T, addr, token string) string {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { c.Close(0, "") })
-	send(t, c, protocol.WSMessage{Type: protocol.WSHello, Token: token, ProjectID: "p_t_a"})
+	send(t, c, protocol.WSMessage{Type: protocol.WSHello, Token: token})
 	return readUntil(t, c, protocol.WSError).Code
 }
 
@@ -80,7 +78,7 @@ func TestFailedHellosAreThrottledPerIP(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { c.Close(0, "") })
-	send(t, c, protocol.WSMessage{Type: protocol.WSHello, Token: "bad", ProjectID: "p_t_a"})
+	send(t, c, protocol.WSMessage{Type: protocol.WSHello, Token: "bad"})
 	if code := readUntil(t, c, protocol.WSError).Code; code != protocol.CodeRateLimited {
 		t.Fatalf("a throttled hello should report %q, got %q", protocol.CodeRateLimited, code)
 	}
@@ -97,7 +95,7 @@ func TestGoodHelloSpendsNoHelloBudget(t *testing.T) {
 	addr := startTCP(t, h)
 
 	for i := 0; i < 6; i++ { // far more than the burst of 2
-		joinProject(t, addr, "p_t_a", "c"+strconv.Itoa(i)) // fails the test if no welcome arrives
+		joinFeed(t, h, addr) // fails the test if the feed never delivers
 	}
 	// The failure budget is untouched: two failures still authenticate normally.
 	for i := 0; i < 2; i++ {
@@ -122,7 +120,7 @@ func wsHello(t *testing.T, url, xff, token string) string {
 		t.Fatalf("ws dial: %v", err)
 	}
 	defer c.Close(websocket.StatusNormalClosure, "")
-	data, _ := json.Marshal(protocol.WSMessage{Type: protocol.WSHello, Token: token, ProjectID: "p_t_a"})
+	data, _ := json.Marshal(protocol.WSMessage{Type: protocol.WSHello, Token: token})
 	if err := c.Write(ctx, websocket.MessageText, data); err != nil {
 		t.Fatalf("ws write: %v", err)
 	}

@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "SharedState.hpp"
 #include "ProjectFlows.hpp"
 #include <QScrollArea>
 #include "displayName.hpp"
@@ -40,7 +41,7 @@ namespace stencil::gui {
           std::remove_if(w.projectList.begin(), w.projectList.end(),
                          [&](const Project& p) { return p.meta.id == id; }),
           w.projectList.end());
-      fileStore::saveProjects(w.projectList);
+      SharedState::instance().saveProjects(&w);
     }
     resetToBlankEditor();
     SiblingWindows::refreshDockMenu(w.projectList);  // drop the cleared project from the Dock "recent" list

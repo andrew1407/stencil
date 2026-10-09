@@ -8,8 +8,8 @@ package service
 import (
 	"context"
 	"errors"
-	"time"
 
+	"stencil/server/internal/clock"
 	"stencil/server/internal/store"
 )
 
@@ -18,8 +18,6 @@ import (
 var (
 	// ErrImageRequired: a Stencil project is created FROM an image.
 	ErrImageRequired = errors.New("service: a project must be created from an image")
-	// ErrProjectInUse: two or more clients share the live edit session.
-	ErrProjectInUse = errors.New("service: project is in use by other clients")
 	// ErrRecordFile: the bytes landed but the project row did not take them.
 	ErrRecordFile = errors.New("service: could not record the stored file")
 	// ErrBadOriginal: a create's inline original is no base64 image data URL.
@@ -41,9 +39,4 @@ func exists(ctx context.Context, projects ProjectStore, id string) error {
 func isMissing(err error) bool { return errors.Is(err, store.ErrNotFound) }
 
 // withOpTimeout bounds one store call; a zero timeout leaves ctx as it is.
-func withOpTimeout(ctx context.Context, d time.Duration) (context.Context, context.CancelFunc) {
-	if d <= 0 {
-		return context.WithCancel(ctx)
-	}
-	return context.WithTimeout(ctx, d)
-}
+var withOpTimeout = clock.WithTimeout

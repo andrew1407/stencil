@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 
 import { canRefreshList } from '../../../js/core/project/openGesture.js';
-import { projectsModalSource } from '../../helpers/projectsModalSource.js';
+import { projectsModalSource } from '../../helpers/moduleSource.js';
 
 // removing the ACTIVE project echoes straight back through onPeers and cuts the leave short.
 test('canRefreshList: open + idle only — never mid-drag, never mid-removal', () => {

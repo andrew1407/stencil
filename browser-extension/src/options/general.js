@@ -1,5 +1,5 @@
 // The saved settings form: loaded on open, written back by the Save button.
-import { getSettings, setSettings, DEFAULT_EDITOR_URL } from '../lib/stencil.js';
+import { getSettings, setSettings } from '../lib/stencil.js';
 import { pageSizeOptions } from '../lib/image/cropGeometry.js';
 import { icon } from '../lib/icons.js';
 
@@ -20,13 +20,14 @@ hlColor.addEventListener('input', () => { hlColor.dataset.touched = '1'; });
 document.getElementById('page').innerHTML = pageSizeOptions();
 
 (async () => {
-  const { editorUrl, page, markOpened, openedFirst, highlightColor, exposeWindowStencil, editorPageApi, desktopScheme, telegramBotUsername } = await getSettings();
-  document.getElementById('editorUrl').value = editorUrl;
+  const { editorUrl, editorUrlSet, page, markOpened, openedFirst, highlightColor, exposeWindowStencil, editorPageApiToggle, desktopScheme, telegramBotUsername } = await getSettings();
+  // Empty until the user types one; the placeholder shows the default it falls back to.
+  document.getElementById('editorUrl').value = editorUrlSet ? editorUrl : '';
   document.getElementById('page').value = page;
   document.getElementById('markOpened').checked = markOpened;
   document.getElementById('openedFirst').checked = openedFirst;
   document.getElementById('exposeWindowStencil').checked = exposeWindowStencil;
-  document.getElementById('editorPageApi').checked = editorPageApi;
+  document.getElementById('editorPageApi').checked = editorPageApiToggle;
   document.getElementById('desktopScheme').value = desktopScheme;
   document.getElementById('telegramBotUsername').value = telegramBotUsername;
   // A hex means custom; 'theme' (or anything else) means follow the accent.
@@ -36,7 +37,7 @@ document.getElementById('page').innerHTML = pageSizeOptions();
 })();
 
 document.getElementById('save').addEventListener('click', async () => {
-  const editorUrl = (document.getElementById('editorUrl').value || '').trim() || DEFAULT_EDITOR_URL;
+  const editorUrl = (document.getElementById('editorUrl').value || '').trim();
   const highlightColor = hlMode.value === 'custom' ? hlColor.value : 'theme';
   // Trim the "Open in…" operator config; a bare "@name" for the bot is tolerated.
   const desktopScheme = (document.getElementById('desktopScheme').value || '').trim();

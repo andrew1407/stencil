@@ -1,26 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { createLlmClient, LlmError } from '../../js/llm/client.js';
+import { makeMockFetch, MSGS } from '../helpers/llmClientRig.js';
 
-// ── A mock fetch that records every request and replies from a queue ──
-// (the mock-fetch idiom from connections.test.js).
-const makeMockFetch = (responses) => {
-  const calls = [];
-  const queue = Array.isArray(responses) ? responses.slice() : [responses];
-  const fetchImpl = async (url, init = {}) => {
-    calls.push({ url, init });
-    const next = queue.length > 1 ? queue.shift() : queue[0];
-    const { status = 200, body = {} } = next || {};
-    return { ok: status >= 200 && status < 300, status, json: async () => body };
-  };
-  return { calls, fetchImpl };
-};
-
-const MSGS = [
-  { role: 'user', text: 'hello', images: [{ mediaType: 'image/png', data: 'AAAA' }, { mediaType: 'image/jpeg', data: 'BBBB' }] },
-  { role: 'assistant', text: 'prior reply' },
-  { role: 'user', text: 'again' },
-];
 
 // ── ollama (contract §6.1) ──
 test('ollama: POST {baseUrl}/api/chat with images as bare base64', async () => {

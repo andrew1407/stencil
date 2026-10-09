@@ -8,15 +8,16 @@ public sealed partial class ServerService
     {
         var (session, projectId) = await requireActiveSessionAsync(userId, ct);
         var client = clientForActive(session);
-        var record = await updateFieldWithRetryAsync(
+        var write = await updateFieldWithRetryAsync(
             client,
             projectId,
             v => new UpdateProjectRequest { Color = color, Version = v },
             "This project was edited elsewhere — reload it before changing its colour.",
             ct);
-        var updated = session with { ActiveProjectVersion = record.Version };
+        var updated = session with { ActiveProjectVersion = adoptedVersion(session, write) };
         await _store.SaveAsync(updated, ct);
-        return record.Color ?? "";
+        await keepTokenAsync(userId, client, ct);
+        return write.Record.Color ?? "";
     }
 
     public async Task<string> SetProjectNameAsync(long userId, string name, CancellationToken ct = default)
@@ -28,7 +29,7 @@ public sealed partial class ServerService
             throw new InvalidOperationException("A project name can't be empty.");
         }
         var client = clientForActive(session);
-        var record = await updateFieldWithRetryAsync(
+        var write = await updateFieldWithRetryAsync(
             client,
             projectId,
             v => new UpdateProjectRequest { Name = trimmed, Version = v },
@@ -37,19 +38,20 @@ public sealed partial class ServerService
         // The working-image label mirrors the project name (as /fetch seeds it), so update both.
         var updated = session with
         {
-            ActiveProjectVersion = record.Version,
-            ActiveProjectName = record.Name,
-            ImageLabel = record.Name,
+            ActiveProjectVersion = adoptedVersion(session, write),
+            ActiveProjectName = write.Record.Name,
+            ImageLabel = write.Record.Name,
         };
         await _store.SaveAsync(updated, ct);
-        return record.Name;
+        await keepTokenAsync(userId, client, ct);
+        return write.Record.Name;
     }
 
     public async Task<string> SetProjectDescriptionAsync(long userId, string description, CancellationToken ct = default)
     {
         var (session, projectId) = await requireActiveSessionAsync(userId, ct);
         var client = clientForActive(session);
-        var record = await updateFieldWithRetryAsync(
+        var write = await updateFieldWithRetryAsync(
             client,
             projectId,
             v => new UpdateProjectRequest { Description = description, Version = v },
@@ -57,11 +59,12 @@ public sealed partial class ServerService
             ct);
         var updated = session with
         {
-            ActiveProjectVersion = record.Version,
-            ActiveProjectDescription = record.Description ?? "",
+            ActiveProjectVersion = adoptedVersion(session, write),
+            ActiveProjectDescription = write.Record.Description ?? "",
         };
         await _store.SaveAsync(updated, ct);
-        return record.Description ?? "";
+        await keepTokenAsync(userId, client, ct);
+        return write.Record.Description ?? "";
     }
 
     public async Task<string> GetProjectBlankColorAsync(long userId, CancellationToken ct = default)
@@ -69,6 +72,7 @@ public sealed partial class ServerService
         var (session, projectId) = await requireActiveSessionAsync(userId, ct);
         var client = clientForActive(session);
         var full = await client.GetProjectAsync(projectId, ct);
+        await keepTokenAsync(userId, client, ct);
         return full.Project.BlankColor ?? "";
     }
 
@@ -83,15 +87,16 @@ public sealed partial class ServerService
         {
             return "";
         }
-        var record = await updateFieldWithRetryAsync(
+        var write = await updateFieldWithRetryAsync(
             client,
             projectId,
             v => new UpdateProjectRequest { BlankColor = color, Version = v },
             "This project was edited elsewhere — reload it before changing its blank colour.",
             ct);
-        var updated = session with { ActiveProjectVersion = record.Version };
+        var updated = session with { ActiveProjectVersion = adoptedVersion(session, write) };
         await _store.SaveAsync(updated, ct);
-        return record.BlankColor ?? "";
+        await keepTokenAsync(userId, client, ct);
+        return write.Record.BlankColor ?? "";
     }
 
     public async Task<long> SetProjectExpiryAsync(long userId, long expiresAtMs, CancellationToken ct = default)
@@ -99,14 +104,19 @@ public sealed partial class ServerService
         var (session, projectId) = await requireActiveSessionAsync(userId, ct);
         var client = clientForActive(session);
         // 0 means "keep forever": it is sent explicitly (not null) so the server clears any expiry.
-        var record = await updateFieldWithRetryAsync(
+        var write = await updateFieldWithRetryAsync(
             client,
             projectId,
             v => new UpdateProjectRequest { ExpiresAt = expiresAtMs, Version = v },
             "This project was edited elsewhere — reload it before changing its expiry.",
             ct);
-        var updated = session with { ActiveProjectVersion = record.Version, ActiveProjectExpiresAt = record.ExpiresAt };
+        var updated = session with
+        {
+            ActiveProjectVersion = adoptedVersion(session, write),
+            ActiveProjectExpiresAt = write.Record.ExpiresAt,
+        };
         await _store.SaveAsync(updated, ct);
-        return record.ExpiresAt;
+        await keepTokenAsync(userId, client, ct);
+        return write.Record.ExpiresAt;
     }
 }

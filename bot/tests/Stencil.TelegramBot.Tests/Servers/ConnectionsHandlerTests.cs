@@ -21,7 +21,7 @@ public sealed class ConnectionsHandlerTests : IDisposable
 
     public ConnectionsHandlerTests()
     {
-        _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-conn-" + Guid.NewGuid().ToString("N"));
+        _dataDir = TempDirs.New("bot-conn");
         BotOptions options = new() { DataDir = _dataDir };
         _handlers = TestHandlers.Create(options, new InMemorySessionStore(), new MockStencilCli(), _bot, servers: _servers);
         _servers.Connections =
@@ -46,7 +46,7 @@ public sealed class ConnectionsHandlerTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
+        TempDirs.Delete(_dataDir);
     }
 
     private Task dispatch(string text) =>

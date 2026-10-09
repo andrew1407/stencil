@@ -1,6 +1,6 @@
 // MainWindow GUI e2e — Removing the OPEN project pins a temporary row, and closing the dialog finalizes them.
-// Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
-#include "../../MainWindow.gui.hpp"
+// Shared ground is in projectsHeld.gui.hpp, over MainWindow.gui.hpp.
+#include "projectsHeld.gui.hpp"
 #include "../../../src/support/theme/filterFade.hpp"
 
 class MainWindowGuiTest : public QObject {
@@ -16,9 +16,7 @@ class MainWindowGuiTest : public QObject {
       QSKIP("modal-dialog gestures need the offscreen platform");
     const auto motion = withMotion();   // the arrival below IS the thing under test
     MainWindow win(nullptr, false);
-    win.resize(1100, 800);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(held::showForProjects(win));
     QImage img(40, 30, QImage::Format_RGB32);
     img.fill(Qt::darkMagenta);
     const QString id = win.parts.chatAppliers.addImageProjectEntry(img, "the-only-one");
@@ -30,16 +28,10 @@ class MainWindowGuiTest : public QObject {
     bool sawRow = false, tempPinned = false, noPlaceholder = true, landedWhereItArrived = false;
     bool arrivedVeiled = false, cloudInFlight = false, landedWhole = false;
     QTimer::singleShot(0, [&] {
-      const auto bailOut = [] {
-        if (auto* d = qobject_cast<QDialog*>(QApplication::activeModalWidget())) d->reject();
-      };
-      QDialog* dlg = nullptr;
-      QListWidget* list = nullptr;
-      for (int i = 0; i < 200 && !list; ++i) {
-        dlg = qobject_cast<QDialog*>(QApplication::activeModalWidget());
-        if (dlg) list = dlg->findChild<QListWidget*>("projectsList");
-        if (!list) QTest::qWait(10);
-      }
+      const auto bailOut = &held::rejectModal;
+      const held::ProjectsWindow shown = held::projectsWindow();
+      QDialog* dlg = shown.dlg;
+      QListWidget* list = shown.list;
       if (!list) { bailOut(); return; }
       for (int i = 0; i < list->count(); ++i)
         if (list->item(i)->data(Qt::UserRole).toString() == id) sawRow = true;
@@ -102,9 +94,7 @@ class MainWindowGuiTest : public QObject {
     qunsetenv("STENCIL_NO_ANIM");
     const auto restoreAnim = qScopeGuard([&] { if (!noAnim.isEmpty()) qputenv("STENCIL_NO_ANIM", noAnim); });
     MainWindow win(nullptr, false);
-    win.resize(1100, 800);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(held::showForProjects(win));
     QImage img(40, 30, QImage::Format_RGB32);
     img.fill(Qt::darkCyan);
     const QString id = win.parts.chatAppliers.addImageProjectEntry(img, "doomed-close-row");
@@ -112,20 +102,12 @@ class MainWindowGuiTest : public QObject {
 
     bool sawRow = false, finalized = false, ghostSeen = false, ghostClean = false;
     QTimer::singleShot(0, [&] {
-      const auto bailOut = [] {
-        if (auto* d = qobject_cast<QDialog*>(QApplication::activeModalWidget())) d->reject();
-      };
-      QDialog* dlg = nullptr;
-      QListWidget* list = nullptr;
-      for (int i = 0; i < 200 && !list; ++i) {
-        dlg = qobject_cast<QDialog*>(QApplication::activeModalWidget());
-        if (dlg) list = dlg->findChild<QListWidget*>("projectsList");
-        if (!list) QTest::qWait(10);
-      }
+      const auto bailOut = &held::rejectModal;
+      const held::ProjectsWindow shown = held::projectsWindow();
+      QDialog* dlg = shown.dlg;
+      QListWidget* list = shown.list;
       if (!list) { bailOut(); return; }
-      QListWidgetItem* item = nullptr;
-      for (int i = 0; i < list->count() && !item; ++i)
-        if (list->item(i)->data(Qt::UserRole).toString() == id) item = list->item(i);
+      QListWidgetItem* item = held::rowFor(list, id);
       if (!item) { bailOut(); return; }
       sawRow = true;
       list->scrollToItem(item);

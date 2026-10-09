@@ -4,7 +4,7 @@ import { notify, shortName } from '../../utils.js';
 import { normalizeLaunchPayload, LAUNCH_DATA_URL_MAX } from './deepLink.js';
 import { waitForImage, loadImageFromFile } from '../image/loadFlow.js';
 import { normalizePageSize } from '../settings/units.js';
-import { normalizeUrl } from '../../net/connectionManager.js';
+import { normalizeUrl } from '../../net/urlRules.js';
 import { loadSavedServers } from '../../net/connectionStore.js';
 import { timeoutSignal } from '../../net/abortable.js';
 import { readBlobCapped } from '../../net/cappedBody.js';

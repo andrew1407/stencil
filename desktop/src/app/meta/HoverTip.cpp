@@ -105,13 +105,11 @@ namespace stencil::gui {
     }
 
     // The browser's app.findNearestPoint then app.findLineAt: HIT radii over the zoom, drawn marks only.
-    // Core scans topmost-first; reversed, it takes hitTest.js's order: committed up, the in-progress last.
     const pointerTuning::Table& tune = pointerTuning::table();
     const model::ShownMarks marks = w.canvas->shownMarks();
-    core::Lines order = w.canvas->allLines();
-    std::reverse(order.begin(), order.end());
-    if (const auto hit = model::pointAt(order, marks, imageX, imageY, w.canvas->hitRadius(tune.pointRadiusPx))) {
-      const core::Point& nearest = order[hit->lineIdx].points[hit->ptIdx];
+    if (const auto hit = model::firstPointWithin(w.canvas->getLines(), w.canvas->getCurrentLine(), marks,
+                                                 imageX, imageY, w.canvas->hitRadius(tune.pointRadiusPx))) {
+      const core::Point& nearest = *hit;
       // A point straddling the divider is labelled only where it is drawn.
       if (!shown(nearest.x, nearest.y)) {
         hideHoverTooltip();

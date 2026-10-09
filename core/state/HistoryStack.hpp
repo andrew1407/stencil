@@ -29,13 +29,15 @@ namespace stencil::core {
     // Depth cap; canon is LIMITS.historyMax in common/config/constants.json, drift-
     // tested in browser/tests/core/history.test.js. cli/pystencil match; bot's 25 is a budget.
     static constexpr std::size_t MAX_STEPS = 64;
+    // Points kept across all steps; canon LIMITS.historyPointsMax, drift-tested beside MAX_STEPS.
+    static constexpr std::size_t MAX_POINTS = 2000000;
 
     // Without `baseStep` the JS default applies: 0 if there are lines, else -1.
     void reset(const Snapshot& s);
     void reset(const Snapshot& s, int baseStep);
 
-    // Past MAX_STEPS the oldest snapshots drop off the front and the cursor shifts down. The
-    // rvalue form takes the snapshot over rather than copying it.
+    // Past MAX_STEPS, then while the points kept exceed MAX_POINTS, the oldest snapshots drop off
+    // the front (never the one pushed) and the cursor shifts down. The rvalue form moves it in.
     void push(const Snapshot& s);
     void push(Snapshot&& s);
 

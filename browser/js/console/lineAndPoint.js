@@ -8,6 +8,7 @@ import { str } from './coerce.js';
 import { setPointCoord, removePoint, removeLine } from '../core/line/editOps.js';
 import { lineNameOf, renameLine, setLineHidden } from '../core/line/selection.js';
 import { CHANGE, changed } from '../core/app/changes.js';
+import { storedSize } from '../core/settings/limits.js';
 
 export const createLineWrappers = ({ app, guard }) => {
   let stencil;   // the facade, handed over once it is built
@@ -32,7 +33,7 @@ export const createLineWrappers = ({ app, guard }) => {
         if (y != null) setPointCoord(app, lineIdx, ptIdx, 'y', y);
         if (size != null) {
           const line = lineIdx === -1 ? app.currentLine : app.lines[lineIdx];
-          if (line) { line.pointSize = Number(size); app.saveHistory(); app.renderer.redraw(); changed(app, CHANGE.lines); }
+          if (line) { line.pointSize = storedSize(Number(size)); app.saveHistory(); app.renderer.redraw(); changed(app, CHANGE.lines); }
         }
         return point;
       },
@@ -84,8 +85,8 @@ export const createLineWrappers = ({ app, guard }) => {
       // (falling back to the stroke); assigning null/'' clears it back to that fallback.
       get pointColor() { const l = obj(); return l ? pointColorOf(l) : undefined; },
       set pointColor(v) { setProp('pointColor', v == null || v === '' ? '' : toHexColor(str(v))); },
-      get thickness() { return obj()?.thickness; }, set thickness(v) { setProp('thickness', Number(v)); },
-      get pointSize() { return obj()?.pointSize; }, set pointSize(v) { setProp('pointSize', Number(v)); },
+      get thickness() { return obj()?.thickness; }, set thickness(v) { setProp('thickness', storedSize(Number(v))); },
+      get pointSize() { return obj()?.pointSize; }, set pointSize(v) { setProp('pointSize', storedSize(Number(v))); },
       get style() { return obj()?.style; }, set style(v) { setProp('style', str(v)); },
       get fillColor() { return obj()?.fillColor; }, set fillColor(v) { setProp('fillColor', v == null ? 'transparent' : toHexColor(str(v))); },
       // The Lines tab's label ('' = unnamed) and its eye: a hidden line is neither drawn nor hit.
@@ -102,9 +103,9 @@ export const createLineWrappers = ({ app, guard }) => {
           l.color = toHexColor(str(opts.color));
         }
         if (opts.pointColor != null) l.pointColor = opts.pointColor === '' ? '' : toHexColor(str(opts.pointColor));
-        if (opts.thickness != null) l.thickness = Number(opts.thickness);
+        if (opts.thickness != null) l.thickness = storedSize(Number(opts.thickness));
         const ms = opts.pointSize;
-        if (ms != null) l.pointSize = Number(ms);
+        if (ms != null) l.pointSize = storedSize(Number(ms));
         if (opts.style != null) l.style = str(opts.style);
         if (opts.fillColor != null) l.fillColor = opts.fillColor === 'transparent' ? 'transparent' : toHexColor(str(opts.fillColor));
         if (opts.name != null) l.name = lineNameOf(opts.name);

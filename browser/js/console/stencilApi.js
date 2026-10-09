@@ -34,9 +34,8 @@ export const createStencil = (app) => {
       // Persist the live set so it survives reloads (store.js), then let
       // the connect/projects UI refresh off the same DOM event.
       try { saveServers(connMgr.snapshot()); } catch { /* storage blocked */ }
-      // Live co-edit: forward a server project-event to the editor so it can reload the
-      // active project when a peer changes it.
-      if (change && change.type === 'event' && change.message?.type === 'project-event') {
+      // Live co-edit: a peer's project-event, or a feed back from a drop, reaches the editor.
+      if (change && change.type === 'event') {
         try { app.remoteSync?.onServerProjectEvent?.(change.message, change.connection); } catch { /* editor not ready */ }
       }
       try {

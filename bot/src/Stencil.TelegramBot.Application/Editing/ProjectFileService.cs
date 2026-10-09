@@ -14,9 +14,9 @@ namespace Stencil.TelegramBot.Application.Editing;
 internal sealed class ProjectFileService
 {
     private readonly IStencilCli _cli;
-    private readonly IEditingService _editing;
+    private readonly EditingService _editing;
 
-    public ProjectFileService(IStencilCli cli, IEditingService editing)
+    public ProjectFileService(IStencilCli cli, EditingService editing)
     {
         _cli = cli;
         _editing = editing;

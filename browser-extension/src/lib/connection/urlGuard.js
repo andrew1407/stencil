@@ -21,11 +21,12 @@ export const isAllowedImageUrl = (url, { allowLoopback = false, allowSameHostAs 
   try { u = new URL(String(url)); } catch { return false; }
   if (u.protocol === 'data:' || u.protocol === 'blob:') return true;
   if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
-  const host = u.hostname.toLowerCase();
+  // One trailing dot is the same host to the resolver (`localhost.` is loopback).
+  const host = u.hostname.toLowerCase().replace(/\.$/, '');
   if (allowSameHostAs && !isMetadataHost(host)) {
     try {
       const p = new URL(String(allowSameHostAs));
-      if ((p.protocol === 'http:' || p.protocol === 'https:') && p.hostname.toLowerCase() === host) return true;
+      if ((p.protocol === 'http:' || p.protocol === 'https:') && p.hostname.toLowerCase().replace(/\.$/, '') === host) return true;
     } catch { /* no usable page context — stay strict */ }
   }
   if (host === 'localhost' || host.endsWith('.localhost')) return allowLoopback;
@@ -33,6 +34,17 @@ export const isAllowedImageUrl = (url, { allowLoopback = false, allowSameHostAs 
   if (bytes) return !isBlockedAddress(bytes, 'fetch', { allowLoopback });
   if (host.includes(':') || host.startsWith('[')) return false;   // unparseable IPv6 literal
   return true;   // a public name — private DNS answers are invisible lexically (MV3)
+};
+
+// ms; common/config/constants.json NETWORK.fetchTimeoutMs, the browser app's NET_TIMEOUT_MS.
+export const FETCH_TIMEOUT_MS = 30_000;
+
+// The caller's signal raced against the deadline, so a stalled host cannot pin the worker.
+export const withDeadline = (signal, ms = FETCH_TIMEOUT_MS) => {
+  const S = globalThis.AbortSignal;
+  if (typeof S?.timeout !== 'function') return signal;
+  if (!signal) return S.timeout(ms);
+  return typeof S.any === 'function' ? S.any([signal, S.timeout(ms)]) : signal;
 };
 
 export const BLOCKED_ADDRESS = 'blocked private or internal address';
@@ -43,7 +55,7 @@ const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 // bounce to an internal host, and a browser hides a manual redirect's Location, so no hop re-checks.
 export const guardedFetch = async (url, guard = {}, init = {}) => {
   if (!isAllowedImageUrl(url, guard)) throw new Error(BLOCKED_ADDRESS);
-  const resp = await fetch(url, { ...init, redirect: 'manual' });
+  const resp = await fetch(url, { ...init, signal: withDeadline(init.signal), redirect: 'manual' });
   if (resp.type === 'opaqueredirect' || REDIRECT_STATUSES.has(resp.status)) {
     await cancelBody(resp);
     // The https twin is its own request to the same host, so the guard's verdict still holds.

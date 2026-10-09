@@ -111,3 +111,28 @@ test('crop({ scale }) scales the rect about its centre via applyCrop; rejects no
     assert.equal(called(a, 'applyCrop').length, 0);
   }
 });
+
+test('crop refuses an edge outside the image (core cropSpec twin) and a non-finite aspect', () => {
+  const makeCropApp = () => makeApp({
+    originalImage: {},
+    cropRect: { x: 0, y: 0, width: 100, height: 100 },
+    effectiveOriginalDims: () => ({ width: 100, height: 100 }),
+    getPageDimensions: () => ({ width: 21, height: 29.7 }),
+    canvas: { width: 100, height: 100 },
+    defaultCropRect: () => ({ x: 0, y: 0, width: 100, height: 100 }),
+    applyCrop: function (rect, o) { this.calls.push(['applyCrop', rect, o]); },
+  });
+  for (const spec of [{ y2: '-200%' }, { x1: '0px', x2: '101px' }, { x1: -20 }]) {
+    const app = makeCropApp();
+    assert.throws(() => createStencil(app).crop(spec), /lies outside the image/, JSON.stringify(spec));
+    assert.equal(called(app, 'applyCrop').length, 0);
+  }
+  assert.throws(() => createStencil(makeCropApp()).crop({ x1: 'bogus' }), /not a length/);
+  const huge = `${'9'.repeat(400)}:1`;
+  assert.throws(() => createStencil(makeCropApp()).crop({ aspect: huge }), /crop aspect/);
+  // The far edge exactly, and a reversed pair inside the image, still commit.
+  const app = makeCropApp();
+  createStencil(app).crop({ x1: '0px', x2: '100%', y1: '60px', y2: '10px' });
+  const [, rect] = lastCall(app, 'applyCrop');
+  assert.deepEqual([rect.x, rect.y, rect.width, rect.height], [0, 10, 100, 50]);
+});

@@ -22,13 +22,12 @@ import (
 
 // apiDeps assembles the REST handler's dependency set and logs the auth posture
 // it implies — the one thing an operator must read before traffic arrives.
-func apiDeps(cfg config.Config, st *store.Store, fs *filestore.Store, h *hub.Hub, b eventbus.Bus) httpapi.Deps {
+func apiDeps(cfg config.Config, st *store.Store, fs *filestore.Store, b eventbus.Bus) httpapi.Deps {
 	deps := httpapi.Deps{
 		Projects:          st,
 		Sessions:          st,
 		Files:             fs,
 		Charges:           st,
-		LiveSessions:      h,
 		Bus:               b,
 		TokenTTL:          cfg.TokenTTL,
 		ProjectTTL:        cfg.ProjectTTL,
@@ -118,11 +117,16 @@ func openBus(ctx context.Context, cfg config.Config) (eventbus.Bus, error) {
 		SubscribeTimeout: cfg.Redis.SubscribeTimeout})
 }
 
-// hubOptions sizes the hub from config; its store calls share OP_TIMEOUT_SECONDS with the REST handlers.
+// hubOptions sizes the hub from config; its token lookup shares OP_TIMEOUT_SECONDS with the REST handlers.
+// MAX_CONNECTIONS_PER_IP=0 lifts the cap, which the hub spells as a negative value.
 func hubOptions(cfg config.Config) []hub.Option {
+	perIP := cfg.Live.MaxConnsPerIP
+	if perIP == 0 {
+		perIP = -1
+	}
 	return []hub.Option{
 		hub.WithHelloLimit(cfg.HelloRatePerMin, cfg.TrustedProxies),
-		hub.WithTuning(hub.Tuning{OutBuffer: cfg.Live.OutBuffer, OutBudgetBytes: cfg.Live.OutBudgetBytes,
-			OpTimeout: cfg.OpTimeout, HelloTimeout: cfg.Live.HelloTimeout, NoticeTimeout: cfg.Live.NoticeTimeout}),
+		hub.WithTuning(hub.Tuning{OpTimeout: cfg.OpTimeout, HelloTimeout: cfg.Live.HelloTimeout,
+			NoticeTimeout: cfg.Live.NoticeTimeout, MaxConnsPerIP: perIP, FeedBuffer: cfg.Live.BusSubBuffer}),
 	}
 }

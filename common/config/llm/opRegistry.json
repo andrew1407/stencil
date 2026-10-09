@@ -826,10 +826,18 @@
                 "type": "string"
               },
               "thickness": {
-                "type": "number"
+                "type": "number",
+                "range": [
+                  0,
+                  null
+                ]
               },
               "pointSize": {
-                "type": "number"
+                "type": "number",
+                "range": [
+                  0,
+                  null
+                ]
               },
               "style": {
                 "type": "string",

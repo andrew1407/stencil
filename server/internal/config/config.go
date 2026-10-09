@@ -46,10 +46,9 @@ type Config struct {
 	// TrustedProxies are the peers whose X-Forwarded-For is believed when a
 	// limiter keys on the client IP. Empty (default) ignores the header.
 	TrustedProxies []netip.Prefix
-	Live           LiveOptions     // hub queues, transport keepalive and deadlines (live.go)
-	HTTP           HTTPOptions     // HTTP server timeouts, Retry-After, the default list page (httpserver.go)
-	Sweep          SweepOptions    // expiry sweep sizing and the filestore reconcile pass (sweep.go)
-	Presence       PresenceOptions // cross-instance liveness heartbeat (presence.go)
+	Live           LiveOptions  // the hub's caps, transport keepalive and deadlines (live.go)
+	HTTP           HTTPOptions  // HTTP server timeouts, Retry-After, the default list page (httpserver.go)
+	Sweep          SweepOptions // expiry sweep sizing and the filestore reconcile pass (sweep.go)
 
 	// LLM proxy (llm-contract.md §6); the key never leaves this process. The two key vars are deliberately NOT
 	// merged: a key named for Anthropic must not reach another host through a provider switch (see main.go).
@@ -144,7 +143,7 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	cfg.SweepInterval = time.Duration(sweepMinutes) * time.Minute
-	for _, load := range []func(getter, *Config) error{loadLLM, loadDB, loadRedis, loadLive, loadHTTP, loadSweep, loadPresence} {
+	for _, load := range []func(getter, *Config) error{loadLLM, loadDB, loadRedis, loadLive, loadHTTP, loadSweep} {
 		if err := load(get, &cfg); err != nil {
 			return Config{}, err
 		}

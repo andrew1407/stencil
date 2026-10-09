@@ -8,8 +8,12 @@ import constants from '../../../common/config/constants.json' with { type: 'json
 // Depth cap shared with core/state/HistoryStack.hpp's MAX_STEPS (drift-tested in
 // tests/core/history.test.js); cli's max_states and pystencil's _MAX_STATES carry the same 64.
 export const MAX_STEPS = constants.LIMITS.historyMax;
+// Points kept across every step: two layouts at layoutPointsMax, so a full layout still has one
+// undo step; pinned beside MAX_STEPS in core/state/HistoryStack.hpp's MAX_POINTS.
+export const MAX_POINTS = constants.LIMITS.historyPointsMax;
 
 const linesOf = (s) => (Array.isArray(s) ? s : (s?.lines ?? []));
+const pointsOf = (s) => linesOf(s).reduce((n, l) => n + (l?.points?.length ?? 0), 0);
 // The step -1 stop: no lines, on the view of the step the stack starts from.
 const floorOf = (s) => (Array.isArray(s) || !s ? [] : { ...s, lines: [] });
 
@@ -53,11 +57,16 @@ export class HistoryStack {
 // Truncate in place: a no-op in the common no-redo case, no reallocation per push.
     if (this.history.length > this.historyStep) this.history.length = this.historyStep;
     this.history.push(this.#clone(snapshot));
-// Evict the oldest and shift the cursor down by as many; the floor takes the view of the
-// last one evicted, so undoing off the trimmed front still ends at the step -1 stop.
-    if (this.history.length > MAX_STEPS) {
-      const dropped = this.history.splice(0, this.history.length - MAX_STEPS);
-      this.historyStep -= dropped.length;
+// Evict the oldest past the depth, then while the points kept exceed MAX_POINTS (never the step
+// just pushed); the floor takes the view of the last one evicted, so undo still ends at step -1.
+    const len = this.history.length;
+    let drop = Math.max(0, len - MAX_STEPS);
+    let kept = 0;
+    for (let i = drop; i < len; i++) kept += pointsOf(this.history[i]);
+    while (drop < len - 1 && kept > MAX_POINTS) kept -= pointsOf(this.history[drop++]);
+    if (drop > 0) {
+      const dropped = this.history.splice(0, drop);
+      this.historyStep -= drop;
       this.floor = floorOf(dropped[dropped.length - 1]);
     }
   }

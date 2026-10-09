@@ -20,9 +20,9 @@ pub fn flag(opts: *Options, arg: []const u8, st: *ParseState) Error!bool {
         if (opts.input != null or opts.blank != null or opts.server != null) return Error.DuplicateSource;
         opts.source_site = try value(st, "--source-site");
     } else if (eq(arg, "--source-count")) {
-        opts.source_count = try parseU32(try value(st, "--source-count"));
+        opts.source_count = try parseU32("--source-count", try value(st, "--source-count"));
     } else if (eq(arg, "--group")) {
-        opts.group = try parseU32(try value(st, "--group"));
+        opts.group = try parseU32("--group", try value(st, "--group"));
     } else if (eq(arg, "--source-filter")) {
         opts.source_filter = try value(st, "--source-filter");
     } else if (eq(arg, "--source-format")) {
@@ -30,13 +30,13 @@ pub fn flag(opts: *Options, arg: []const u8, st: *ParseState) Error!bool {
     } else if (eq(arg, "--source-name")) {
         opts.source_name = try value(st, "--source-name");
     } else if (eq(arg, "--source-min-width")) {
-        opts.source_min_width = try parseU32(try value(st, "--source-min-width"));
+        opts.source_min_width = try parseU32("--source-min-width", try value(st, "--source-min-width"));
     } else if (eq(arg, "--source-max-width")) {
-        opts.source_max_width = try parseU32(try value(st, "--source-max-width"));
+        opts.source_max_width = try parseU32("--source-max-width", try value(st, "--source-max-width"));
     } else if (eq(arg, "--source-min-height")) {
-        opts.source_min_height = try parseU32(try value(st, "--source-min-height"));
+        opts.source_min_height = try parseU32("--source-min-height", try value(st, "--source-min-height"));
     } else if (eq(arg, "--source-max-height")) {
-        opts.source_max_height = try parseU32(try value(st, "--source-max-height"));
+        opts.source_max_height = try parseU32("--source-max-height", try value(st, "--source-max-height"));
     } else return false;
     return true;
 }

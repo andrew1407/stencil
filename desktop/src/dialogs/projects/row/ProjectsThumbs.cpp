@@ -35,33 +35,6 @@ namespace stencil::gui {
     }
   }  // namespace
 
-  void ProjectsDialog::commitRowEdit(
-      const QString& id, const QString& server,
-      const std::function<void(Project&)>& mutate,
-      const std::function<void(stencil::net::ServerClient*, qint64,
-                               std::function<void(bool, qint64)>)>& push,
-      const std::function<void(stencil::net::ServerProject&)>& cache) {
-    if (server.isEmpty()) {
-      for (auto& p : projects)
-        if (QString::fromStdString(p.meta.id) == id) { mutate(p); break; }
-      fileStore::saveProjects(projects);
-      refresh();
-      return;
-    }
-    stencil::net::ServerClient* c = connections ? connections->find(server) : nullptr;
-    if (!c) return;
-    qint64 version = 0;
-    for (const auto& sp : remote)
-      if (sp.id == id && sp.serverUrl == server) { version = sp.version; break; }
-    QPointer<ProjectsDialog> self(this);
-    push(c, version, [this, self, id, server, cache](bool ok, qint64 newVersion) {
-      if (!self || !ok) return;
-      for (auto& sp : remote)
-        if (sp.id == id && sp.serverUrl == server) { cache(sp); sp.version = newVersion; break; }
-      refresh();
-    });
-  }
-
   void ProjectsDialog::refreshRemote() {
     if (!connections || remoteBusy) return;
     remoteBusy = true;
@@ -134,7 +107,7 @@ namespace stencil::gui {
   void ProjectsDialog::fetchSourceThumbAsync(const QString& key,
                                              const stencil::net::ServerProject& sp) {
     const QUrl u(sp.source);
-    if (!u.isValid() || (u.scheme() != "http" && u.scheme() != "https")) {
+    if (!u.isValid() || !fetchGuard::isWebScheme(u)) {
       remoteThumbs.insert(key, QPixmap());  // nothing to fetch — cache the miss
       return;
     }

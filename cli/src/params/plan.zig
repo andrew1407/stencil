@@ -1,7 +1,8 @@
 //! The op-plan flags: `--plan-check <file|->` walks a model reply through core's validator and
 //! prints its result; `--plan-surface` and `--plan-capabilities` choose the schema it walks under,
 //! and also ride with `--script-plan`, whose chunks then carry that surface's verdict. `--prompt`
-//! asks the configured model for a plan and runs it on a one-shot input.
+//! asks the configured model for a plan and runs it on a one-shot input. `--merge-lines` is the
+//! other report mode an adapter drives core through: the co-edit line union.
 const std = @import("std");
 const logo = @import("../app/logo.zig");
 const testing = std.testing;
@@ -28,6 +29,8 @@ pub fn flag(opts: *Options, arg: []const u8, st: *ParseState) Error!bool {
         opts.plan_surface = v;
     } else if (eq(arg, "--plan-capabilities")) {
         opts.plan_capabilities = try state.value(st, "--plan-capabilities");
+    } else if (eq(arg, "--merge-lines")) {
+        opts.merge_lines = try state.value(st, "--merge-lines");
     } else if (eq(arg, "--prompt")) {
         opts.prompt = try state.value(st, "--prompt");
     } else return false;
@@ -41,12 +44,13 @@ pub fn finish(opts: Options) Error!void {
         opts.probe or opts.list_projects or opts.project_info != null or opts.source_site != null or
         opts.project_update != null or opts.project_files != null or opts.project_file != null;
     if (opts.plan_check != null and reporting) return Error.DuplicateSource;
+    if (opts.merge_lines != null and (reporting or opts.plan_check != null or opts.console)) return Error.DuplicateSource;
     if ((opts.plan_surface != null or opts.plan_capabilities != null) and opts.plan_check == null and opts.script_plan == null) {
         logo.err("--plan-surface and --plan-capabilities ride with --plan-check or --script-plan\n", .{});
         return Error.BadValue;
     }
     if (opts.prompt == null) return;
-    if (reporting or opts.plan_check != null or opts.console) return Error.DuplicateSource;
+    if (reporting or opts.plan_check != null or opts.merge_lines != null or opts.console) return Error.DuplicateSource;
     if (opts.server != null or opts.remote != null or opts.remote_update) {
         logo.err("--prompt edits a local input; it does not ride with --server or --remote\n", .{});
         return Error.BadValue;
@@ -95,5 +99,18 @@ test "parse: the op-plan flags refuse what they cannot mean" {
     const with_script = [_][:0]const u8{ "--plan-check", "-", "--script", "s.stc" };
     try testing.expectError(Error.DuplicateSource, parser.parse(&with_script));
     const bare = [_][:0]const u8{"--plan-check"};
+    try testing.expectError(Error.MissingValue, parser.parse(&bare));
+}
+
+test "parse: --merge-lines is a report mode of its own" {
+    const ok = [_][:0]const u8{ "--merge-lines", "-" };
+    try testing.expectEqualStrings("-", (try parser.parse(&ok)).merge_lines.?);
+    const with_plan = [_][:0]const u8{ "--merge-lines", "-", "--plan-check", "r.txt" };
+    try testing.expectError(Error.DuplicateSource, parser.parse(&with_plan));
+    const with_probe = [_][:0]const u8{ "--merge-lines", "-", "--probe", "-i", "a.png" };
+    try testing.expectError(Error.DuplicateSource, parser.parse(&with_probe));
+    const with_prompt = [_][:0]const u8{ "--merge-lines", "-", "-i", "a.png", "--prompt", "x", "out.png" };
+    try testing.expectError(Error.DuplicateSource, parser.parse(&with_prompt));
+    const bare = [_][:0]const u8{"--merge-lines"};
     try testing.expectError(Error.MissingValue, parser.parse(&bare));
 }

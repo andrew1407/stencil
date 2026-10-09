@@ -43,6 +43,17 @@ pub fn parseColor(spec: [:0]const u8) ?Rgba {
     return .{ .r = toByte(r), .g = toByte(g), .b = toByte(b), .a = toByte(a) };
 }
 
+/// `mode` as core's case-sensitive filter table keys it ("BW" -> "bw"); null for a tint.
+pub fn namedFilter(mode: []const u8) ?[:0]const u8 {
+    for ([_][:0]const u8{ "none", "bw", "sepia", "invert", "contour" }) |n| if (std.ascii.eqlIgnoreCase(mode, n)) return n;
+    return null;
+}
+
+/// Whether `mode` is a filter at all: a named one, or a colour core parses as the tint.
+pub fn isFilter(mode: []const u8) bool {
+    return namedFilter(mode) != null or parseColor(zstr(mode) orelse return false) != null;
+}
+
 /// The canonical page-format names ("A0 A1 … C10"), space-separated, in canonical order.
 /// A static string owned by the core — no allocation, valid for the program's lifetime.
 pub fn pageFormats() []const u8 {

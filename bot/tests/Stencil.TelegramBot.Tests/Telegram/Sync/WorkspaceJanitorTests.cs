@@ -13,7 +13,7 @@ namespace Stencil.TelegramBot.Tests.Telegram.Sync;
 public sealed class WorkspaceJanitorTests : IDisposable
 {
     private readonly string _root =
-        Path.Combine(Path.GetTempPath(), "stencil-bot-janitor-" + Guid.NewGuid().ToString("N"));
+        TempDirs.New("bot-janitor");
 
     private readonly BotOptions _options;
     private readonly UserWorkspace _workspace;
@@ -28,7 +28,7 @@ public sealed class WorkspaceJanitorTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_root, recursive: true); } catch { /* best effort */ }
+        TempDirs.Delete(_root);
     }
 
     private string stale(long userId)

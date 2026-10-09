@@ -2,6 +2,7 @@
 // read the whole program out, destroy it. Everything the handle returns dies with it, so
 // each read is copied into a plain object before scriptDestroy.
 import { OP_KINDS, SOURCE_KINDS, TOKEN_KINDS } from './script/types.js';
+import { heapAlloc } from './abi/coreMarshal.js';
 
 const I32 = 4;
 const nums = (n) => Array.from({ length: n }, () => 'number');
@@ -38,7 +39,7 @@ export const buildScriptOps = (core, { withCString }) => {
 
   // ONE scratch slot for every out-parameter, taken once: a _malloc/_free pair per token churned
   // the heap on every keystroke. The widest call writes 7 ints; a double fits in the first two.
-  const out = core._malloc(7 * I32);
+  const out = heapAlloc(core, 7 * I32);
   const slot = (i) => out + i * I32;
   const readInt = (i) => core.getValue(out + i * I32, 'i32');
 

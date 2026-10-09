@@ -67,8 +67,38 @@ int main(int argc, char** argv) {
   sync->onFileChanged();
   check(prompts == 1, "our own write is the baseline, so it raises no question");
 
+  // Taking the file's version while a flush waits behind the question asks once, and the flush
+  // never writes the editor over the version being taken in.
+  {
+    const QString taken = dir.filePath(QStringLiteral("t.stencil"));
+    writeAll(taken, "base");
+    QByteArray mine = "base";
+    int asked = 0, applies = 0;
+    StencilFileSync* other = nullptr;
+    other = new StencilFileSync(
+        &host, notify,
+        StencilFileSync::Hooks{
+            [&mine] { return mine; },
+            [&applies](const QByteArray&, bool) { ++applies; },   // lands later, as the decode does
+            [](bool) {},
+            [&](QWidget*, const ConfirmSpec&) {
+              ++asked;
+              other->flushAutosave();
+              return ConfirmChoice::CONFIRM;
+            },
+        });
+    other->link(taken, "base");
+    other->setLiveSync(true);
+    mine = "mine";
+    writeAll(taken, "theirs");
+    other->onFileChanged();
+    check(asked == 1 && applies == 1, "taking the file's version asks once and applies it once");
+    check(readAll(taken) == "theirs", "the waiting flush leaves the version being taken in alone");
+  }
+
   const QStringList left = QDir(dir.path()).entryList(QDir::Files);
-  check(left == QStringList{QStringLiteral("p.stencil")}, "the write leaves no temporary beside the file");
+  check(left == (QStringList{QStringLiteral("p.stencil"), QStringLiteral("t.stencil")}),
+        "the writes leave no temporary beside the files");
 
   std::printf(failures ? "\nFAILED (%d)\n" : "\nOK\n", failures);
   return failures ? 1 : 0;

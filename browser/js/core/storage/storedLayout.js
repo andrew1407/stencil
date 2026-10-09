@@ -1,6 +1,8 @@
 // A stored layout (a projectsStore payload) back into editor state, in the groups the
 // window-side adapter paints between: page, drawing, provenance, formulas, tools.
 import { collapseCanvas } from './session.js';
+import { formulaText } from '../parse/formulaEngine.js';
+import { imageTooLarge, IMAGE_TOO_LARGE } from '../image/decodeLimit.js';
 
 export const applyStoredPage = (app, layout) => {
   if (layout.customPageWidth) app.customPageWidth = layout.customPageWidth;
@@ -38,8 +40,8 @@ export const applyStoredProvenance = (app, layout) => {
 export const applyStoredFormulas = (app, layout) => {
   app.allowFormulas = layout.allowFormulas !== undefined ? layout.allowFormulas : false;
   app.settings.syncFormulaUI(app.allowFormulas);
-  app.formulaX = layout.formulaX || '';
-  app.formulaY = layout.formulaY || '';
+  app.formulaX = formulaText(layout.formulaX);
+  app.formulaY = formulaText(layout.formulaY);
 };
 
 export const applyStoredTools = (app, layout) => {
@@ -97,4 +99,13 @@ export const applyImagelessPayload = (storage, layout) => {
   }
   repaintEmpty(app);
   app.showSaveStatus('Settings restored', 'var(--accent)', 'refresh');
+};
+
+// A stored picture past the decoded-pixel cap (saved before the cap held) reopens image-less:
+// its lines wait behind the missing-image banner for a re-upload.
+export const refuseOversizedImage = (storage, img, layout) => {
+  if (!imageTooLarge(img.naturalWidth || img.width, img.naturalHeight || img.height)) return false;
+  applyImagelessPayload(storage, layout);
+  storage.app.showSaveStatus(IMAGE_TOO_LARGE, 'var(--warning)', 'alert');
+  return true;
 };

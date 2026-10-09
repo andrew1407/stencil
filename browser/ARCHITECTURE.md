@@ -63,7 +63,7 @@ feed a ui area subscribes to (`core/app/changes.js`) and the app's view seam (`V
 | `js/ui/` | string-returning components composed by `layout()`, one folder per region; `bindings/` wires controls to the app, `control/` holds the control areas | a region answers its parent by event and the app by the bus; it may import `net/` and `llm/` (left of it in the layer order) for the connection and assistant controls it renders |
 | `js/worker/` | the cross-tab projects sync worker and the image worker | a worker filter is bit-identical to the main-thread one |
 | `js/wasm/` | the generated `stencilCore.js` | gitignored; built by `npm run build-wasm` / CI |
-| `sw.js`, `manifest.webmanifest`, `launch.html`, `vite.config.js` | the PWA shell, the `stencil://` bounce page, the optional single-file build | nothing in the app may depend on the build |
+| `sw.js`, `manifest.webmanifest`, `launch.html`, `vite.config.js` | the PWA shell, the `stencil://` bounce page, the optional single-file build | nothing in the app may depend on the build; the runtime cache keeps one entry per page path and stays under `MAX_ENTRIES`, the shell never pruned |
 | `tools/` | the static server, the single-file build and its self-check | dev only |
 | `tests/` | `node --test` suites mirroring `js/`, and the structural lints | never loads wasm — always the JS fallback |
 
@@ -131,7 +131,7 @@ classDiagram
 |---|---|---|---|
 | `DrawingApp` | The editor: its state as plain fields (`core/editorState.js`), its collaborators and its change feed (`app.changes`) | One per window, created by `js/index.js` | Mediates every collaborator |
 | `CodecLine` | One drawn line, every field explicit (`core/line/linesCodec.js`; ports `core/models.hpp`) | `DrawingApp.lines`; copied into snapshots and layouts | `HistoryStack`, `LayoutPayload` |
-| `HistoryStack` | Undo/redo over editor mementos with a cursor, `MAX_STEPS` and a floor (ports `core/state/HistoryStack.hpp`) | One per app, reset on each project switch | `CodecLine` snapshots |
+| `HistoryStack` | Undo/redo over editor mementos with a cursor, `MAX_STEPS`, a `MAX_POINTS` budget and a floor (ports `core/state/HistoryStack.hpp`) | One per app, reset on each project switch | `CodecLine` snapshots |
 | `LayoutPayload` | The export subset of `LAYOUT_FIELDS` (`common/config/layoutFields.json`) plus `lines`; `cropRect` crosses as `{x,y,w,h}` | Built by `buildLayoutPayload` (`core/layout.js`); the browser definition is canonical | `ProjectFileDoc.layout`, the server's project `layout` |
 | `ProjectFileDoc` | The `.stencil` document (`core/project/file.js`); `format` is the sentinel, `version` the schema | Built by `buildProjectFile`, hardened by `parseProjectFile`; the browser definition is canonical | `LayoutPayload` |
 | `ProjectMeta` | One registry row: name, expiry, optional server link (`core/project/store/projectsStore.js`) | The `localStorage` registry behind `ProjectsStore`; expiry ports `core/state/ProjectsStore.cpp` | `RemoteLink` |
@@ -185,8 +185,8 @@ classDiagram
 - **The line panels.** The Lines tab (`ui/panel/lines/`) is the `list` area, rendered only while
   visible; a row edits its line through `applyLineChange` (`core/line/selection.js`), one history
   step each — its name (`renameLine`) and its eye (`setLineHidden`) too. A hidden line keeps its
-  index and its row but is neither drawn, exported nor hit: the hit-tests read `hittableLines`
-  (`core/pointer/markHits.js`), the paints skip it. A line set replaced whole resets the selection (`settleReplacedLines`); a turn, flip,
+  index and its row but is neither drawn, exported nor hit: the hit-tests skip it in place
+  (`core/draw/hitTest.js`, as core's), the paints skip it. A line set replaced whole resets the selection (`settleReplacedLines`); a turn, flip,
   undo or redo keeps it on the lines that still exist (`keepLineSelection`).
 - **Save and sync.** An edit's trailing save runs `ProjectsStore.upsert` through the quota
   ladder (`core/storage/quotaWriter.js`: shed a data-URL source's text, sweep expired projects,
@@ -280,14 +280,15 @@ debounced saves and the IndexedDB and server writes they start.
 | Owner | Runs on | Shares | Guard | On overflow or teardown |
 |---|---|---|---|---|
 | Image worker (`worker/imageTasks.js`) | a module Worker, own wasm instance | transferred bitmaps; the id → promise map | one id per request | an error rejects every pending request and retires the worker; renders run inline from then on |
-| Cross-tab router (`projectsWorker.js` / `tabsCoordinator.js`) | SharedWorker, else BroadcastChannel | each port's active project id; `projectsChanged` pings | messages only, no storage | a closed port leaves the tab count; no coordinator means one tab |
+| Cross-tab router (`projectsWorker.js` / `tabsCoordinator.js`) | SharedWorker, else BroadcastChannel | each port's active project id; `projectsChanged` pings | messages only, no storage; BYE on `pagehide`, never on a cancellable `beforeunload`, and a bfcache restore says HELLO again | a closed port leaves the tab count; a port that said BYE is re-added by its HELLO; no coordinator means one tab |
 | Trailing project save (`Storage.saveSoon`) | main-thread timer, 400 ms trailing | the active project's keys and registry row | one timer; a burst saves once | flushed at once on a project switch, `beforeunload`, `pagehide` and a hidden `visibilitychange` |
 | IndexedDB write-through mirror (`projectsBackend.js`) | IndexedDB transactions | the in-memory mirror and the stored keys | reads served from the mirror; each key's latest write outcome kept; a write settles when its transaction commits | a failed write keeps the mirror; `confirmCommit` resumes the quota ladder (a newer save supersedes it) or removes the orphaned registry row |
 | Cross-tab save ping (`Storage.scheduleSyncBroadcast`) | main-thread timer, 400 ms | the `UPDATED` message | sent once the last save's commit resolves | a failed or superseded commit sends nothing |
 | A peer tab's save (`core/remote/projectsWatch.js`) | main thread | the open project's stored payload; across tabs the last writer wins | deferred while a gesture runs, re-checked every 120 ms, adopted once idle | an edit the gesture committed is saved after it and wins; a project switched away is left alone |
-| Co-edit layout push (`RemoteSyncController`) | main thread; the serial `#writes` promise queue | `RemoteLink.version` and the server project | 350 ms trailing debounce capped at 1.5 s; one server write at a time; a 409 merges and retries up to `MAX_TRIES` (6) | never converged: reload from the server; a push landing mid-reload is deferred and supersedes the pending reload |
+| Co-edit layout push (`RemoteSyncController`) | main thread; the serial `#writes` promise queue | `RemoteLink.version` and the server project | 350 ms trailing debounce capped at 1.5 s; one server write at a time; a 409 merges and retries up to `MAX_TRIES` (6); a reply is dropped once the editor left the project it started on (`detach()` on a switch, and `sameLink` after every await) | never converged: reload from the server; a push landing mid-reload is deferred and runs first when the reload settles |
 | Result upload (`ResultUploader`) | the same `#writes` queue | the `result` file and the link version | `COEDIT.resultIdleMs` idle, `resultMinGapMs` gap; the link adopts only the bump its own write produced | flushed on a switch or unload; cancelled when the project is deleted |
-| Peer project-event pull (`reloadRemoteActive`) | main thread, outside `#writes` | the editor's lines and the link version | adopted only for a newer version than the link, not mid-stroke, and outside the 150 ms echo window of our own save; one reload at a time | an event mid-reload collapses into one follow-up pass |
+| Peer project-event pull (`reloadRemoteActive`) | main thread, outside `#writes` | the editor's lines and the link version | adopted only for a newer version than the link, not mid-stroke, and outside the 150 ms echo window of our own save (an event inside it is asked once more after it); one reload at a time; an event behind a pending push waits for it, so the push's 409 merge keeps the unpushed local line | an event mid-reload or behind a push collapses into one follow-up pass, skipped when the push merged past it and the picture is unchanged |
+| Live events feed (`ServerConnection`, `net/redial.js`) | main-thread timers | the connection's status and session token | overlapping `connect()` calls for one URL join one handshake (`ConnectionManager`); an unexpected close re-runs the handshake after 1 s, doubling to 30 s, one retry scheduled at a time | a refused credential stops the retries (`expired`), a disconnect cancels them; the reopened feed says `feed-resumed`, and the editor re-reads its linked project as if a peer's event had arrived |
 | Server writers outside the queue | `project/meta/projectMetaOps.js` (field sets), `image/settle.js` (original replace), `llm/chat/persistence.js` (the `chat` file) | the server project | a field set re-reads the version on 409, 4 attempts; the original replace then saves through the queue; the chat file is versionless and best-effort | a failure is a notice; the link moves only while it still names that project |
 | Chat turn (the one `ChatController` per app) | main thread | history, attachments, the transcript log | the controller refuses a second `send` while one runs; the panel, the context menu, `stencil.prompt` and voice check `chatTurnInFlight()` first | a refused turn logs nothing and says the assistant is answering; Stop aborts the running one |
 | `HeldSessionKey` (`llm/sessionKey.js`) | this tab's sessionStorage | the Anthropic key and its `expiresAt` | read at each request, its TTL checked at use | an expired record is dropped on read; it goes with the tab |
@@ -304,7 +305,10 @@ debounced saves and the IndexedDB and server writes they start.
    fallback and the two match op-for-op (`tests/wasm/wasm-parity.test.js`). A value the core
    owns is read from it, never mirrored: the fallback twin is its one JS home, and `ui/` reads
    it through the core module that names it (the page table through `core/settings/units.js`).
-   No `eval` / `new Function` anywhere.
+   No `eval` / `new Function` anywhere. A `_malloc` that answers 0 throws a `CoreHeapError`
+   (`core/abi/coreMarshal.js`): the call is answered by its JS twin and the core retires to JS for
+   the session. Every load refuses a picture past `LIMITS.imageMaxSide` / `imageMaxPixels` before
+   it is drawn (`core/image/decodeLimit.js`).
 3. **`common/` is canonical.** A value another surface needs is a table in `common/config/`, never a
    literal in code.
 4. **Ported modules stay byte-identical.** The modules `tools/twins.json` copies into

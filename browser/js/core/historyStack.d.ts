@@ -5,6 +5,8 @@ import type { CodecLine } from './line/linesCodec.js';
 import type { CropRect } from './geometry.js';
 
 export declare const MAX_STEPS: number;
+/** Points kept across all steps (LIMITS.historyPointsMax); the oldest steps go first, never the newest. */
+export declare const MAX_POINTS: number;
 
 /** One undo step of the editor: the lines, the crop and turn they sit on, and the filter over them. */
 export interface EditorMemento {
@@ -40,7 +42,7 @@ export declare class HistoryStack {
   constructor();
   /** baseStep omitted: 0 when the snapshot has lines, else -1 (no current snapshot). */
   reset(snapshot: Readonly<Snapshot>, baseStep?: number): void;
-  /** Truncates any redo branch, then bounds the depth by evicting the oldest snapshots. */
+  /** Truncates any redo branch, then evicts the oldest snapshots past MAX_STEPS or MAX_POINTS. */
   push(snapshot: Readonly<Snapshot>): void;
   canUndo(): boolean;
   canRedo(): boolean;

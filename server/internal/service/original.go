@@ -58,7 +58,10 @@ func (s *ProjectService) storeInline(ctx context.Context, rec protocol.ProjectRe
 	if err == nil {
 		return *stored, nil
 	}
-	if derr := s.Projects.DeleteProject(ctx, rec.ID); derr != nil {
+	// The create's context may be what failed, so the take-back runs on its own op timeout.
+	dctx, cancel := withOpTimeout(context.WithoutCancel(ctx), s.Originals.OpTimeout)
+	defer cancel()
+	if derr := s.Projects.DeleteProject(dctx, rec.ID); derr != nil {
 		log.Printf("service: take back project %s after its original was refused: %v", rec.ID, derr)
 	}
 	if s.Files != nil {

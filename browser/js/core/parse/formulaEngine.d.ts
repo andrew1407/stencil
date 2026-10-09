@@ -4,6 +4,11 @@
 // the JS reference otherwise.
 import type { FormulaContext } from './formulaContext.js';
 
+/** LIMITS.formulaMaxChars: a longer expression is invalid (core FormulaParser::MAX_CHARS). */
+export declare const FORMULA_MAX_CHARS: number;
+/** A stored or peer formula as kept: the string when within the cap, else ''. */
+export declare const formulaText: (v: unknown) => string;
+
 export declare class FormulaEngine {
   /** True for an empty formula (identity) or one that evaluates with the variable = 1. */
   validate: (expr: string, varName: string) => boolean;

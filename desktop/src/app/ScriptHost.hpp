@@ -2,12 +2,14 @@
 #include <QString>
 
 #include <functional>
+#include <memory>
 #include <optional>
 
 namespace stencil::gui {
 
   class MainWindow;
   struct ScriptRunResult;
+  struct ScriptRunRules;
 
   // The .stc script's two hosts, the Data section's Script window and the context menu's flyout,
   // and a script file run from a drop or the OS: both run through the SAME PlanTarget.
@@ -28,6 +30,10 @@ namespace stencil::gui {
 
    private:
     void reportRun(const ScriptRunResult& result) const;
+    static ScriptRunRules linkRules();
+    // The run's hold on the plan gate, released when its last holder drops it; null (and said)
+    // while a plan or another script holds the canvas.
+    std::shared_ptr<void> holdPlanGate();
 
     MainWindow& w;
   };

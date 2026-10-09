@@ -6,18 +6,14 @@
 #include <QActionGroup>
 #include <QMenuBar>
 
-// MainWindow's menu bar: applyMenuBarPlacement() + buildMenus().
+// MainWindow's menu bar: its placement and its menus.
 
 namespace stencil::gui {
 
-  // Native = the platform's own bar (macOS, Unity/GNOME appmenu). The opt-out exists because Qt's export leaves
-  // an EMPTY in-window bar on some GNOME setups; Windows ignores the flag.
-  void MenuBuilder::applyMenuBarPlacement() {
-    w.menuBar()->setNativeMenuBar(w.settings.nativeMenuBar);
-  }
-
   void MenuBuilder::buildMenus() {
-    applyMenuBarPlacement();
+    // Native = the platform's own bar (macOS, Unity/GNOME appmenu). The opt-out exists because Qt's export
+    // leaves an EMPTY in-window bar on some GNOME setups; Windows ignores the flag.
+    w.menuBar()->setNativeMenuBar(w.settings.nativeMenuBar);
     // Mnemonics avoid the Alt+letter hotkeys (Alt+F fullscreen, Alt+P points, Alt+L lines, …).
     auto* file = w.menuBar()->addMenu("F&ile");
     file->addAction(w.acts.open);

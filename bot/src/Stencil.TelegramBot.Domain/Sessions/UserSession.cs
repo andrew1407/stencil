@@ -55,6 +55,9 @@ public sealed record UserSession
     // The LWW guard for save-back.
     public long ActiveProjectVersion { get; init; }
 
+    // The fetched original's OriginalHash: a pull of the same hash keeps the image on disk.
+    public string? ActiveProjectOriginalHash { get; init; }
+
     // The raw layout JSON as fetched, so a save-back preserves fields the bot doesn't model.
     public string? ActiveProjectLayoutJson { get; init; }
 

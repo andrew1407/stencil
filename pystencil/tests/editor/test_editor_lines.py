@@ -1,5 +1,5 @@
 """The drawn lines follow a rotate or a crop as the browser's do — the same cases, and the same
-numbers, as the CLI console's ``rotate_lines_test.zig`` / ``crop_lines_test.zig``."""
+numbers, as the CLI console's ``rotate_flip_lines_test.zig`` / ``crop_lines_test.zig``."""
 
 from __future__ import annotations
 

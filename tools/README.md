@@ -12,6 +12,7 @@ run from the repo root, using Node builtins only: nothing to install, nothing ad
 | finish a comment-only sweep | `node tools/commentOnlyDiff.mjs <gitRef> <path...>` | anything other than comments or whitespace changed |
 | move, rename or delete any file | `node tools/docPaths.mjs --check` and `node tools/commentPaths.mjs --check` | a doc or a code comment names a path that no longer exists |
 | edit a file another surface ships a copy of | `node tools/syncTwins.mjs` (then `--check`) | a copy differs from its original |
+| add, split or grow a source file or folder | `node tools/caps.mjs --check` | a file passes 230 lines, a folder 12 source units, or a directory's body comments a fifth of its lines |
 
 Every tool prints a one-line summary last (`docPaths: 0 dead paths`), so the last line says
 whether it passed.
@@ -19,7 +20,7 @@ whether it passed.
 | Exit code | Meaning |
 |---|---|
 | `0` | passed (or, without `--check`, reported or re-synced) |
-| `1` | failed: something LOST, CHANGED, dead or drifted |
+| `1` | failed: something LOST, CHANGED, dead, drifted or over a cap |
 | `2` | bad arguments; from the `syncTwins` hook, a drift note for the editor |
 
 ## Common rules
@@ -123,6 +124,29 @@ twin in another surface (`browser/js/…` named from `desktop/`) or a tail (`js/
 
 **On failure:** fix the comment. An example or a fixture's own name goes in the tool's `ALLOW`
 table, keyed by the file that says it.
+
+## `caps.mjs` — is every file, folder and directory within its cap?
+
+```sh
+node tools/caps.mjs [--check] [path...]
+```
+
+**Checks:** the size rules of `.claude/rules/architecture.md` over every tracked (or would-be-tracked)
+source, test and stylesheet file, build output, vendored and generated files aside:
+
+| Rule | Counts |
+|---|---|
+| a file is at most 230 lines | lines as `wc -l` counts them |
+| a folder holds at most 12 direct source units | a module and its `.d.ts`, a header with its `.cpp` and per-OS bodies (`xMac.mm`), count once; test folders and Go `_test.go` files are exempt |
+| a directory's body comments stay under a fifth of its lines | comment-only lines after each file's leading doc banner, over every line of the directory's files; `.d.ts` shape files are exempt |
+
+Comments are found by the same string-aware scanners `commentPaths.mjs` uses. A `path` narrows the
+run to files under it.
+
+**Output:** one line per breach, `<file or folder>  <rule> <value> (limit <limit>)`, then the summary.
+
+**On failure:** split the file or folder by feature (the `split-move` skill), or delete the comments
+that do not say what the code cannot.
 
 ## `syncTwins.mjs` — keep every copy equal to its original
 

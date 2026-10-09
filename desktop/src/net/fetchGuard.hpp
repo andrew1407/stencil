@@ -3,6 +3,7 @@
 // the blockedRanges `fetch` policy, loopback allowed only when not strict (a URL the user typed).
 // A server the user names is judged by `serverTarget` instead (ServerClient::isRefusedTarget).
 #include "blockedRanges.hpp"
+#include "webScheme.hpp"
 
 #include <QByteArray>
 #include <QFile>
@@ -52,9 +53,6 @@ namespace stencil::net::fetchGuard {
   // Blocking; prefer checkAsync on the GUI thread. As in net.zig, a record flipped between this
   // lookup and Qt's own connect (DNS rebinding) still gets through; only the 30x variant is closed.
   bool resolvesToBlocked(const QString& host, bool strict);
-
-  // A typed file:/smb: URL must never be fetched or handed to the OS URL handler.
-  bool isWebScheme(const QUrl& url);
 
   QString blockedReason(const QUrl& url, bool strict);
 

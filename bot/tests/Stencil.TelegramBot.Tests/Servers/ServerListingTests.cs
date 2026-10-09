@@ -51,4 +51,19 @@ public sealed class ServerListingTests : ServerServiceTestBase
         Assert.Equal(["p_a", "p_b"], projects.Select(p => p.Record.Id));
         Assert.Equal([ServerA, ServerB], projects.Select(p => p.ServerUrl));
     }
+
+    [Fact]
+    public async Task Should_Ask_Each_Server_For_One_Page_On_List_Recent_Projects()
+    {
+        for (int i = 0; i < 30; i++)
+        {
+            _factory.ClientFor(ServerA).Seed(new ProjectRecord { Id = $"p{i}", Name = $"n{i}" });
+        }
+        await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
+
+        IReadOnlyList<ServerProjectInfo> projects = await _service.ListRecentProjectsAsync(UserId, 21);
+
+        Assert.Equal(21, projects.Count);
+        Assert.Equal([21], _factory.ClientFor(ServerA).FirstPages);
+    }
 }

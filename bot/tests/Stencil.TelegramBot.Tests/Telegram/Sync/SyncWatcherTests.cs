@@ -8,7 +8,10 @@ using Stencil.TelegramBot.Tests.Doubles;
 using Telegram.Bot.Requests;
 using Stencil.TelegramBot.Bot.Telegram.Commands;
 using Stencil.TelegramBot.Bot.Telegram.Sync;
+using Stencil.TelegramBot.Bot.Telegram;
 using Stencil.TelegramBot.Bot.Telegram.Access;
+using Stencil.TelegramBot.Bot.Telegram.Messaging;
+using Stencil.TelegramBot.Tests.Telegram.Access;
 
 namespace Stencil.TelegramBot.Tests.Telegram.Sync;
 
@@ -19,7 +22,7 @@ public sealed class SyncWatcherTests : IDisposable
     private const long _chatId = 72;
 
     private readonly string _dataDir =
-        Path.Combine(Path.GetTempPath(), "stencil-bot-sync-" + Guid.NewGuid().ToString("N"));
+        TempDirs.New("bot-sync");
 
     private readonly MockStencilCli _cli = new();
     private readonly MockBotClient _bot = new();
@@ -39,14 +42,14 @@ public sealed class SyncWatcherTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
+        TempDirs.Delete(_dataDir);
     }
 
     /// <summary>A synced session on an active project, with a working image to re-render.</summary>
-    private async Task seedSyncedUser(long lastSeenVersion)
+    private async Task seedSyncedUser(long lastSeenVersion, long userId = _userId, long chatId = _chatId)
     {
-        await _editing.BlankAsync(_userId, new BlankSpec(null, null, null, null));
-        await _store.SaveAsync(await _store.GetAsync(_userId) with
+        await _editing.BlankAsync(userId, new BlankSpec(null, null, null, null));
+        await _store.SaveAsync(await _store.GetAsync(userId) with
         {
             SyncEnabled = true,
             ActiveServerUrl = "http://localhost:8090",
@@ -54,13 +57,13 @@ public sealed class SyncWatcherTests : IDisposable
             ActiveProjectName = "cat",
             ActiveProjectVersion = lastSeenVersion,
         });
-        _registry.Enable(_userId, _chatId);
+        _registry.Enable(userId, chatId);
     }
 
     /// <summary>Run ticks until <paramref name="done"/>, then stop the service.</summary>
-    private async Task watchUntil(Func<bool> done)
+    private async Task watchUntil(Func<bool> done, UserGate? gate = null)
     {
-        SyncWatcher watcher = new(_registry, _servers, _store, _handlers, _bot, new UserGate(), new BotOptions(), _logger);
+        SyncWatcher watcher = new(_registry, _servers, _store, _handlers, _bot, gate ?? new UserGate(), new BotOptions(), _logger);
         await watcher.StartAsync(CancellationToken.None);
         DateTime deadline = DateTime.UtcNow.AddSeconds(5);
         while (!done() && DateTime.UtcNow < deadline)
@@ -147,6 +150,47 @@ public sealed class SyncWatcherTests : IDisposable
 
         (LogLevel level, string message) = Assert.Single(_logger.Entries);
         Assert.Equal(LogLevel.Warning, level);
-        Assert.Equal("Sync poll iteration failed", message);
+        Assert.Equal("Sync poll failed for user 71", message);
+    }
+
+    [Fact]
+    public async Task Should_Skip_A_Busy_User_And_Still_Pull_The_Next()
+    {
+        await seedSyncedUser(lastSeenVersion: 1);
+        await seedSyncedUser(lastSeenVersion: 1, userId: 81, chatId: 82);
+        _servers.ActiveVersion = 2;
+        UserGate gate = new();
+        using IDisposable busy = await gate.AcquireAsync(_userId); // a long assistant turn
+
+        await watchUntil(() => _servers.PulledUsers.Contains(81), gate);
+
+        Assert.DoesNotContain(_userId, _servers.PulledUsers);
+    }
+
+    [Fact]
+    public async Task Should_Keep_Polling_Others_When_One_Users_Pull_Fails()
+    {
+        await seedSyncedUser(lastSeenVersion: 1);
+        await seedSyncedUser(lastSeenVersion: 1, userId: 81, chatId: 82);
+        _servers.ActiveVersion = 2;
+        _servers.FailingUsers.Add(_userId);
+
+        await watchUntil(() => _servers.PulledUsers.Contains(81) && _logger.Entries.Count > 0);
+
+        Assert.Contains(_logger.Messages, m => m == "Sync poll failed for user 71");
+    }
+
+    // The registry is in memory while SyncEnabled persists: after a restart, the next update re-registers.
+    [Fact]
+    public async Task Should_Re_Register_A_Synced_Chat_On_Its_Next_Update()
+    {
+        await seedSyncedUser(lastSeenVersion: 1);
+        _registry.Disable(_userId); // a restart forgot it
+        UpdateRouter router = new(_handlers, new CallbackAction(_handlers, _bot, _store), _editing, _store, _bot,
+            new UserGate(), new BotOptions { AllowedUsers = AnyUser.Instance }, new MockLogger<UpdateRouter>(), sync: _registry);
+
+        await router.HandleMessageAsync(AccessAdmissionTests.TextFrom(_userId, "/status"), CancellationToken.None);
+
+        Assert.Contains((_userId, 66L), _registry.Entries());
     }
 }

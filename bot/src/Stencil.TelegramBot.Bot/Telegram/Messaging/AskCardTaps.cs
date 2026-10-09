@@ -29,13 +29,12 @@ public sealed class AskCardTaps
         UserSession session = await _store.GetAsync(userId, ct);
         if (session.AskOptions.Count == 0)
         {
-            await _bot.EditMessageText(chatId, query.Message!.MessageId,
-                "That question is no longer open — just type what you want.", cancellationToken: ct);
+            await _bot.EditMessageText(chatId, query.Message!.MessageId, Replies.AskClosed(), cancellationToken: ct);
             return;
         }
         if (token == "custom")
         {
-            await _bot.SendMessage(chatId, "Go ahead — type your answer.", cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.AskTypeAnswer(), cancellationToken: ct);
             return;
         }
 
@@ -63,7 +62,7 @@ public sealed class AskCardTaps
         if (picked.Count == 0)
         {
             await _bot.SendMessage(
-                chatId, Replies.Tag(Replies.Tone.ERROR, "Pick at least one option first."), cancellationToken: ct);
+                chatId, Replies.Tag(Replies.Tone.ERROR, Replies.AskPickOne()), cancellationToken: ct);
             return;
         }
         await submitAsync(userId, chatId, session, picked, ct);

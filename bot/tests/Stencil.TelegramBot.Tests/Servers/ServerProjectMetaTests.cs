@@ -126,6 +126,43 @@ public sealed class ServerProjectMetaTests : ServerServiceTestBase
 
         long set = await _service.SetProjectExpiryAsync(UserId, 9_000);
         Assert.Equal(9_000, set);
+        // The write was based past the stored v4, so v4's layout keeps v4: the next save meets the peer.
+        Assert.Equal(4, (await _store.GetAsync(UserId)).ActiveProjectVersion);
+    }
+
+    [Fact]
+    public async Task Should_Keep_The_Stored_Version_When_A_Peer_Wrote_Before_A_Rename()
+    {
+        _factory.ClientFor(ServerA).Seed(
+            new ProjectRecord { Id = "p_seed", Name = "Shared", ImageW = 320, ImageH = 240, Version = 4 },
+            LayoutWithFilter("none"));
+        await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
+        await _service.FetchAsync(UserId, "Shared", url: null);
+        _factory.ClientFor(ServerA).BumpVersion("p_seed"); // a peer's save: v5
+
+        await _service.SetProjectNameAsync(UserId, "Poster");
+
+        UserSession after = await _store.GetAsync(UserId);
+        Assert.Equal("Poster", after.ActiveProjectName);
+        Assert.Equal(4, after.ActiveProjectVersion); // not the rename's v6, which names the peer's layout
+        // So the next save meets a 409 and merges the peer's lines rather than overwriting them.
+        await _service.SaveActiveProjectAsync(UserId);
+        Assert.Single(_cli.Merges);
+    }
+
+    [Fact]
+    public async Task Should_Adopt_The_Writes_Version_When_No_Peer_Wrote_Before_A_Colour_Change()
+    {
+        _factory.ClientFor(ServerA).Seed(
+            new ProjectRecord { Id = "p_seed", Name = "Shared", ImageW = 320, ImageH = 240, Version = 4 },
+            LayoutWithFilter("none"));
+        await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
+        await _service.FetchAsync(UserId, "Shared", url: null);
+
+        await _service.SetProjectColorAsync(UserId, "#ff8800");
+        await _service.SaveActiveProjectAsync(UserId);
+
+        Assert.Empty(_cli.Merges); // v5 was adopted, so the save's guard holds without a 409
     }
 
     [Fact]

@@ -23,13 +23,13 @@ public sealed class SourceHandlerTests : IDisposable
 
     public SourceHandlerTests()
     {
-        _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-source-" + Guid.NewGuid().ToString("N"));
+        _dataDir = TempDirs.New("bot-source");
         _handlers = TestHandlers.Create(new BotOptions { DataDir = _dataDir }, _store, _cli, _bot);
     }
 
     public void Dispose()
     {
-        try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
+        TempDirs.Delete(_dataDir);
     }
 
     private Task dispatch(string text) =>

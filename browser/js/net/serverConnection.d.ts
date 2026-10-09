@@ -35,6 +35,9 @@ export interface ProjectEventMessage {
   project?: RemoteProjectRecord;
 }
 
+/** The feed is back after a redial: what it carried while down was never sent. */
+export interface FeedResumedMessage { type: 'feed-resumed'; }
+
 /** A REST failure; `expired` marks a credential the server will never accept again. */
 export interface ServerRequestError extends Error { status?: number; expired?: boolean; }
 
@@ -47,9 +50,6 @@ export interface ServerConnectionOptions {
   WebSocketImpl?: typeof WebSocket;
   clientId?: string;
 }
-
-/** Pages a project listing follows before it gives up rather than loop on a server's cursors. */
-export declare const MAX_LIST_PAGES: number;
 
 export declare class ServerConnection {
   constructor(url: string, opts?: ServerConnectionOptions);
@@ -79,6 +79,6 @@ export declare class ServerConnection {
   /** A fresh session token wrapped as `<url>#token=<token>`. */
   mintInvite(): Promise<string>;
   tagRemote<T extends object>(p: T): T & { remote: true; serverUrl: string };
-  onEvent(cb: (msg: ProjectEventMessage, conn: ServerConnection) => void): () => void;
+  onEvent(cb: (msg: ProjectEventMessage | FeedResumedMessage, conn: ServerConnection) => void): () => void;
   close(): void;
 }

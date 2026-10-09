@@ -20,7 +20,6 @@ const (
 const (
 	msgImageRequired = "a project must be created from an image"
 	msgBadOriginal   = "originalContent must be a base64 image data URL"
-	msgProjectInUse  = "project is in use by other clients; cannot delete"
 )
 
 // Files.

@@ -12,7 +12,6 @@ export const ICONS = ICONS_DATA;
 // While one is installed every glyph assembled afterwards is born in it; null = the line-art.
 let skinArt = null;
 export const setIconSkin = (table) => { skinArt = table || null; };
-export const iconSkin = () => skinArt;
 
 const skinFace = (name, cls, size) =>
   `<svg class="ic ic-${name}${cls}" viewBox="0 0 16 16" width="${size}" height="${size}" ` +

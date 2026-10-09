@@ -208,7 +208,8 @@ result is checked against the document `version` it was computed for.
 1. **The CLI, the Python and the browser instance are explicit user configuration.** `stencil.cliPath`
    (then `STENCIL_CLI`, then `PATH`), `stencil.pythonPath` (then `STENCIL_PYTHON`, then `PATH`) and
    `stencil.webUrl`, else the published default, which must be `http(s)` — all machine-scoped
-   so a workspace cannot set them. None is ever read out of the document being edited or anything the script
+   so a workspace cannot set them. The two paths must be absolute: a relative one would resolve
+   against the open workspace, so it is refused. None is ever read out of the document being edited or anything the script
    fetches; `cliLocator.js`, `pythonLocator.js` and `web/target.js` are the one way each is resolved.
    `stencil.webBrowser` is not machine-scoped: it only picks `chrome` or `edge` from the
    `BROWSERS` table in `lib/web/console.js` (js-debug's `chrome` or `msedge` launcher), and any

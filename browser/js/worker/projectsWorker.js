@@ -61,10 +61,11 @@ self.onconnect = e => {
     const data = ev.data || {};
     const type = data.type;
     if (type === MSG.HELLO) {
-      // Tell the newcomer the current count, then refresh everyone.
+      // A tab back from the bfcache said BYE already: it rejoins with the state it carries.
+      if (!ports.has(port)) ports.set(port, { activeId: data.activeId ?? null, incognito: data.incognito || null });
       post(port, tabcountMsg());
       broadcast(tabcountMsg());
-      post(port, peersMsg());
+      broadcast(peersMsg());
       sendIncognitos();
       return;
     }

@@ -94,7 +94,9 @@ def _address_blocked(ip, policy: str, **options: bool) -> bool:
 
 def _literal(host: str):
   """The address ``host`` spells — IPv6, or IPv4 in any ``inet_aton`` form (hex, octal, one
-  to four parts), as the resolver reads it — else None: ``host`` is a name."""
+  to four parts), as the resolver reads it — else None: ``host`` is a name. A bracketed IPv6
+  host and a zone ID read as ``cli/src/net/addr.zig`` reads them."""
+  if host.startswith("[") and host.endswith("]"): host = host[1:-1]
   if ":" in host:
     try:
       return ipaddress.ip_address(host)

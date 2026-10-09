@@ -15,7 +15,7 @@ const { ProjectsStore } = await import('../../../../js/core/project/store/projec
 const { sourceRef, storedSource, keptSource } = await import('../../../../js/core/project/store/projectSources.js');
 const { RemoteSyncController } = await import('../../../../js/core/remote/syncController.js');
 const { ProjectTransferController } = await import('../../../../js/core/project/transferController.js');
-const { ServerConnection } = await import('../../../../js/net/connectionManager.js');
+const { ServerConnection } = await import('../../../../js/net/serverConnection.js');
 const { createRemoteProject } = await import('../../../../js/net/remoteSync.js');
 
 const A = `data:image/png;base64,${'A'.repeat(50000)}`;

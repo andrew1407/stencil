@@ -54,7 +54,7 @@ class RasterOps:
       ctypes.byref(out_w),
       ctypes.byref(out_h),
     )
-    if not ok: return None
+    if ok != 1: return None  # 0 = unreadable or off the image, -1 = nothing left
     return (out_x.value, out_y.value, out_w.value, out_h.value)
 
   def snap_crop_rect(self, rect: Rect, image_w: int, image_h: int) -> Rect:

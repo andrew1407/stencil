@@ -95,16 +95,16 @@ func TestInProcSlowSubscriberDropsNotBlocks(t *testing.T) {
 	}
 }
 
-// The envelope lifts the two routing fields out of the frame, so a subscriber
-// never unmarshals the frame again just to read them.
+// The envelope lifts the type out of the frame, so a subscriber never unmarshals the frame again
+// just to read it.
 func TestEnvelopeCarriesRoutingHeader(t *testing.T) {
-	msg := protocol.WSMessage{Type: protocol.WSCursor, FromClientID: "c_7", X: 3}
+	msg := protocol.WSMessage{Type: protocol.WSProjectEv, Event: protocol.EventUpdated}
 	data, err := json.Marshal(msg)
 	if err != nil {
 		t.Fatal(err)
 	}
 	env := EnvelopeOf(msg, data)
-	if env.Type != protocol.WSCursor || env.From != "c_7" {
+	if env.Type != protocol.WSProjectEv {
 		t.Fatalf("routing header: %+v", env)
 	}
 	if string(env.Data) != string(data) {
@@ -119,7 +119,7 @@ func TestEnvelopeCarriesRoutingHeader(t *testing.T) {
 	if err := json.Unmarshal(raw, &back); err != nil {
 		t.Fatal(err)
 	}
-	if back.Type != env.Type || back.From != env.From || string(back.Data) != string(data) {
+	if back.Type != env.Type || string(back.Data) != string(data) {
 		t.Fatalf("round trip: %+v", back)
 	}
 }
@@ -132,7 +132,7 @@ func TestPublishProjectEventIsRoutable(t *testing.T) {
 	PublishProjectEvent(context.Background(), b, protocol.EventDeleted, protocol.ProjectRecord{ID: "p_x_y"})
 	select {
 	case env := <-ch:
-		if env.Type != protocol.WSProjectEv || env.From != "" {
+		if env.Type != protocol.WSProjectEv {
 			t.Fatalf("event envelope: %+v", env)
 		}
 		var msg protocol.WSMessage

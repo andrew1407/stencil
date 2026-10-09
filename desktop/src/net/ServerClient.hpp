@@ -177,13 +177,15 @@ namespace stencil::net {
     // the "already connected" guard. Falls back to connectToAsync for an unlisted url.
     void reauthenticateAsync(const QString& url, const QString& token,
                              std::function<void(bool ok, QString err)> done);
-    void reconnectAllAsync(std::function<void()> done = {});
+    void reconnectAllAsync();
 
     QStringList urls() const;
     ServerClient* find(const QString& url) const;
     const QVector<ServerClient*>& getClients() const { return clients; }
 
     QVector<SavedServer> snapshot() const;
+    // Bases the user disconnected here, dropped from the saved set; a reconnect takes one back.
+    const QStringList& getForgotten() const { return forgotten; }
 
     // Fans out listProjectsAsync to every client; callers guard `done`'s captures.
     void sharedProjectsAsync(std::function<void(QVector<ServerProject> projects)> done) const;
@@ -193,6 +195,7 @@ namespace stencil::net {
 
    private:
     QVector<ServerClient*> clients;
+    QStringList forgotten;
     // Held so this manager's destruction takes their nam with them, severing the in-flight callback.
     QVector<ServerClient*> pending;
   };

@@ -5,6 +5,9 @@ import { resolveAxisPx } from '../../core/settings/units.js';
 import { cropAspect, scaleCropCentered } from '../../core/parse/cropGeometry.js';
 import { getPageDimensions, pixelToPageCoords } from '../../core/parse/pageMetrics.js';
 
+// A cm or percent edge's float noise, not a pixel: the slack an edge may pass its bound by.
+const CROP_EDGE_SLACK_PX = 1e-6;
+
 export const createCropApi = ({ app }) => {
   let stencil;   // the frozen facade, handed over by setFacade after the guard
 
@@ -25,8 +28,16 @@ export const createCropApi = ({ app }) => {
       }
       const ps = getPageDimensions(app);
       const pxPerCmX = app.canvas.width / ps.width, pxPerCmY = app.canvas.height / ps.height;
-      const edge = (tok, cur, lengthPx, pxPerCm) =>
-        tok == null ? cur : resolveAxisPx(tok, { lengthPx, pxPerCm, currentPx: cur });
+      const edge = (tok, cur, lengthPx, pxPerCm) => {
+        if (tok == null) return cur;
+        const px = resolveAxisPx(tok, { lengthPx, pxPerCm, currentPx: cur });
+        if (px == null) throw new Error(`crop edge '${tok}' is not a length`);
+        // Outside [0, length] is refused, never mirrored (core cropSpec.cpp CROP_EDGE_SLACK_PX).
+        if (!(px >= -CROP_EDGE_SLACK_PX && px <= lengthPx + CROP_EDGE_SLACK_PX)) {
+          throw new Error(`crop edge '${tok}' lies outside the image`);
+        }
+        return px;
+      };
       let x1 = edge(spec.x1, r.x, dims.width, pxPerCmX);
       let x2 = edge(spec.x2, r.x + r.width, dims.width, pxPerCmX);
       let y1 = edge(spec.y1, r.y, dims.height, pxPerCmY);
@@ -49,7 +60,7 @@ export const createCropApi = ({ app }) => {
       if (spec.aspect != null) {
         const m = /^(\d+):(\d+)$/.exec(String(spec.aspect));
         const ratio = m && Number(m[1]) > 0 && Number(m[2]) > 0 ? Number(m[1]) / Number(m[2]) : 0;
-        if (!(ratio > 0)) throw new Error('crop aspect must be "W:H" with positive integers');
+        if (!(ratio > 0) || !Number.isFinite(ratio)) throw new Error('crop aspect must be "W:H" with positive integers');
         let w = rw, h = rh;
         if (h * ratio <= w) w = h * ratio;   // too wide → shrink the width
         else h = w / ratio;                  // too tall → shrink the height

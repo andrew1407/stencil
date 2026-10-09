@@ -131,12 +131,6 @@ export const parseOpPlan = (text, { listingLength = 0, tabsLength = 0 } = {}) =>
   return { reply, actions, ask, warnings, chatOnly: false };
 };
 
-// True when the plan's only actionable output is `attach` — the trigger for the
-// single bounded auto-continuation (contract §8).
-export const attachOnly = (plan) =>
-  !!plan && Array.isArray(plan.actions) && plan.actions.length > 0
-  && plan.actions.every((a) => a.op === 'attach');
-
 // True when every action only GATHERS context (the registry's `gather` flag), so the plan needs
 // another model round — the same single bounded auto-continuation attach-only plans get (§8).
 export const continuationOnly = (plan) =>

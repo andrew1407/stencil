@@ -12,8 +12,8 @@ import (
 	"stencil/server/internal/protocol"
 )
 
-// defaultSweepLimit caps one DeleteExpiredProjects batch.
-const defaultSweepLimit = 500
+// MaxSweepBatch caps one DeleteExpiredProjects or DeleteExpiredSessions batch; SWEEP_BATCH is held under it.
+const MaxSweepBatch = 500
 
 // CreateProject inserts a new project owned by ownerSession and returns its metadata: the caller already
 // holds the payload it sent. An inline original is the service's to store as a file, never a column.
@@ -153,19 +153,16 @@ func (s *Store) DeleteProject(ctx context.Context, id string) error {
 }
 
 // DeleteExpiredProjects removes and returns up to limit projects past a non-zero expiry (expires_at in
-// (0, now]) but none in keep; the caller loops until a pass comes back short.
-func (s *Store) DeleteExpiredProjects(ctx context.Context, now int64, limit int, keep []string) ([]string, error) {
-	if limit <= 0 || limit > defaultSweepLimit {
-		limit = defaultSweepLimit
-	}
-	if keep == nil {
-		keep = make([]string, 0) // a nil slice is SQL NULL, and NOT (id = ANY(NULL)) excludes every row
+// (0, now]); the caller loops until a pass comes back short.
+func (s *Store) DeleteExpiredProjects(ctx context.Context, now int64, limit int) ([]string, error) {
+	if limit <= 0 || limit > MaxSweepBatch {
+		limit = MaxSweepBatch
 	}
 	rows, err := s.pool.Query(ctx,
 		`DELETE FROM projects WHERE id IN (
-			SELECT id FROM projects WHERE expires_at > 0 AND expires_at <= $1 AND NOT (id = ANY($3))
+			SELECT id FROM projects WHERE expires_at > 0 AND expires_at <= $1
 			ORDER BY expires_at LIMIT $2
-		 ) RETURNING id`, now, limit, keep)
+		 ) RETURNING id`, now, limit)
 	if err != nil {
 		return nil, err
 	}

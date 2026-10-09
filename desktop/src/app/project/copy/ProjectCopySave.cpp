@@ -2,6 +2,7 @@
 // its own image file, never the source's path; or a new project on the source's server from the
 // original's bytes, its layout PUT for layout and up, its colour, words and chat for a whole project.
 #include "ProjectCopy.hpp"
+#include "SharedState.hpp"
 #include "MainWindow.hpp"
 #include "Notifications.hpp"
 #include "ServerClient.hpp"
@@ -106,7 +107,7 @@ namespace stencil::gui {
     }
     pr.imagePath = path;
     w.projectList.push_back(pr);
-    fileStore::saveProjects(w.projectList);
+    SharedState::instance().saveProjects(&w);
     w.refreshActions();
     SiblingWindows::refreshDockMenu(w.projectList);
     return QString::fromStdString(id);

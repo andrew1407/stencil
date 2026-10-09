@@ -14,15 +14,18 @@ public sealed class AccessGate
     private readonly IBotPolicy _options;
     private readonly ITelegramBotClient _bot;
     private readonly ILogger _logger;
-    // Capped: a flood of unknown ids must not grow it without bound.
-    private const int _maxRefusalsLogged = 1024;
+    private readonly TimeProvider _clock;
+    // Capped: a flood of unknown ids must not grow either without bound.
+    private const int _maxRefusalsTracked = 1024;
     private readonly ConcurrentDictionary<long, byte> _refusalsLogged = new();
+    private readonly Dictionary<long, DateTimeOffset> _lastReply = new();
 
-    public AccessGate(IBotPolicy options, ITelegramBotClient bot, ILogger logger)
+    public AccessGate(IBotPolicy options, ITelegramBotClient bot, ILogger logger, TimeProvider? clock = null)
     {
         _options = options;
         _bot = bot;
         _logger = logger;
+        _clock = clock ?? TimeProvider.System;
     }
 
     // /start only when bare: with a payload it is a deep link that connects out and fetches a
@@ -36,7 +39,7 @@ public sealed class AccessGate
         {
             return true;
         }
-        if (_refusalsLogged.Count >= _maxRefusalsLogged)
+        if (_refusalsLogged.Count >= _maxRefusalsTracked)
         {
             _refusalsLogged.Clear();
         }
@@ -46,12 +49,37 @@ public sealed class AccessGate
                 "Refused request from Telegram user {UserId}; add the id to "
                 + "STENCIL_BOT_ALLOWED_USERS to allow it", userId);
         }
-        await _bot.SendMessage(
-            chatId,
-            Replies.Tag(Replies.Tone.ERROR, _options.AllowedUsers.Count == 0
-                ? "This bot isn't accepting requests."
-                : "This bot isn't enabled for your account."),
-            cancellationToken: ct);
+        if (!dueReply(userId))
+        {
+            return false;
+        }
+        // Runs on the polling loop too, so a failed send is logged, never thrown.
+        try
+        {
+            await _bot.SendMessage(chatId, Replies.AccessRefused(_options.AllowedUsers.Count == 0), cancellationToken: ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Failed to send the refusal to chat {ChatId}", chatId);
+        }
         return false;
+    }
+
+    private bool dueReply(long userId)
+    {
+        DateTimeOffset now = _clock.GetUtcNow();
+        lock (_lastReply)
+        {
+            if (_lastReply.TryGetValue(userId, out DateTimeOffset last) && now - last < _options.RefusalReplyWindow)
+            {
+                return false;
+            }
+            if (_lastReply.Count >= _maxRefusalsTracked)
+            {
+                _lastReply.Clear();
+            }
+            _lastReply[userId] = now;
+            return true;
+        }
     }
 }

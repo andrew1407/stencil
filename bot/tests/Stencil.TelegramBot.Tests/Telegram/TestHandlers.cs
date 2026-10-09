@@ -1,3 +1,4 @@
+using Telegram.Bot.Types;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Stencil.TelegramBot.Application.Editing;
@@ -31,7 +32,7 @@ internal static class TestHandlers
         PromptCancellations? cancellations = null,
         IReadOnlyList<LlmProfile>? profiles = null,
         ILogger<CommandHandlers>? logger = null,
-        IScriptService? script = null)
+        ScriptService? script = null)
     {
         UserWorkspace workspace = new(options);
         editing ??= new EditingService(cli, workspace, store);
@@ -57,4 +58,14 @@ internal static class TestHandlers
             cancellations ?? new PromptCancellations(),
             logger ?? NullLogger<CommandHandlers>.Instance);
     }
+
+    /// <summary>A button tap from <paramref name="userId"/> in <paramref name="chatId"/> carrying <paramref name="data"/>.</summary>
+    public static CallbackQuery Tap(long userId, long chatId, string data) =>
+        new()
+        {
+            Id = "cb",
+            From = new User { Id = userId },
+            Message = new Message { Chat = new Chat { Id = chatId } },
+            Data = data,
+        };
 }

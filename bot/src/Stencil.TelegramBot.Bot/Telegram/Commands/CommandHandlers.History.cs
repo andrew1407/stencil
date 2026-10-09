@@ -11,12 +11,12 @@ public sealed partial class CommandHandlers
         UserSession before = await _store.GetAsync(userId, ct);
         if (!before.HasImage)
         {
-            await _bot.SendMessage(chatId, "No working image — upload a photo or use /blank first.", cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.NoImage(), cancellationToken: ct);
             return;
         }
         if (before.EditHistory.Count == 0)
         {
-            await _bot.SendMessage(chatId, "Nothing to undo.", replyMarkup: Keyboards.EditMenu(before.ActiveProjectId is not null), cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.UndoEmpty(), replyMarkup: Keyboards.EditMenu(before.ActiveProjectId is not null), cancellationToken: ct);
             return;
         }
         await _editing.UndoAsync(userId, ct);
@@ -28,12 +28,12 @@ public sealed partial class CommandHandlers
         UserSession before = await _store.GetAsync(userId, ct);
         if (!before.HasImage)
         {
-            await _bot.SendMessage(chatId, "No working image — upload a photo or use /blank first.", cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.NoImage(), cancellationToken: ct);
             return;
         }
         if (before.EditRedo.Count == 0)
         {
-            await _bot.SendMessage(chatId, "Nothing to redo.", replyMarkup: Keyboards.EditMenu(before.ActiveProjectId is not null), cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.RedoEmpty(), replyMarkup: Keyboards.EditMenu(before.ActiveProjectId is not null), cancellationToken: ct);
             return;
         }
         await _editing.RedoAsync(userId, ct);
@@ -45,7 +45,7 @@ public sealed partial class CommandHandlers
         UserSession session = await _editing.RemoveLastLineAsync(userId, ct);
         if (!session.HasImage)
         {
-            await _bot.SendMessage(chatId, "No working image — upload a photo or use /blank first.", cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.NoImage(), cancellationToken: ct);
             return;
         }
         await RenderAndSendAsync(userId, chatId, ct);
@@ -56,7 +56,7 @@ public sealed partial class CommandHandlers
         UserSession session = await _editing.ClearLinesAsync(userId, ct);
         if (!session.HasImage)
         {
-            await _bot.SendMessage(chatId, "No working image — upload a photo or use /blank first.", cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.NoImage(), cancellationToken: ct);
             return;
         }
         await RenderAndSendAsync(userId, chatId, ct);
@@ -76,7 +76,7 @@ public sealed partial class CommandHandlers
         _prompts.ClearHistory(userId);
         await _bot.SendMessage(
             chatId,
-            "Dropped the working image. Send a photo or use /blank to start again.",
+            Replies.ImageDropped(),
             replyMarkup: Keyboards.MainMenu(),
             cancellationToken: ct);
     }

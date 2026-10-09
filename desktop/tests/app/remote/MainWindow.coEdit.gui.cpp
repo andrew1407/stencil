@@ -1,44 +1,11 @@
 // MainWindow GUI e2e — live co-edit against an in-process REST stand-in: a peer's layout edit
 // keeps the undo history and the decoded picture, and the baked result follows its throttle.
-// Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
+// Shared ground is in coEditGui.hpp, over MainWindow.gui.hpp.
 #include "../../MainWindow.gui.hpp"
+#include "../../support/recordingSink.hpp"
 #include "../../support/connectNow.hpp"
-#include "../../support/mockRest.hpp"
+#include "coEditGui.hpp"
 #include "../../../src/app/remote/RemoteSyncController.hpp"
-
-namespace {
-
-  QByteArray pngOf(const QColor& fill) {
-    QImage img(120, 80, QImage::Format_RGB32);
-    img.fill(fill);
-    QByteArray png;
-    QBuffer buf(&png);
-    buf.open(QIODevice::WriteOnly);
-    img.save(&buf, "PNG");
-    return png;
-  }
-
-  stencil::core::Line lineAt(double y) {
-    stencil::core::Line l;
-    l.points = {{10, y}, {100, y}};
-    return l;
-  }
-
-  QJsonObject layoutOf(const stencil::core::Lines& lines) {
-    return stencil::gui::fileStore::buildLayoutJson(120, 80, lines, "none", stencil::gui::DEFAULT_ACCENT_HEX,
-                                                   stencil::core::CropRect{0, 0, 120, 80});
-  }
-
-  // Every notice the window raises, whatever its lifetime on screen.
-  struct RecordingSink : stencil::gui::NotificationSink {
-    QStringList shown;
-    bool show(const stencil::gui::Notice& n) override { shown << n.text; return true; }
-    bool isAvailable() const override { return true; }
-    void setActive(bool) override {}
-    int saved() const { return int(shown.filter(QStringLiteral("Saved \"Shared\"")).size()); }
-  };
-
-}  // namespace
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
@@ -49,18 +16,12 @@ class MainWindowGuiTest : public QObject {
   void peerEditKeepsHistoryAndResultIsThrottled() {
     stencil::test::MockRest mock;
     QVERIFY(mock.listen());
-    stencil::test::MockProject& shared = mock.projects[QStringLiteral("p1")];
-    shared.name = QStringLiteral("Shared");
-    shared.original = pngOf(Qt::white);
-    shared.layout = layoutOf({});
-    QPointer<MainWindow> win = new MainWindow(nullptr, false);
-    win->setAttribute(Qt::WA_DeleteOnClose);
-    win->resize(1000, 760);
-    win->show();
+    stencil::test::MockProject& shared = seedProject(mock, QStringLiteral("p1"), QStringLiteral("Shared"));
+    QPointer<MainWindow> win = newShownWindow();
     QVERIFY(QTest::qWaitForWindowExposed(win.data()));
     win->settings.syncToServer = true;
-    auto owned = std::make_unique<RecordingSink>();
-    RecordingSink* notices = owned.get();
+    auto owned = std::make_unique<stencil::test::RecordingSink>();
+    stencil::test::RecordingSink* notices = owned.get();
     win->notify->setSystemSink(std::move(owned));
     win->notify->setChannel(stencil::gui::NotifyChannel::SYSTEM);
     QString err;
@@ -83,7 +44,7 @@ class MainWindowGuiTest : public QObject {
     QTRY_COMPARE(mock.puts, 3);
     QTest::qWait(300);
     QCOMPARE(mock.resultPosts, 1);
-    QCOMPARE(notices->saved(), 1);
+    QCOMPARE(notices->count(QStringLiteral("Saved \"Shared\"")), 1);
 
     // A peer adds a line: the layout lands as one undo step over ours, the picture untouched.
     stencil::core::Lines peer{lineAt(20), lineAt(30), lineAt(40), lineAt(60)};
@@ -155,14 +116,8 @@ class MainWindowGuiTest : public QObject {
   void peerCropAndTurnLandInPlace() {
     stencil::test::MockRest mock;
     QVERIFY(mock.listen());
-    stencil::test::MockProject& shared = mock.projects[QStringLiteral("p2")];
-    shared.name = QStringLiteral("Turned");
-    shared.original = pngOf(Qt::white);
-    shared.layout = layoutOf({});
-    QPointer<MainWindow> win = new MainWindow(nullptr, false);
-    win->setAttribute(Qt::WA_DeleteOnClose);
-    win->resize(1000, 760);
-    win->show();
+    stencil::test::MockProject& shared = seedProject(mock, QStringLiteral("p2"), QStringLiteral("Turned"));
+    QPointer<MainWindow> win = newShownWindow();
     QVERIFY(QTest::qWaitForWindowExposed(win.data()));
     win->settings.syncToServer = true;
     QString err;

@@ -67,16 +67,22 @@ namespace stencil::gui {
       if (!newName.isEmpty() && newName != remote.session->getLink().name && c) {
         QPointer<ProjectTitleController> self(this);
         const QString id = remote.session->getLink().id;
+        const QString address = remote.session->getLink().address;
+        const qint64 before = remote.session->getLink().version;
         remote.session->putVersionGuardedAsync(
             c, id,
             [c, id, newName](qint64 version, std::function<void(bool, qint64, bool)> cb) {
               c->updateProjectNameAsync(id, newName, version, cb);
             },
-            [this, self, c, newName](bool ok, qint64 newVersion) {
+            [this, self, c, id, address, before, newName](bool ok, qint64 newVersion) {
               if (!self) return;
+              RemoteLink& link = remote.session->getLink();
               if (ok) {
-                remote.session->getLink().name = newName;
-                remote.session->getLink().version = newVersion;
+                // The editor may hold another project by now: that link is left alone.
+                if (link.id == id && link.address == address) {
+                  link.name = newName;
+                  adoptOwnFileVersion(link, before, newVersion);
+                }
                 notify->success(QString("Renamed to \"%1\"").arg(newName));
               } else {
                 notify->error(QString("Rename failed: %1").arg(c->lastError()));

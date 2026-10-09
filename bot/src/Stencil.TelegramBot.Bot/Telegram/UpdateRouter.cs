@@ -8,6 +8,7 @@ using Stencil.TelegramBot.Bot.Telegram.Access;
 using Stencil.TelegramBot.Bot.Telegram.Commands;
 using Stencil.TelegramBot.Bot.Telegram.Intake;
 using Stencil.TelegramBot.Bot.Telegram.Messaging;
+using Stencil.TelegramBot.Bot.Telegram.Sync;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
@@ -20,21 +21,27 @@ public sealed class UpdateRouter
     private readonly ErrorGuard _guard;
     private readonly AlbumRouter _albums;
     private readonly MessageRouter _messages;
+    private readonly ISessionStore _store;
+    private readonly SyncRegistry? _sync;
 
     public UpdateRouter(
         CommandHandlers handlers,
         CallbackAction callbacks,
-        IEditingService editing,
+        EditingService editing,
         ISessionStore store,
         ITelegramBotClient bot,
         UserGate gate,
         IBotPolicy options,
         ILogger<UpdateRouter> logger,
-        AlbumCollector? albums = null)
+        AlbumCollector? albums = null,
+        TimeProvider? clock = null,
+        SyncRegistry? sync = null)
     {
+        _store = store;
+        _sync = sync;
         _callbacks = callbacks;
         _gate = gate;
-        _access = new AccessGate(options, bot, logger);
+        _access = new AccessGate(options, bot, logger, clock);
         _guard = new ErrorGuard(bot, logger);
         MediaIntake media = new(handlers, editing, store, bot, options);
         DocumentIntake documents = new(media, handlers, editing, store, bot);
@@ -48,6 +55,16 @@ public sealed class UpdateRouter
 
     public static long? LaneOf(CallbackQuery query) =>
         query.Data == CallbackAction.STOP_TOKEN ? null : query.From.Id;
+
+    // Runs every album flush on the user's lane of the pump.
+    public void UseLanes(Func<long, Func<Task>, Task> enqueue) => _albums.Lanes = enqueue;
+
+    // Asked on the polling loop, before the pump: an unlisted sender's update never takes a pump slot.
+    public async Task<bool> AdmitAsync(Message message, CancellationToken ct) =>
+        isUngatedMessage(message) || await _access.AllowsAsync(LaneOf(message), message.Chat.Id, ct);
+
+    public Task<bool> AdmitAsync(CallbackQuery query, CancellationToken ct) =>
+        _access.AllowsAsync(query.From.Id, query.Message?.Chat.Id ?? query.From.Id, ct);
 
     public async Task HandleMessageAsync(Message message, CancellationToken ct)
     {
@@ -69,6 +86,7 @@ public sealed class UpdateRouter
                 return;
             }
             using IDisposable gate = await _gate.AcquireAsync(userId, ct);
+            await rejoinSyncAsync(userId, chatId, ct);
             await _messages.RouteAsync(new MessageContext(userId, chatId, message), ct);
         }, ct);
     }
@@ -100,7 +118,18 @@ public sealed class UpdateRouter
                 return;
             }
             using IDisposable gate = await _gate.AcquireAsync(userId, ct);
+            await rejoinSyncAsync(userId, chatId, ct);
             await _callbacks.HandleAsync(query, ct);
         }, ct);
+    }
+
+    // The registry lives in memory while SyncEnabled persists with the session, so a restart
+    // re-registers a synced chat on its next update.
+    private async Task rejoinSyncAsync(long userId, long chatId, CancellationToken ct)
+    {
+        if (_sync is not null && await _store.GetAsync(userId, ct) is { SyncEnabled: true, ActiveProjectId: not null })
+        {
+            _sync.Rejoin(userId, chatId);
+        }
     }
 }

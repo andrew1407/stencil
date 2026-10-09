@@ -1,10 +1,10 @@
 // Pure hit-testing over the editor's line model, allocation-free with a bbox early reject
 // (twin: core/geometry/hitTest.cpp). Results are topmost-first; thresholds are in image
-// pixels, so callers divide a screen radius by the zoom.
+// pixels, so callers divide a screen radius by the zoom. A hidden committed line is never hit.
 import type { Point } from '../geometry.js';
 import type { CodecLine } from '../line/linesCodec.js';
 
-type Lines = readonly Pick<CodecLine, 'points'>[];
+type Lines = readonly (Pick<CodecLine, 'points'> & { hidden?: boolean })[];
 
 /** Index of the topmost line within `threshold` (points padded +4), or -1. */
 export declare function findLineAt(lines: Lines, x: number, y: number, threshold: number): number;

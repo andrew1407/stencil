@@ -1,4 +1,5 @@
 #include "dropSources.hpp"
+#include "webScheme.hpp"
 
 #include <QImage>
 
@@ -53,11 +54,6 @@ namespace stencil::gui {
           || u.startsWith(QLatin1String("blob:"), Qt::CaseInsensitive);
     }
 
-    bool isHttpUrl(const QString& u) {
-      return u.startsWith(QLatin1String("http://"), Qt::CaseInsensitive)
-          || u.startsWith(QLatin1String("https://"), Qt::CaseInsensitive);
-    }
-
     QString imgSrcFromHtml(const QString& html) {
       static const QRegularExpression rx(QStringLiteral("<img[^>]+src\\s*=\\s*[\"']([^\"']+)[\"']"),
                                          QRegularExpression::CaseInsensitiveOption);
@@ -77,9 +73,7 @@ namespace stencil::gui {
     const QString fromMoz = absolutize(
         decodedText(mime, QLatin1String("text/x-moz-url")).section(QLatin1Char('\n'), 0, 0));
     QString fromText = mime->hasText() ? mime->text().trimmed() : QString();
-    if (!fromText.startsWith(QLatin1String("http://"), Qt::CaseInsensitive)
-        && !fromText.startsWith(QLatin1String("https://"), Qt::CaseInsensitive))
-      fromText.clear();
+    if (!net::fetchGuard::isWebScheme(fromText)) fromText.clear();
 
     QStringList inOrder, ranked;
     for (const QString& c : {fromList, fromHtml, fromMoz, fromText})
@@ -122,7 +116,7 @@ namespace stencil::gui {
     const QStringList ranked = rankedImageUrls(mime, bitmap, native);
     if (ranked.isEmpty()) return false;
     for (const QString& u : ranked)
-      if (namesAnImage(u) || !isHttpUrl(u)) return false;
+      if (namesAnImage(u) || !net::fetchGuard::isWebScheme(u)) return false;
     return true;
   }
 

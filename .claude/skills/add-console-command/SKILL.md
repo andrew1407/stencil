@@ -17,7 +17,8 @@ Handlers return values; only `console/` and `app/` write to a terminal (`cli/ARC
    rendering. Terminal output lives only here.
 4. Help text, then re-record the TUI goldens:
    `cd cli && STENCIL_UPDATE_PINS=1 zig build test` (prefix
-   `ZIG_LIBC="$TMPDIR/zig-libc.txt"` on this Mac, the recipe in the verify skill). Never re-record
+   `ZIG_LIBC="$TMPDIR/zig-libc.txt"` where the macOS SDK is newer than Zig supports, the recipe in the
+   verify skill). Never re-record
    the effect goldens under `cli/tests/pins/fx/` for a command — they guard the easter eggs.
 5. If the command is part of the shared console profile, mirror it in
    `pystencil/pystencil/cli/commands/`, declared through `pystencil/pystencil/cli/registry.py`.

@@ -26,7 +26,8 @@ void stencil_cli_defaultBlankSizePx(double pageWcm, double pageHcm, double dpi,
                                     int* outW, int* outH);
 
 /* Crop string ("x1 = .. x2 = .. y1 = .. y2 = ..") -> clamped integer pixel rect;
- * `album` (0/1) drives single-axis derivation. 1 on success, 0 on a bad spec / empty. */
+ * `album` (0/1) drives single-axis derivation. 1 on success, 0 on a bad spec or an edge
+ * outside the image, -1 when the rect it resolves to is empty. */
 int stencil_cli_resolveCrop(const char* spec, double imageW, double imageH,
                             double pxPerCmX, double pxPerCmY,
                             double pageWcm, double pageHcm, int album,

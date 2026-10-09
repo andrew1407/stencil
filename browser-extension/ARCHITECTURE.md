@@ -109,7 +109,7 @@ classDiagram
 |---|---|---|
 | Facade | `window.stencil` (`content/pageApiMain.js`, a frozen `Proxy` via `guard`) and `stencil.extension` (`content/editorApiMain.js`, `StencilExtensionApi`) | No core behind it: every page-side call is a `MSG` relay; nothing else is reachable from a page. |
 | Mediator | `background/background.js` `messageHandlers` + `resolveClickHandler`; `llm/chatController.js` over `ChatCapabilities` | The worker routes by `msg.type` and menu id, so the popup, bridges and editor never address each other; the controller calls injected capabilities only. |
-| Strategy | `llm/client.js` over `providers.json` `wire`; `lib/drop/zones.js` `quadrantAt` → `background/handlers/dropZones.js` | The provider and the drop action are picked by table lookup. |
+| Strategy | `llm/client.js` over `providers.json` `wire`; `lib/drop/zones.js` `mountDropZones` (its injected `quadAt`) → `background/handlers/dropZones.js` | The provider and the drop action are picked by table lookup. |
 | Observer | `chrome.storage.onChanged` in `background.js` and `popup/storageSync.js`; each server's `/ws` project feed (`lib/connection/events.js`, driven by `popup/pin/sharedLive.js`); `lib/pollClock.js`; `watchAccentActionIcon` | Feeds live only while a panel document is open (Rule 7). |
 | Repository | `lib/prefs/{pins,ledger,settings}.js`, `lib/connection/store.js`, `llm/settings.js` | Each wraps one `chrome.storage` key behind load/save/upsert functions; callers never touch storage. A key with writers in several contexts writes through `lib/prefs/writeChain.js`. |
 | Chain of Responsibility | `urlGuard` → `fetchAsDataUrl` → `lib/image/rasterize.js`; `background/frameCapture.js` routes, tried in order | Each step runs only if the one before passed or failed over to it. |
@@ -137,8 +137,9 @@ classDiagram
   { dataUrl, name, page: { size, width?, height? }, source, resource, incognito,
     open?: 'resume' | 'copy', crop?: { x, y, w, h } }
   ```
-- **The crop page.** `launchCrop` seeds `chrome.storage.session` and frames `crop.html` through
-  `mountStencilModal`. There `CropState` is edited, and `buildHandoffPayload` keeps the original
+- **The crop page.** `launchCrop` seeds one `chrome.storage.session` entry named by a nonce
+  that rides in `crop.html?k=` and frames the page through `mountStencilModal`; the page takes
+  the entry once (`takeCropHandoff`), and a refused write arrives as `?error=`. There `CropState` is edited, and `buildHandoffPayload` keeps the original
   plus the rect (`apply`) or bakes the region (`cut`).
 - **An LLM turn.** `popup/assistant/turnRunner.js` drains the attachment tray into
   `ChatController.send`. One round: the `opPrompt` system prompt with the `ScanEntry` listing;
@@ -162,10 +163,10 @@ classDiagram
   `answers` guarantees `{ ok:true, … } | { ok:false, error }`. A two-hop channel keeps one
   name on both legs. The groups: probe, page API, drop zones, editor mode, store writes.
 - **The editor-origin trust boundary.** `privileged` (`background/editorRelay.js`) admits the
-  extension's own pages and, while `editorPageApi` is on (the default), any page on the
-  configured editor origin (default `http://localhost:8080/`): every page served from that
-  origin can list editor and source tabs, scan another tab and import into an editor. The
-  origin is the user's choice, so it is trusted as the extension itself is.
+  extension's own pages and, while `editorPageApi` is on, any page on the configured editor
+  origin: every page served from that origin can list editor and source tabs, scan another tab
+  and import into an editor. It is on only once the user has saved an editor URL of their own;
+  the fallback `http://localhost:8080/` never earns that trust.
 - **A cross-context write.** `chrome.storage` has no atomic read-modify-write. A pin or ledger
   write from the popup, side panel, DevTools panel, options or crop page goes to the worker as
   `MSG.STORE_WRITE` (`routeStoreWrites`), which only the extension's own pages may send; the
@@ -213,12 +214,12 @@ session-key area is locked — and the per-tab maps refill on the next probe. Ea
    reaches a server; the editor's `applyExternalLaunch` consumes and strips it.
 3. **Ports stay byte-identical.** Every module `tools/twins.json` copies from the
    browser, `.d.ts` copies included, is pinned byte-equal by `tests/portParity.test.js`; it is edited at
-   its original. `lib/logo/stage.js` pins only the functions it shares with
-   `browser/js/ui/logo/stage.js` (the bare-window test and the mark's selector are the page's
-   own); `lib/logo/stageLook.js` (motion read from `StencilMotion`, a `MutationObserver` on `<html>`
-   where the app subscribes to its event bus) and `lib/control/customSelect.js` (its own face,
-   row match and hover delay) are extension-owned modules derived from their browser
-   namesakes, not ports.
+   its original. A module that shares only some declarations is pinned per declaration by
+   `tests/portParityFunctions.test.js`: `lib/logo/stage.js` (the bare-window test and the mark's
+   selector are the page's own) and `lib/control/customSelect.js` (its menu helpers; its face, row
+   match and hover delay are its own). `lib/logo/stageLook.js` (motion read from `StencilMotion`, a
+   `MutationObserver` on `<html>` where the app subscribes to its event bus) is an extension-owned
+   module derived from its browser namesake, not a port.
 4. **Bridges share one shape.** A MAIN-world script defines a hard-guarded, non-enumerable
    object and postMessages requests to an ISOLATED script that relays them to the worker and
    answers on the same id. "Is this the editor?" is an origin match against the configured
@@ -238,7 +239,11 @@ session-key area is locked — and the per-tab maps refill on the next probe. Ea
 9. **Attachments are rasterised** to PNG (`lib/image/rasterize.js`) before they are sent.
 10. **Motion** mirrors `browser/js/ui/motion/` value for value; `tests/portParity.test.js`
     pins the ports.
-11. **Typed boundaries are a pinned allowlist.** `tests/helpers/dtsDocumented.js` lists every
+11. **The editor page API waits for the user's editor URL.** `getSettings().editorPageApi` is
+    the Options toggle AND a saved `editorUrl`; until the user sets one, `privileged` admits only
+    the extension's own pages and the editor bridge relays no privileged type. A saved URL and
+    toggle are honoured as saved.
+12. **Typed boundaries are a pinned allowlist.** `tests/helpers/dtsDocumented.js` lists every
     `src/` module that carries a `.d.ts`, and `tests/dts.test.js` holds the tree to exactly that
     list and every declaration to a real export. A ported module carries its original's `.d.ts`
     as a port; `lib/motion.js`, a re-export barrel, carries none.

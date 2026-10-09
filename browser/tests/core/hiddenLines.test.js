@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { sanitizeLines } from '../../js/core/layout.js';
-import { hittableLines, lineAt, holdTargetAt } from '../../js/core/pointer/markHits.js';
+import { lineAt, holdTargetAt } from '../../js/core/pointer/markHits.js';
 import { paintRestingLines } from '../../js/core/draw/restingPaint.js';
 import { EditingMethods } from '../../js/core/app/editing.js';
 import { renameLine, setLineHidden, lineNameOf } from '../../js/core/line/selection.js';
@@ -28,11 +28,8 @@ test('a layout keeps a name and a set hidden flag, capped and typed; an unset on
 
 test('a hidden line keeps its index but is never a target', () => {
   const l = lines();
-  const hit = hittableLines(l);
-  assert.equal(hit.length, 2);
-  assert.equal(hit[1].points.length, 0);
-  assert.equal(hittableLines(l.slice(0, 1))[0], l[0], 'with none hidden the same lines come back');
   assert.equal(lineAt(l, BOTH, 50, 1, 8), 0, 'the shown line under it answers');
+  assert.equal(lineAt([l[1], l[0]], BOTH, 50, 1, 8), 1, 'below a shown line, the hidden one keeps its index');
   assert.equal(holdTargetAt(l, BOTH, 50, 1).lineIdx, 0);
   l[0].hidden = true;
   assert.equal(lineAt(l, BOTH, 50, 1, 8), -1);

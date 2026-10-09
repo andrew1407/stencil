@@ -1,4 +1,5 @@
 #include "ChatPlanTarget.hpp"
+#include "SharedState.hpp"
 
 #include "MainWindow.hpp"
 #include "ProjectTitleController.hpp"
@@ -102,7 +103,7 @@ namespace stencil::gui {
       return true;
     }
     w.parts.projects.eraseLocalProject(id);
-    fileStore::saveProjects(w.projectList);
+    SharedState::instance().saveProjects(&w);
     w.refreshActions();
     SiblingWindows::refreshDockMenu(w.projectList);
     w.notify->success(clearedToast(1));

@@ -3,6 +3,7 @@ import assert from 'node:assert';
 
 // Install localStorage BEFORE the imports (llmSettings/connectionStore read it).
 import { installMemoryStorage } from '../../helpers/memoryStorage.js';
+import { makeStore } from '../../helpers/chatStoreRig.js';
 
 const mem = installMemoryStorage()._map;
 
@@ -13,20 +14,6 @@ const {
   clearSharedConversation,
 } = await import('../../../js/llm/chat/session.js');
 
-// Recording chat store over an async Map — counts calls so tests can assert the
-// muted-restore rule (a restore must not write back what it just read).
-const makeStore = () => {
-  const m = new Map();
-  const calls = { save: [], remove: [], clear: 0 };
-  return {
-    _map: m,
-    calls,
-    async load(id) { return m.get(String(id)) || null; },
-    async save(id, doc) { calls.save.push(String(id)); m.set(String(id), doc); return true; },
-    async remove(id) { calls.remove.push(String(id)); m.delete(String(id)); },
-    async clear() { calls.clear++; m.clear(); },
-  };
-};
 
 // A mock connected server: records file calls, serves a canned chat doc.
 const makeConn = (chatDocJson = null) => ({

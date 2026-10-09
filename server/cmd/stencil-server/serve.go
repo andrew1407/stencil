@@ -1,7 +1,7 @@
 package main
 
 // Listener wiring split out of main(): the one TLS config both ports share, the
-// HTTP/WS server, the raw-TCP edit listener, and the run-until-signal drain.
+// HTTP/WS server, the raw-TCP feed listener, and the run-until-signal drain.
 
 import (
 	"context"
@@ -41,7 +41,7 @@ func newHTTPServer(cfg config.Config, api *httpapi.API, h *hub.Hub, tlsConf *tls
 		rw.WriteHeader(http.StatusOK)
 		_, _ = rw.Write([]byte("ok"))
 	})
-	// WS conns are hijacked on upgrade, so the read/write timeouts never cut a live edit session.
+	// WS conns are hijacked on upgrade, so the read/write timeouts never cut a live feed.
 	return &http.Server{
 		Addr:              cfg.ListenAddr,
 		Handler:           httpapi.CORS(cfg.CORSOrigins)(mux),
@@ -53,7 +53,7 @@ func newHTTPServer(cfg config.Config, api *httpapi.API, h *hub.Hub, tlsConf *tls
 	}
 }
 
-// listenTCP opens the raw-TCP edit listener (NDJSON) for the desktop and CLI
+// listenTCP opens the raw-TCP feed listener (NDJSON) for the desktop and CLI
 // clients, wrapped in the same certificate as HTTP/WS when TLS is configured.
 func listenTCP(cfg config.Config, tlsConf *tls.Config) (net.Listener, error) {
 	ln, err := net.Listen("tcp", cfg.TCPAddr)
@@ -67,11 +67,13 @@ func listenTCP(cfg config.Config, tlsConf *tls.Config) (net.Listener, error) {
 }
 
 // serve runs both listeners until a signal arrives or HTTP fails, then drains within drain, in order: the
-// sweep goroutines, TCP accepts, every live edit conn, HTTP, then the sessions' in-flight saves.
+// sweep goroutines, TCP accepts, every live conn, then HTTP.
 func serve(ctx context.Context, srv *http.Server, tcpLn net.Listener, h *hub.Hub, tcpAddr, banner string, tlsOn bool, stop func(), sweepWG *sync.WaitGroup, drain time.Duration) error {
 	go func() {
-		log.Printf("TCP edit listener on %s (tls=%v)", tcpAddr, tlsOn)
-		_ = h.ServeListener(tcpLn)
+		log.Printf("TCP feed listener on %s (tls=%v)", tcpAddr, tlsOn)
+		if err := h.ServeListener(tcpLn); !errors.Is(err, net.ErrClosed) {
+			log.Printf("TCP feed listener stopped: %v", err)
+		}
 	}()
 	errCh := make(chan error, 1)
 	go func() {
@@ -92,16 +94,11 @@ func serve(ctx context.Context, srv *http.Server, tcpLn net.Listener, h *hub.Hub
 	defer cancel()
 	stop()            // cancel rootCtx so the expiry-sweep goroutine winds down
 	sweepWG.Wait()    // join it before run()'s deferred st.Close()/b.Close() fire
-	_ = tcpLn.Close() // stop accepting new TCP editors; ServeListener now drains
-	// Notice, then cancel, every live edit connection so their handlers unwind: ctx-aware TCP Reads return
-	// and hijacked WebSocket editors (which Shutdown cannot close) release, so Shutdown finishes.
+	_ = tcpLn.Close() // stop accepting new TCP feeds; ServeListener now drains
+	// Notice, then cancel, every live connection so their handlers unwind: ctx-aware TCP Reads return
+	// and hijacked WebSocket feeds (which Shutdown cannot close) release, so Shutdown finishes.
 	h.CloseAll()
 	err := srv.Shutdown(shutdownCtx)
-	// Every run loop still commits and announces the saves its worker holds; only then do their store
-	// contexts end, and run()'s deferred bus and pool closes follow.
-	if derr := h.Drain(shutdownCtx); derr != nil {
-		log.Printf("shutdown: live sessions still saving at the drain deadline: %v", derr)
-	}
 	h.Close()
 	return err
 }

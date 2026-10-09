@@ -59,7 +59,7 @@ func (g helloGuard) connIP(ctx context.Context, conn transport.Conn) string {
 }
 
 // checkHello authenticates the hello frame under the per-IP failure limit. It writes the refusal frame
-// and closes the connection itself; a nil error means the caller may join, as the returned session.
+// and closes the connection itself; a nil error means the caller may serve the returned session.
 func (h *Hub) checkHello(ctx context.Context, conn transport.Conn, hello protocol.WSMessage) (auth.Session, error) {
 	ip := h.hello.connIP(ctx, conn)
 	if !h.hello.rate.Allow(ip) {

@@ -18,3 +18,5 @@ export declare const applyStoredTools: (app: DrawingApp, layout: ProjectLayout) 
 export declare const applyStoredImage: (storage: Storage, id: string | null, image: string) => Promise<void>;
 /** Lines kept pending behind the missing-image banner, or settings only. */
 export declare const applyImagelessPayload: (storage: Storage, layout: ProjectLayout) => void;
+/** A decoded stored picture past the pixel cap: reopens the payload image-less under IMAGE_TOO_LARGE, answers true. */
+export declare const refuseOversizedImage: (storage: Storage, img: HTMLImageElement, layout: ProjectLayout) => boolean;

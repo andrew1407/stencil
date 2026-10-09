@@ -37,6 +37,7 @@ namespace stencil::gui {
     void unlink();
     void writeNow(const QByteArray& prebuilt = {});
     void scheduleAutosave();
+    bool autosavePending() const;
     void flushAutosave();
     void onFileChanged(const QByteArray& prebuilt = {});
     void setLiveSync(bool on);

@@ -31,6 +31,8 @@ public sealed partial class HttpStencilServerClient : IStencilServerClient
 
     public string BaseUrl { get; }
 
+    public ServerHandshake Session => new(_token, _kind);
+
     public long MaxResponseBytes { get; init; } = BotOptions.DEFAULT_MAX_SERVER_RESPONSE_BYTES;
 
     public int ProjectListLimit { get; init; } = BotOptions.DEFAULT_PROJECT_LIST_LIMIT;
@@ -90,15 +92,23 @@ public sealed partial class HttpStencilServerClient : IStencilServerClient
         await ensureSuccessAsync(page, ct).ConfigureAwait(false);
     }
 
-    // Every page, following nextCursor: ProjectListLimit sizes a page and never caps the list.
+    // Every page, following nextCursor: ProjectListLimit sizes a page and never caps the list; the
+    // pages together stay under MaxResponseBytes, as one reply does.
     public async Task<IReadOnlyList<ProjectRecord>> ListProjectsAsync(CancellationToken ct = default)
     {
         List<ProjectRecord> result = new();
         HashSet<string> seen = new(StringComparer.Ordinal);
         string path = $"/projects?limit={ProjectListLimit}";
+        long total = 0;
         for (int page = 0; page < MAX_LIST_PAGES; page++)
         {
-            using JsonDocument doc = await sendJsonAsync(HttpMethod.Get, path, null, ct).ConfigureAwait(false);
+            byte[] body = await sendBytesAsync(HttpMethod.Get, path, null, ct).ConfigureAwait(false);
+            if ((total += body.Length) > MaxResponseBytes)
+            {
+                throw new ServerException(
+                    "tooLarge", $"the project listing is over the {MaxResponseBytes / (1024 * 1024)} MB limit");
+            }
+            using JsonDocument doc = parse(body);
             addProjects(doc.RootElement, result);
             string cursor = JsonRead.ReadString(doc.RootElement, "nextCursor");
             if (cursor.Length == 0)
@@ -112,6 +122,16 @@ public sealed partial class HttpStencilServerClient : IStencilServerClient
             path = $"/projects?limit={ProjectListLimit}&after={Uri.EscapeDataString(cursor)}";
         }
         throw new ServerException("badResponse", $"the server kept paging past {MAX_LIST_PAGES} pages");
+    }
+
+    public async Task<IReadOnlyList<ProjectRecord>> ListFirstProjectsAsync(int limit, CancellationToken ct = default)
+    {
+        int clamped = Math.Clamp(limit, 1, BotOptions.MAX_PROJECT_LIST_LIMIT);
+        using JsonDocument doc = await sendJsonAsync(HttpMethod.Get, $"/projects?limit={clamped}", null, ct)
+            .ConfigureAwait(false);
+        List<ProjectRecord> result = new();
+        addProjects(doc.RootElement, result);
+        return result;
     }
 
     private static void addProjects(JsonElement root, List<ProjectRecord> result)

@@ -19,7 +19,7 @@ namespace stencil::gui {
 
   void ScriptHost::adoptLinkedScript(const QString& text, std::optional<qint64> pictureBefore) {
     const auto deliver = [this, text] {
-      model::ScriptBuffer::instance().setText(text);
+      model::ScriptBuffer::instance().setText(text, /*fromLink=*/true);
       w.acts.script->trigger();
     };
     if (!pictureBefore) {

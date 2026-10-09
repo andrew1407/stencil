@@ -174,3 +174,15 @@ test('line.name and line.hidden read and write the Lines tab fields, one step pe
   a.apply({ name: 'x'.repeat(500), hidden: false });
   assert.deepEqual([app.lines[0].name.length, app.lines[0].hidden], [80, false], 'capped at LIMITS.lineNameMax');
 });
+
+test('the line and point size setters floor a negative at 0: a negative radius never lands', () => {
+  const app = makeApp({ lines: [{ thickness: 2, pointSize: 4, points: [{ x: 0, y: 0 }, { x: 5, y: 5 }] }] });
+  const stencil = createStencil(app);
+  stencil.lines[0].pointSize = -3;
+  stencil.lines[0].thickness = -2;
+  assert.deepEqual([app.lines[0].pointSize, app.lines[0].thickness], [0, 0]);
+  stencil.lines[0].apply({ thickness: 50, pointSize: 99 });
+  assert.deepEqual([app.lines[0].pointSize, app.lines[0].thickness], [99, 50], 'nothing else moves');
+  stencil.lines[0].points[0].apply({ size: -1 });
+  assert.equal(app.lines[0].pointSize, 0);
+});

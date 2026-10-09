@@ -96,6 +96,7 @@ func (s *FileService) put(ctx context.Context, put FilePut, body io.Reader) (*pr
 			s.compensate(put)
 			return nil, none, err
 		case err != nil:
+			s.takeBack(ctx, put)
 			return nil, none, fmt.Errorf("%w: %v", ErrRecordFile, err)
 		}
 		return &rec, resp, nil
@@ -111,6 +112,16 @@ func (s *FileService) exists(ctx context.Context, id string) error {
 	octx, cancel := withOpTimeout(ctx, s.OpTimeout)
 	defer cancel()
 	return exists(octx, s.Projects, id)
+}
+
+// takeBack removes, and uncharges, the bytes of an upload its row did not take, so the files route never
+// serves bytes the record does not describe. It runs past a cancelled request on an op timeout of its own.
+func (s *FileService) takeBack(ctx context.Context, put FilePut) {
+	octx, cancel := withOpTimeout(context.WithoutCancel(ctx), s.OpTimeout)
+	defer cancel()
+	if err := s.Remove(octx, put.ID, put.Kind); err != nil {
+		log.Printf("service: take back %s upload of project %s after its record failed: %v", put.Kind, put.ID, err)
+	}
 }
 
 // compensate takes back the bytes of an upload whose project vanished; what it cannot remove is left

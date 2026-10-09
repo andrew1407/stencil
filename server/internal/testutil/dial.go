@@ -9,14 +9,16 @@ import (
 	"stencil/server/internal/transport"
 )
 
-// DialTCP opens an NDJSON edit connection to addr. It and DialWS are the Go client halves of the live-edit
+// DialTCP opens an NDJSON connection to addr. It and DialWS are the Go client halves of the live
 // transports; nothing in the server dials itself, so they live here, not in transport.
 func DialTCP(addr string) (transport.Conn, error) {
 	c, err := net.Dial("tcp", addr)
 	if err != nil {
 		return nil, err
 	}
-	return transport.NewTCP(c), nil
+	conn := transport.NewTCP(c)
+	conn.SetReadLimit(transport.MaxMessageBytes)
+	return conn, nil
 }
 
 func DialWS(ctx context.Context, url string) (transport.Conn, error) {
@@ -43,6 +45,8 @@ func (w *wsClient) Read(ctx context.Context) ([]byte, error) {
 func (w *wsClient) Write(ctx context.Context, data []byte) error {
 	return w.c.Write(ctx, websocket.MessageText, data)
 }
+
+func (w *wsClient) SetReadLimit(n int64) { w.c.SetReadLimit(n) }
 
 func (w *wsClient) Close(code int, reason string) error {
 	return w.c.Close(websocket.StatusCode(code), reason)

@@ -12,6 +12,8 @@ export interface ServerProject {
 }
 /** Pages a listing follows before it gives up rather than loop on a server's cursors. */
 export declare const MAX_LIST_PAGES: number;
+/** The cursor a page names for the next one, '' on the last; a repeat, or one past MAX_LIST_PAGES, throws. */
+export declare const nextPageCursor: (body: { nextCursor?: unknown } | null, seen: Set<string>) => string;
 /** Every project, page by page through `nextCursor`; a repeated cursor throws. */
 export declare const listProjects: (conn: Connection, f?: Fetch) => Promise<ServerProject[]>;
 export declare const SHARED_LIST_LIMIT: number;

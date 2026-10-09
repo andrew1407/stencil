@@ -37,7 +37,16 @@ test('localhost names are blocked', () => {
     'http://localhost:8080/x.png',
     'https://LOCALHOST/x.png',
     'http://foo.localhost/x.png',
+    'http://localhost./x.png',
+    'http://app.localhost./x.png',
   ]) assert.equal(isAllowedImageUrl(url), false, url);
+});
+
+test('a trailing-dot host is the same host: loopback unlocks it, a public name still passes', () => {
+  assert.equal(isAllowedImageUrl('http://localhost./x.png', { allowLoopback: true }), true);
+  assert.equal(isAllowedImageUrl('http://cdn.example./x.png'), true);
+  assert.equal(isAllowedImageUrl('http://localhost./x.png', { allowSameHostAs: 'http://localhost/page' }), true);
+  assert.equal(isAllowedImageUrl('http://127.0.0.1./x.png'), false, 'the URL parser drops the dot of an IPv4');
 });
 
 test('loopback literals are blocked (127/8, ::1, bracketed)', () => {

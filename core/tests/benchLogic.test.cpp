@@ -55,7 +55,7 @@ TEST_SUITE("bench") {
   TEST_CASE("bench: formulaParser deep nesting stays bounded" * doctest::skip()) {
     const int deepest = 127;                     // last accepted nesting
     const std::string ok = nested(deepest);      // 255 guards deep
-    const std::string over = nested(deepest * 8);  // rejected at the cap
+    const std::string over = nested(deepest * 3);  // rejected at the depth cap, under MAX_CHARS
     const std::string wide = flat(deepest + 1);  // same token count, depth 2
 
     REQUIRE(FormulaParser::validate(ok, 'x'));
@@ -76,7 +76,7 @@ TEST_SUITE("bench") {
 
     MESSAGE("formula depth " << deepest << " (255 guards) x" << reps << " = " << tDeep
                              << "ms (" << tDeep / reps * 1000.0 << " us each)  flat same-size="
-                             << tWide << "ms ratio=" << tDeep / tWide << "  over-cap 8x deeper="
+                             << tWide << "ms ratio=" << tDeep / tWide << "  over-cap 3x deeper="
                              << tOver << "ms");
     CHECK(tWide > 0.0);
     CHECK(tDeep < tWide * 20.0);  // depth is linear like width; 20x = generous ceiling

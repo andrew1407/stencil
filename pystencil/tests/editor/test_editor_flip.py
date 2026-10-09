@@ -1,5 +1,5 @@
 """A flip mirrors the picture, the drawn lines and the crop as the browser's does — the same
-numbers as the CLI console's ``flip_lines_test.zig`` — and rides the layout as ``mirrored``."""
+numbers as the CLI console's ``rotate_flip_lines_test.zig`` — and rides the layout as ``mirrored``."""
 
 from __future__ import annotations
 

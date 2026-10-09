@@ -29,3 +29,16 @@ test "layout parses + rasterises; bw filter greyscales" {
     try testing.expectEqual(px[1], px[2]);
     try testing.expectEqual(@as(u8, 255), px[3]);
 }
+
+test "a custom imageFilter takes its tint from filterColor, as the browser exports it" {
+    const a = testing.allocator;
+    var named = try layout_mod.parse(a, "{\"imageFilter\":\"custom\",\"filterColor\":\"#123456\",\"lines\":[]}");
+    defer named.deinit();
+    try testing.expectEqualStrings("#123456", named.filter.?);
+    var bare = try layout_mod.parse(a, "{\"imageFilter\":\"custom\",\"filterColor\":\"\",\"lines\":[]}");
+    defer bare.deinit();
+    try testing.expectEqualStrings(layout_mod.default_tint, bare.filter.?);
+    var sepia = try layout_mod.parse(a, "{\"imageFilter\":\"sepia\",\"filterColor\":\"#123456\",\"lines\":[]}");
+    defer sepia.deinit();
+    try testing.expectEqualStrings("sepia", sepia.filter.?);
+}

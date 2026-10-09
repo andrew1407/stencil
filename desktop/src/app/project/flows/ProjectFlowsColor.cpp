@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "SharedState.hpp"
 #include "ProjectTitleController.hpp"
 #include "CanvasWidget.hpp"
 #include "Notifications.hpp"
@@ -126,7 +127,7 @@ namespace stencil::gui {
       pr->meta.blankColor = w.docSource.blankColor.toStdString();
       pr->meta.blank = true;
       if (!pr->imagePath.isEmpty()) w.canvas->getOriginalImage().save(pr->imagePath, "PNG");
-      fileStore::saveProjects(w.projectList);
+      SharedState::instance().saveProjects(&w);
     }
     w.refreshActions();
   }
@@ -144,13 +145,14 @@ namespace stencil::gui {
       stencil::net::ServerClient* c = w.remote.session->requireClient(serverUrl);
       if (!c) { if (done) done(false); return; }
       const QString n = *norm;
+      const qint64 before = w.remote.session->getLink().version;
       QPointer<MainWindow> self(&w);
       w.remote.session->putVersionGuardedAsync(
           c, id,
           [c, id, n](qint64 version, std::function<void(bool, qint64, bool)> cb) {
             c->updateProjectColorAsync(id, n, version, cb);
           },
-          [this, self, c, id, serverUrl, n, done](bool ok, qint64 newVersion) {
+          [this, self, c, id, serverUrl, n, before, done](bool ok, qint64 newVersion) {
             if (!self) return;
             if (!ok) {
               w.notify->error(QString("Color update failed: %1").arg(c->lastError()));
@@ -158,7 +160,7 @@ namespace stencil::gui {
               return;
             }
             if (w.remote.session->getLink().id == id && w.remote.session->getLink().address == serverUrl)
-              w.remote.session->getLink().version = newVersion;
+              adoptOwnFileVersion(w.remote.session->getLink(), before, newVersion);
             w.notify->success(n.isEmpty() ? QStringLiteral("Color reset to theme default")
                                          : QString("Color set to %1").arg(n));
             if (done) done(true);
@@ -168,7 +170,7 @@ namespace stencil::gui {
     Project* pr = w.findProject(id.toStdString());
     if (!pr) { if (done) done(false); return; }
     pr->meta.color = norm->toStdString();
-    fileStore::saveProjects(w.projectList);
+    SharedState::instance().saveProjects(&w);
     SiblingWindows::refreshDockMenu(w.projectList);
     w.notify->success(norm->isEmpty() ? QStringLiteral("Color reset to theme default")
                                      : QString("Color set to %1").arg(*norm));

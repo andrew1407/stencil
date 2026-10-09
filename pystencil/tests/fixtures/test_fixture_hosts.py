@@ -52,6 +52,16 @@ class HostCorpusTests(unittest.TestCase):
           refused = True
         self.assertEqual(_verdict(refused), expect["fetch"], "a literal is judged without resolving")
 
+  def test_every_host_reads_as_spelled_in_the_corpus(self):
+    """``_literal`` reads the corpus spelling itself — brackets and zone IDs — as addr.zig does."""
+    for case in _HOSTS:
+      with self.subTest(case=case["name"]):
+        ip = _literal(case["host"])
+        if case.get("expect") is None:
+          self.assertIsNone(ip)
+        else:
+          self.assertEqual(ip.packed, ipaddress.ip_address(case["address"]).packed)
+
 
 if __name__ == "__main__":
   unittest.main()

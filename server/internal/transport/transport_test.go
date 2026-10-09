@@ -8,7 +8,7 @@ import (
 )
 
 // The hub is written against Conn, so both adapters must behave identically: one message per Read/Write,
-// a hard size cap, and a Read that unblocks on context cancellation. The TCP framing is what these pin.
+// a read limit that starts at the hello cap, and a Read that unblocks on context cancellation.
 
 // tcpPair returns two ends of a live TCP connection, both wrapped as Conn.
 func tcpPair(t *testing.T) (client, server Conn) {

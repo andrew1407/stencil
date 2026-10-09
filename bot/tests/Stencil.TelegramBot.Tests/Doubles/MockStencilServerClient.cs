@@ -13,13 +13,12 @@ public sealed class MockStencilServerClient : IStencilServerClient
     private readonly Dictionary<string, JsonElement> _layouts = new();
     private int _nextId = 1;
 
-    public MockStencilServerClient(string baseUrl)
-    {
-        BaseUrl = baseUrl;
-    }
+    public MockStencilServerClient(string baseUrl) => BaseUrl = baseUrl;
 
-    /// <inheritdoc />
     public string BaseUrl { get; }
+
+    /// <summary>What <see cref="Session"/> reports; a test sets it to stand in for a re-mint.</summary>
+    public ServerHandshake Session { get; set; }
 
     /// <summary>The token returned when a caller connects without one.</summary>
     public string MintedToken { get; set; } = "minted-token";
@@ -27,15 +26,13 @@ public sealed class MockStencilServerClient : IStencilServerClient
     /// <summary>When true, <see cref="ListProjectsAsync"/> throws (an unreachable server).</summary>
     public bool ThrowOnList { get; set; }
 
-    /// <summary>Awaited inside <see cref="ListProjectsAsync"/>, so a test can hold several
-    /// servers open at once and observe whether the caller fans out or queues.</summary>
+    /// <summary>Awaited inside <see cref="ListProjectsAsync"/>: a test holds servers open to see a fan-out.</summary>
     public Func<Task>? BeforeList { get; set; }
 
     /// <summary>The token the last <see cref="ConnectAsync"/> resolved to.</summary>
     public string? LastConnectToken { get; private set; }
 
-    /// <summary>The credential kind <see cref="ConnectAsync"/> reports for a supplied token
-    /// (a tokenless connect always reports <see cref="CredentialKind.NONE"/>).</summary>
+    /// <summary>The kind <see cref="ConnectAsync"/> reports for a supplied token (a tokenless one is NONE).</summary>
     public CredentialKind HandshakeKind { get; set; } = CredentialKind.SESSION;
 
     /// <summary>Every <see cref="PutFileAsync"/> call, in order.</summary>
@@ -52,6 +49,12 @@ public sealed class MockStencilServerClient : IStencilServerClient
 
     /// <summary>When set, <see cref="PutFileAsync"/> for this kind throws (an unreachable file route).</summary>
     public string? ThrowOnPutKind { get; set; }
+
+    /// <summary>Run at the top of every <see cref="UpdateProjectAsync"/>: a peer's write landing first.</summary>
+    public Action<string>? BeforeUpdate { get; set; }
+
+    /// <summary>Run after every <see cref="PutFileAsync"/>: a peer's write landing before the re-read.</summary>
+    public Action<string>? AfterPut { get; set; }
 
     /// <summary>Seed a project (and optional layout) the way the real server would store it.</summary>
     public ProjectRecord Seed(ProjectRecord record, JsonElement? layout = null)
@@ -71,7 +74,6 @@ public sealed class MockStencilServerClient : IStencilServerClient
         _projects[id] = current with { Version = current.Version + 1 };
     }
 
-    /// <inheritdoc />
     public Task<ServerHandshake> ConnectAsync(string? token, CancellationToken ct = default)
     {
         bool anonymous = string.IsNullOrEmpty(token);
@@ -80,7 +82,6 @@ public sealed class MockStencilServerClient : IStencilServerClient
             LastConnectToken!, anonymous ? CredentialKind.NONE : HandshakeKind));
     }
 
-    /// <inheritdoc />
     public Task<IReadOnlyList<ProjectRecord>> ListProjectsAsync(CancellationToken ct = default)
     {
         if (ThrowOnList)
@@ -97,10 +98,21 @@ public sealed class MockStencilServerClient : IStencilServerClient
         }
     }
 
-    /// <inheritdoc />
+    /// <summary>Every <see cref="ListFirstProjectsAsync"/> limit and <see cref="GetFileAsync"/> kind, in order.</summary>
+    public List<int> FirstPages { get; } = new();
+    public List<string> FileGets { get; } = new();
+
+    public async Task<IReadOnlyList<ProjectRecord>> ListFirstProjectsAsync(int limit, CancellationToken ct = default)
+    {
+        FirstPages.Add(limit);
+        return [.. (await ListProjectsAsync(ct)).Take(limit)];
+    }
+
     public Task<ProjectFull> GetProjectAsync(string id, CancellationToken ct = default)
     {
-        ProjectRecord record = _projects[id];
+        ProjectRecord record = _projects.TryGetValue(id, out ProjectRecord? found)
+            ? found
+            : throw new ServerException("notFound", "no such project", 404);
         JsonElement? layout = _layouts.TryGetValue(id, out JsonElement stored) ? stored : null;
         ProjectFull full = new()
         {
@@ -110,7 +122,6 @@ public sealed class MockStencilServerClient : IStencilServerClient
         return Task.FromResult(full);
     }
 
-    /// <inheritdoc />
     public Task<ProjectRecord> CreateProjectAsync(CreateProjectRequest request, CancellationToken ct = default)
     {
         string id = "p_" + _nextId++;
@@ -133,9 +144,9 @@ public sealed class MockStencilServerClient : IStencilServerClient
         return Task.FromResult(record);
     }
 
-    /// <inheritdoc />
     public Task<ProjectRecord> UpdateProjectAsync(string id, UpdateProjectRequest request, CancellationToken ct = default)
     {
+        BeforeUpdate?.Invoke(id);
         if (!_projects.TryGetValue(id, out ProjectRecord? existing))
         {
             throw new ServerException("notFound", "no such project", 404);
@@ -161,7 +172,6 @@ public sealed class MockStencilServerClient : IStencilServerClient
         return Task.FromResult(updated);
     }
 
-    /// <inheritdoc />
     public Task DeleteProjectAsync(string id, CancellationToken ct = default)
     {
         _projects.Remove(id);
@@ -169,9 +179,9 @@ public sealed class MockStencilServerClient : IStencilServerClient
         return Task.CompletedTask;
     }
 
-    /// <inheritdoc />
     public Task<byte[]> GetFileAsync(string id, string kind, CancellationToken ct = default)
     {
+        FileGets.Add(kind);
         if (Files.TryGetValue((id, kind), out byte[]? stored))
         {
             return Task.FromResult(stored);
@@ -184,7 +194,6 @@ public sealed class MockStencilServerClient : IStencilServerClient
         throw new ServerException("notFound", "no such file", 404);
     }
 
-    /// <inheritdoc />
     public Task<FileWriteResult> PutFileAsync(string id, string kind, byte[] data, string ext, int w, int h, CancellationToken ct = default)
     {
         if (kind == ThrowOnPutKind)
@@ -200,10 +209,10 @@ public sealed class MockStencilServerClient : IStencilServerClient
         {
             _projects[id] = existing with { Version = existing.Version + 1 };
         }
+        AfterPut?.Invoke(id);
         return Task.FromResult(new FileWriteResult($"/store/{id}/{kind}.{ext}", w, h));
     }
 
-    /// <inheritdoc />
     public Task DeleteFileAsync(string id, string kind, CancellationToken ct = default)
     {
         FileDeletes.Add((id, kind));

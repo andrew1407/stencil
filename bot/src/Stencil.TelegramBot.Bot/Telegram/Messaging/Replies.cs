@@ -35,6 +35,34 @@ public static partial class Replies
 
     public static string HelpText() => BotCommands.HelpText;
 
+    public static string Cancelled() => BotStrings.Reply("cancelled");
+
+    public static string UnknownCommand() => BotStrings.Reply("unknownCommand");
+
+    public static string UnsupportedFile() => BotStrings.Reply("unsupportedFile");
+
+    public static string LayoutNeedsImage() => BotStrings.Reply("layoutNeedsImage");
+
+    public static string LayoutFileInvalid() => BotStrings.Reply("layoutFileInvalid");
+
+    public static string ScriptFileTooLarge() => BotStrings.Reply("scriptFileTooLarge");
+
+    public static string ProjectFileInvalid() => BotStrings.Reply("projectFileInvalid");
+
+    public static string SyncPulled() => BotStrings.Reply("syncPulled");
+
+    // The ↑ already marks it; Tag keeps the line to one glyph.
+    public static string SyncSaved(string name, long version) =>
+        Tag(Tone.SUCCESS, BotStrings.Reply("syncSaved", name, version));
+
+    public static string SyncFailed(string reason) => Tag(Tone.ERROR, BotStrings.Reply("syncFailed", reason));
+
+    public static string AlbumTookLast(int photos) => BotStrings.Reply("albumTookLast", photos);
+
+    // closed: the allowlist is empty, so the bot answers nobody.
+    public static string AccessRefused(bool closed) =>
+        Tag(Tone.ERROR, BotStrings.Reply(closed ? "accessClosed" : "accessRefused"));
+
     public static string StatusText(UserSession session)
     {
         StringBuilder sb = new();
@@ -94,4 +122,30 @@ public static partial class Replies
         sb.Append(BotStrings.Reply("statusConnections", session.Connections.Count));
         return sb.ToString();
     }
+
+    public static string NoImage() => BotStrings.Reply("noImage");
+
+    public static string NoImageToName() => BotStrings.Reply("noImageToName");
+
+    public static string NoImageToDescribe() => BotStrings.Reply("noImageToDescribe");
+
+    public static string UnexpectedError() => BotStrings.Reply("unexpectedError");
+
+    public static string DownloadTooLarge(long megabytes) => BotStrings.Reply("downloadTooLarge", megabytes);
+
+    public static string FallbackHint() => BotStrings.Reply("fallbackHint");
+
+    public static string LinkLoadedEditing() => BotStrings.Reply("linkLoadedEditing");
+
+    public static string Welcome() => BotStrings.Reply("welcome");
+
+    public static string CaptionSource(string url) => BotStrings.Reply("captionSource", url);
+
+    public static string ResultsCaption(int count, string first) => BotStrings.Reply("resultsCaption", count, first);
+
+    public static string FrameGrabbed() => BotStrings.Reply("frameGrabbed");
+
+    public static string ExportLayoutCaption() => BotStrings.Reply("exportLayoutCaption");
+
+    public static string ExportProjectCaption() => BotStrings.Reply("exportProjectCaption");
 }

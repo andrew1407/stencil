@@ -16,15 +16,17 @@ public sealed partial class ServerService : IServerService
 
     private readonly IStencilServerClientFactory _factory;
     private readonly ISessionStore _store;
-    private readonly IEditingService _editing;
+    private readonly EditingService _editing;
+    private readonly IStencilCli _cli;
     private readonly IBotPolicy? _policy;
 
-    public ServerService(IStencilServerClientFactory factory, ISessionStore store, IEditingService editing,
-        IBotPolicy? policy = null)
+    public ServerService(IStencilServerClientFactory factory, ISessionStore store, EditingService editing,
+        IStencilCli cli, IBotPolicy? policy = null)
     {
         _factory = factory;
         _store = store;
         _editing = editing;
+        _cli = cli;
         _policy = policy;
     }
 
@@ -80,22 +82,9 @@ public sealed partial class ServerService : IServerService
         return (session, session.ActiveProjectId);
     }
 
-    private static async Task<ProjectRecord> updateOrConflictAsync(
-        IStencilServerClient client, string id, UpdateProjectRequest request, string conflictMessage, CancellationToken ct)
-    {
-        try
-        {
-            return await client.UpdateProjectAsync(id, request, ct);
-        }
-        catch (ServerException ex) when (ex.IsConflict)
-        {
-            throw new ServerException("conflict", conflictMessage, ex.Status);
-        }
-    }
-
     // The read-then-PUT isn't atomic: a peer advancing the version would 409 and drop the change, so
     // re-read and retry, as pystencil's _update_field_with_retry does.
-    private static async Task<ProjectRecord> updateFieldWithRetryAsync(
+    private static async Task<FieldWrite> updateFieldWithRetryAsync(
         IStencilServerClient client, string id, Func<long, UpdateProjectRequest> build, string conflictMessage, CancellationToken ct)
     {
         ServerException? last = null;
@@ -104,7 +93,7 @@ public sealed partial class ServerService : IServerService
             long version = await currentVersionAsync(client, id, 0, ct);
             try
             {
-                return await client.UpdateProjectAsync(id, build(version), ct);
+                return new FieldWrite(await client.UpdateProjectAsync(id, build(version), ct), version);
             }
             catch (ServerException ex) when (ex.IsConflict)
             {
@@ -113,6 +102,11 @@ public sealed partial class ServerService : IServerService
         }
         throw new ServerException("conflict", conflictMessage, last?.Status ?? 409);
     }
+
+    // A version is adopted only with the layout it names: a write based on the stored version keeps
+    // naming the stored layout; one based past it would hide a peer's lines from the next save's 409.
+    private static long adoptedVersion(UserSession session, FieldWrite write) =>
+        write.Base == session.ActiveProjectVersion ? write.Record.Version : session.ActiveProjectVersion;
 
     // A file write bumps the version but returns none; mirrors remoteSync.js currentVersion.
     private static async Task<long> currentVersionAsync(IStencilServerClient client, string id, long fallback, CancellationToken ct)
@@ -127,4 +121,14 @@ public sealed partial class ServerService : IServerService
             return fallback;
         }
     }
+
+    // A file write bumps the version by exactly one, so the re-read is ours only at before + 1 (remoteSync.js
+    // versionAfterWrite); a peer's save in between keeps `before`, and the next save 409s and merges it.
+    private static async Task<long> versionAfterWriteAsync(IStencilServerClient client, string id, long before, CancellationToken ct)
+    {
+        long now = await currentVersionAsync(client, id, before, ct);
+        return now == before + 1 ? now : before;
+    }
+
+    private readonly record struct FieldWrite(ProjectRecord Record, long Base);
 }

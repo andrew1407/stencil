@@ -114,3 +114,14 @@ test('a non-ASCII line paints and underlines on the right characters', () => {
   assert.equal(marked.text, '@nonsensé', 'the squiggle covers the whole word, é included');
   assert.equal(classOf('# héllo\n@crop 10%', '@crop'), 'stk-directive', 'a later line is untouched');
 });
+
+// Byte→unit columns come from one columnIndex per line, so a long line paints in linear time:
+// the per-token walk took 1.8 s at 60 KB and grows quadratically; this paints 120 KB in ~0.1 s.
+test('one 120 KB line paints in well under a second', () => {
+  let text = '';
+  while (text.length < 120 * 1024) text += '@crop 10%; ';
+  const started = performance.now();
+  const nodes = paint(text, true);
+  assert.ok(performance.now() - started < 1000, 'linear in the line length');
+  assert.ok(nodes.filter((n) => n.cls.includes('stk-directive')).length > 10000, 'every token painted');
+});

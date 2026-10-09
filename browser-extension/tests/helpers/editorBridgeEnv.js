@@ -6,7 +6,7 @@ export const SRC = { EXT_REQ: 'stencil-ext-req', EXT_RES: 'stencil-ext-res', EXT
 export const MSG = { EDITOR_STATE: 'stencil-editor-state', EDITOR_IMPORT: 'stencil-editor-import', EDITOR_SWITCH_PROJECT: 'stencil-editor-switch-project', EDITOR_LIST: 'stencil-editor-list' };
 
 // `swResponse` is what chrome.runtime.sendMessage resolves with (undefined = no receiver).
-export const setupEnv = ({ swResponse, editorPageApi = true } = {}) => {
+export const setupEnv = ({ swResponse, editorPageApi = true, editorUrl = 'http://localhost:8080/' } = {}) => {
   const posted = [];
   const messageListeners = [];
   const win = {
@@ -20,7 +20,7 @@ export const setupEnv = ({ swResponse, editorPageApi = true } = {}) => {
   // The page-API relay rides on the editorPageApi setting (see editorBridge.js): the
   // bridge reads it (sync storage) on load and follows changes.
   const stub = installChromeStub({
-    sync: { editorPageApi },
+    sync: { editorPageApi, editorUrl },
     respond: () => (swResponse === undefined ? undefined : Promise.resolve(swResponse)),
   });
   // Deliver a chrome.runtime message as the SW / panel would, collecting the sendResponse

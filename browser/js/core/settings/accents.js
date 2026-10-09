@@ -38,16 +38,6 @@ export const relativeLuminance = (hex) => {
   return 0.2126 * srgbToLinear(r) + 0.7152 * srgbToLinear(g) + 0.0722 * srgbToLinear(b);
 };
 
-// 1..21, null when not a hex.
-export const contrastWithWhite = (hex) => {
-  const l = relativeLuminance(hex);
-  return l == null ? null : 1.05 / (l + 0.05);
-};
-export const contrastWithBlack = (hex) => {
-  const l = relativeLuminance(hex);
-  return l == null ? null : (l + 0.05) / 0.05;
-};
-
 // The dark ink is the page ink, not pure black, so it matches the app's other glyphs.
 export const ON_ACCENT_LIGHT = '#ffffff';
 export const ON_ACCENT_DARK = '#1a1a1a';

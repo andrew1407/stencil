@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { createStubElement } from '../helpers/dom.js';
-import { installDustDom, rect, boxEl, cloudAim, near } from '../helpers/dustCloudRig.js';
+import { installDustDom, rect, boxEl, cloudAim, near } from '../helpers/dustRig.js';
 import { ANIMATIONS_CSS } from '../helpers/css.js';
 
 let reduced = false;

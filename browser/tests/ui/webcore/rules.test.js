@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   WEBCORE, cellGrid, hillTopCell, skyBandAt, grassShadeAt, cellColorAt, cloudBlocks, cellRuns,
-  pixelColorAt, wordLines, OFF_TOAST, PROJECT_NAME, IMAGE_NAME,
+  wordLines, OFF_TOAST, PROJECT_NAME, IMAGE_NAME,
 } from '../../../js/ui/webcore/rules.js';
 
 test('the grid is the picture in cells, the horizon a share of its rows', () => {
@@ -52,12 +52,6 @@ test('clouds are blocks over the sky, and the runs cover every cell exactly once
   const runs = cellRuns(g);
   assert.equal(runs.reduce((n, r) => n + r.w * r.h, 0), g.cols * g.rows);
   assert.equal(runs[0].w, g.cols, 'the top row is one band');
-  assert.equal(pixelColorAt(0, 0), '#0000a8');
-  assert.equal(pixelColorAt(160, 120), '#ffffff', 'inside the first cloud');
-  assert.equal(pixelColorAt(160, 140), '#0050d8', 'below it, the sky again');
-  assert.equal(pixelColorAt(512, 767), '#0a7a0a');
-  assert.equal(pixelColorAt(1023, 300), '#70b8f8');
-  assert.equal(pixelColorAt(400, 600), '#149614');
 });
 
 test('the word is seven locked, filled lines laid across the sky', () => {

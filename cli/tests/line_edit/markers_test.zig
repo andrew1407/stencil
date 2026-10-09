@@ -3,8 +3,8 @@
 //! `readLine` only reads bytes.
 const std = @import("std");
 const le = @import("../../src/line_edit/line_edit.zig");
+const Pipes = @import("pipes.zig").Pipes;
 const logo = @import("../../src/app/logo.zig");
-const screen_mod = @import("../../src/console/screen.zig");
 
 const Editor = le.Editor;
 const History = le.History;
@@ -70,11 +70,10 @@ const MockPending = struct {
 };
 
 test "Ctrl-V drops an image marker into the line; Backspace over it takes the picture back" {
-    const in = try std.Io.Threaded.pipe2(.{});
-    defer _ = std.c.close(in[0]);
-    const out = try std.Io.Threaded.pipe2(.{});
-    defer _ = std.c.close(out[0]);
-    defer _ = std.c.close(out[1]);
+    const pipes = try Pipes.open();
+    defer pipes.close();
+    const in = pipes.in;
+    const out = pipes.out;
 
     var mock = MockPending{};
     var ed = Editor{ .fd_in = in[0], .fd_out = out[1], .orig = std.mem.zeroes(std.posix.termios) };
@@ -103,11 +102,10 @@ test "Ctrl-V drops an image marker into the line; Backspace over it takes the pi
 }
 
 test "with images pending, Ctrl-Z takes the last one back instead of leaving the line" {
-    const in = try std.Io.Threaded.pipe2(.{});
-    defer _ = std.c.close(in[0]);
-    const out = try std.Io.Threaded.pipe2(.{});
-    defer _ = std.c.close(out[0]);
-    defer _ = std.c.close(out[1]);
+    const pipes = try Pipes.open();
+    defer pipes.close();
+    const in = pipes.in;
+    const out = pipes.out;
 
     var mock = MockPending{};
     var ed = Editor{ .fd_in = in[0], .fd_out = out[1], .orig = std.mem.zeroes(std.posix.termios) };
@@ -133,11 +131,10 @@ test "with images pending, Ctrl-Z takes the last one back instead of leaving the
 }
 
 test "a fourth image is refused rather than silently dropped" {
-    const in = try std.Io.Threaded.pipe2(.{});
-    defer _ = std.c.close(in[0]);
-    const out = try std.Io.Threaded.pipe2(.{});
-    defer _ = std.c.close(out[0]);
-    defer _ = std.c.close(out[1]);
+    const pipes = try Pipes.open();
+    defer pipes.close();
+    const in = pipes.in;
+    const out = pipes.out;
     var swallowed: u8 = 0;
     logo.setSink(struct {
         fn sink(_: *anyopaque, _: []const u8) void {}
@@ -163,11 +160,10 @@ test "a fourth image is refused rather than silently dropped" {
 test "a paste that delivered nothing takes the image off the clipboard instead" {
     // ⌘V with only an image copied: the terminal's paste event carries text, and there is
     // none — so the empty bracketed paste is the signal to go and read the picture.
-    const in = try std.Io.Threaded.pipe2(.{});
-    defer _ = std.c.close(in[0]);
-    const out = try std.Io.Threaded.pipe2(.{});
-    defer _ = std.c.close(out[0]);
-    defer _ = std.c.close(out[1]);
+    const pipes = try Pipes.open();
+    defer pipes.close();
+    const in = pipes.in;
+    const out = pipes.out;
 
     var mock = MockPending{};
     var ed = Editor{ .fd_in = in[0], .fd_out = out[1], .orig = std.mem.zeroes(std.posix.termios) };
@@ -186,11 +182,10 @@ test "a paste that delivered nothing takes the image off the clipboard instead" 
 }
 
 test "Ctrl-V types the clipboard's TEXT when it holds no picture" {
-    const in = try std.Io.Threaded.pipe2(.{});
-    defer _ = std.c.close(in[0]);
-    const out = try std.Io.Threaded.pipe2(.{});
-    defer _ = std.c.close(out[0]);
-    defer _ = std.c.close(out[1]);
+    const pipes = try Pipes.open();
+    defer pipes.close();
+    const in = pipes.in;
+    const out = pipes.out;
 
     var mock = MockPending{ .give_text = "pasted words" };
     var ed = Editor{ .fd_in = in[0], .fd_out = out[1], .orig = std.mem.zeroes(std.posix.termios) };

@@ -2,7 +2,7 @@
 // they exist (keeping the handle for live sync), else a download / transient <input>.
 import { notify, shortName } from '../../utils.js';
 import { arriveFrom } from '../../ui/motion.js';
-import { serializeProjectFile, parseProjectFile } from './file.js';
+import { serializeProjectFile, parseProjectFile, projectFileTooLarge, PROJECT_FILE_TOO_LARGE } from './file.js';
 import { projectFileState, applyProjectFile } from './fileIO.js';
 
 export const saveProjectFile = async (svc, { includeTheme = true } = {}) => {
@@ -38,6 +38,7 @@ export const saveProjectFile = async (svc, { includeTheme = true } = {}) => {
 // `incognito` opens it without saving, as an incognito image drop does.
 export const openProjectFile = async (svc, input, { from = null, incognito = false } = {}) => {
   const app = svc.app;
+  if (typeof input !== 'string' && projectFileTooLarge(input)) { notify('Invalid .stencil file: ' + PROJECT_FILE_TOO_LARGE, 'fail'); return; }
   let text;
   try { text = typeof input === 'string' ? input : await input.text(); }
   catch { notify('Could not read project file', 'fail'); return; }

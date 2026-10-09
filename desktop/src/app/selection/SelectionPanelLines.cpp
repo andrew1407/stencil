@@ -9,6 +9,7 @@
 #include "../../support/motion/DisintegrateOverlay.hpp"
 #include "../../support/skinPrefs.hpp"
 #include "defaultVisuals.hpp"
+#include "lineUnion.hpp"
 #include <QGuiApplication>
 #include <QHeaderView>
 #include <QPushButton>
@@ -30,6 +31,14 @@ namespace stencil::gui {
     const QString LINE_HEAD = QStringLiteral("Line — its own color and thickness");
     const QString POINT_HEAD = QStringLiteral("Point — its points' color and size");
     const QString NAME_HEAD = QStringLiteral("Line name — double-click a row's to rename it");
+
+    // Everything a row shows: the geometry and style sameLines compares, plus the name and the eye.
+    bool sameRows(const core::Lines& a, const core::Lines& b) {
+      if (!model::sameLines(a, b)) return false;
+      for (size_t i = 0; i < a.size(); ++i)
+        if (a[i].name != b[i].name || a[i].hidden != b[i].hidden) return false;
+      return true;
+    }
 
     QString rangeTip(const char* what, int lo, int hi) {
       return QStringLiteral("%1\nDouble-click to edit (%2–%3 px)").arg(QLatin1String(what)).arg(lo).arg(hi);
@@ -118,12 +127,17 @@ namespace stencil::gui {
   void SelectionPanel::setLines(const core::Lines& lines,
                                 const std::vector<int>& selected) {
     if (!this->lines) return;
+    // A stroke reaches here from the canvas change and again from its selection change.
+    const qint64 paletteKey = palette().cacheKey();
+    if (paletteKey == builtPalette && selected == linesSelected && sameRows(lines, builtLines)) return;
+    builtPalette = paletteKey;
+    builtLines = lines;
     QSignalBlocker block(this->lines);
     // clear() drops the current row; carry it across, clamped, or the next keyboard Delete does
     // nothing (browser re-focuses the row too).
     const int prevCurrent = this->lines->currentRow();
     this->lines->clearSpans();
-    this->lines->setRowCount(0);
+    clearRows(this->lines);
     fitTableRows(this->lines);
     linesSelected = selected;   // styleLineRow's selection snapshot
     canvasHoverPointRow = -1;   // rebuilt rows carry no stale hover tint

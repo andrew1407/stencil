@@ -1,5 +1,7 @@
 export interface Settings {
   editorUrl: string;
+  /** True once the user saved an editor URL of their own (the default does not count). */
+  editorUrlSet: boolean;
   page: string;
   desktopScheme: string;
   telegramBotUsername: string;
@@ -9,7 +11,10 @@ export interface Settings {
   showPinned: boolean;
   hoverHighlight: boolean;
   exposeWindowStencil: boolean;
+  /** The effective gate: the toggle AND a user-set editor URL. */
   editorPageApi: boolean;
+  /** The Options checkbox as saved (default on). */
+  editorPageApiToggle: boolean;
 }
 
 export declare const DEFAULT_EDITOR_URL: string;

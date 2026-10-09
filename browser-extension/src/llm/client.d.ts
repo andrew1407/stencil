@@ -54,10 +54,6 @@ export declare function createLlmClient(opts: {
   fetchImpl?: typeof fetch;
   getToken?: (serverUrl: string) => string | Promise<string>;
 }): LlmClient;
-export declare function fetchLlmInfo(
-  serverUrl: string,
-  opts?: { token?: string; fetchImpl?: typeof fetch },
-): Promise<{ enabled: boolean; model: string }>;
 export declare function listModels(settings: Partial<LlmSettings>, opts?: Record<string, unknown>): Promise<string[]>;
 export declare function providerUrl(settings: Partial<LlmSettings> | null | undefined): string;
 export declare function probeProvider(settings: Partial<LlmSettings>, opts?: Record<string, unknown>): Promise<ProbeResult>;
