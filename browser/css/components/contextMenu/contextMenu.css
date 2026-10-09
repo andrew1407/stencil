@@ -65,13 +65,17 @@
     background: var(--border-main);
     margin: 5px 10px;
 }
+/* Every check in the menu is one box (the flyouts' checkboxes in submenu.css too): an empty
+   square when off, the tick inside it when on, in the menu's text colour, not the accent. */
 .ctx-check {
-    width: 16px;
+    box-sizing: border-box;
+    width: 15px;
+    height: 15px;
     flex-shrink: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    /* Theme text colour (not accent) so the Show Points/Lines ticks read like the menu text. */
+    border: 1px solid var(--text-main);
+    border-radius: 3px;
     color: var(--text-main);
 }
+.ctx-check > * { display: none; }
+.ctx-check:not(:empty) { background: var(--menu-tick) center / 12px no-repeat; }
 

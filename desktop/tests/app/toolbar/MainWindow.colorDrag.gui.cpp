@@ -1,6 +1,6 @@
 // MainWindow GUI e2e — Dragging one toolbar colour chip onto another (support/drag/colorDrag, browser
-// twin ui/drag/colorDrag.js): the target takes the colour through its own pick path, the point chip's
-// inherit rule included, and a drop off every swatch changes nothing. Shared ground:
+// twin ui/drag/colorDrag.js): the target takes the colour through its own pick path, the point chip
+// keeping it as its own, and a drop off every swatch changes nothing. Shared ground:
 // MainWindow.gui.hpp, app/drag/iconDragGui.hpp.
 #include "../../MainWindow.gui.hpp"
 #include "../drag/iconDragGui.hpp"
@@ -42,7 +42,7 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(dropGlows(win, DROP_GLOW_NAME), 0);
   }
 
-  void thePointChipTakesAColourThroughItsOwnInheritRule() {
+  void thePointChipTakesAColourAsItsOwn() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     QVERIFY(opened(win)->hasImage());
     QVERIFY(reachable(win.tools.pointColorBtn));
@@ -50,8 +50,8 @@ class MainWindowGuiTest : public QObject {
     carry(win.tools.filterColorBtn, win.tools.pointColorBtn);
     QVERIFY2(QColor(win.settings.defaultPointColor) == tint, "the points took the tint as their own colour");
     carry(win.tools.lineColorBtn, win.tools.pointColorBtn);
-    QVERIFY2(win.settings.defaultPointColor.isEmpty(),
-             "the line's own colour dropped on them is stored as inherit, as picking it is");
+    QVERIFY2(QColor(win.settings.defaultPointColor) == win.tools.lineColorValue,
+             "the line's colour dropped on them is theirs to keep, as picking it is");
   }
 
   void aDropOffEverySwatchChangesNothing() {

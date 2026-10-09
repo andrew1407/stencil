@@ -71,7 +71,8 @@
    through the cloud (user report). */
 .mark-leaving { opacity: 0 !important; }
 @keyframes markForm { 0%, 62% { opacity: 0; } 100% { opacity: 1; } }
-input[type=checkbox].mark-forming:checked, input[type=radio].mark-forming:checked {
+input[type=checkbox].mark-forming:checked, input[type=radio].mark-forming:checked,
+.ctx-check.mark-forming {
     animation: none;
     background-color: transparent;
     background-image: none;

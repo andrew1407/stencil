@@ -61,6 +61,10 @@ namespace stencil::gui {
     // modal loop blocks hover events).
     QPointer<QAction> peekNextAction;
     QPointer<QToolButton> peekNextButton;
+    // Side by side: a click on the open popover's own icon opens its full window once the popover is down.
+    QPointer<QAction> fullNextAction;
+    // The side-by-side windows (support::multiWindow), oldest first; each caller waits in a nested loop.
+    QList<QPointer<QDialog>> windows;
     QTimer* lingerPoll = nullptr;
     // Every nested loop the window is suspended in (the popover's modal exec): a close ends them
     // first, since a window deleted inside one takes the stack dialog it waits on.

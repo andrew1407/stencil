@@ -1,8 +1,7 @@
 // The context menu's Assistant entry: gating + wiring (the flyout's chat is assistantChat.js).
 import { isTouchLike, onWindowResize } from '../../utils.js';
-import { loadLlmSettings } from '../../llm/settings.js';
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';
-import { assistantEnabled, assistantItemHtml } from './assistantItem.js';
+import { assistantItemHtml } from './assistantItem.js';
 import { wireCtxAssistantChat } from './assistantChat.js';
 
 export const wireCtxAssistant = (app, host) => {
@@ -15,12 +14,11 @@ export const wireCtxAssistant = (app, host) => {
     else document.getElementById('chat-btn')?.click();
   };
 
-  // Runs on every open and on LLM-settings changes, so a provider switch or a resize
-  // between opens needs no reload.
+  // Runs on every open and on LLM-settings changes. Shown whatever the provider: with none,
+  // the chat's own status says what is missing.
   const syncAssistant = () => {
-    const on = assistantEnabled(loadLlmSettings());
     let item = document.getElementById('ctx-assist-menu');
-    if (on && !item) {
+    if (!item) {
     // Built directly above the script window's entry, and wired like the static parents.
       const anchor = document.getElementById('ctx-script') || document.getElementById('ctx-draw-toggle');
       if (anchor) anchor.insertAdjacentHTML('beforebegin', assistantItemHtml());
@@ -30,10 +28,8 @@ export const wireCtxAssistant = (app, host) => {
       if (item && sub) host.wireSubmenu(item, sub);
     }
     if (!item) return;
-    // Built once, then only hidden: the transcript survives a provider switch, and it owns
-    // no separator.
-    item.style.display = on ? '' : 'none';
-    if (on && !assistWired) { assistWired = true; wireCtxAssistantChat(app, host, openChatPanel); }
+    item.style.display = '';
+    if (!assistWired) { assistWired = true; wireCtxAssistantChat(app, host, openChatPanel); }
     // Plain (no flyout) on phones and coarse pointers (the app-wide touch rule, utils.js).
     const plain = isTouchLike();
     item.dataset.noSub = plain ? '1' : '0';

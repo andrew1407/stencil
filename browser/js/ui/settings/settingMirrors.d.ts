@@ -24,5 +24,6 @@ export function forEachControl(ids: string[], fn: (el: HTMLElement) => void): vo
 
 /** Ticks the Visuals "Dim and blur behind windows" box from the store. */
 export declare function paintMotionBackdrop(on: boolean): void;
+export declare function paintMotionMultiWindow(on: boolean): void;
 /** Sets the Visuals "Show notifications" select from the store. */
 export declare function paintNotifyChannel(channel: string): void;

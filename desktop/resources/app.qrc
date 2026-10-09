@@ -70,5 +70,11 @@
     <!-- Dark twins, for a checkbox/radio filled with a LIGHT accent (theme.cpp ON_ACCENT). -->
     <file alias="check-dark.png">icons/check-dark.png</file>
     <file alias="radio-dot-dark.png">icons/radio-dot-dark.png</file>
+    <!-- A menu's tick (the browser's menu-tick token): its path and stroke at the 12px it is drawn, in each
+         theme's text ink, with @2x twins so it stays crisp on a Retina screen. -->
+    <file alias="menu-tick-light.png">icons/menu-tick-light.png</file>
+    <file alias="menu-tick-light@2x.png">icons/menu-tick-light@2x.png</file>
+    <file alias="menu-tick-dark.png">icons/menu-tick-dark.png</file>
+    <file alias="menu-tick-dark@2x.png">icons/menu-tick-dark@2x.png</file>
   </qresource>
 </RCC>

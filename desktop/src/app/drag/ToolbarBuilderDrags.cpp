@@ -28,7 +28,8 @@ namespace stencil::gui {
       return nullptr;
     };
     // The drag takes the gesture over: no deferred click or double-click fires after it, the icon's
-    // own Alt peek no longer closes on Alt's release, and a popover icon's release clicks nothing.
+    // own Alt peek no longer closes on Alt's release, a popover icon's release clicks nothing, and a
+    // popover still up goes now, as the browser's press outside it takes it (its drop opens the window).
     const auto begin = [this](QToolButton* icon) -> DragBegin {
       return [this, icon = QPointer<QToolButton>(icon)] {
         if (!icon || QApplication::activeModalWidget()) return false;
@@ -38,6 +39,7 @@ namespace stencil::gui {
         w.pop.dblClickAction.clear();
         if (own && w.pop.peekAction == own) w.pop.peekAction.clear();
         if (own) w.pop.swallowRelease = true;
+        if (w.pop.active) w.dismissPopover();
         return true;
       };
     };

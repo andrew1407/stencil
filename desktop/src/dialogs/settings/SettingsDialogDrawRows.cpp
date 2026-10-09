@@ -1,6 +1,7 @@
 // The drawing sections: the defaults new lines take, hold-to-draw, and the highlight rings.
 #include "SettingsDialog.hpp"
 #include "../../support/control/lineLimits.hpp"
+#include "defaultVisuals.hpp"
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QPushButton>
@@ -13,7 +14,7 @@ namespace stencil::gui {
     addSection(r, tr("Drawing defaults (applied to new lines)"));
 
     addWell(r, color, colorHex, "Default color for newly drawn lines — click to change",
-         "Default line color");
+         "Default line color", defaultVisuals::table().color);
     addRow(r, tr("Line color"), color);
 
     const support::lineLimits::Table& limits = support::lineLimits::table();
@@ -45,7 +46,7 @@ namespace stencil::gui {
     connect(style, &QComboBox::activated, this, [this] { applyLive(); });
 
     addWell(r, fillColor, fillHex, "Fill applied to newly locked areas — click to change",
-         "Area fill color");
+         "Area fill color", defaultVisuals::table().fillColor);
     addRow(r, tr("Area fill (new locked areas)"), fillColor);
 
     addSection(r, tr("Drawing behavior"));
@@ -61,13 +62,13 @@ namespace stencil::gui {
     addSection(r, tr("Highlight styles"));
 
     addWell(r, selGlow, selGlowHex, "Selected line/point glow — click to change",
-         "Selection glow color");
+         "Selection glow color", defaultVisuals::table().selGlow);
     addRow(r, tr("Selected line/point glow"), selGlow);
     addWell(r, hoverRing, hoverRingHex, "Point hover ring — click to change",
-         "Point hover ring color");
+         "Point hover ring color", defaultVisuals::table().hoverRing);
     addRow(r, tr("Point hover ring"), hoverRing);
     addWell(r, focusRing, focusRingHex, "Focused/clicked point ring — click to change",
-         "Point focus ring color");
+         "Point focus ring color", defaultVisuals::table().focusRing);
     addRow(r, tr("Point focus ring"), focusRing);
   }
 

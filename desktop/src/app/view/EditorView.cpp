@@ -4,6 +4,7 @@
 #include "PanelSlide.hpp"
 #include "mainWindowHelpers.hpp"
 #include "CanvasWidget.hpp"
+#include "Notifications.hpp"
 #include "OverlayScrollArea.hpp"
 #include "../../support/control/WrapRow.hpp"
 #include "controlReveal.hpp"
@@ -195,6 +196,15 @@ namespace stencil::gui {
     if (!w.tools.statusHintAction) return;
     const bool live = (w.canvas && w.canvas->hasImage()) || w.incognito;
     w.tools.statusHintAction->setVisible(live && !w.toolbarsShown);
+  }
+
+  // Drawing with lines or points hidden puts down something that does not show: both come back,
+  // through their own toggles (browser core/draw/mode.js startDrawingMode).
+  void EditorView::showLinesForDrawing() {
+    if (w.acts.showLines->isChecked() && w.acts.showPoints->isChecked()) return;
+    w.acts.showLines->setChecked(true);
+    w.acts.showPoints->setChecked(true);
+    if (w.notify) w.notify->info(QStringLiteral("Lines and points shown again to draw"));
   }
 
 }  // namespace stencil::gui

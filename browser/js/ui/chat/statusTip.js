@@ -8,19 +8,18 @@ import { surfaceIn, surfaceOut, settleSurface, rectCenter,
          TIP_DUST_IN_MS, TIP_DUST_OUT_MS } from '../motion.js';
 import { gearStatusRows, gearTipFootText } from './geometry.js';
 
-export function createChatStatusTip({ app, statusDot, statusHost }) {
-  const tokenFor = (url) => serverBearerToken(app, url);
-
-  // A themed table fixed above the trigger like #app-tooltip; re-rendered live if the
-  // probe lands while showing.
-  let lastProbe = null;
+// The status table a "…" trigger shows on hover or keyboard focus, fixed above it like #app-tooltip:
+// `probe()` is read at every show, and `refresh()` re-renders it in place while it is up.
+export function wireStatusTip(statusHost, probe) {
+  if (!statusHost?.addEventListener) return { show() {}, hide() {}, refresh() {} };
   const gearTip = document.createElement('div');
   gearTip.className = 'chat-status-tip';
   document.body.appendChild(gearTip);
   const renderGearTip = () => {
+    const now = probe();
     gearTip.textContent = '';
     const table = document.createElement('table');
-    for (const r of gearStatusRows(lastProbe)) {
+    for (const r of gearStatusRows(now)) {
       const tr = document.createElement('tr');
       const th = document.createElement('th');
       th.textContent = r.label;
@@ -32,7 +31,7 @@ export function createChatStatusTip({ app, statusDot, statusHost }) {
     }
     const foot = document.createElement('div');
     foot.className = 'chat-status-tip-foot';
-    foot.textContent = gearTipFootText(lastProbe);
+    foot.textContent = gearTipFootText(now);
     gearTip.append(table, foot);
   };
   const placeGearTip = () => {
@@ -46,7 +45,7 @@ export function createChatStatusTip({ app, statusDot, statusHost }) {
   };
   // Dust in/out of the trigger on the none↔visible edge only, never on a live re-render.
   const gearTipDustPoint = () => rectCenter(statusHost);
-  const showGearTip = () => {
+  const show = () => {
     const wasHidden = !gearTip.classList.contains('visible');
     renderGearTip();
     gearTip.classList.add('visible');
@@ -54,7 +53,7 @@ export function createChatStatusTip({ app, statusDot, statusHost }) {
     if (!wasHidden) return;
     surfaceIn(gearTip, gearTipDustPoint(), { ms: TIP_DUST_IN_MS });
   };
-  const hideGearTip = () => {
+  const hide = () => {
     if (!gearTip.classList.contains('visible')) { settleSurface(gearTip); return; }
     gearTip.classList.remove('visible');
     surfaceOut(gearTip, gearTipDustPoint(), { ms: TIP_DUST_OUT_MS });
@@ -62,20 +61,28 @@ export function createChatStatusTip({ app, statusDot, statusHost }) {
   // A click focuses the trigger and opens its menu, so `focus` would re-show the tip
   // pointerdown just hid; suppressed for that first click only.
   let suppressFocusTip = false;
-  statusHost.addEventListener('pointerenter', showGearTip);
+  statusHost.addEventListener('pointerenter', show);
   statusHost.addEventListener('focus', () => {
     if (suppressFocusTip) { suppressFocusTip = false; return; }
-    showGearTip();
+    show();
   });
-  statusHost.addEventListener('pointerleave', hideGearTip);
-  statusHost.addEventListener('blur', () => { suppressFocusTip = false; hideGearTip(); });
-  statusHost.addEventListener('pointerdown', () => { suppressFocusTip = true; hideGearTip(); });
+  statusHost.addEventListener('pointerleave', hide);
+  statusHost.addEventListener('blur', () => { suppressFocusTip = false; hide(); });
+  statusHost.addEventListener('pointerdown', () => { suppressFocusTip = true; hide(); });
+  return { show, hide, refresh: () => { if (gearTip.classList.contains('visible')) show(); } };
+}
+
+export function createChatStatusTip({ app, statusDot, statusHost }) {
+  const tokenFor = (url) => serverBearerToken(app, url);
+  let lastProbe = null;
+  const tip = wireStatusTip(statusHost, () => lastProbe);
+  const hideGearTip = tip.hide;
 
   const setDotState = (state, probe) => {
     statusDot.className = `conn-status conn-status-${state}`;
     lastProbe = probe;
     if (probe) cacheProbe(loadLlmSettings(), probe);
-    if (gearTip.classList.contains('visible')) showGearTip();
+    tip.refresh();
   };
   // A refresh requested mid-probe queues and re-runs once, so the dot reflects the latest settings.
   let probing = false;

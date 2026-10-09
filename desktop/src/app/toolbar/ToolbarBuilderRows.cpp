@@ -9,6 +9,7 @@
 #include "../../support/control/WrapRow.hpp"
 #include "../../support/uiTimings.hpp"
 #include "colorDrag.hpp"
+#include "../../support/control/dblReset.hpp"
 #include "tipContent.hpp"
 
 namespace stencil::gui {
@@ -31,7 +32,8 @@ namespace stencil::gui {
     w.nameBar.blankColorBtn->setText("Blank");
     w.nameBar.blankColorBtn->setToolTip("Blank background color — recolor this blank image (keeps your lines)");
     w.nameBar.blankColorBtn->setVisible(false);
-    QObject::connect(w.nameBar.blankColorBtn, &QToolButton::clicked, &w, [this] { w.parts.projects.setActiveBlankColor(); });
+    support::wireColorChip(w.nameBar.blankColorBtn, [this] { w.parts.projects.setActiveBlankColor(); },
+                           [this] { w.parts.projects.applyBlankColor(QColor("#ffffff")); });   // a blank's default fill
     support::installColorDrag(w.nameBar.blankColorBtn, {[this] { return QColor(w.docSource.blankColor); },
                                                         [this](const QColor& c) { w.parts.projects.applyBlankColor(c); }});
 

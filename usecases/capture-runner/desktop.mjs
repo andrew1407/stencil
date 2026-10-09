@@ -111,7 +111,13 @@ for (const name of taken) {
 // The theme wipe at 1x with motion on: a 2x grab outlasts a frame.
 if (runner.wanted(CLIP.name)) {
   console.log('desktop theme clip (1x, motion on)');
-  run(binary, [], { ...env, STENCIL_DOCS_MODE: 'clip', STENCIL_DOCS_THEME: CLIP.startTheme });
+  run(binary, [], {
+    ...env,
+    STENCIL_DOCS_MODE: 'clip',
+    STENCIL_DOCS_THEME: CLIP.startTheme,
+    STENCIL_DOCS_CLIP_MS: String(CLIP.ms),
+    STENCIL_DOCS_CLIP_EVERY_MS: String(CLIP.everyMs),
+  });
   framesToGif(path.join(FRAMES, CLIP.name), path.join(runner.out, `${CLIP.name}.gif`),
     { ...config.gifLook, inFps: CLIP.inFps, fps: CLIP.fps });
   console.log(`  ${CLIP.name}.gif`);

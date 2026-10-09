@@ -14,7 +14,7 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
                                    spread = SURFACE_SPREAD, drift = 1, toBody = false,
                                    hostClass = '', paintTile = null, own = true, box = null,
                                    delayScale = null, flight = null, scoped = true, picture = false,
-                                   anchor = null, anchorBox = null } = {}) {
+                                   anchor = null, anchorBox = null, zIndex = null } = {}) {
   if (typeof document === 'undefined' || !el?.getBoundingClientRect || !document.body) return false;
 // Every element-sized cloud is built here, so this is where the motion mode turns
 // particles off; `false` leaves the caller on its own CSS entrance.
@@ -32,6 +32,7 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     const paint = paintTile || speckPainter(el);
     const host = document.createElement('div');
     host.className = hostClass ? `disintegrate-host ${hostClass}` : 'disintegrate-host';
+    if (zIndex !== null) host.style.zIndex = String(zIndex);   // the level of what it carries
     // Decoration, and nothing but: the layer must never take a click or a Tab stop.
     host.setAttribute?.('aria-hidden', 'true');
     host.inert = true;

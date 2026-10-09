@@ -28,11 +28,14 @@ export const visualsModalInner = () => `
                     </select></span>
                 </div>
                 <div class="vs-section">Motion</div>
-                <div class="vs-row"><label>Drawing animation</label>
+                <div class="vs-row"><label for="vs-draw-anim">Drawing animation</label>
                     <span class="vs-ctrl vs-ctrl-check"><input type="checkbox" id="vs-draw-anim"></span>
                 </div>
-                <div class="vs-row"><label>Dim and blur behind windows</label>
+                <div class="vs-row"><label for="vs-modal-backdrop">Dim and blur behind windows</label>
                     <span class="vs-ctrl vs-ctrl-check"><input type="checkbox" id="vs-modal-backdrop"></span>
+                </div>
+                <div class="vs-row"><label for="vs-multi-window" data-title="Keep several windows open side by side: nothing is dimmed or blurred, a click outside closes none, and the app stays usable behind them">Multiple windows</label>
+                    <span class="vs-ctrl vs-ctrl-check"><input type="checkbox" id="vs-multi-window"></span>
                 </div>
                 <div class="vs-row"><label>Interface animation</label>
                     <span class="vs-ctrl"><select id="vs-motion-mode" data-cs-skip>

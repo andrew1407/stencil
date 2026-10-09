@@ -95,21 +95,26 @@ body:not(.fullscreen-mode) .canvas-viewport.flip-active {
     padding: 10px 14px;
     border-top: none;
     border-radius: 0 0 8px 8px;
+    /* left / width follow a chat docking beside the canvas (fullscreen/panels.js syncFsTriggers). */
+    transition: transform 0.25s ease, opacity 0.25s ease, left 0.25s ease, width 0.25s ease;
 }
 #fs-controls-panel.fs-panel-visible {
     transform: translateY(0);
     opacity: 1;
 }
 /* Dusted (js/ui/fullscreen/panels.js): the motes are the slide, so the panel holds its revealed
-   place and only fades under them. */
-#fs-controls-panel.dust-driven, #fs-points-panel.dust-driven { transition: none; }
+   place and only fades under them; a chat docking beside it still eases it over. */
+#fs-controls-panel.dust-driven { transition: left 0.25s ease, width 0.25s ease; }
+#fs-points-panel.dust-driven { transition: right 0.25s ease; }
 
 /* Right slide-in: points list. Width follows the user's resized panel width (--coord-panel-width,
    shared with the normal-mode panel + its drag handle), clamped so it never dominates the screen. */
 #fs-points-panel {
     top: 0;
     bottom: 0;
-    right: 0;
+    /* --fs-dock-right (fullscreen/panels.js syncFsTriggers): the width of a chat docked on the right,
+       so the list and its handle stop at the canvas's edge, as the desktop's points dock does. */
+    right: var(--fs-dock-right, 0px);
     width: clamp(240px, var(--coord-panel-width, var(--coord-panel-default)), 86vw);
     transform: translateX(100%);
     opacity: 0;
@@ -117,6 +122,7 @@ body:not(.fullscreen-mode) .canvas-viewport.flip-active {
     border-right: none;
     border-radius: 8px 0 0 8px;
     overflow-y: auto;
+    transition: transform 0.25s ease, opacity 0.25s ease, right 0.25s ease;
 }
 #fs-points-panel.fs-panel-visible {
     transform: translateX(0);
@@ -129,7 +135,7 @@ body:not(.fullscreen-mode) .canvas-viewport.flip-active {
     position: fixed;
     top: 0;
     bottom: 0;
-    right: clamp(240px, var(--coord-panel-width, var(--coord-panel-default)), 86vw);
+    right: calc(clamp(240px, var(--coord-panel-width, var(--coord-panel-default)), 86vw) + var(--fs-dock-right, 0px));
     width: 10px;
     z-index: 10001;
     cursor: col-resize;
@@ -138,7 +144,7 @@ body:not(.fullscreen-mode) .canvas-viewport.flip-active {
     transform: translateX(clamp(240px, var(--coord-panel-width, var(--coord-panel-default)), 86vw));
     opacity: 0;
     pointer-events: none;
-    transition: transform 0.25s ease, opacity 0.25s ease;
+    transition: transform 0.25s ease, opacity 0.25s ease, right 0.25s ease;
 }
 body.fullscreen-mode #fs-panel-resizer { display: block; }
 body.fullscreen-mode #fs-points-panel.fs-panel-visible ~ #fs-panel-resizer {
@@ -148,7 +154,7 @@ body.fullscreen-mode #fs-points-panel.fs-panel-visible ~ #fs-panel-resizer {
 }
 /* The handle is part of the dusted panel: it forms and goes with the motes, never on a slide of
    its own. 460ms is POINTS_DUST_IN_MS (fullscreenPanels.js). */
-body.fullscreen-mode #fs-points-panel.dust-driven ~ #fs-panel-resizer { transition: none; }
+body.fullscreen-mode #fs-points-panel.dust-driven ~ #fs-panel-resizer { transition: right 0.25s ease; }
 body.fullscreen-mode #fs-points-panel.surface-forming ~ #fs-panel-resizer { animation: surfaceForm 460ms linear both; }
 body.fullscreen-mode #fs-points-panel.surface-leaving ~ #fs-panel-resizer { opacity: 0; pointer-events: none; }
 #fs-panel-resizer::before {
@@ -206,7 +212,7 @@ body.fullscreen-mode #fs-points-panel {
     border-bottom: 2px solid var(--border-sel);
     padding: 8px 14px;
     animation: fadeIn 0.15s ease;
-    transition: top 0.25s ease;
+    transition: top 0.25s ease, left 0.25s ease, width 0.25s ease;
 }
 #fs-selection-panel .selection-panel-inner {
     display: flex;

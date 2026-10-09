@@ -142,9 +142,16 @@ const STEPS = Object.freeze([
     await type('/script @rect (10%, 10%) (90%, 90%) ; @filter sepia');
     await shot('term-blank', { trim: true });
   } },
-  // The header logo cycles the accent: two clicks, filmed.
-  { name: 'term-theme-cycle', run: async () => {
-    await type('/help');
+  // The header logo cycles the accent: two clicks, filmed over a loaded image's header and an
+  // edit log, which the accent recolours too.
+  { name: 'term-theme-cycle', run: async (ctx) => {
+    await load(ctx);
+    await type('/clear');
+    await type('/crop x1=10% x2=90% y1=10% y2=90%');
+    await type('/rotate 1');
+    await type('/filter bw');
+    await type('/undo');
+    await type('/save out/edited.png');
     await clipGif('term-theme-cycle', async (clip) => {
       const point = await cellPoint(TERMINAL.logoCell.row, TERMINAL.logoCell.col);
       await page.mouse.click(point.x, point.y);

@@ -7,6 +7,7 @@
 #include <QRegion>
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace stencil::gui {
 
@@ -35,8 +36,14 @@ namespace stencil::gui {
     radius = 0;
     connect(&ticker, &QTimer::timeout, this, [this] {
       if (closingFrom >= 0) {
-        radius = closingFrom * (1 - radiusAt(clock.elapsed()) / RADIUS);
-        if (radius <= 0) { ticker.stop(); deleteLater(); return; }
+        radius = closingFrom * (1 - radiusAt(clock.elapsed() * double(GROW_MS) / CLOSE_MS) / RADIUS);
+        if (radius <= 0) {
+          ticker.stop();
+          hide();
+          if (auto done = std::exchange(closed, {})) done();
+          deleteLater();
+          return;
+        }
       } else {
         radius = radiusAt(clock.elapsed());
         if (radius >= RADIUS) ticker.stop();
@@ -56,9 +63,14 @@ namespace stencil::gui {
     show();
   }
 
-  void ThemeLens::dismiss() {
+  void ThemeLens::dismiss(std::function<void()> done) {
     if (closingFrom >= 0) return;
-    if (support::motionReduced() || !isVisible() || radius <= 0) { delete this; return; }
+    if (support::motionReduced() || !isVisible() || radius <= 0) {
+      delete this;
+      if (done) done();
+      return;
+    }
+    closed = std::move(done);
     closingFrom = radius;
     clock.restart();
     ticker.start(FRAME_MS);

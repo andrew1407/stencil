@@ -12,6 +12,13 @@ export const startDrawingMode = (app, opts = {}) => {
     return;
   }
   app.isDrawing = true;
+// Either hidden, part of what is drawn would not show: both come back through their own setters
+// (desktop EditorView::showLinesForDrawing).
+  if ((!app.showLines || !app.showPoints) && app.settings) {
+    app.settings.setShowLines(true);
+    app.settings.setShowPoints(true);
+    notify('Lines and points shown again to draw', 'info');
+  }
 
 // Continuation: new points/rects become part of the selected line and adopt its style.
   if (opts.connect !== false && app.selectedLineIdx >= 0 && app.lines[app.selectedLineIdx]) {

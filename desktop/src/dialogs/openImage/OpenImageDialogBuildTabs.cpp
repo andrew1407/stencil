@@ -4,6 +4,7 @@
 #include "../../support/control/UnderlineTabBar.hpp"
 #include "guiHelpers.hpp"
 #include "colorDrag.hpp"
+#include "../../support/control/dblReset.hpp"
 #include <QLineEdit>
 #include <QPushButton>
 #include <QSpinBox>
@@ -95,7 +96,10 @@ namespace stencil::gui {
     // A QToolButton is icon-ONLY by default, which would drop the hex setColorSwatch writes.
     blank.swatch->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     setColorSwatch(blank.swatch, blank.color, SWATCH_SIZE, /*withHex=*/true);
-    connect(blank.swatch, &QToolButton::clicked, this, &OpenImageDialog::pickCustomColor);
+    support::wireColorChip(blank.swatch, [this] { pickCustomColor(); }, [this] {   // the fill's default is white
+      blank.color = QColor(Qt::white);
+      setColorSwatch(blank.swatch, blank.color, SWATCH_SIZE, /*withHex=*/true);
+    });
     support::installColorDrag(blank.swatch, {[this] { return blank.color; }, [this](const QColor& c) {
                                  blank.color = c;
                                  setColorSwatch(blank.swatch, blank.color, SWATCH_SIZE, /*withHex=*/true);

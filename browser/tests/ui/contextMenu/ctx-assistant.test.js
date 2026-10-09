@@ -142,23 +142,22 @@ test('the menu pops out of the click point, and Escape (consumed) closes it', as
   assert.ok(m.isOpen(), 'the chat row menu on top takes Escape first');
 });
 
-test('assistantEnabled gates on the provider only', async (t) => {
+test('the Assistant entry shows whatever the provider; assistantEnabled still reads the provider', async (t) => {
   assert.strictEqual(assistantEnabled({ provider: 'none' }), false);
   assert.strictEqual(assistantEnabled(null), false);
   assert.strictEqual(assistantEnabled(undefined), false);
   for (const p of ['ollama', 'openai-compat', 'stencil-server']) {
     assert.strictEqual(assistantEnabled({ provider: p }), true, `${p} enables the entry`);
   }
-  // A configured-but-unreachable provider still gets the entry (the failure shows
-  // up in the reply, like the panel) — the gate never probes the endpoint.
+  // With no provider the entry is still there: the chat's own status says what is missing.
   const m = await mountContextMenu(t);
-  assert.strictEqual(m.$('ctx-assist-menu'), null, 'no provider, no entry');
+  assert.ok(m.$('ctx-assist-menu'), 'no provider, the entry all the same');
   m.store.set('drawingApp_llmSettings', JSON.stringify({ provider: 'openai-compat', baseUrl: 'http://10.255.255.1:1' }));
   publish(EVENTS.llmSettingsChanged);
-  assert.ok(m.$('ctx-assist-menu'), 'syncAssistant gates on the saved settings, with no probe in the way');
+  assert.ok(m.$('ctx-assist-menu'), 'a provider keeps it, with no probe in the way');
   m.store.set('drawingApp_llmSettings', JSON.stringify({ provider: 'none' }));
   m.open();
-  assert.strictEqual(m.$('ctx-assist-menu').style.display, 'none', 're-evaluated per open');
+  assert.strictEqual(m.$('ctx-assist-menu').style.display, '', 'and back to none, still shown');
 });
 
 test('the assistant entry never touches the static menu markup (built by syncAssistant)', () => {

@@ -59,6 +59,7 @@ namespace stencil::gui {
     // Motion (browser js/ui/motion/motionPrefs.js; support/modal/modalReveal.hpp drives them).
     bool drawingAnimations = true;
     bool modalBackdrop = true;
+    bool multiWindow = false;   // windows side by side, non-modal (browser motionPrefs multiWindow)
     // "particles" | "water" | "fire" | "slide" | "none"; unknown reads as "particles".
     QString motionMode = "particles";
     // "toast" | "system": the in-app stack or the OS notification centre (support/notify).

@@ -62,7 +62,7 @@ ${StencilOiBlankTab.template()}
                      editor over the preview (aspect locked to the page, Album/Portrait toggle),
                      matching the standalone Crop modal's model. -->
                 <div class="vs-row" id="open-image-crop-row" style="display:none">
-                    <label data-title="Crop the image to the page aspect before opening">Crop</label>
+                    <label for="open-image-crop-toggle" data-title="Crop the image to the page aspect before opening">Crop</label>
                     <span class="oi-crop-opt">
                         <input type="checkbox" id="open-image-crop-toggle">
                         <label class="footer-hint" for="open-image-crop-toggle">Trim to the page aspect before opening.</label>
@@ -100,7 +100,7 @@ ${StencilOiBlankTab.template()}
                 <!-- Incognito applies to a file/URL open; a new blank never supported it
                      (create the blank, then toggle incognito) so the row hides on that tab. -->
                 <div class="vs-row" id="open-image-incognito-row">
-                    <label>Incognito</label>
+                    <label for="open-image-incognito">Incognito</label>
                     <span class="oi-incognito">
                         <input type="checkbox" id="open-image-incognito">
                         <label class="footer-hint" for="open-image-incognito">Edit without saving — the image is never written to storage.</label>

@@ -69,7 +69,8 @@ namespace stencil::support {
    protected:
     bool eventFilter(QObject* watched, QEvent* event) override {
       // Spontaneous = the window server hid it (a desktop or app switch), not a close.
-      if (event->type() == QEvent::Hide && !event->spontaneous() && watched == dlg && !flown) {
+      if (event->type() == QEvent::Hide && !event->spontaneous() && watched == dlg && !flown
+          && !dlg->property(REMODAL_PROPERTY).toBool()) {
         flown = true;
         fly();
       }

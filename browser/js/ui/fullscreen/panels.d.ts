@@ -17,7 +17,15 @@ export declare const POINTS_DUST_IN_MS: number;
 /** The hover band that reveals a hidden panel, in px (the desktop's PANEL_REVEAL_PX). */
 export declare const FS_TRIGGER_PX: number;
 
-/** Size both trigger bands to the panels' current state: wide while away, inside the padding once revealed, the top one spanning a shown selection overlay. */
+/** The canvas's box less a chat docked over its left or right side; null when either is unmeasured. */
+export declare const canvasSpan: (viewport: Element | null | undefined, chat: Element | null | undefined) =>
+  { left: number; right: number; top: number; width: number; height: number } | null;
+
+/**
+ * Size both trigger bands to the panels' current state: wide while away, inside the padding once
+ * revealed, the top one spanning a shown selection overlay; and lay the strip, that overlay, the
+ * points list and its handle along the canvas's own columns, clear of a chat docked beside it.
+ */
 export declare function syncFsTriggers(): void;
 
 /** A panel's dust past its own edge; true while the motes fly, false hands the reveal to the CSS slide. */

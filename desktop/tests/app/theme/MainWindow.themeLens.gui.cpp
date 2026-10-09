@@ -208,10 +208,13 @@ class MainWindowGuiTest : public QObject {
     QToolButton* button = themeSwitch(win);
     QVERIFY(button);
     const bool dark = win.painted.dark;
+    const QString mode = win.settings.themeMode;
     liftIcon(button);
     QVERIFY2(iconDragActive(button) && !lensOf(win), "the drag runs without a lens");
     dropIcon(button, iconCentre(button) + QPoint(-200, 240));
-    QVERIFY2(win.painted.dark == dark, "…and its release switches nothing");
+    QTest::qWait(200);
+    QVERIFY2(win.painted.dark == dark && !lensOf(win), "…and its release switches nothing");
+    QCOMPARE(win.settings.themeMode, mode);
     QVERIFY(!win.parts.theme.toggleWebcore());
   }
 };

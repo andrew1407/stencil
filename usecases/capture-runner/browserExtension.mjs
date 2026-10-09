@@ -2,14 +2,10 @@
 // way e2e/tests/browser-extension/ui-pins.spec.js does, against the demo site in ./site.
 // Headed (extensions need it). Constants live in config/browserExtension.json.
 //   node usecases/capture-runner/browserExtension.mjs [--only <name>]
-import path from 'node:path';
-import { scratchDir } from './lib/paths.mjs';
 import { chatOnlyPlan } from './lib/llmStub.mjs';
 import { pairNames } from './lib/theme/selector.mjs';
 import { applyShellTheme } from './lib/theme/page.mjs';
-import { film } from './lib/shot/shots.mjs';
-import { framesToGif } from './lib/gifTools.mjs';
-import { waitForAnimations } from './lib/waits.mjs';
+import { settle, waitForAnimations } from './lib/waits.mjs';
 import { makeDropZoneSteps } from './extension/dropZoneSteps.mjs';
 import {
   MIN_ROWS, TIMEOUTS, VIEWS, app, config, context, host, llmSettings, runner, site, stub,
@@ -99,18 +95,24 @@ const STEPS = Object.freeze([
     await host.locator('figure img').first().waitFor();
     await reopenPopup(ctx, theme);
   } },
-  { name: 'open-here', run: async (ctx, theme) => {
+  // Open ▸ Here lays the editor over the page; the shot waits for the picture to be on its canvas.
+  { name: 'site-editor-modal', run: async (ctx, theme) => {
     const ui = await popup(ctx, theme);
-    const clip = config.get('clips.open-here');
     await host.bringToFront();
     await openRowMenu(ui);
-    const frames = scratchDir('ext-open-here');
-    const filming = film(host, frames, clip.ms, clip.everyMs);
     await openFlyout(ui);
     await clickMenuItem(ui, 'Here', true);
-    const shot = await filming;
-    framesToGif(frames, path.join(runner.out, 'open-here.gif'), { ...config.gifLook, inFps: shot.fps });
-    console.log('  open-here.gif');
+    const canvas = host.frameLocator('#stencil-ext-modal iframe, iframe').locator('#canvas');
+    await canvas.waitFor({ timeout: TIMEOUTS.editorMs });
+    // Sized, unveiled, and its arrival dust (ui/motion/dust) gone: the picture is on screen.
+    const painted = (c) => c.width > 1 && c.height > 1 && getComputedStyle(c).opacity === '1'
+      && !c.ownerDocument.querySelector('.canvas-dust, .swap-dust');
+    const until = Date.now() + TIMEOUTS.editorMs;
+    while (!(await canvas.evaluate(painted))) {
+      if (Date.now() > until) throw new Error('site-editor-modal: the picture never reached the canvas');
+      await settle(100);
+    }
+    await waitForAnimations(host);
     await runner.shot(host, 'site-editor-modal');
     await host.reload();
     await host.locator('figure img').first().waitFor();

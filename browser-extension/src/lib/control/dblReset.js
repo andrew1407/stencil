@@ -2,6 +2,7 @@
 // controls do (browser js/ui/control/dblReset.js). The Options page still saves on Save; the
 // popup's filters apply at once through their change handlers.
 import { DEFAULT_PAGE } from '../prefs/settings.js';
+import constants from '../tip/constants.json' with { type: 'json' };
 
 // getSettings() and prefs.js state these (prefs.js keeps its own inside its IIFE); the LLM
 // fields carry theirs as data-default, stamped by options/llm.js.
@@ -57,4 +58,17 @@ export const installDblReset = (root = document) => {
     const el = resetTarget(e.target);
     if (el && resetControl(el)) e.stopPropagation();
   }, true);
+};
+
+const { doubleClickMs, doubleTapMs } = constants.POPOVER;
+
+// A button that opens a colour picker: the open waits out the double-click window, a second click resets.
+export const wireColorButton = (btn, { open, reset }) => {
+  let timer = null;
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (timer) { clearTimeout(timer); timer = null; reset(); return; }
+    if (e.detail === 0) { open(); return; }   // a keyboard press has no second click to wait for
+    timer = setTimeout(() => { timer = null; open(); }, e.pointerType === 'touch' ? doubleTapMs : doubleClickMs);
+  });
 };

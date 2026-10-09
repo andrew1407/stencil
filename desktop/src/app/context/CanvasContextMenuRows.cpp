@@ -6,6 +6,7 @@
 #include "CanvasTooltip.hpp"
 #include "CanvasWidget.hpp"
 #include "Notifications.hpp"
+#include "MenuRowReveal.hpp"
 #include <QActionGroup>
 #include <QCheckBox>
 #include <QButtonGroup>
@@ -77,8 +78,7 @@ namespace stencil::gui {
     addContextCheckRow("Allow Formulas", w.settings.allowFormulas, w.ctxMenu.allowFormulas, w.ctxMenu.allowFormulasAct);
     QObject::connect(w.ctxMenu.allowFormulas, &QCheckBox::toggled, &w, [this](bool on) {
       w.tools.allowFormulas->setChecked(on);   // the canonical toolbar handler does settings/persist/apply
-      if (w.ctxMenu.formulaXAct) w.ctxMenu.formulaXAct->setVisible(on);
-      if (w.ctxMenu.formulaYAct) w.ctxMenu.formulaYAct->setVisible(on);
+      revealMenuRows({w.ctxMenu.formulaXAct, w.ctxMenu.formulaYAct}, on);
     });
     auto mkFormulaRow = [this](const QString& label, const QString& placeholder,
                                              QLineEdit*& edit, QWidgetAction*& act) {

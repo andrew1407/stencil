@@ -109,7 +109,8 @@ namespace stencil::gui {
       if (b->isVisible()) tbBottom = std::max(tbBottom, b->mapTo(&w, QPoint(0, b->height())).y());
     const int panelW = w.selPanel->isVisible() ? w.selPanel->width() : 0;
     const bool isOverPanel = w.fs.panelShown && p.x() > win.width() - panelW - DOCK_SEPARATOR_PX;
-    const bool wantTb = w.fs.wantBars(p, tbBottom, isOverPanel);
+    const int canvasLeft = w.scroll->mapTo(&w, QPoint(0, 0)).x(), canvasRight = canvasLeft + w.scroll->width();
+    const bool wantTb = w.fs.wantBars(p, tbBottom, isOverPanel, canvasLeft, canvasRight);
     if (wantTb != w.fs.barsShown) {
       w.fs.barsShown = wantTb;
       animateBarsHeight(w.fs.bars, wantTb);   // reuse the pill's smooth height slide
@@ -117,7 +118,8 @@ namespace stencil::gui {
 
     // A 28px reveal band (5px was near-impossible to hit); the keep-zone is the panel itself, never narrower than a third of
     // the window, so dragging the splitter to resize it never auto-hides it mid-drag.
-    const bool wantPnl = w.fs.wantPanel(p, win, panelW);
+    const int areaRight = panelW > 0 ? w.selPanel->mapTo(&w, QPoint(w.selPanel->width(), 0)).x() : canvasRight;
+    const bool wantPnl = w.fs.wantPanel(p, win, panelW, areaRight);
     if (wantPnl != w.fs.panelShown) {
       w.fs.panelShown = wantPnl;
       w.setPanelShown(wantPnl, true);

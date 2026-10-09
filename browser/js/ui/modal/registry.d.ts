@@ -15,6 +15,16 @@ export interface ModalShellApi {
   readonly overlayId: string | null;
   readonly stacked: boolean;
   takesEscape(): boolean;
+  /** True while it is open in the compact popover shape. */
+  isPopover(): boolean;
+  /** Raise order among side-by-side windows (0 = never raised). */
+  raisedAt: number;
+  /** Sets the overlay's stacking level; null hands it back to the stylesheet. */
+  setZ(z: number | null): void;
+  /** Whether `el` sits inside this window. */
+  contains(el: unknown): boolean;
+  /** Its dim and blur wait out the windows closing beside it, then fade in. */
+  holdBackdrop?(): void;
 }
 
 /** The shell wired over `overlayId`, else null. */
@@ -31,3 +41,15 @@ export declare function wireEscapeOnce(): void;
 
 /** Close every open window except `except`; returns the first one closed, else null. */
 export declare function closeOpenModal(except?: ModalShellApi | null): ModalShellApi | null;
+
+/** Close every open popover-shaped window except `except`. */
+export declare function closeOpenPopovers(except?: ModalShellApi | null): void;
+
+/** Bring a side-by-side window to the top and restack the open ones in raise order. */
+export declare function raiseWindow(shell: ModalShellApi): void;
+
+/** Multiple windows switched off: keep the focused window (else the topmost) and close the rest. */
+export declare function collapseToOneWindow(doc?: Document): void;
+
+/** Installs the one listener that collapses the windows when multiWindow turns off. */
+export declare function wireCollapseOnce(): void;

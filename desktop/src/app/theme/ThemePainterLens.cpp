@@ -53,6 +53,7 @@ namespace stencil::gui {
       drag.move = [this](const support::IconDragPoint& p) {
         if (lens) static_cast<ThemeLens*>(lens.data())->follow(p.global);
       };
+      // A preview only: let go anywhere, or Escape, closes the lens and switches nothing.
       drag.drop = [this](const support::IconDragPoint&) { closeLens(); };
       drag.cancel = [this] { closeLens(); };
       support::installIconDrag(b, std::move(drag));
@@ -93,8 +94,9 @@ namespace stencil::gui {
     lens = view;
   }
 
-  void ThemePainter::closeLens() {
-    if (lens) static_cast<ThemeLens*>(lens.data())->dismiss();
+  void ThemePainter::closeLens(std::function<void()> done) {
+    if (lens) static_cast<ThemeLens*>(lens.data())->dismiss(std::move(done));
+    else if (done) done();
     lens = nullptr;
   }
 

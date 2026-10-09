@@ -59,16 +59,17 @@ namespace stencil::gui {
       }
       w.parts.sourceOpener.openImageDialog(/*startBlank=*/true);
     });
-    QObject::connect(w.canvas, &CanvasWidget::drawingModeChanged, &w,
-                     &MainWindow::refreshActions);
+    QObject::connect(w.canvas, &CanvasWidget::drawingModeChanged, &w, [this](bool drawing) {
+      w.refreshActions();
+      if (drawing) w.parts.view.showLinesForDrawing();
+    });
     QObject::connect(w.canvas, &CanvasWidget::hoverDetail, &w,
                      [this](double x, double y, const QPoint& globalPos, Qt::KeyboardModifiers mods,
                             bool immediate) { w.parts.hoverTip.onHoverDetail(x, y, globalPos, mods, immediate); });
     QObject::connect(w.canvas, &CanvasWidget::hoverLeft, &w,
                      [this] { w.parts.hoverTip.hideHoverTooltip(); });
     QObject::connect(w.canvas, &CanvasWidget::canvasLeft, &w, [this] {
-      w.parts.view.lastHoverX = std::numeric_limits<double>::quiet_NaN();
-      w.parts.view.lastHoverY = std::numeric_limits<double>::quiet_NaN();
+      w.parts.view.lastHoverX = w.parts.view.lastHoverY = std::numeric_limits<double>::quiet_NaN();
       w.updateStatusIdle();
     });
     QObject::connect(w.canvas, &CanvasWidget::panBy, &w,

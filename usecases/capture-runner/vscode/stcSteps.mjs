@@ -118,6 +118,9 @@ export const CHECK_STEPS = Object.freeze([
     await settle(clip.holdMs);
     for (let i = 0; i < 'tre invert'.length; i++) await ctx.page.keyboard.press('Backspace');
     await ctx.page.keyboard.type('ter invert', { delay: clip.typeDelayMs });
+    // The retype raises the suggestion list; the clip holds on the fixed line, not on it.
+    await ctx.page.keyboard.press('Escape');
+    await ctx.page.locator('.squiggly-error').first().waitFor({ state: 'detached', timeout: TIMEOUTS.widgetMs }).catch(() => {});
     const shot = await filming;
     framesToGif(frames, path.join(runner.out, 'edit-and-check.gif'),
       { ...config.gifLook, inFps: shot.fps });

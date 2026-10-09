@@ -27,6 +27,7 @@ namespace stencil::gui {
     explicit EditorView(MainWindow& w) : w(w) {}
 
     void onHovered(double imageX, double imageY);
+    void showLinesForDrawing();
     void onPageSizeChanged();
     core::FormulaContext formulaContext() const;
     double currentLineLengthCm() const;

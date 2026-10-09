@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "ModalBackdrop.hpp"
 #include "ChatSessionController.hpp"
 #include "Notifications.hpp"
 #include "PlanAwait.hpp"
@@ -72,6 +73,13 @@ namespace stencil::gui {
 
 
   void MainWindow::applySettings(const Settings& s, bool persist) {
+    // A new line colour never recolours points that were following it (ToolbarBuilderStyle.cpp).
+    if (s.defaultColor != settings.defaultColor && s.defaultPointColor.isEmpty() && settings.defaultPointColor.isEmpty()) {
+      Settings pinned = s;
+      pinned.defaultPointColor = settings.defaultColor;
+      applySettings(pinned, persist);
+      return;
+    }
     // Re-probe the provider only when its config moved; the live-apply dialog routes every click
     // through here.
     const bool llmChanged = settings.llmProvider != s.llmProvider
@@ -88,6 +96,11 @@ namespace stencil::gui {
     support::setMotionMode(support::motionModeFromKey(s.motionMode));
     support::setDrawingAnimations(s.drawingAnimations);
     support::setModalBackdrop(s.modalBackdrop);
+    const bool collapse = support::multiWindow() && !s.multiWindow;
+    const bool spread = !support::multiWindow() && s.multiWindow;
+    support::setMultiWindow(s.multiWindow);
+    if (collapse) parts.popoverGestures.collapseToOneWindow();
+    if (spread) parts.popoverGestures.setWindowsSideBySide(true);
     if (motionMoved) support::clearMotionOverride();
     if (notify) {
       const NotifyChannel channel = notifyChannelFromKey(s.notifyChannel);

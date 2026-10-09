@@ -15,8 +15,10 @@ import constants from '../../../../common/config/constants.json' with { type: 'j
 // The controls whose default the markup cannot say: read when the double-click lands, so a
 // window rendered later still finds its own.
 const editor = (key) => () => createEditorState()[key];
-// A line's own colour resets to the one a new line would take: the toolbar picker's.
-const toolbarColor = (el) => el.ownerDocument?.getElementById('line-color')?.value ?? createEditorState().color;
+// A line's own colours reset to the ones a new line would take: the toolbar pickers'. The toolbar's
+// point colour itself takes the toolbar's line colour; an area's fill the Visuals row's.
+const fieldOr = (id, key) => (el) => el.ownerDocument?.getElementById(id)?.value || createEditorState()[key];
+const toolbarColor = fieldOr('line-color', 'color');
 const DEFAULTS = Object.freeze({
   'page-size': editor('pageSize'), 'unit-select': editor('unit'), 'image-filter': editor('imageFilter'),
   'line-style': editor('style'), 'compare-mode': editor('compareMode'), 'show-points': editor('showPoints'),
@@ -36,7 +38,13 @@ const DEFAULTS = Object.freeze({
   'ctx-tt-screen': editor('tooltipShowScreen'), 'ctx-tt-coords': editor('tooltipShowCoords'),
   'ctx-allow-formulas': editor('allowFormulas'),
   'line-color': editor('color'), 'sel-color': toolbarColor, 'fs-sel-color': toolbarColor,
-  'point-color': editor('color'),
+  'point-color': toolbarColor, 'sel-point-color': fieldOr('point-color', 'color'),
+  'fs-sel-point-color': fieldOr('point-color', 'color'),
+  'sel-fill': fieldOr('vs-fill', 'defaultFillColor'), 'fs-sel-fill': fieldOr('vs-fill', 'defaultFillColor'),
+  'filter-color': editor('filterColor'), 'ctx-tint-color': editor('filterColor'),
+  'vs-line-color': editor('color'), 'vs-fill': editor('defaultFillColor'), 'vs-sel-glow': editor('selGlowColor'),
+  'vs-hover-ring': editor('hoverRingColor'), 'vs-focus-ring': editor('focusRingColor'),
+  'blank-image-color': () => '#ffffff',
   // Reached by a logo drop only: a double-click in a field selects its text.
   'line-thickness': editor('thickness'), 'point-size': editor('pointSize'),
   'ctx-thickness': editor('thickness'), 'ctx-point-size': editor('pointSize'),
@@ -151,6 +159,19 @@ const deferColorPicks = (root) => {
     const drags = dragsStarted();   // a second press that dragged the swatch away picks nothing
     pending = { el, timer: setTimeout(() => { pending = null; if (dragsStarted() === drags) openColorPicker(el, null); }, wait) };
   }, true);
+};
+
+/** A button that opens a colour picker (desktop wireColorChip): the open waits out the double-click window, a second click inside it resets. */
+export const wireColorButton = (btn, { open, reset }) => {
+  let timer = null;
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (timer) { clearTimeout(timer); timer = null; reset(); return; }
+    if (e.detail === 0) { open(); return; }   // a keyboard press has no second click to wait for
+    const drags = dragsStarted();
+    timer = setTimeout(() => { timer = null; if (dragsStarted() === drags) open(); },
+      e.pointerType === 'touch' ? doubleTapMs : doubleClickMs);
+  });
 };
 
 /** One listener for the whole document, in the capture phase so a row gesture cannot eat it. */

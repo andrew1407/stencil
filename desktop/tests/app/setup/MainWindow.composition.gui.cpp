@@ -94,6 +94,7 @@ class MainWindowGuiTest : public QObject {
                  "QToolButton 11"));
     QCOMPARE(focusMarks(chain),
              QStringLiteral("canvasViewport selectionTabs pointsTable linesList "
+                            "selectedLineColorSwatch selectedLinePointSwatch "
                             "selectedLineFillSwatch selectedLineFillClear "
                             "selectedLineUnchain selectedLineDeselect chatJumpBtn "
                             "chatJumpBtn chatInput chatSend chatAttach chatGear chatMore "

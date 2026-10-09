@@ -13,11 +13,6 @@
 
 using namespace stencil::gui;
 
-namespace {
-  const QString FAVICON_URL = envOr("STENCIL_DOCS_FAVICON_URL",
-      "https://raw.githubusercontent.com/andrew1407/stencil/main/common/icons/favicon.svg");
-}  // namespace
-
 void MainWindowGuiTest::fit(MainWindow& win) {
   pumpFor(150);
   win.acts.fit->trigger();
@@ -60,7 +55,7 @@ void MainWindowGuiTest::windowStates(const QString& theme, const ShotSet& shots)
 
   if (shots.has("open-from-url")) {
     const QImage before = canvas->getImage();
-    win.parts.sourceOpener.openSourceHere(FAVICON_URL, 0, false);
+    win.parts.sourceOpener.openSourceHere(faviconUrl(), 0, false);
     if (waitUntil([&] { return canvas->hasImage() && canvas->getImage().size() != before.size(); }, 12000)) {
       fit(win);
       save("open-from-url", &win);
@@ -102,8 +97,9 @@ void MainWindowGuiTest::windowStates(const QString& theme, const ShotSet& shots)
   gestureShots(win, shots);
 }
 
-// The theme wipe (SWAP_MS + the dust's life) at ~30 fps: its own pass, at 1x and with
-// motion on, because a 2x grab outlasts a frame.
+// The theme wipe (SWAP_MS + the dust's life) and a hold on the new palette, at ~30 fps: its own
+// pass, at 1x and with motion on, because a 2x grab outlasts a frame. The lengths are
+// config/desktop.json's clip, handed over by desktop.mjs.
 void MainWindowGuiTest::themeClip() {
   MainWindow win(nullptr, /*restoreLast=*/false);
   win.resize(1280, 860);
@@ -120,5 +116,6 @@ void MainWindowGuiTest::themeClip() {
   pumpFor(300);
   clearToasts(&win);
   win.parts.theme.toggleTheme();
-  film("theme-swap", &win, 1100, 33);
+  film("theme-swap", &win, envOr("STENCIL_DOCS_CLIP_MS", "1100").toInt(),
+       envOr("STENCIL_DOCS_CLIP_EVERY_MS", "33").toInt());
 }

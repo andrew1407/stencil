@@ -119,12 +119,13 @@ class MainWindowGuiTest : public QObject {
     QTRY_COMPARE_WITH_TIMEOUT(QString::fromStdString(canvas->getLines()[0].pointColor), QString("#123456"), 3000);
     QCOMPARE(canvas->getSelectedLineIdx(), 1);
     QCOMPARE(canvas->getLines()[0].color, std::string("#ff0000"));
+    win.settings.defaultPointColor = QStringLiteral("#8000ff");   // the toolbar's points
     chipAt(list, 0, POINT_COL)->click();
     chipAt(list, 0, POINT_COL)->click();
     QTest::qWait(stencil::support::uiTimings().doubleClickMs + 100);
     QVERIFY2(!QApplication::activeModalWidget(), "a double-click never opens the picker");
-    QCOMPARE(canvas->getLines()[0].pointColor, std::string());
-    QCOMPARE(faceOf(chipAt(list, 0, POINT_COL)), QColor("#ff0000"));
+    QCOMPARE(canvas->getLines()[0].pointColor, std::string("#8000ff"));
+    QCOMPARE(faceOf(chipAt(list, 0, POINT_COL)), QColor("#8000ff"));
     QCOMPARE(canvas->getSelectedLineIdx(), 1);
   }
 

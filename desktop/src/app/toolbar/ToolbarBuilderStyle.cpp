@@ -81,12 +81,13 @@ namespace stencil::gui {
                      });
 
     // drawingApp.js:155; a double-click puts the canonical default back (browser dblReset.js 'line-color').
+    // A new line colour never recolours the points: still following it ('' defaultPointColor), they
+    // keep the colour they were showing (browser SettingsController.setColor).
     const auto applyLineColor = [this](const QColor& c) {
+      if (w.settings.defaultPointColor.isEmpty()) w.settings.defaultPointColor = w.settings.defaultColor;
       w.tools.lineColorValue = c;
       w.updateColorSwatch(w.tools.lineColorBtn, c);
       w.settings.defaultColor = c.name(QColor::HexRgb);
-      if (w.tools.pointColorBtn && w.settings.defaultPointColor.isEmpty())
-        w.updateColorSwatch(w.tools.pointColorBtn, c);
       w.parts.styleControls.onLineStyleControlChanged();
     };
     support::wireColorChip(w.tools.lineColorBtn, [this, applyLineColor] {
@@ -94,20 +95,17 @@ namespace stencil::gui {
           support::pickColorAnimated(w.tools.lineColorValue, &w, "Line color", w.tools.lineColorBtn);
       if (c.isValid()) applyLineColor(c);
     }, [applyLineColor] { applyLineColor(QColor(defaultVisuals::table().color)); });
-    // Picking the line colour again stores empty (inherit), so later line-colour changes keep
-    // carrying the points.
+    // A pick is the points' own colour, even the line's: a later line colour leaves it (browser parity).
     const auto applyPointColor = [this](const QColor& c) {
-      w.settings.defaultPointColor =
-          (c.rgb() == w.tools.lineColorValue.rgb()) ? QString() : c.name(QColor::HexRgb);
+      w.settings.defaultPointColor = c.name(QColor::HexRgb);
       w.updateColorSwatch(w.tools.pointColorBtn, w.parts.styleControls.effectiveDefaultPointColor());
       w.parts.styleControls.onLineStyleControlChanged();
     };
-    QObject::connect(w.tools.pointColorBtn, &QToolButton::clicked, &w, [this, applyPointColor] {
+    support::wireColorChip(w.tools.pointColorBtn, [this, applyPointColor] {
       const QColor c = support::pickColorAnimated(w.parts.styleControls.effectiveDefaultPointColor(), &w,
                                                   "Point color", w.tools.pointColorBtn);
       if (c.isValid()) applyPointColor(c);
-    });
-    support::setResetHook(w.tools.pointColorBtn, [applyPointColor] { applyPointColor(QColor(defaultVisuals::table().color)); });
+    }, [this, applyPointColor] { applyPointColor(w.tools.lineColorValue); });   // the line's colour, as its own
     // A chip dragged onto another hands it its colour, which lands through that chip's own pick.
     support::installColorDrag(w.tools.lineColorBtn, {[this] { return w.tools.lineColorValue; }, applyLineColor});
     support::installColorDrag(w.tools.pointColorBtn,
@@ -149,11 +147,11 @@ namespace stencil::gui {
       w.canvas->setImageFilter(mode, w.tools.filterColorValue);
     });
     // drawingApp.js:240-249
-    QObject::connect(w.tools.filterColorBtn, &QToolButton::clicked, &w, [this] {
+    support::wireColorChip(w.tools.filterColorBtn, [this] {
       const QColor c =
           support::pickColorAnimated(w.tools.filterColorValue, &w, "Tint color", w.tools.filterColorBtn);
       if (c.isValid()) w.applyTintColor(c);
-    });
+    }, [this] { w.applyTintColor(QColor(Settings().filterColor)); });   // browser editorState filterColor
   }
 }  // namespace stencil::gui
 

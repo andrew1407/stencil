@@ -42,6 +42,25 @@ test('the toolbar colour resets to the default line colour; a line\'s own, to th
   assert.equal(defaultOf(new ColorField({ id: 'x', dataset: { default: '#ABC' } })), '#aabbcc');
 });
 
+test('every colour control resets: points to the toolbar\'s, a fill to the new-area default, the rest to the factory', async () => {
+  const { createEditorState } = await import('../../../js/core/editorState.js');
+  const editor = createEditorState();
+  const fields = { 'line-color': { value: '#00ff00' }, 'point-color': { value: '#8000ff' }, 'vs-fill': { value: '#abcdef' } };
+  const page = { getElementById: (id) => fields[id] ?? null };
+  const at = (id) => defaultOf(new ColorField({ id, value: '#010101', ownerDocument: page }));
+  // A line's points go back to the toolbar's point colour; the toolbar's own, to following the line.
+  assert.deepEqual([at('sel-point-color'), at('fs-sel-point-color'), at('point-color')], ['#8000ff', '#8000ff', '#00ff00']);
+  assert.deepEqual([at('sel-fill'), at('fs-sel-fill')], ['#abcdef', '#abcdef']);
+  assert.deepEqual([at('filter-color'), at('ctx-tint-color')], [editor.filterColor, editor.filterColor]);
+  assert.deepEqual(['vs-line-color', 'vs-fill', 'vs-sel-glow', 'vs-hover-ring', 'vs-focus-ring'].map(at),
+    [editor.color, editor.defaultFillColor, editor.selGlowColor, editor.hoverRingColor, editor.focusRingColor]
+      .map((c) => c.toLowerCase()));
+  assert.equal(at('blank-image-color'), '#ffffff');
+  // No bar on the page: the factory values stand in.
+  assert.equal(defaultOf(new ColorField({ id: 'sel-point-color', ownerDocument: { getElementById: () => null } })),
+    editor.color.toLowerCase());
+});
+
 test('a colour reset fires input then change, once, and only when the colour moves', () => {
   const el = new ColorField({ id: 'line-color', value: '#ff0000' });
   const seen = events(el);
@@ -55,7 +74,7 @@ test('a colour reset fires input then change, once, and only when the colour mov
 test('only a colour field with a stated default is a reset target', () => {
   const stated = new ColorField({ id: 'sel-color' });
   assert.equal(resetTarget(stated), stated);
-  assert.equal(resetTarget(new ColorField({ id: 'filter-color' })), null);
+  assert.equal(resetTarget(new ColorField({ id: 'blank-color-input' })), null);
 });
 
 test('a click waits out the double-click window before opening the picker', (t) => {
@@ -91,7 +110,7 @@ test('a keyboard press, or a field without a default, opens natively', (t) => {
   const fire = rig();
   const keyed = click(new ColorField({ id: 'line-color' }), 0);
   fire('click', keyed);
-  const plain = click(new ColorField({ id: 'filter-color' }), 1);
+  const plain = click(new ColorField({ id: 'blank-color-input' }), 1);
   fire('click', plain);
   t.mock.timers.tick(doubleTapMs);
   assert.deepEqual([keyed.prevented, plain.prevented, keyed.target.picks, plain.target.picks], [false, false, 0, 0]);

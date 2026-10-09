@@ -36,9 +36,7 @@ to open in a new tab.
 
 Opening it *here* lays the full editor over the page you are on:
 
-![opening the editor over the page](img/open-here.gif)
-
-![the editor modal](img/site-editor-modal.png)
+![the editor modal over the page](img/site-editor-modal.png)
 
 *In editor* opens a new tab of the editor with the image; the incognito variant opens one
 that saves nothing.

@@ -1,4 +1,4 @@
-// MainWindow GUI e2e — The Assistant entry in the canvas context menu: when it appears, and where.
+// MainWindow GUI e2e — The Assistant entry in the canvas context menu: always there, and where.
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "../../MainWindowMenu.gui.hpp"
 
@@ -8,8 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // Present only with a provider configured, in the TOP group ahead of the drawing actions,
-  // and adding no separator of its own — while the classic submenus still hover-open beside it.
+  // Present whatever the provider (with none, its status says so), in the TOP group ahead of the
+  // drawing actions, adding no separator of its own — while the classic submenus still hover-open beside it.
   void assistantEntryAndItsSeparators() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
@@ -18,8 +18,8 @@ class MainWindowGuiTest : public QObject {
     win.openPathFromOS(guiTestImage());  // a working image, so a plan has something to hit
     QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
 
-    // ── assistant OFF: no Assistant entry at all, nothing even built ──
-    bool sawAssistantWhenOff = true, sawNormalAction = false, doubleSeparator = false;
+    // ── no provider: the entry all the same ──
+    bool sawAssistantWhenOff = false, sawNormalAction = false, doubleSeparator = false;
     bool styleOpenedOff = false, filterOpenedOff = false;
     int separatorsOff = 0;
     win.settings.llmProvider = "none";
@@ -42,11 +42,10 @@ class MainWindowGuiTest : public QObject {
       menu->close();
     });
     win.parts.canvasMenu.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
-    QVERIFY2(!sawAssistantWhenOff, "the Assistant entry showed with the assistant off");
+    QVERIFY2(sawAssistantWhenOff, "the Assistant entry went missing with no provider");
     QVERIFY2(sawNormalAction, "the rest of the context menu went missing");
-    QVERIFY2(!win.chatSession->chatMenuAction, "the chat panel was built despite provider=none");
     QVERIFY2(styleOpenedOff && filterOpenedOff, "submenus did not open (assistant off)");
-    QVERIFY2(!doubleSeparator, "the hidden Assistant entry left a dangling separator");
+    QVERIFY2(!doubleSeparator, "the Assistant entry left a dangling separator");
 
     // ── assistant ON ──
     win.settings.llmProvider = "ollama";

@@ -13,6 +13,13 @@
       QMenu#projectColorMenu::item { padding: 6px 12px 6px 6px; }
       QMenu::icon { padding-left: 6px; }
       QMenu::indicator { width: 16px; height: 16px; left: 6px; }
+      /* A check hosted in a menu row is the menu's one box (browser .ctx-check; Show Points/Lines paint
+         theirs, ThemePainterIcons.cpp): an empty square when off, the tick inside it when on. */
+      QMenu QCheckBox::indicator {
+        width: 13px; height: 13px; border: 1px solid %TEXT%; border-radius: 3px; background: transparent;
+      }
+      QMenu QCheckBox::indicator:checked { image: none; background: transparent; border-color: %TEXT%; }   /* tick: MenuCheckBox.hpp */
+      QMenu QCheckBox::indicator:hover { border-color: %TEXT%; }
 
       QStatusBar { background: %BG_CONTROLS%; color: %TEXT%; border-top: 1px solid %BORDER%; }
       QStatusBar::item { border: 0; }

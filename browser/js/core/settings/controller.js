@@ -5,14 +5,15 @@ import { NOTIFY_CHANNELS, setNotifyChannel } from './notifyChannel.js';
 import {
   applyMirror, paintFormulaToggle, paintFormulaError,
   readControl, forEachControl, paintTooltipOption, paintMotionMode, paintMotionDrawing,
-  paintMotionBackdrop, paintNotifyChannel,
+  paintMotionBackdrop, paintMotionMultiWindow, paintNotifyChannel,
 } from '../../ui/settings/settingMirrors.js';
 import { SETTINGS } from './registry.js';
 import { FilterSteps } from './filterStep.js';
 import { formulaContext } from '../parse/pageMetrics.js';
 
 export { COMPARE_MODES } from './registry.js';
-
+// The on/off motion prefs, each with the Visuals checkbox it repaints.
+const MOTION_SWITCHES = { drawing: paintMotionDrawing, backdrop: paintMotionBackdrop, multiWindow: paintMotionMultiWindow };
 
 // `persist:false` is the live-drag (input) path that commits on the trailing change.
 export class SettingsController {
@@ -41,21 +42,19 @@ export class SettingsController {
     }
   }
 
-  setColor(v, opts) { this.set('color', v, opts); }
+  // A new line colour never recolours points still following it ('' pointColor): they keep theirs.
+  setColor(v, opts) {
+    if (!this.app.pointColor && this.app.color) this.set('pointColor', this.app.color, { persist: false });
+    this.set('color', v, opts);
+  }
   setPointColor(v, opts) { this.set('pointColor', v, opts); }
 
   setThickness(n, opts) { this.set('thickness', n, opts); }
-
   setPointSize(n, opts) { this.set('pointSize', n, opts); }
-
   setLineStyle(s) { this.set('style', s); }
-
   setShowPoints(b) { this.set('showPoints', b); }
-
   setShowLines(b) { this.set('showLines', b); }
-
   setImageFilter(f) { this.set('imageFilter', f); }
-
   setCompareMode(m) { this.set('compareMode', m); }
 
   // Live-apply a setting's VISUAL effect without committing it (the dropdowns' hover
@@ -193,14 +192,11 @@ export class SettingsController {
         throw new Error(`Unknown motion mode: ${value} (use ${MOTION_MODES.join(' | ')})`);
       setMotionPrefs({ mode: m });
       paintMotionMode(m);
-    } else if (key === 'drawing') {
-      setMotionPrefs({ drawing: !!value });
-      paintMotionDrawing(value);
-    } else if (key === 'backdrop') {
-      setMotionPrefs({ backdrop: !!value });
-      paintMotionBackdrop(value);
+    } else if (Object.hasOwn(MOTION_SWITCHES, key)) {
+      setMotionPrefs({ [key]: !!value });
+      MOTION_SWITCHES[key](value);
     } else {
-      throw new Error(`Unknown motion setting: ${key} (use mode | drawing | backdrop)`);
+      throw new Error(`Unknown motion setting: ${key} (use mode | drawing | backdrop | multiWindow)`);
     }
     return motionPrefs();
   }

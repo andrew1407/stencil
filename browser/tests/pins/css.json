@@ -564,7 +564,7 @@
     "transform": "skewX(-5deg)"
    },
    "@keyframes icon-ghost-shine-mark|from": {
-    "filter": "drop-shadow(0 0 1px color-mix(in srgb, var(--accent) 50%, transparent))"
+    "filter": "drop-shadow(0 0 0.5px var(--accent)) drop-shadow(0 0 1px var(--accent))"
    },
    "@keyframes icon-ghost-shine-mark|to": {
     "filter": "var(--ghost-mark)"
@@ -1806,7 +1806,8 @@
     "opacity": "0",
     "padding": "10px 14px",
     "border-top": "none",
-    "border-radius": "0 0 8px 8px"
+    "border-radius": "0 0 8px 8px",
+    "transition": "transform 0.25s ease, opacity 0.25s ease, left 0.25s ease, width 0.25s ease"
    },
    "|#fs-controls-panel .controls": {
     "margin-bottom": "0",
@@ -1823,8 +1824,8 @@
     "transition": "transform 0.25s ease, opacity 0.25s ease",
     "pointer-events": "auto"
    },
-   "|#fs-controls-panel.dust-driven, #fs-points-panel.dust-driven": {
-    "transition": "none"
+   "|#fs-controls-panel.dust-driven": {
+    "transition": "left 0.25s ease, width 0.25s ease"
    },
    "|#fs-controls-panel.fs-panel-visible": {
     "transform": "translateY(0)",
@@ -1835,14 +1836,14 @@
     "position": "fixed",
     "top": "0",
     "bottom": "0",
-    "right": "clamp(240px, var(--coord-panel-width, var(--coord-panel-default)), 86vw)",
+    "right": "calc(clamp(240px, var(--coord-panel-width, var(--coord-panel-default)), 86vw) + var(--fs-dock-right, 0px))",
     "width": "10px",
     "z-index": "10001",
     "cursor": "col-resize",
     "transform": "translateX(clamp(240px, var(--coord-panel-width, var(--coord-panel-default)), 86vw))",
     "opacity": "0",
     "pointer-events": "none",
-    "transition": "transform 0.25s ease, opacity 0.25s ease"
+    "transition": "transform 0.25s ease, opacity 0.25s ease, right 0.25s ease"
    },
    "|#fs-panel-resizer.dragging::before, #fs-panel-resizer:hover::before": {
     "background": "var(--accent)",
@@ -1863,17 +1864,21 @@
    "|#fs-points-panel": {
     "top": "0",
     "bottom": "0",
-    "right": "0",
+    "right": "var(--fs-dock-right, 0px)",
     "width": "clamp(240px, var(--coord-panel-width, var(--coord-panel-default)), 86vw)",
     "transform": "translateX(100%)",
     "opacity": "0",
     "padding": "12px",
     "border-right": "none",
     "border-radius": "8px 0 0 8px",
-    "overflow-y": "auto"
+    "overflow-y": "auto",
+    "transition": "transform 0.25s ease, opacity 0.25s ease, right 0.25s ease"
    },
    "|#fs-points-panel, .app-modal, .coordinates-panel, .settings-body": {
     "scroll-behavior": "smooth"
+   },
+   "|#fs-points-panel.dust-driven": {
+    "transition": "right 0.25s ease"
    },
    "|#fs-points-panel.fs-panel-visible": {
     "transform": "translateX(0)",
@@ -1897,7 +1902,7 @@
     "border-bottom": "2px solid var(--border-sel)",
     "padding": "8px 14px",
     "animation": "fadeIn 0.15s ease",
-    "transition": "top 0.25s ease"
+    "transition": "top 0.25s ease, left 0.25s ease, width 0.25s ease"
    },
    "|#fs-selection-panel .selection-panel-inner": {
     "display": "flex",
@@ -4544,21 +4549,34 @@
     "overscroll-behavior": "contain"
    },
    "|.ctx-check": {
-    "width": "16px",
+    "box-sizing": "border-box",
+    "width": "15px",
+    "height": "15px",
     "flex-shrink": "0",
-    "display": "inline-flex",
-    "align-items": "center",
-    "justify-content": "center",
+    "border": "1px solid var(--text-main)",
+    "border-radius": "3px",
     "color": "var(--text-main)"
+   },
+   "|.ctx-check > *": {
+    "display": "none"
+   },
+   "|.ctx-check.mark-forming, input[type=checkbox].mark-forming:checked, input[type=radio].mark-forming:checked": {
+    "animation": "none",
+    "background-color": "transparent",
+    "background-image": "none"
+   },
+   "|.ctx-check:not(:empty)": {
+    "background": "var(--menu-tick) center / 12px no-repeat"
    },
    "|.ctx-checkbox-item": {
     "display": "flex",
     "align-items": "center",
     "gap": "8px",
-    "padding": "6px 14px",
+    "padding": "7px 14px",
     "border-radius": "4px",
     "cursor": "pointer",
-    "font-size": "13px",
+    "font-size": "inherit",
+    "font-weight": "normal",
     "color": "var(--text-main)",
     "user-select": "none"
    },
@@ -4567,11 +4585,8 @@
     "cursor": "pointer"
    },
    "|.ctx-checkbox-item input[type=checkbox]:checked": {
-    "background-color": "var(--text-main)",
-    "border-color": "transparent",
-    "background-image": "none",
-    "-webkit-mask": "url(\"data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Cpath%20d='M3.5%208.5L6.4%2011.4L12.5%204.5'%20fill='none'%20stroke='%23fff'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E\") center / 12px no-repeat",
-    "mask": "url(\"data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Cpath%20d='M3.5%208.5L6.4%2011.4L12.5%204.5'%20fill='none'%20stroke='%23fff'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E\") center / 12px no-repeat"
+    "background": "var(--menu-tick) center / 12px no-repeat",
+    "border-color": "var(--text-main)"
    },
    "|.ctx-checkbox-item, .ctx-radio-item": {
     "transition": "background 0.12s ease"
@@ -7630,6 +7645,10 @@
    "|.vs-row label": {
     "font-weight": "normal"
    },
+   "|.vs-row label[for]": {
+    "cursor": "pointer",
+    "user-select": "none"
+   },
    "|.vs-row select[id$=\"-target\"]": {
     "width": "auto",
     "min-width": "150px",
@@ -7643,6 +7662,10 @@
    "|.vs-row.vs-field > label": {
     "flex": "0 0 auto",
     "min-width": "var(--vs-label-w, 48px)"
+   },
+   "|.vs-row.vs-row-idle label": {
+    "opacity": ".5",
+    "cursor": "default"
    },
    "|.vs-section": {
     "font-weight": "bold",
@@ -7730,6 +7753,9 @@
    "|:is(.app-modal, #settings-modal).modal-dragging .settings-header": {
     "cursor": "grabbing"
    },
+   "|:is(.app-modal-overlay, #settings-modal-overlay).modal-open": {
+    "transition": "background-color 0.22s ease, backdrop-filter 0.22s ease, -webkit-backdrop-filter 0.22s ease"
+   },
    "|:is(.app-modal-overlay, #settings-modal-overlay):not(.modal-popover) .settings-header": {
     "cursor": "grab"
    },
@@ -7740,6 +7766,7 @@
     "--dust-accent-alt": "color-mix(in srgb, var(--accent) 55%, #000000)",
     "--on-accent": "#ffffff",
     "--accent-tick": "url(\"data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Cpath%20d='M3.5%208.5L6.4%2011.4L12.5%204.5'%20fill='none'%20stroke='%23ffffff'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E\")",
+    "--menu-tick": "url(\"data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Cpath%20d='M3.5%208.5L6.4%2011.4L12.5%204.5'%20fill='none'%20stroke='%23000000'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E\")",
     "--bg-page": "#f0f0f0",
     "--bg-container": "#ffffff",
     "--bg-controls": "#f8f9fa",
@@ -7865,6 +7892,11 @@
    "|:root[data-modal-backdrop] .app-modal-overlay:not(.modal-popover)": {
     "background": "rgba(0,0,0,0.5)"
    },
+   "|:root[data-modal-backdrop] :is(.app-modal-overlay, #settings-modal-overlay).modal-open.backdrop-wait": {
+    "background": "transparent",
+    "backdrop-filter": "none",
+    "-webkit-backdrop-filter": "none"
+   },
    "|:root[data-motion=\"none\"] *, :root[data-motion=\"none\"] *::after, :root[data-motion=\"none\"] *::before": {
     "animation-duration": "0.01ms !important",
     "animation-delay": "0s !important",
@@ -7884,6 +7916,13 @@
    },
    "|:root[data-motion=\"none\"] .app-logo-wrap::before": {
     "transition-duration": "0.25s !important"
+   },
+   "|:root[data-multi-window] #settings-modal-overlay:not(.modal-popover) #settings-modal, :root[data-multi-window] .app-modal-overlay:not(.modal-popover, #confirm-modal-overlay) .app-modal": {
+    "pointer-events": "auto"
+   },
+   "|:root[data-multi-window] :is(.app-modal-overlay, #settings-modal-overlay):not(.modal-popover, #confirm-modal-overlay)": {
+    "background": "transparent",
+    "pointer-events": "none"
    },
    "|:root[data-skin=\"webcore\"]": {
     "--wc-face": "#c0c0c0",
@@ -8679,6 +8718,7 @@
     "--accent-2": "color-mix(in srgb, var(--accent) 78%, white)",
     "--dust-ink": "#ffffff",
     "--dust-accent-alt": "color-mix(in srgb, var(--accent) 30%, #ffffff)",
+    "--menu-tick": "url(\"data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Cpath%20d='M3.5%208.5L6.4%2011.4L12.5%204.5'%20fill='none'%20stroke='%23e0e0e0'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E\")",
     "--bg-page": "#1a1a1a",
     "--bg-container": "#242424",
     "--bg-controls": "#2d2d2d",
@@ -8780,7 +8820,7 @@
     "display": "block"
    },
    "|body.fullscreen-mode #fs-points-panel.dust-driven ~ #fs-panel-resizer": {
-    "transition": "none"
+    "transition": "right 0.25s ease"
    },
    "|body.fullscreen-mode #fs-points-panel.fs-panel-visible ~ #fs-panel-resizer": {
     "transform": "translateX(0)",
@@ -9013,11 +9053,6 @@
     "background": "transparent",
     "cursor": "pointer",
     "vertical-align": "middle"
-   },
-   "|input[type=checkbox].mark-forming:checked, input[type=radio].mark-forming:checked": {
-    "animation": "none",
-    "background-color": "transparent",
-    "background-image": "none"
    },
    "|input[type=checkbox]:checked": {
     "background-color": "var(--accent)",
@@ -9624,7 +9659,8 @@
    "|#fs-controls-panel, #fs-points-panel",
    "|#fs-controls-panel",
    "|#fs-controls-panel.fs-panel-visible",
-   "|#fs-controls-panel.dust-driven, #fs-points-panel.dust-driven",
+   "|#fs-controls-panel.dust-driven",
+   "|#fs-points-panel.dust-driven",
    "|#fs-points-panel",
    "|#fs-points-panel.fs-panel-visible",
    "|#fs-panel-resizer",
@@ -9652,6 +9688,8 @@
    "|.ctx-item .ctx-arrow",
    "|.ctx-sep",
    "|.ctx-check",
+   "|.ctx-check > *",
+   "|.ctx-check:not(:empty)",
    "|.ctx-sub",
    "|.ctx-sub.ctx-sub-visible",
    "|.ctx-sub.ctx-sub-fresh .ctx-item",
@@ -9814,6 +9852,10 @@
    "|.app-modal-overlay",
    "|.app-modal-overlay.modal-open",
    "|:root[data-modal-backdrop] .app-modal-overlay:not(.modal-popover)",
+   "|:root[data-modal-backdrop] :is(.app-modal-overlay, #settings-modal-overlay).modal-open.backdrop-wait",
+   "|:is(.app-modal-overlay, #settings-modal-overlay).modal-open",
+   "|:root[data-multi-window] :is(.app-modal-overlay, #settings-modal-overlay):not(.modal-popover, #confirm-modal-overlay)",
+   "|:root[data-multi-window] #settings-modal-overlay:not(.modal-popover) #settings-modal, :root[data-multi-window] .app-modal-overlay:not(.modal-popover, #confirm-modal-overlay) .app-modal",
    "|:is(.app-modal-overlay, #settings-modal-overlay):not(.modal-popover) .settings-header",
    "|:is(.app-modal, #settings-modal).modal-dragging .settings-header",
    "|.app-modal.modal-dragging",
@@ -9834,6 +9876,8 @@
    "|.vs-section:first-child",
    "|.vs-row",
    "|.vs-row label",
+   "|.vs-row label[for]",
+   "|.vs-row.vs-row-idle label",
    "|.vs-row input[type=\"color\"]",
    "|.vs-row input[type=\"number\"], .vs-row select",
    "|stencil-llm-settings-modal, stencil-visuals-modal",
@@ -11053,7 +11097,7 @@
    "|.mark-leaving",
    "@keyframes markForm|0%, 62%",
    "@keyframes markForm|100%",
-   "|input[type=checkbox].mark-forming:checked, input[type=radio].mark-forming:checked",
+   "|.ctx-check.mark-forming, input[type=checkbox].mark-forming:checked, input[type=radio].mark-forming:checked",
    "@media (prefers-reduced-motion: reduce)|.mark-forming",
    "|.canvas-viewport.canvas-clearing #canvas, .canvas-viewport.canvas-clearing #canvas-overlay, .canvas-viewport.canvas-clearing .idle-create",
    "|.canvas-viewport.canvas-assembling #canvas, .canvas-viewport.canvas-assembling #canvas-overlay",

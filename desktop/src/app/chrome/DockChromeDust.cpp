@@ -44,8 +44,9 @@ namespace stencil::gui {
     if (fx) {
       chatVeil = gui::veilBehindDust(w.chatDock);
       // The hand-over is the overlay's own end, never the slide's: the two clocks start a
-      // beat apart, and that beat drew neither the motes nor the dock.
-      QObject::connect(fx, &QObject::destroyed, &w, [this] { dropChatVeil(); });
+      // beat apart, and that beat drew neither the motes nor the dock. The dock is the context:
+      // a window tearing down deletes it before the overlay, and the hand-over goes with it.
+      QObject::connect(fx, &QObject::destroyed, w.chatDock, [this] { dropChatVeil(); });
     }
     return fx;
   }
@@ -71,7 +72,12 @@ namespace stencil::gui {
     QPointer<gui::DisintegrateOverlay> fx = gui::DisintegrateOverlay::overSurface(
         snap, picture, dustHost, dockAwayPoint(picture, area), gather, ms,
         w.selPanel->palette().color(QPalette::WindowText));
-    if (fx) panelVeil = gui::veilBehindDust(w.selPanel);
+    if (fx) {
+      // The rows folding beside it move the dock mid-flight: the picture rides along, so the
+      // hand-over lands where the motes gathered instead of a band above the real panel.
+      fx->setFollow(w.selPanel);
+      panelVeil = gui::veilBehindDust(w.selPanel);
+    }
     return fx;
   }
 

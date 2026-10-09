@@ -6,10 +6,36 @@
 #include "iconSet.hpp"
 #include "skinPrefs.hpp"
 #include "theme.hpp"
+#include "../../support/control/swap/controlSwap.hpp"
+
+#include <QPainter>
+#include <QPixmap>
 
 // MainWindow theming: applyTheme() and the icon restyling passes.
 
 namespace stencil::gui {
+
+  namespace {
+    // A menu row's check box (browser .ctx-check: 15px beside 16px glyphs, so size - 2 here), the
+    // tick inside it when on.
+    QIcon menuCheckBox(bool on, const QColor& ink, int size) {
+      QIcon out;
+      for (const qreal dpr : {1.0, 2.0}) {
+        QPixmap pm(QSize(size, size) * dpr);
+        pm.setDevicePixelRatio(dpr);
+        pm.fill(Qt::transparent);
+        QPainter p(&pm);
+        p.setRenderHint(QPainter::Antialiasing, true);
+        const double side = size - 2;
+        const QRectF box((size - side) / 2.0, (size - side) / 2.0, side, side);
+        p.setPen(QPen(ink, 1.25));
+        p.drawRoundedRect(box.adjusted(0.6, 0.6, -0.6, -0.6), 3.5, 3.5);
+        if (on) ctl::paintCheckTick(p, box, ctl::menuTickArt(ink));
+        out.addPixmap(pm);
+      }
+      return out;
+    }
+  }  // namespace
 
   // Glyph names mirror browser/js/ui/toolbar/toolbar.js. Null-guarded.
   void ThemePainter::styleActionIcons(bool dark, const QColor& iconColor) {
@@ -63,14 +89,14 @@ namespace stencil::gui {
     set(w.acts.zoomIn, "plus");
     set(w.acts.zoomOut, "minus");
     set(w.acts.fit, "fit");
-    // The tick is the row's icon while checked (browser .ctx-check), so it plays the check motion on
-    // hover; webcore keeps its pixel QMenu::indicator tick.
+    // The row's icon is its check box (browser .ctx-check): empty when off, the tick inside when on,
+    // in the menu's text colour. Webcore keeps its pixel QMenu::indicator tick.
     for (QAction* a : {w.acts.showPoints, w.acts.showLines}) {
       if (!a) continue;
       const auto tick = [this, a] {
         if (ActionIconMotionRunner* r = icm::runnerOfAction(a)) delete r;
-        a->setIcon(a->isChecked() && !support::isWebcore()
-                       ? themedIcon(QStringLiteral("check"), w.painted.iconColor, TOOL_ICON) : QIcon());
+        a->setIcon(support::isWebcore() ? QIcon()
+                                        : menuCheckBox(a->isChecked(), w.painted.iconColor, TOOL_ICON));
       };
       tick();
       if (!a->property("tickSync").toBool()) {

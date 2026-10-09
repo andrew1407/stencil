@@ -159,7 +159,7 @@ test('the reveal band is 28px while a panel is away and shrinks into its padding
 
 test('the drag handle forms and leaves with the dusted list, on the list\'s own clock', () => {
   const css = readFileSync(new URL('../../../css/components/fullscreen.css', import.meta.url), 'utf8');
-  assert.match(css, /#fs-points-panel\.dust-driven ~ #fs-panel-resizer \{ transition: none; \}/, 'no slide of its own');
+  assert.match(css, /#fs-points-panel\.dust-driven ~ #fs-panel-resizer \{ transition: right 0\.25s ease; \}/, 'no slide of its own, only the follow');
   assert.match(css, new RegExp(`#fs-points-panel\\.surface-forming ~ #fs-panel-resizer \\{ animation: surfaceForm ${POINTS_DUST_IN_MS}ms linear both; \\}`));
   assert.match(css, /#fs-points-panel\.surface-leaving ~ #fs-panel-resizer \{ opacity: 0; pointer-events: none; \}/);
 });

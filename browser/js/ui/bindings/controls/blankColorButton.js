@@ -2,6 +2,7 @@ import { normalizeHex } from '../../../core/settings/accents.js';
 import { activeIsBlank, setBlankColor, previewBlankColor } from '../../../core/image/blankImage.js';
 import { colorTrial } from './colorTrial.js';
 import { registerColorSwatch } from '../../drag/colorDragSwatches.js';
+import { wireColorButton } from '../../control/dblReset.js';
 // A drag through the picker tries each colour on the stage and the swatch; closing it on a new
 // colour recolours the blank once (reload, history reset, save, push), as the desktop's dialog does.
 export function wireBlankColorButton(app) {
@@ -22,13 +23,16 @@ export function wireBlankColorButton(app) {
       },
       onCommit: (value) => { if (activeIsBlank(app)) setBlankColor(app, value); },
     });
-    blankBtn.addEventListener('click', e => {
-      if (!activeIsBlank(app)) return;
-      e.stopPropagation();
-      blankInput.value = normalizeHex(app.blankColor) || '#ffffff';
-      previewBlankColor(app, null);
-      if (swatch) swatch.style.background = app.blankColor || '#ffffff';
-      openPicker(blankBtn);
+    wireColorButton(blankBtn, {
+      open: () => {
+        if (!activeIsBlank(app)) return;
+        blankInput.value = normalizeHex(app.blankColor) || '#ffffff';
+        previewBlankColor(app, null);
+        if (swatch) swatch.style.background = app.blankColor || '#ffffff';
+        openPicker(blankBtn);
+      },
+      // The blank's default is white (openImage/sources/blank.js).
+      reset: () => { if (activeIsBlank(app)) setBlankColor(app, '#ffffff'); },
     });
   }
 }

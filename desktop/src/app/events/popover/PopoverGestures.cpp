@@ -4,6 +4,7 @@
 #include "ShortcutsDialog.hpp"
 #include "../../../support/tip/altPeek.hpp"
 #include "../../../support/menu/comboAltPeek.hpp"
+#include "../../../support/motionPrefs.hpp"
 #include "ChatDock.hpp"
 
 // Alt-peek popovers: the linger poll, the outside-press test and dismissal.
@@ -112,6 +113,9 @@ namespace stencil::gui {
 
     const auto verdict = PopoverHost::judgePress(f, button);
     if (verdict.clearPeek) w.pop.peekAction.clear();
+    // Side by side, a click on the popover's own icon grows it into the full window.
+    if (verdict.dismiss && support::multiWindow() && button == Qt::LeftButton && target && target == w.pop.openAnchor)
+      w.pop.fullNextAction = w.pop.buttons.value(target, nullptr);
     if (verdict.dismiss) w.dismissPopover();
     if (verdict.armDismissClick) w.pop.dismissClick = true;
     return verdict.consume;

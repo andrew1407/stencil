@@ -36,6 +36,20 @@ export function createCtxNav({ menu }) {
     subShownPointer = null;
   };
 
+  // A flyout that changes height while open (the formula rows sliding in or out) is re-placed
+  // against its row on every frame of it: lifted as it grows, settling back as it shrinks.
+  const keepInView = (sub) => {
+    if (sub.__ctxInView || typeof ResizeObserver === 'undefined') return;
+    sub.__ctxInView = new ResizeObserver(() => {
+      const item = sub.__ctxItem;
+      if (!sub.classList.contains('ctx-sub-visible') || !item?.getBoundingClientRect) return;
+      const rowTop = item.getBoundingClientRect().top;
+      const fit = submenuPlacement({ left: 0, right: 0, top: rowTop }, 0, sub.offsetHeight, window.innerWidth, window.innerHeight).top;
+      if (fit !== parseFloat(sub.style.top)) sub.style.top = `${fit}px`;
+    });
+    sub.__ctxInView.observe(sub);
+  };
+
   const positionSub = (item, sub) => {
     // A re-place of an already open flyout must not replay the gather.
     const wasOpen = sub.classList.contains('ctx-sub-visible');
@@ -55,6 +69,7 @@ export function createCtxNav({ menu }) {
       sub.offsetWidth, sub.offsetHeight, window.innerWidth, window.innerHeight);
     sub.style.left = left + 'px';
     sub.style.top = top  + 'px';
+    keepInView(sub);
     subShownPointer = { ...lastPointer };
     // Marked fresh on every call, including a reposition: an item sliding under a still
     // cursor is exactly the case (samplePointer/clearFreshSubs).

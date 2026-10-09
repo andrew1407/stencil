@@ -1339,11 +1339,11 @@
           "hook": "ic-curve",
           "durationMs": 280,
           "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
-          "dashArray": 17.5,
+          "dashArray": 23,
           "keyframes": [
             {
               "at": 0,
-              "dashOffset": 17.5
+              "dashOffset": 23
             },
             {
               "at": 100,
@@ -1356,11 +1356,11 @@
           "durationMs": 140,
           "delayMs": 200,
           "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
-          "dashArray": 7,
+          "dashArray": 10,
           "keyframes": [
             {
               "at": 0,
-              "dashOffset": 7
+              "dashOffset": 10
             },
             {
               "at": 100,

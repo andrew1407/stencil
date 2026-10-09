@@ -4,8 +4,10 @@ import type { DrawingApp } from '../../core/drawingApp.js';
 import type { IconDragHandle, IconDragHooks } from './iconDrag.js';
 
 export declare const LENS_RADIUS_PX: number;
-/** ms the circle takes to open from a point to LENS_RADIUS_PX, and to close back into one. */
+/** ms the circle takes to open from a point to LENS_RADIUS_PX. */
 export declare const LENS_GROW_MS: number;
+/** ms the circle takes to close back into a point; longer than the open. */
+export declare const LENS_CLOSE_MS: number;
 export declare const LENS_CLASS: string;
 export declare const RIM_CLASS: string;
 
@@ -27,7 +29,8 @@ export interface ThemeLens {
   /** Moves the circle: a clip and a transform, nothing rebuilt. */
   move(x: number, y: number): void;
   /** Shrinks the circle back into a point, then removes it (at once when still). */
-  close(): void;
+  /** `done` runs once the circle has closed into its point. */
+  close(done?: (() => void) | null): void;
 }
 
 /** Builds the page copy in `theme` once and shows it through a circle at (x, y). */

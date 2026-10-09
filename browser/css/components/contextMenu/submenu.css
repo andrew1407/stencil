@@ -57,24 +57,22 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 6px 14px;
+    padding: 7px 14px;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 13px;
+    /* The menu's own rows (.ctx-item): not the bold 14px every <label> carries. */
+    font-size: inherit;
+    font-weight: normal;
     color: var(--text-main);
     user-select: none;
 }
 .ctx-checkbox-item:hover { background: var(--bg-coord-hover); }
-/* Context-menu checkbox: override the app-wide accent box (see the appearance:none base rule
-   at the top) so the outline + tick use the theme TEXT colour and read like the menu text. The
-   tick is a mask filled by the box colour, so it follows the theme in both light and dark. */
+/* The menu's one check box (.ctx-check): the app-wide accent box (controls.css) in the theme TEXT
+   colour, the tick drawn inside the outline rather than filling it. */
 .ctx-checkbox-item input[type=checkbox] { border-color: var(--text-main); cursor: pointer; }
 .ctx-checkbox-item input[type=checkbox]:checked {
-    background-color: var(--text-main);
-    border-color: transparent;
-    background-image: none;
-    -webkit-mask: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Cpath%20d='M3.5%208.5L6.4%2011.4L12.5%204.5'%20fill='none'%20stroke='%23fff'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E") center / 12px no-repeat;
-            mask: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Cpath%20d='M3.5%208.5L6.4%2011.4L12.5%204.5'%20fill='none'%20stroke='%23fff'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E") center / 12px no-repeat;
+    background: var(--menu-tick) center / 12px no-repeat;
+    border-color: var(--text-main);
 }
 
 /* Keyboard focus inside a flyout (contextMenu.js: the second → and Tab land on these):

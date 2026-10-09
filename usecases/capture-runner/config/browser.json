@@ -33,7 +33,8 @@
     {
       "name": "open-image-modal",
       "key": "open-image",
-      "overlay": "open-image-modal-overlay"
+      "overlay": "open-image-modal-overlay",
+      "url": "botIcon"
     },
     {
       "name": "help-modal",
@@ -72,9 +73,11 @@
   "clips": {
     "theme-swap": {
       "startTheme": "light",
+      "leadMs": 600,
       "holdMs": 2200
     },
     "create-blank": {
+      "leadMs": 600,
       "stepMs": 400,
       "holdMs": 700,
       "points": [
@@ -95,12 +98,26 @@
       "width": 900
     },
     "assistant-turn": {
-      "typeDelayMs": 28,
+      "leadMs": 600,
+      "typeDelayMs": 12,
       "holdMs": 1800
     },
     "script-run": {
+      "leadMs": 600,
       "typeDelayMs": 18,
+      "ranMs": 900,
       "holdMs": 1600
+    },
+    "fullscreen-strip": {
+      "leadMs": 600,
+      "edgeY": 2,
+      "parkAt": [
+        0.1,
+        0.5
+      ],
+      "holdMs": 1400,
+      "fps": 10,
+      "width": 900
     },
     "touch-pan": {
       "size": {

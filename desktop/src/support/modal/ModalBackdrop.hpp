@@ -48,14 +48,20 @@ namespace stencil::support {
       return out;
     }
 
-    // Covers `host` and goes when `dlg` closes. Null when the switch is off, or when there
-    // is nothing worth photographing.
+    // Covers `host` and goes when `dlg` closes. Null when the switch is off (side-by-side windows
+    // dim nothing), or when there is nothing worth photographing.
     static ModalBackdrop* behind(QDialog* dlg, QWidget* host) {
-      if (!modalBackdrop() || !dlg || !host) return nullptr;
+      if (!modalBackdrop() || multiWindow() || !dlg || !host) return nullptr;
       if (host->width() < 8 || host->height() < 8) return nullptr;
-      const QPixmap shot = photograph(host, {});
+      // One per dialog; and a backdrop still up (one fading out behind a window just closed) stays
+      // out of the photograph, or the darkness doubles (two 50% scrims read as 75%).
+      QList<QWidget*> live = host->findChildren<QWidget*>(QStringLiteral("modalBackdrop"), Qt::FindDirectChildrenOnly);
+      for (QWidget* w : live)
+        if (static_cast<ModalBackdrop*>(w)->owner == dlg) return static_cast<ModalBackdrop*>(w);
+      const QPixmap shot = photograph(host, live);
       if (shot.isNull()) return nullptr;
       auto* bd = new ModalBackdrop(host);
+      bd->owner = dlg;
       bd->shot = shot;
       bd->show();
       bd->raise();
@@ -88,6 +94,13 @@ namespace stencil::support {
           continue;
         behind(dlg, w);
       }
+    }
+
+    // Every backdrop up, fading away (Multiple windows switched on: side-by-side windows dim nothing).
+    static void clearAll() {
+      for (QWidget* top : QApplication::topLevelWidgets())
+        for (QWidget* w : top->findChildren<QWidget*>(QStringLiteral("modalBackdrop"), Qt::FindDirectChildrenOnly))
+          static_cast<ModalBackdrop*>(w)->fadeTo(0.0, FADE_OUT_MS, true);
     }
 
     // The dim and the blur come up and go together, as one fading surface.
@@ -138,6 +151,7 @@ namespace stencil::support {
       setGeometry(host->rect());
     }
     QPixmap shot;
+    QPointer<QDialog> owner;   // the dialog it dims for
     double level = 0.0;   // 0 = the window as it is, 1 = fully dimmed and blurred
     QPointer<QVariantAnimation> fade;
   };

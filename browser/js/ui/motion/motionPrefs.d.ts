@@ -1,6 +1,6 @@
 export type MotionMode = 'particles' | 'water' | 'fire' | 'slide' | 'none';
 export interface MotionPrefs { mode: MotionMode; drawing: boolean;
-  backdrop: boolean; }
+  backdrop: boolean; multiWindow: boolean; }
 
 export declare const MOTION_STORAGE_KEY: string;
 /** Fired after every change (eventBus/appBus.js EVENTS.motionChanged). */
@@ -23,6 +23,9 @@ export declare const drawingAnimations: () => boolean;
 /** Whether an open window dims and blurs what it covers. Desktop twin: motionPrefs.hpp. */
 export declare const modalBackdrop: () => boolean;
 export declare const DEFAULT_MODAL_BACKDROP: boolean;
+/** Many windows open at once, with no backdrop and no outside-click close. Desktop twin: motionPrefs.hpp multiWindow(). */
+export declare const multiWindow: () => boolean;
+export declare const DEFAULT_MULTI_WINDOW: boolean;
 /** True while a session override lies over the stored prefs. */
 export declare const motionOverridden: () => boolean;
 export declare const storedMotionMode: () => MotionMode;

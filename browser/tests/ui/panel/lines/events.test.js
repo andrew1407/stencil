@@ -87,7 +87,7 @@ test('a second line-swatch click inside the window resets the line to the toolba
   assert.equal(picker().picks, before, 'the double never opens the picker');
 });
 
-test('the point swatch picks that line\'s point colour and keeps the selection; a double gives the points the line\'s', (t) => {
+test('the point swatch picks that line\'s point colour and keeps the selection; a double gives the points the toolbar\'s', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const app = makeLinesApp();
   renderLinesList(app);
@@ -100,10 +100,11 @@ test('the point swatch picks that line\'s point colour and keeps the selection; 
   input.dispatch('change');
   assert.deepEqual([app.lines[1].pointColor, app.lines[1].color, app.saved], ['#123456', '', 1]);
   assert.deepEqual([app.selectedLines, app.selectedLineIdx, app.shown], [[0, 2], -1, 0], 'the selection is untouched');
+  app.pointColor = '#aa00aa';   // the toolbar's point colour, what a new line's points take
   body.dispatch('click', { target: pointSwatch(1) });
   body.dispatch('click', { target: pointSwatch(1) });
   t.mock.timers.tick(DOUBLE_TAP_MS);
-  assert.deepEqual([app.lines[1].pointColor, app.saved, input.picks], ['', 2, before + 1]);
+  assert.deepEqual([app.lines[1].pointColor, app.saved, input.picks], ['#aa00aa', 2, before + 1]);
 });
 
 test('a tap waits the longer tap window; a read-only compare view never recolours', (t) => {

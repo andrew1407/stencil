@@ -3,6 +3,13 @@ export declare const menuDustPoint: (trigger: HTMLElement | null | undefined) =>
 /** Points the slide entrance's transform-origin at `point` (the caret the motes fly from). */
 export declare const growFrom: (menu: HTMLElement | null, point: Point | null,
                                 opts?: { left?: number | null; above?: boolean }) => void;
+/** Below the trigger whenever the list fits there; above only when it does not and above has more room. */
+export declare const dropdownPosition: (args: {
+  anchor: { left: number; top: number; bottom: number };
+  box: { width: number; height: number };
+  viewport: { width: number; height: number };
+  gap?: number; margin?: number;
+}) => { left: number; top: number };
 export declare const placeMenu: (menu: HTMLElement | null, trigger: HTMLElement | null) => void;
 export declare const showMenu: (menu: HTMLElement | null, trigger: HTMLElement) => void;
 export declare const hideMenu: (menu: HTMLElement | null) => void;

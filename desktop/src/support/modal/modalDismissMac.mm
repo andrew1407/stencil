@@ -63,7 +63,7 @@ namespace stencil::support {
       }
     };
 
-    constexpr const char* BACKDROP_ATTACHED_PROP = "stencilModalBackdropAttached";
+    constexpr const char* BACKDROP_ATTACHED_PROP = MODAL_CATCHER_ATTACHED_PROPERTY;
 
     // The app's own window, as the browser's overlay covers only its page: a transparent window
     // over every screen was the first thing macOS brought back on a desktop switch, and blinked.
@@ -98,7 +98,8 @@ namespace stencil::support {
 
      protected:
       bool eventFilter(QObject* o, QEvent* e) override {
-        if (e->type() == QEvent::MouseButtonPress && dismissable(dlg)) {
+        if (e->type() == QEvent::MouseButtonPress && dismissable(dlg)
+            && dlg->windowModality() == Qt::ApplicationModal) {
           if (modalDismissLogOn())
             modalDismissLog(QStringLiteral("[modal] backdrop (app-modal) dismiss: %1")
                                 .arg(QString::fromLatin1(dlg->metaObject()->className())));
@@ -159,7 +160,7 @@ namespace stencil::support {
         // never activating; over the app's own window, re-anchored as the dialog is dragged.
         auto* backdrop = new QWidget(dlg, Qt::Tool | Qt::FramelessWindowHint
                                               | Qt::NoDropShadowWindowHint);
-        backdrop->setObjectName(QStringLiteral("stencilModalBackdrop"));
+        backdrop->setObjectName(QString::fromLatin1(MODAL_CATCHER_NAME));
         backdrop->setAttribute(Qt::WA_TranslucentBackground);
         backdrop->setAttribute(Qt::WA_NoSystemBackground);
         backdrop->setAttribute(Qt::WA_ShowWithoutActivating);

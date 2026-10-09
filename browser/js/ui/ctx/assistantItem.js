@@ -4,7 +4,7 @@ import { icon } from '../icons.js';
 import { ctxArrow } from './arrow.js';
 import { chatSuggestionsHtml, chatComposerActionsHtml } from '../chat/view.js';
 
-// Exists only when a provider is configured; an unreachable one still shows it.
+// Whether a provider is configured (the entry itself shows either way: ctx/assistant.js).
 export const assistantEnabled = (settings) => (settings?.provider ?? 'none') !== 'none';
 
 // Sits directly above the drawing items with no separator of its own, so gating it off

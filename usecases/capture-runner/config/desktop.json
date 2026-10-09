@@ -56,7 +56,7 @@
   "clip": {
     "name": "theme-swap",
     "startTheme": "light",
-    "ms": 1100,
+    "ms": 2800,
     "everyMs": 33,
     "inFps": 30,
     "fps": 15

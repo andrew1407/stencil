@@ -47,8 +47,9 @@ namespace stencil::gui {
     void addSection(Rows& r, const QString& text);
     void addRow(Rows& r, const QString& label, QWidget* field, bool column = true);
     QComboBox* addCombo(Rows& r, const QString& tip);
+    // `def` is what a double-click puts back (the browser's VIS_DEFAULTS).
     void addWell(Rows& r, QPushButton*& btn, QString& hex, const QString& tip,
-                 const QString& title);
+                 const QString& title, const QString& def);
     void addCheck(Rows& r, QCheckBox*& box, bool on, const QString& tip);
     // Section builders, in the order the browser's modal lists them.
     void buildAppearanceRows(Rows& r, const Settings& current);
@@ -100,6 +101,7 @@ namespace stencil::gui {
     QSpinBox* holdDelay = nullptr;
     QCheckBox* drawAnim = nullptr;         // canvas stroke motion (browser vs-draw-anim)
     QCheckBox* modalBackdrop = nullptr;    // dim+blur behind windows (browser vs-modal-backdrop)
+    QCheckBox* multiWindow = nullptr;      // windows side by side (browser vs-multi-window)
     QComboBox* motionMode = nullptr;       // particles | water | fire | slide | none (browser vs-motion-mode)
     QComboBox* notifyChannel = nullptr;    // toast | system (browser vs-notify-channel)
     QPushButton* selGlow = nullptr;        // selection highlight glow

@@ -26,7 +26,21 @@ namespace stencil::gui {
     opt.state |= checked ? QStyle::State_On : QStyle::State_Off;
     QPainter p(&pm);
     box->style()->drawPrimitive(QStyle::PE_IndicatorCheckBox, &opt, &p, box);
+    const QString art = box->property(CHECK_TICK_ART_PROPERTY).toString();
+    if (checked && !art.isEmpty()) paintCheckTick(p, QRectF(0, 0, r.width(), r.height()), art);
     return pm;
+  }
+
+
+  QString ctl::menuTickArt(const QColor& ink) {
+    return ink.lightness() > 127 ? QStringLiteral(":/icons/menu-tick-light.png")
+                                 : QStringLiteral(":/icons/menu-tick-dark.png");
+  }
+
+
+  void ctl::paintCheckTick(QPainter& p, const QRectF& box, const QString& art) {
+    const double t = box.width() * 12.0 / 15.0;
+    QIcon(art).paint(&p, QRectF(box.center().x() - t / 2, box.center().y() - t / 2, t, t).toRect());
   }
 
 

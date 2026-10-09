@@ -71,6 +71,9 @@ export interface StencilSettings {
   drawingAnimations: boolean;
   motionMode: MotionMode;
   readonly motionModes: MotionMode[];
+  modalBackdrop: boolean;
+  /** Many windows open at once: no backdrop, and a click outside closes none. */
+  multiWindow: boolean;
   /** Where a notice shows: in the app, or the browser's own once its permission is granted. */
   notifyChannel: NotifyChannel;
   fillColor: ColorInput;

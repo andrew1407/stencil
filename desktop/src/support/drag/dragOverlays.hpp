@@ -27,10 +27,26 @@ namespace stencil::support {
 
    private:
     QPixmap face;
+    QPixmap glowNear, glowFar;   // a mark's shadows along its own shape; null for a control
     QPoint grab;
     QColor accent;
     QTimer ticker;
     QElapsedTimer clock;
+  };
+
+  // The control a drag left, waiting for a cancelling return: seen through, dashed round its edge.
+  class DragSourceMark : public QWidget {
+   public:
+    // `held` (GLOBAL) is what the press took: a whole control, or one cell of a table.
+    DragSourceMark(QWidget* source, const QRect& held);
+
+   protected:
+    void paintEvent(QPaintEvent* event) override;
+
+   private:
+    QPointer<QWidget> source;
+    QColor veil;
+    QColor dash;
   };
 
   class DropGlow : public QWidget {

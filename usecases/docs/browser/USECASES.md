@@ -31,7 +31,7 @@ Open Image (`Ctrl+O`) takes a local file, a URL, or a blank page. Paste an `http
 address under **URL link** and open it; here the app's own logo, fetched straight from the
 repository:
 
-![the open-image window](img/open-image-modal.png)
+![the open-image window, previewing the logo's URL](img/open-image-modal.png)
 
 ![an image opened from a URL](img/open-from-url.png)
 
@@ -198,7 +198,7 @@ OpenAI-style server, or a Stencil collaboration server that proxies its own key.
 The script window (`Alt+Shift+S`) takes a `.stc` recipe, colours it as you type, names any
 error by line, and runs it with `Ctrl+Enter`. Drop a `.stc` file on the page to do the same.
 
-![typing and running a script](img/script-run.gif)
+![typing a script, running it, and the page it leaves behind](img/script-run.gif)
 
 ![the script window](img/script-modal.png)
 
@@ -270,4 +270,4 @@ when the pointer touches the top edge.
 |---|---|
 | ![keyboard shortcuts](img/shortcuts-modal.png) | ![help window](img/help-modal.png) |
 
-![the fullscreen strip](img/fullscreen-strip.png)
+![the toolbar sliding in at the top edge in fullscreen, and leaving again](img/fullscreen-strip.gif)

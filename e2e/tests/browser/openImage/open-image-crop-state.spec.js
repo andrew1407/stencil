@@ -90,9 +90,9 @@ test.describe('Open Image crop state', () => {
     await page.setInputFiles('#open-image-file', pngFile(900, 1300));
     await expect(cropRow(page)).toBeVisible({ timeout: 10_000 });
     await expect(toggle(page)).not.toBeChecked();
-    await page.locator('label[for="open-image-crop-toggle"]').click();
+    await page.locator('label.footer-hint[for="open-image-crop-toggle"]').click();
     await expect(toggle(page)).toBeChecked();
-    await page.locator('label[for="open-image-incognito"]').click();
+    await page.locator('label.footer-hint[for="open-image-incognito"]').click();
     await expect(page.locator('#open-image-incognito')).toBeChecked();
   });
 });

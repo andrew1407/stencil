@@ -37,7 +37,7 @@ namespace stencil::gui {
       w.canvas->selectLineByIndex(idx);
       w.canvas->setSelectedLineColor(w.settings.defaultColor);
     });
-    // Its reset leaves the points no colour of their own, so they draw in the line's.
+    // Its reset gives the points the toolbar's point colour, what a new line's take (browser swatchPicker.js).
     QObject::connect(w.selPanel, &SelectionPanel::pointSwatchPick, &w, [this, lineAt, shown](int idx) {
       const core::Line* line = lineAt(idx);
       if (!line) return;
@@ -48,7 +48,7 @@ namespace stencil::gui {
       if (c.isValid()) w.canvas->setSelectedLinePointColor(cssName(c), false, idx);
     });
     QObject::connect(w.selPanel, &SelectionPanel::pointSwatchReset, &w, [this, lineAt](int idx) {
-      if (lineAt(idx)) w.canvas->setSelectedLinePointColor(QString(), false, idx);
+      if (lineAt(idx)) w.canvas->setSelectedLinePointColor(cssName(w.parts.styleControls.effectiveDefaultPointColor()), false, idx);
     });
     QObject::connect(w.selPanel, &SelectionPanel::lineThicknessEdited, &w,
                      [this](int idx, int v) { w.canvas->setSelectedLineThickness(v, idx); });

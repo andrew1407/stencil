@@ -37,6 +37,9 @@ namespace stencil::support {
         QPointer<QAction>& cur = current[menu];
         if (a == cur) return;
         cur = a;
+        // Only a plain row sweeps (browser .ctx-item): a hosted row — a section caption, a check
+        // or a field — is not something you pick.
+        if (qobject_cast<QWidgetAction*>(a)) return;
         const QRect band = menu->actionGeometry(a);
         if (band.isValid()) overlay->sweepBand(band);
       });

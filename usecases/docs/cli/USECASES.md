@@ -68,7 +68,8 @@ Page formats and accent themes have listings of their own:
 
 ## Change the accent
 
-Click the logo to cycle the accent colour; the recolour sweeps across the screen.
+Click the logo to cycle the accent colour; the recolour sweeps across the screen, the image
+header and the edit log with it.
 
 ![the theme cycle](img/term-theme-cycle.gif)
 

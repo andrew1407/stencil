@@ -57,7 +57,9 @@ export const createModalFlight = (overlay, boxOf) => {
     const box = boxOf();
     if (!box) return;
     if (reducedMotion()) { settleSurface(box); return; }
-    (enter ? surfaceIn : surfaceOut)(box, originPoint);
+    // A side-by-side window's cloud flies at the window's own level, under any window above it.
+    const z = overlay.style?.zIndex;
+    (enter ? surfaceIn : surfaceOut)(box, originPoint, z ? { zIndex: z } : {});
   };
   // Measure while the window is still up, hand over to the cloud, wear `modal-closing`.
   const playClosing = () => {

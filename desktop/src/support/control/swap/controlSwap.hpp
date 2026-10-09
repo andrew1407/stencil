@@ -45,6 +45,9 @@ namespace stencil::gui {
   inline constexpr int CHECK_SWAP_PAD_PX = 22;
   inline constexpr const char* CHECK_SWAP_OBJECT_NAME = "stencilCheckSwap";
   inline constexpr const char* CHECK_SWAP_OWNER_PROPERTY = "stencilCheckSwapOwner";
+  // A box that paints its own tick (app/context/MenuCheckBox.hpp) names the art here, so its swap
+  // draws the same tick through ctl::paintCheckTick.
+  inline constexpr const char* CHECK_TICK_ART_PROPERTY = "stencilCheckTickArt";
 
   // Browser customSelect's markSwap: the old label scatters (300ms) under the new one's gather (400ms).
   inline constexpr int VALUE_SWAP_MS = 400;
@@ -70,6 +73,11 @@ namespace stencil::gui {
     QRect indicatorRect(const QCheckBox* box);
 
     QPixmap indicatorPixmap(QCheckBox* box, const QRect& r, bool checked);
+
+    // The menu's tick (browser --menu-tick) in the shade that reads on `ink`'s menu.
+    QString menuTickArt(const QColor& ink);
+    // `art` centred in a check `box` at 12/15 of its width: the browser's 12px tick in its 15px box.
+    void paintCheckTick(QPainter& p, const QRectF& box, const QString& art);
 
     void cancelCheckSwap(QCheckBox* box);
 

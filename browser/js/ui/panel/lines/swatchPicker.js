@@ -42,11 +42,12 @@ export const createSwatchPicker = (host) => {
       input.value = normalizeHex(hex) ?? normalizeHex(app.color) ?? '#ffff00';
       openColorPicker(input, swatch);
     },
-    // The line back to the toolbar's colour; its points to none of their own, so they draw in the
-    // line's (core pointColorOr), as the bar's point swatch shows them.
+    // Back to what a new line takes: the toolbar's line colour, and its point colour (the line
+    // colour while the toolbar's points follow it, core/line/shapeBuilder.js).
     reset(app, idx, prop) {
       if (!editable(app, idx)) return;
-      recolor(app, idx, prop, prop === 'color' ? withAlpha(app.lines[idx], prop, app.color) : '', true);
+      const to = prop === 'color' ? app.color : (app.pointColor || app.color);
+      recolor(app, idx, prop, withAlpha(app.lines[idx], prop, to), true);
     },
   });
 };

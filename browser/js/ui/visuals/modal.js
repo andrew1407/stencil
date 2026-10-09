@@ -5,7 +5,7 @@ import { DEFAULT_ACCENT } from '../../core/settings/accents.js';
 import { buildAccentPicker } from '../accent/picker.js';
 import { motionModeIcon } from '../motion/icons.js';
 import { enhanceSelect } from '../control/customSelect.js';
-import { motionPrefs, MOTION_EVENT, DEFAULT_MOTION_MODE, DEFAULT_DRAWING_ANIMATIONS, DEFAULT_MODAL_BACKDROP } from '../motion/motionPrefs.js';
+import { motionPrefs, MOTION_EVENT, DEFAULT_MOTION_MODE, DEFAULT_DRAWING_ANIMATIONS, DEFAULT_MODAL_BACKDROP, DEFAULT_MULTI_WINDOW } from '../motion/motionPrefs.js';
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';
 import { wireVoiceSilenceRow } from './voiceRow.js';
 import { wireNotifyRow } from './notifyRow.js';
@@ -94,10 +94,14 @@ export class StencilVisualsModal extends StencilElement {
     // Enhanced HERE, with each mode's glyph (animated on hover), not by the app-wide pass
     // — data-cs-skip on the <select> keeps that pass off it, or its plain rows would win.
     enhanceSelect(motionMode, { icons: motionModeIcon });
-    const checks = [['vs-draw-anim', 'drawing'], ['vs-modal-backdrop', 'backdrop']].map(([id, k]) => [document.getElementById(id), k]);
+    const checks = [['vs-draw-anim', 'drawing'], ['vs-modal-backdrop', 'backdrop'], ['vs-multi-window', 'multiWindow']].map(([id, k]) => [document.getElementById(id), k]);
+    const [backdropBox] = checks.find(([, k]) => k === 'backdrop');
+    // Side-by-side windows dim nothing, so the backdrop row stands idle while that is on.
     const syncMotion = () => {
       const m = motionPrefs();
       for (const [box, key] of checks) box.checked = m[key];
+      backdropBox.disabled = !!m.multiWindow;
+      backdropBox.closest('.vs-row')?.classList.toggle('vs-row-idle', !!m.multiWindow);
       motionMode.value = m.mode;
     };
     syncMotion();
@@ -183,7 +187,8 @@ export class StencilVisualsModal extends StencilElement {
     resetBtn.addEventListener('click', () => {
       Object.assign(app, VIS_DEFAULTS);
       app.accents.setAccent(DEFAULT_ACCENT);
-      const motionDefaults = [['drawing', DEFAULT_DRAWING_ANIMATIONS], ['backdrop', DEFAULT_MODAL_BACKDROP], ['mode', DEFAULT_MOTION_MODE]];
+      const motionDefaults = [['drawing', DEFAULT_DRAWING_ANIMATIONS], ['backdrop', DEFAULT_MODAL_BACKDROP],
+        ['multiWindow', DEFAULT_MULTI_WINDOW], ['mode', DEFAULT_MOTION_MODE]];
       for (const [k, v] of motionDefaults) app.settings.setMotion(k, v);
       voiceRow.reset();
       notifyRow.reset();

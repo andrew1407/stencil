@@ -9,7 +9,7 @@ import { publish, EVENTS } from '../../../js/eventBus/appBus.js';
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
-test('both flyout entries are settled before the menu is measured, and re-synced on a provider change', async () => {
+test('both flyout entries are settled before the menu is measured, and stay up across a provider change', async () => {
   const m = await wireContextMenu();
   const assist = m.flyout.item;
   m.scriptItem.dataset.noSub = 'stale';
@@ -23,10 +23,10 @@ test('both flyout entries are settled before the menu is measured, and re-synced
   assert.deepStrictEqual(atMeasure, ['0', '0'], 'the Assistant and Script rows are re-moded first');
   localStorage.setItem('drawingApp_llmSettings', JSON.stringify({ provider: 'none' }));
   publish(EVENTS.llmSettingsChanged);
-  assert.strictEqual(assist.style.display, 'none', 'no provider hides the entry');
+  assert.strictEqual(assist.style.display, '', 'no provider leaves the entry up');
   localStorage.setItem('drawingApp_llmSettings', JSON.stringify({ provider: 'ollama' }));
   publish(EVENTS.llmSettingsChanged);
-  assert.strictEqual(assist.style.display, '', 'a provider brings it back without a reload');
+  assert.strictEqual(assist.style.display, '', 'and a provider keeps it');
 });
 
 test('typing, resizing the composer or a running turn engage the flyout; hideSub honours it', async () => {

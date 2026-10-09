@@ -115,7 +115,7 @@ test('every switch is in the Visuals modal and on the console facade', async () 
   const { visualsModalInner } = await import('../../../js/ui/visuals/markup.js');
   const markup = visualsModalInner();
   assert.match(markup, /<div class="vs-section">Motion<\/div>/);
-  for (const id of ['vs-draw-anim', 'vs-modal-backdrop', 'vs-motion-mode']) assert.match(markup, new RegExp(`id="${id}"`));
+  for (const id of ['vs-draw-anim', 'vs-modal-backdrop', 'vs-multi-window', 'vs-motion-mode']) assert.match(markup, new RegExp(`id="${id}"`));
   // The checkboxes are one table — id ↔ motionPrefs key — read on open, written on change.
   setMotionPrefs({ mode: 'water', drawing: false, backdrop: true });
   const { calls, overlay } = await mountVisuals(doc, MOTION_MODES);
@@ -124,21 +124,24 @@ test('every switch is in the Visuals modal and on the console facade', async () 
   assert.deepEqual([$('vs-draw-anim').checked, $('vs-modal-backdrop').checked, $('vs-motion-mode').value], [false, true, 'water']);
   $('vs-modal-backdrop').checked = false;
   $('vs-modal-backdrop').dispatch('change');
+  $('vs-multi-window').checked = true;
+  $('vs-multi-window').dispatch('change');
   $('vs-motion-mode').value = 'fire';
   $('vs-motion-mode').dispatch('change');
-  assert.deepEqual(calls, [['backdrop', false], ['mode', 'fire']]);
+  assert.deepEqual(calls, [['backdrop', false], ['multiWindow', true], ['mode', 'fire']]);
   // Reset All restores every one of them along with the colours, from the same table.
   calls.length = 0;
   $('vs-reset').dispatch('click');
-  assert.deepEqual(calls, [['drawing', true], ['backdrop', true], ['mode', 'particles']]);
+  assert.deepEqual(calls, [['drawing', true], ['backdrop', true], ['multiWindow', false], ['mode', 'particles']]);
   // The facade's settings namespace goes through the ONE setter.
   const { createSettingsFacade } = await import('../../../js/console/settingsFacade.js');
   const setMotion = [];
   const facade = createSettingsFacade({ app: { settings: { setMotion: (k, v) => setMotion.push([k, v]) } }, guard: (o) => o }).settings();
   assert.equal(facade.drawingAnimations, motionPrefs().drawing);
   facade.modalBackdrop = 0;
+  facade.multiWindow = 1;
   facade.motionMode = 'slide';
-  assert.deepEqual(setMotion, [['backdrop', false], ['mode', 'slide']]);
+  assert.deepEqual(setMotion, [['backdrop', false], ['multiWindow', true], ['mode', 'slide']]);
   // …which is also what rejects a bad mode, and paints the modal's own control.
   const { SettingsController } = await import('../../../js/core/settings/controller.js');
   const controller = new SettingsController({});

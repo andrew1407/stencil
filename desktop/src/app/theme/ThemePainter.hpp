@@ -5,6 +5,9 @@
 #include <QString>
 #include <QWidget>
 
+#include <functional>
+#include <optional>
+
 class QAction;
 class QToolButton;
 class QMenu;
@@ -60,7 +63,8 @@ namespace stencil::gui {
 
    private:
     void openLens(const QPoint& global);
-    void closeLens();
+    // `done` runs once the circle has closed (at once with no lens up).
+    void closeLens(std::function<void()> done = {});
     bool lensAllowed() const;
     QString lensKey() const;
     void primeLens();

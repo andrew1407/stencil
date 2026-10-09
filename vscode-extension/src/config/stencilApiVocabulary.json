@@ -441,6 +441,13 @@
       "readOnly": true,
       "example": "stencil.mainTheme = stencil.mainThemes[0];"
     },
+    "modalBackdrop": {
+      "group": "settings",
+      "signature": "stencil.modalBackdrop: boolean",
+      "summary": "Whether an open window dims and blurs what it covers.",
+      "detail": "Off while multiWindow is on: side-by-side windows dim nothing.",
+      "example": "stencil.modalBackdrop = false;"
+    },
     "motionMode": {
       "group": "settings",
       "signature": "stencil.motionMode: MotionMode",
@@ -466,6 +473,13 @@
       "signature": "stencil.moveServerProjectToLocal(meta: RemoteProjectMeta): Promise<string>",
       "summary": "Take a server project and keep it here instead.",
       "example": "const id = await stencil.moveServerProjectToLocal(remote[0]);"
+    },
+    "multiWindow": {
+      "group": "settings",
+      "signature": "stencil.multiWindow: boolean",
+      "summary": "Keep several windows open side by side.",
+      "detail": "Nothing is dimmed or blurred, a click outside closes none, and the editor stays usable behind them.",
+      "example": "stencil.multiWindow = true;"
     },
     "newEditor": {
       "group": "session",

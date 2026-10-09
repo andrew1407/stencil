@@ -87,11 +87,13 @@ namespace stencil::gui {
       return pair;
     };
     colorSwatch = new QPushButton(card);
+    colorSwatch->setObjectName("selectedLineColorSwatch");
     setColorSwatch(colorSwatch, currentColor);
     lineAlpha = alphaBox(colorSwatch, currentColor, "Line", [this](const QString& v) { emit lineColorChanged(v); });
     addField("Line Color:", withAlpha(colorSwatch, lineAlpha));
 
     pointColorSwatch = new QPushButton(card);
+    pointColorSwatch->setObjectName("selectedLinePointSwatch");
     setColorSwatch(pointColorSwatch, currentPointColor);
     pointAlpha = alphaBox(pointColorSwatch, currentPointColor, "Point",
                           [this](const QString& v) { emit linePointColorChanged(v); });
@@ -163,8 +165,10 @@ namespace stencil::gui {
     wireColorWell(colorSwatch, currentColor, "Line color",
                   [this](const QString& v, bool preview) { emit lineColorChanged(v, preview); },
                   [this] { return lineColorDefault ? lineColorDefault() : defaultVisuals::table().color; });
+    // Points reset to the toolbar's point colour; an area's fill to the one a new area takes.
     wireColorWell(pointColorSwatch, currentPointColor, "Point color",
-                  [this](const QString& v, bool preview) { emit linePointColorChanged(v, preview); });
+                  [this](const QString& v, bool preview) { emit linePointColorChanged(v, preview); },
+                  [this] { return pointColorDefault ? pointColorDefault() : defaultVisuals::table().color; });
     connect(thickness, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int v) {
       if (!updating) emit lineThicknessChanged(v);
     });
@@ -185,7 +189,8 @@ namespace stencil::gui {
                       return;
                     }
                     emit lineFillChanged(v, preview);
-                  });
+                  },
+                  [this] { return defaultFill; });
     connect(fillClear, &QPushButton::clicked, this, [this] {
       if (updating) return;
       emit lineFillChanged(QStringLiteral("transparent"));

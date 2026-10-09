@@ -14,6 +14,24 @@
 :root[data-modal-backdrop] .app-modal-overlay:not(.modal-popover) {
     background: rgba(0,0,0,0.5);
 }
+/* Multiple windows switched off: the window kept takes its dim and blur only once the others have
+   closed (shell.js holdBackdrop), so their motes never fly over the dark; then both fade in. */
+:root[data-modal-backdrop] :is(.app-modal-overlay, #settings-modal-overlay).modal-open.backdrop-wait {
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+:is(.app-modal-overlay, #settings-modal-overlay).modal-open {
+    transition: background-color 0.22s ease, backdrop-filter 0.22s ease, -webkit-backdrop-filter 0.22s ease;
+}
+/* Multiple windows (motionPrefs multiWindow): no scrim, and the page under the windows stays live. A
+   confirm still holds its question; shell.js stamps each window's z-index in raise order. */
+:root[data-multi-window] :is(.app-modal-overlay, #settings-modal-overlay):not(.modal-popover, #confirm-modal-overlay) {
+    background: transparent;
+    pointer-events: none;
+}
+:root[data-multi-window] .app-modal-overlay:not(.modal-popover, #confirm-modal-overlay) .app-modal,
+:root[data-multi-window] #settings-modal-overlay:not(.modal-popover) #settings-modal { pointer-events: auto; }
 /* The header is the grab handle (ui/modal/drag.js); the popover, placed inline, is not draggable. */
 :is(.app-modal-overlay, #settings-modal-overlay):not(.modal-popover) .settings-header { cursor: grab; }
 :is(.app-modal, #settings-modal).modal-dragging .settings-header { cursor: grabbing; }
@@ -104,6 +122,10 @@
     font-size: 13px;
 }
 .vs-row label { font-weight: normal; }
+/* A caption tied to its check toggles it, so it takes the hand the box does. */
+.vs-row label[for] { cursor: pointer; user-select: none; }
+/* A row another setting overrides (Dim and blur, under Multiple windows) reads as idle. */
+.vs-row.vs-row-idle label { opacity: .5; cursor: default; }
 .vs-row input[type="color"] { width: 46px; height: 24px; padding: 2px; cursor: pointer; }
 .vs-row input[type="number"], .vs-row select { width: 90px; }
 /* One control column, flush right, so the rows read as a table (desktop settingsDialog parity).

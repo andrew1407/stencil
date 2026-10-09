@@ -33,14 +33,14 @@ test('the defaults are "everything moves, made of particles"', () => {
   assert.deepEqual(MOTION_MODES, ['particles', 'water', 'fire', 'slide', 'none']);
   assert.deepEqual(PARTICLE_MODES, ['particles', 'water', 'fire']);
   assert.equal(DEFAULT_MOTION_MODE, 'particles');
-  assert.deepEqual(motionPrefs(), { mode: 'particles', drawing: true, backdrop: true });
+  assert.deepEqual(motionPrefs(), { mode: 'particles', drawing: true, backdrop: true, multiWindow: false });
   // The dropdown offers every mode, in this order, and nothing else.
   assert.deepEqual(MOTION_MODE_LABELS.map(([k]) => k), MOTION_MODES);
 });
 
 // Water and fire are particles too: the same gate, a different style on the grains.
 test('water and fire fly particles like dust, each wearing its own style', () => {
-  setMotionPrefs({ mode: 'particles', drawing: true, backdrop: true });
+  setMotionPrefs({ mode: 'particles', drawing: true, backdrop: true, multiWindow: false });
   assert.equal(particleStyle(), 'dust');
   setMotionPrefs({ mode: 'water' });
   assert.equal(dustEnabled(), true, 'water: the clouds still fly');
@@ -50,7 +50,7 @@ test('water and fire fly particles like dust, each wearing its own style', () =>
   setMotionPrefs({ mode: 'fire' });
   assert.equal(dustEnabled(), true);
   assert.equal(particleStyle(), 'fire');
-  assert.deepEqual(reloadMotionPrefs(), { mode: 'fire', drawing: true, backdrop: true }, 'persists like any mode');
+  assert.deepEqual(reloadMotionPrefs(), { mode: 'fire', drawing: true, backdrop: true, multiWindow: false }, 'persists like any mode');
   setMotionPrefs({ mode: 'slide' });
   assert.equal(particleStyle(), null, 'no particles, no style');
   setMotionPrefs({ mode: 'particles' });
@@ -65,9 +65,9 @@ test('an unknown, missing or junk mode reads as the default — never as "off"',
   assert.equal(normalizeMotionMode('sparkles'), 'particles');
   assert.equal(normalizeMotionMode(undefined), 'particles');
   store.set(MOTION_STORAGE_KEY, '{ not json');
-  assert.deepEqual(reloadMotionPrefs(), { mode: 'particles', drawing: true, backdrop: true });
+  assert.deepEqual(reloadMotionPrefs(), { mode: 'particles', drawing: true, backdrop: true, multiWindow: false });
   store.set(MOTION_STORAGE_KEY, JSON.stringify({ mode: 'nope', drawing: 0 }));
-  assert.deepEqual(reloadMotionPrefs(), { mode: 'particles', drawing: false, backdrop: true });
+  assert.deepEqual(reloadMotionPrefs(), { mode: 'particles', drawing: false, backdrop: true, multiWindow: false });
   store.delete(MOTION_STORAGE_KEY);
   reloadMotionPrefs();
 });
@@ -76,20 +76,20 @@ test('a change persists, restamps <html data-motion> and announces itself', () =
   events.length = 0;
   setMotionPrefs({ mode: 'slide' });
   assert.equal(motionMode(), 'slide');
-  assert.deepEqual(JSON.parse(store.get(MOTION_STORAGE_KEY)), { mode: 'slide', drawing: true, backdrop: true });
+  assert.deepEqual(JSON.parse(store.get(MOTION_STORAGE_KEY)), { mode: 'slide', drawing: true, backdrop: true, multiWindow: false });
   assert.equal(doc.documentElement.attrs.get('data-motion'), 'slide');
   assert.equal(events.at(-1).type, MOTION_EVENT);
-  assert.deepEqual(events.at(-1).detail, { mode: 'slide', drawing: true, backdrop: true });
+  assert.deepEqual(events.at(-1).detail, { mode: 'slide', drawing: true, backdrop: true, multiWindow: false });
   // A patch touches only what it names.
   setMotionPrefs({ drawing: false });
-  assert.deepEqual(motionPrefs(), { mode: 'slide', drawing: false, backdrop: true });
+  assert.deepEqual(motionPrefs(), { mode: 'slide', drawing: false, backdrop: true, multiWindow: false });
   // …and a fresh load reads back exactly what was written.
-  assert.deepEqual(reloadMotionPrefs(), { mode: 'slide', drawing: false, backdrop: true });
+  assert.deepEqual(reloadMotionPrefs(), { mode: 'slide', drawing: false, backdrop: true, multiWindow: false });
 });
 
 // The truth table every helper in the app leans on.
 test('particles / slide / none each answer the two gates differently', () => {
-  setMotionPrefs({ mode: 'particles', drawing: true, backdrop: true });
+  setMotionPrefs({ mode: 'particles', drawing: true, backdrop: true, multiWindow: false });
   assert.equal(motionReduced(), false);
   assert.equal(dustEnabled(), true, 'particles: dust flies');
   assert.equal(drawMotionEnabled(), true);
@@ -106,7 +106,7 @@ test('particles / slide / none each answer the two gates differently', () => {
 });
 
 test('the drawing switch is independent of the interface mode', () => {
-  setMotionPrefs({ mode: 'particles', drawing: false, backdrop: true });
+  setMotionPrefs({ mode: 'particles', drawing: false, backdrop: true, multiWindow: false });
   assert.equal(drawingAnimations(), false);
   assert.equal(drawMotionEnabled(), false, 'the canvas is still');
   assert.equal(dustEnabled(), true, 'while the windows still form out of dust');
@@ -114,7 +114,7 @@ test('the drawing switch is independent of the interface mode', () => {
 
 // The OS preference is never overridden by ours: reduce means reduce, whatever is stored.
 test('prefers-reduced-motion wins over any stored mode', () => {
-  setMotionPrefs({ mode: 'particles', drawing: true, backdrop: true });
+  setMotionPrefs({ mode: 'particles', drawing: true, backdrop: true, multiWindow: false });
   reduced = true;
   assert.equal(motionReduced(), true);
   assert.equal(dustEnabled(), false);
@@ -127,9 +127,9 @@ test('prefers-reduced-motion wins over any stored mode', () => {
 // store never does, and the user's next choice lifts it whole.
 test('a session override is read everywhere, written nowhere, and lifted by the next choice', () => {
   const { setMotionOverride, motionOverridden, modalBackdrop } = prefs;
-  setMotionPrefs({ mode: 'water', drawing: true, backdrop: true });
+  setMotionPrefs({ mode: 'water', drawing: true, backdrop: true, multiWindow: false });
   const stored = store.get(MOTION_STORAGE_KEY);
-  setMotionOverride({ mode: 'none', drawing: false, backdrop: false });
+  setMotionOverride({ mode: 'none', drawing: false, backdrop: false, multiWindow: false });
   assert.equal(motionOverridden(), true);
   assert.equal(motionReduced(), true);
   assert.equal(drawMotionEnabled(), false);
@@ -142,6 +142,6 @@ test('a session override is read everywhere, written nowhere, and lifted by the 
   setMotionOverride({ mode: 'none' });
   setMotionPrefs({ drawing: false });
   assert.equal(motionMode(), 'water', 'a choice of any switch lifts the whole override');
-  assert.deepEqual(JSON.parse(store.get(MOTION_STORAGE_KEY)), { mode: 'water', drawing: false, backdrop: true });
-  setMotionPrefs({ mode: 'particles', drawing: true, backdrop: true });
+  assert.deepEqual(JSON.parse(store.get(MOTION_STORAGE_KEY)), { mode: 'water', drawing: false, backdrop: true, multiWindow: false });
+  setMotionPrefs({ mode: 'particles', drawing: true, backdrop: true, multiWindow: false });
 });

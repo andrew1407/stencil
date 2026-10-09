@@ -35,7 +35,7 @@ test('the blank picker tries colours on the stage and commits one recolour on cl
   const fills = [];
   const { btn, input, swatch } = controls('blank-color-btn', 'blank-color-input');
   wireBlankColorButton(blankApp(fills));
-  btn.dispatch('click', { stopPropagation() {} });
+  btn.dispatch('click', { detail: 0, stopPropagation() {} });
   for (const v of ['#ff0000', '#ee0000', '#dd0000']) tick(input, v);
   assert.deepEqual(fills, [null, '#ff0000', '#ee0000', '#dd0000']);
   assert.equal(swatch.style.background, '#dd0000');
@@ -50,7 +50,7 @@ test('a pick the browser reverted in silence ends its trial on the page\'s next 
   const fills = [];
   const { btn, input } = controls('blank-color-btn', 'blank-color-input');
   wireBlankColorButton(blankApp(fills));
-  btn.dispatch('click', { stopPropagation() {} });
+  btn.dispatch('click', { detail: 0, stopPropagation() {} });
   tick(input, '#123456');
   input.value = '#ffffff';
   doc.dispatch('pointerdown');
@@ -68,7 +68,7 @@ test('the project picker paints the name on trial and stores and pushes one colo
   const { btn, input } = controls('project-color-btn', 'project-color-input');
   wireProjectColorButton(app);
   const name = doc.getElementById('project-name-input');
-  btn.dispatch('click', { stopPropagation() {} });
+  btn.dispatch('click', { detail: 0, stopPropagation() {} });
   assert.equal(input.value, '#80868f');
   for (const v of ['#ec4899', '#db2777']) tick(input, v);
   assert.deepEqual([name.style.color, commits], ['#db2777', []], 'a trial writes nothing');
@@ -77,4 +77,25 @@ test('the project picker paints the name on trial and stores and pushes one colo
   assert.equal(name.style.color, '#db2777');
   tick(input, '#80868f');
   assert.equal(name.style.color, '#db2777', 'a later tick at the opening colour is no trial');
+});
+
+// A double-click resets instead of opening: the open waits out the double-click window
+// (dblReset.js wireColorButton, desktop wireColorChip).
+test('a double-click on either colour button resets it, and no picker opens', async () => {
+  const commits = [];
+  const meta = { name: 'p', color: '#db2777' };
+  const app = {
+    activeProjectId: 'p1', storage: { incognito: false, store: { getMeta: () => meta } }, imageBaseName: 'p',
+    projectTransfer: { setProjectColor: (id, c) => { commits.push([id, c]); meta.color = c; } },
+  };
+  const { btn, input } = controls('project-color-btn', 'project-color-input');
+  let opened = 0;
+  input.showPicker = () => { opened += 1; };
+  wireProjectColorButton(app);
+  btn.dispatch('click', { detail: 1, stopPropagation() {} });
+  btn.dispatch('click', { detail: 2, stopPropagation() {} });
+  await new Promise((r) => setTimeout(r, 600));
+  assert.deepEqual(commits, [['p1', '']], 'the name colour is cleared');
+  assert.equal(opened, 0);
+  assert.equal(doc.getElementById('project-color-menu'), null, 'and no menu is left up');
 });

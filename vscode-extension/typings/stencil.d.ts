@@ -354,6 +354,30 @@ interface StencilSettings {
    */
   readonly motionModes: MotionMode[];
   /**
+   * Whether an open window dims and blurs what it covers.
+   *
+   * Off while multiWindow is on: side-by-side windows dim nothing.
+   *
+   * ```js
+   * stencil.modalBackdrop = false;
+   * ```
+   *
+   * [Stencil console API](https://github.com/andrew1407/stencil/blob/main/browser/README.md#console-api)
+   */
+  modalBackdrop: boolean;
+  /**
+   * Keep several windows open side by side.
+   *
+   * Nothing is dimmed or blurred, a click outside closes none, and the editor stays usable behind them.
+   *
+   * ```js
+   * stencil.multiWindow = true;
+   * ```
+   *
+   * [Stencil console API](https://github.com/andrew1407/stencil/blob/main/browser/README.md#console-api)
+   */
+  multiWindow: boolean;
+  /**
    * Where a notice shows: in the app, or as the browser's own notifications.
    *
    * 'toast' is the corner stack in the page, the default. 'system' hands every notice to the browser's Notification API; the Visuals dialog asks for that permission, and while it is not granted the toasts show the notice instead.

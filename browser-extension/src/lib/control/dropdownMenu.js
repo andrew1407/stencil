@@ -3,7 +3,7 @@
 // carries the browser suite's cases. An open menu moves to <body> and is placed in viewport
 // coordinates, capped to the room available so a long list scrolls; that matters more here, since
 // the popup window is only ~400x600. While open the menu is NOT inside the component.
-import { popoverPosition, PRESS_SLOP_PX } from '../tip/popover.js';
+import { PRESS_SLOP_PX } from '../tip/popover.js';
 import { surfaceIn, surfaceOut, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../motion.js';
 
 const GAP = 4;        // between trigger and menu
@@ -37,13 +37,24 @@ const home = new WeakMap();
 
 // Position an already-visible menu (portaled, position: fixed) against its trigger,
 // in viewport coordinates.
+// Below the trigger whenever the list fits there, as a native select opens; above only when it
+// does not and above has more room (popoverPosition prefers the roomier side outright). Pure.
+export const dropdownPosition = ({ anchor, box, viewport, gap = GAP, margin = MARGIN }) => {
+  const below = anchor.bottom + gap;
+  const fitsBelow = below + box.height <= viewport.height - margin;
+  let top = fitsBelow || viewport.height - anchor.bottom >= anchor.top ? below : anchor.top - gap - box.height;
+  top = Math.max(margin, Math.min(top, viewport.height - margin - box.height));
+  const left = Math.max(margin, Math.min(anchor.left, viewport.width - margin - box.width));
+  return { left, top };
+};
+
 export const placeMenu = (menu, trigger) => {
   if (!menu || !trigger || !trigger.getBoundingClientRect) return;
   const a = trigger.getBoundingClientRect();
   menu.__ddAt = a;   // the trigger's box the list was placed against, for the motes' anchor
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  // Whichever side has more room decides the cap — popoverPosition then picks that side.
+  // Whichever side has more room decides the cap; dropdownPosition then picks the side.
   const room = Math.max(vh - a.bottom, a.top) - GAP - MARGIN;
   menu.style.maxHeight = `${Math.max(120, Math.min(MAX_H, Math.floor(room)))}px`;
   menu.style.minWidth = `${Math.round(a.width)}px`;
@@ -51,13 +62,7 @@ export const placeMenu = (menu, trigger) => {
   // (menuFromAnchor), which placed a list flipped above its trigger over the trigger.
   const r = menu.getBoundingClientRect();
   const box = { width: menu.offsetWidth || r.width, height: menu.offsetHeight || r.height };
-  const { left, top } = popoverPosition({
-    anchor: { left: a.left, top: a.top, bottom: a.bottom },
-    box,
-    viewport: { width: vw, height: vh },
-    gap: GAP,
-    margin: MARGIN,
-  });
+  const { left, top } = dropdownPosition({ anchor: a, box, viewport: { width: vw, height: vh } });
   menu.style.left = `${Math.round(left)}px`;
   menu.style.top = `${Math.round(top)}px`;
   // A list that had to flip ABOVE its trigger grows out of its bottom edge instead of its

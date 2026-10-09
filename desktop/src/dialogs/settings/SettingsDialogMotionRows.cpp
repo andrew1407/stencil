@@ -1,4 +1,4 @@
-// The Motion section — the two toggles and the interface-animation mode with its glyphs — and
+// The Motion section — the three toggles and the interface-animation mode with its glyphs — and
 // the Notifications section: where a notice shows.
 #include "SettingsDialog.hpp"
 #include "../../support/menu/SearchCombo.hpp"
@@ -12,7 +12,7 @@
 namespace stencil::gui {
 
   void SettingsDialog::buildMotionRows(Rows& r, const Settings& current) {
-    // Motion (browser modal.js "Motion", the same two rows in the same order). Live-applied,
+    // Motion (browser modal.js "Motion", the same rows in the same order). Live-applied,
     // so the dialog's own closing flight is already the mode you just picked.
     addSection(r, tr("Motion"));
     // Seeded from the switches in FORCE, not the stored ones: under a skin the interface is
@@ -35,6 +35,14 @@ namespace stencil::gui {
           "On: an open window dims and blurs what it covers.\nOff: it sits on a sharp page.");
     addRow(r, tr("Dim and blur behind windows"), modalBackdrop, /*column=*/false);
     connect(modalBackdrop, &QCheckBox::clicked, this, touched);
+
+    addCheck(r, multiWindow, current.multiWindow,   // the browser row's data-title, word for word
+          "Keep several windows open side by side: nothing is dimmed or blurred, a click outside "
+          "closes none, and the app stays usable behind them");
+    addRow(r, tr("Multiple windows"), multiWindow, /*column=*/false);
+    // Side-by-side windows dim nothing, so the backdrop row stands idle while that is on.
+    modalBackdrop->setEnabled(!multiWindow->isChecked());
+    connect(multiWindow, &QCheckBox::toggled, this, [this](bool on) { modalBackdrop->setEnabled(!on); });
 
     motionMode = addCombo(r, QString());   // no tooltip — the browser's dropdown has none (the glyphs say it)
     motionMode->setObjectName(QStringLiteral("motionModeCombo"));

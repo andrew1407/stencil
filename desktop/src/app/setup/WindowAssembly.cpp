@@ -174,6 +174,7 @@ namespace stencil::gui {
     // suppresses Qt's.
     w.selectedLineBar = new SelectedLineBar(&w);
     w.selectedLineBar->setLineColorDefault([this] { return QColor(w.settings.defaultColor); });
+    w.selectedLineBar->setPointColorDefault([this] { return w.parts.styleControls.effectiveDefaultPointColor(); });
     w.selectedLineDock = new QDockWidget(&w);
     w.selectedLineDock->setObjectName("selectedLineDock");
     w.selectedLineDock->setFeatures(QDockWidget::NoDockWidgetFeatures);

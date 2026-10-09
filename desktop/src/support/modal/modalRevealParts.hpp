@@ -208,7 +208,8 @@ namespace stencil::support {
    protected:
     bool eventFilter(QObject* o, QEvent* e) override {
       auto* dlg = qobject_cast<QDialog*>(o);
-      if (!dlg || !dlg->isWindow() || dlg->testAttribute(Qt::WA_DontShowOnScreen))
+      if (!dlg || !dlg->isWindow() || dlg->testAttribute(Qt::WA_DontShowOnScreen)
+          || dlg->property(REMODAL_PROPERTY).toBool())
         return QObject::eventFilter(o, e);
       if (e->type() == QEvent::Show && !e->spontaneous() && !dlg->testAttribute(Qt::WA_Moved)) {
         if (claimLanding(*dlg)) centreOnHost(*dlg);   // at once: not every platform moves it after a Show

@@ -88,6 +88,9 @@ export const createSettingsFacade = ({ app, guard }) => {
     // its Visuals dialog (support/motionPrefs.hpp modalBackdrop).
     get modalBackdrop() { return motionPrefs().backdrop; },
     set modalBackdrop(v) { app.settings.setMotion('backdrop', !!v); },
+    // Many windows open at once, no backdrop, no outside-click close (support/motionPrefs.hpp multiWindow()).
+    get multiWindow() { return motionPrefs().multiWindow; },
+    set multiWindow(v) { app.settings.setMotion('multiWindow', !!v); },
     // Where a notice shows: 'toast' (in the app) | 'system' (the browser's own, once granted).
     get notifyChannel() { return notifyChannel(); },
     set notifyChannel(v) { app.settings.setNotifyChannel(v); },

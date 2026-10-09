@@ -102,14 +102,14 @@ namespace stencil::gui {
     menu.addAction(w.acts.fullscreen);
     menu.addSeparator();
 
-    // Assistant submenu only when a provider is configured (adds NO separator). Live-input handling is scoped to THIS child menu.
-    if (w.settings.llmProvider != QLatin1String("none")) {
+    // Assistant submenu, always — with no provider its status says so (adds NO separator). Live-input handling is
+    // scoped to THIS child menu.
+    {
       w.chatSession->ensureChatMenuPanel();
       w.chatSession->refreshLlmStatus();  // fresh provider dot/tooltip on the panel's gear
       StayOpenMenu* assistant = subMenu("sparkle", QStringLiteral("Assistant") + hintTab(w.acts.chat));
       assistant->addAction(w.chatSession->chatMenuAction);
       assistant->setInteractiveArea(w.chatSession->chatMenuPanel, w.chatSession->chatMenuInput);
-      // No separator BELOW it, so the disabled case leaves exactly the original separators.
     }
     // browser: #ctx-script, right under the Assistant — a caret onto the same editor the
     // script window holds, scoped the same way. The window itself stays on Alt+Shift+S.

@@ -157,6 +157,9 @@ inline QString envOr(const char* key, const char* fallback) {
   return value.isEmpty() ? QString::fromUtf8(fallback) : value;
 }
 
+inline QString faviconUrl() {
+  return envOr("STENCIL_DOCS_FAVICON_URL", "https://raw.githubusercontent.com/andrew1407/stencil/main/common/icons/favicon.svg");
+}
 inline QString suffixed(const QString& name, const QString& theme) { return name + "-" + theme; }
 
 inline stencil::core::Line line(std::vector<stencil::core::Point> pts, const char* color, double thick, const char* style) {
@@ -210,6 +213,8 @@ class MainWindowGuiTest {
   static void dropShots(stencil::gui::MainWindow& win, const ShotSet& shots);
   // The Make a copy flyouts and dialog, the swatch picker and the linked-script confirm.
   static void copyScriptShots(stencil::gui::MainWindow& win, const ShotSet& shots);
+  // The Open Image dialog on its URL tab, the repository's logo typed in and previewed.
+  static void openImageUrlShot(stencil::gui::MainWindow& win, const QString& name);
   // The chrome drags as frame strips: icon to dialog, mark to clean view, theme lens, colour chip.
   static void gestureShots(stencil::gui::MainWindow& win, const ShotSet& shots);
   // Fit the image to the window, then clear the toasts the load left.

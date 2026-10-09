@@ -11,7 +11,7 @@ import { node, SheetStandIn, pageDoc } from '../../helpers/lensDomRig.js';
 globalThis.CSSStyleSheet = SheetStandIn;
 globalThis.getComputedStyle = () => ({});
 const {
-  LENS_RADIUS_PX, LENS_GROW_MS, lensRadiusAt, closingRadiusAt, LENS_CLASS, RIM_CLASS, otherTheme, lensClip, rimTransform, openThemeLens, themeLensHooks,
+  LENS_RADIUS_PX, LENS_GROW_MS, LENS_CLOSE_MS, lensRadiusAt, closingRadiusAt, LENS_CLASS, RIM_CLASS, otherTheme, lensClip, rimTransform, openThemeLens, themeLensHooks,
 } = await import('../../../js/ui/drag/themeLens.js');
 const { NO_COPY_ATTR, COPY_CLASS } = await import('../../../js/ui/accent/themeCopy.js');
 const { createIconDrag } = await import('../../../js/ui/drag/iconDrag.js');
@@ -72,24 +72,30 @@ test('the circle opens from a point to its radius, eased, and stops growing once
   while (frames.length) frames.shift()();
   assert.equal(lens.radius, LENS_RADIUS_PX);
   assert.equal(lens.rim.style.transform, rimTransform(70, 80));
-  lens.close();
+  let closed = 0;
+  lens.close(() => { closed++; });
   assert.ok(doc.body.children.includes(lens.host), 'closing, the circle is still there…');
-  t += LENS_GROW_MS / 2;
-  frames.shift()();
-  assert.ok(lens.radius > 0 && lens.radius < LENS_RADIUS_PX, '…shrinking');
   t += LENS_GROW_MS;
+  frames.shift()();
+  assert.ok(lens.radius > 0 && lens.radius < LENS_RADIUS_PX, '…still shrinking after the open\'s whole time (the close outlasts it)');
+  assert.equal(closed, 0, 'nothing waits on it yet');
+  t += LENS_CLOSE_MS;
   while (frames.length) frames.shift()();
   assert.equal(lens.radius, 0);
   assert.ok(!doc.body.children.includes(lens.host) && !doc.body.children.includes(lens.rim), '…then gone');
+  assert.equal(closed, 1, 'and what waited on the close runs once');
+  assert.deepEqual([LENS_GROW_MS, LENS_CLOSE_MS], [192, 360]);
   assert.equal(closingRadiusAt(0, 60), 60);
-  assert.equal(closingRadiusAt(LENS_GROW_MS, 60), 0);
+  assert.ok(closingRadiusAt(LENS_GROW_MS, 60) > 0);
+  assert.equal(closingRadiusAt(LENS_CLOSE_MS, 60), 0);
 });
 
 // A fake lens and an app whose setTheme records any call, over a stand-in page root.
 const rig = ({ skin = null } = {}) => {
   const opened = [];
   const open = (x, y, opts) => {
-    const lens = { at: [x, y], opts, moves: [], closed: 0, move(px, py) { lens.moves.push([px, py]); }, close() { lens.closed++; } };
+    const lens = { at: [x, y], opts, moves: [], closed: 0, done: null,
+                   move(px, py) { lens.moves.push([px, py]); }, close(done) { lens.closed++; lens.done = done; } };
     opened.push(lens);
     return lens;
   };
@@ -113,18 +119,26 @@ test('the start opens the lens in the other theme on the pointer; moves move it'
   assert.deepEqual(opened[0].moves, [[60, 70]]);
 });
 
-test('a preview only: a drop anywhere, or a cancel, closes the lens and switches nothing', () => {
-  for (const end of ['drop', 'cancel']) {
-    const { opened, calls, hooks } = rig();
-    hooks.start({ x: 1, y: 1 });
-    hooks.move({ x: 300, y: 200 });
-    hooks[end]({ x: 300, y: 200 });
-    assert.equal(opened[0].closed, 1, end);
-    assert.deepEqual(calls, [], `${end}: the theme stays`);
-  }
+test('a drop closes the lens and the theme stays', () => {
+  const { opened, calls, hooks } = rig();
+  hooks.start({ x: 1, y: 1 });
+  hooks.move({ x: 300, y: 200 });
+  hooks.drop({ x: 300, y: 200 });
+  assert.equal(opened[0].closed, 1);
+  opened[0].done?.();
+  assert.deepEqual(calls, [], 'a preview only: nothing switches once it has closed');
 });
 
-test('through the drag machine: released off the switch or back on it, the theme stays', () => {
+test('a cancel (Escape) closes the lens and the theme stays', () => {
+  const { opened, calls, hooks } = rig();
+  hooks.start({ x: 1, y: 1 });
+  hooks.cancel();
+  assert.equal(opened[0].closed, 1);
+  opened[0].done?.();
+  assert.deepEqual(calls, []);
+});
+
+test('through the drag machine: released anywhere the lens closes and the theme stays', () => {
   const { opened, calls, hooks } = rig();
   const toggle = { left: 0, top: 0, right: 32, bottom: 32 };
   const m = createIconDrag({ ...hooks, originRect: () => toggle });
@@ -136,23 +150,24 @@ test('through the drag machine: released off the switch or back on it, the theme
   m.move(18, 14);
   assert.equal(m.release(18, 14), true);
   assert.deepEqual(opened.map((l) => l.closed), [1, 1]);
-  assert.deepEqual(calls, []);
+  opened.forEach((l) => l.done?.());
+  assert.deepEqual(calls, [], 'neither release switched');
   m.press(16, 16, {});
   assert.equal(m.release(17, 16), false, 'a plain click stays the switch\'s own toggle');
   assert.equal(opened.length, 2, 'and opens no lens');
 });
 
-test('under the webcore skin, or over a swap still in flight, no lens opens and nothing switches', () => {
+test('under the webcore skin, or over a swap still in flight, no lens opens and a drop changes nothing', () => {
   const skinned = rig({ skin: 'webcore' });
   assert.notEqual(skinned.hooks.start({ x: 1, y: 1 }), false, 'the drag goes on without one');
   skinned.hooks.move({ x: 5, y: 5 });
   skinned.hooks.drop({ x: 5, y: 5 });
-  assert.deepEqual([skinned.opened, skinned.calls], [[], []]);
+  assert.deepEqual([skinned.opened.length, skinned.calls.length], [0, 0]);
   for (const flight of [THEME_INSTANT_CLASS, THEME_SWAP_CLASS]) {
     const { opened, calls, root, hooks } = rig();
     root.classList.add(flight);
     hooks.start({ x: 1, y: 1 });
     hooks.drop({ x: 5, y: 5 });
-    assert.deepEqual([opened, calls], [[], []], flight);
+    assert.deepEqual([opened.length, calls.length], [0, 0], flight);
   }
 });

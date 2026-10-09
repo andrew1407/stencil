@@ -19,8 +19,9 @@ export function makeStillSteps({ config, runner, pages, stub, appUrl, browser })
     await waitForCanvasChange(page, before, timeouts.loadMs);
   };
   // `trigger` names a control to press instead of the facade (a modal whose contents are
-  // filled by that control's own handler); `ready` an element that must have loaded.
-  const modalStep = ({ name, key, overlay, trigger, ready, image }) => ({
+  // filled by that control's own handler); `ready` an element that must have loaded; `url` a
+  // repo file the window's URL tab is shown previewing.
+  const modalStep = ({ name, key, overlay, trigger, ready, image, url }) => ({
     name,
     run: async (ctx, theme) => {
       const page = await shared(ctx, theme);
@@ -40,6 +41,15 @@ export function makeStillSteps({ config, runner, pages, stub, appUrl, browser })
         await expectModalOpen(page, overlay);
         await settleModalAnimations(page, overlay);
       } else await openModal(page, key, overlay);
+      if (url) {
+        await page.locator('#oi-tab-url').click();
+        await page.locator('#open-image-url').fill(config.url(url));
+        await page.locator('#open-image-url-preview').click();
+        // The URL tab previews into its own media pair (mediaPairs.js); the crop row is what
+        // a landed decode shows.
+        await page.locator('#open-image-crop-row').waitFor({ timeout: timeouts.loadMs });
+        await waitForAnimations(page, `#${overlay}`);
+      }
       if (ready) {
         await page.waitForFunction((sel) => {
           const el = document.querySelector(sel);
@@ -177,18 +187,6 @@ export function makeStillSteps({ config, runner, pages, stub, appUrl, browser })
       await waitForAnimations(page, '#chat-panel');
       await runner.shot(page, 'assistant-floating');
       await page.evaluate(() => window.stencil.chat.close());
-    } },
-    { name: 'fullscreen-strip', run: async (ctx, theme) => {
-      const page = await shared(ctx, theme);
-      await page.evaluate(() => { window.stencil.fullscreen = true; });
-      await page.mouse.move(400, 2);
-      const panel = page.locator('#fs-controls-panel.fs-panel-visible');
-      await panel.waitFor();
-      const box = await panel.boundingBox();
-      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-      await waitForAnimations(page, '#fs-controls-panel');
-      await runner.shot(page, 'fullscreen-strip');
-      await page.evaluate(() => { window.stencil.fullscreen = false; });
     } },
     { name: 'open-in-modal', run: async (ctx, theme) => {
       const page = await shared(ctx, theme);

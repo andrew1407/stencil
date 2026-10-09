@@ -18,7 +18,7 @@ follows the OS; **View ▸ Dark Theme** (`Ctrl+D`) flips it.
 **File ▸ Open Image…** (`Ctrl+O`) offers a local file, a URL, or a blank page in any fill
 and size. `stencil --src <path|url>` and `stencil --blank` do the same from a shell.
 
-![the open-image dialog](img/open-image-dialog.png)
+![the open-image dialog, previewing the logo's URL](img/open-image-dialog.png)
 
 | White page | Black page | From a URL |
 |---|---|---|

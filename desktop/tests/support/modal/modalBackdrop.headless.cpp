@@ -135,6 +135,13 @@ int main(int argc, char** argv) {
     check(guard.isNull(), "reduced motion: and goes at once too");
     support::setMotionMode(was);
   }
+  // Side-by-side windows dim nothing, whatever the backdrop switch says.
+  {
+    support::setMultiWindow(true);
+    QDialog dlg(&host);
+    check(ModalBackdrop::behind(&dlg, &host) == nullptr, "multiple windows: no backdrop");
+    support::setMultiWindow(false);
+  }
   {
     QDialog dlg(&host);
     check(ModalBackdrop::behind(&dlg, nullptr) == nullptr, "behind: no host, no backdrop");

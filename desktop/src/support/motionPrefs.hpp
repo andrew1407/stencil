@@ -34,6 +34,10 @@ namespace stencil::support {
       static std::optional<MotionSwitches> o;
       return o;
     }
+    inline bool& multiWindowState() {
+      static bool on = false;
+      return on;
+    }
     inline const MotionSwitches& live() {
       return overrideState() ? *overrideState() : storedState();
     }
@@ -98,6 +102,11 @@ namespace stencil::support {
   // Browser twin: list/prefs.js modalBackdrop().
   inline bool modalBackdrop() { return detail::live().backdrop; }
   inline void setModalBackdrop(bool on) { detail::storedState().backdrop = on; }
+
+  // Windows open side by side, non-modal and undimmed; off, one window at a time.
+  // Browser twin: motionPrefs.js multiWindow().
+  inline bool multiWindow() { return detail::multiWindowState(); }
+  inline void setMultiWindow(bool on) { detail::multiWindowState() = on; }
 
   // Qt has no portable reduce-motion hint; this env var is the opt-out that overrides the mode.
   inline bool motionReduced() {

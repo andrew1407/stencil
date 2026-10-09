@@ -3,15 +3,44 @@
 #include "captureShared.hpp"
 
 #include "CanvasWidget.hpp"
+#include "OpenImageDialog.hpp"
 #include "ProjectDragZones.hpp"
 #include "../../../desktop/src/model/ScriptBuffer.hpp"
+#include <QLineEdit>
+#include <QPushButton>
 #include <QScrollArea>
+#include <QTabWidget>
+#include <QtTest/QTest>
 
 using namespace stencil::gui;
 
 namespace {
   const QString SCRIPT = envOr("STENCIL_DOCS_SCRIPT", "@crop 8% 8% -8% -8%\n@filter sepia");
 }  // namespace
+
+// The tab the "from a link" scenario is about. Typed, not set: setText alone never fires
+// textEdited, so Preview would stay off.
+void MainWindowGuiTest::openImageUrlShot(MainWindow& win, const QString& name) {
+  bool done = false;
+  QTimer::singleShot(0, [&] {
+    auto* dlg = qobject_cast<OpenImageDialog*>(QApplication::activeModalWidget());
+    if (!dlg) return;
+    dlg->tabs->setCurrentIndex(1);
+    QTest::keyClicks(dlg->url, faviconUrl());
+    waitUntil([dlg] { return dlg->previewBtn->isEnabled(); }, 2000);
+    dlg->previewBtn->click();
+    if (!waitUntil([dlg] { return !dlg->previewedImage().isNull(); }, 12000))
+      std::printf("  %s: the URL did not preview\n", qPrintable(name));
+    pumpFor(500);
+    saveOver(name, &win, dlg);
+    done = true;
+    dlg->reject();
+  });
+  QTimer::singleShot(16000, [] { if (QWidget* stuck = QApplication::activeModalWidget()) stuck->close(); });
+  win.parts.sourceOpener.openImage();
+  waitUntil([&] { return done; }, 17000);
+  pumpFor(200);
+}
 
 void MainWindowGuiTest::dialogShots(MainWindow& win, const QString& theme, const ShotSet& shots) {
   auto* canvas = win.findChild<CanvasWidget*>();
@@ -41,7 +70,6 @@ void MainWindowGuiTest::dialogShots(MainWindow& win, const QString& theme, const
   const struct { const char* action; QString name; } dialogs[] = {
     {"Visuals & Settings…", suffixed("settings-dialog", theme)},
     {"Projects…", suffixed("projects-dialog", theme)},
-    {"Open Image…", QStringLiteral("open-image-dialog")},
     {"Crop Image…", QStringLiteral("crop-dialog")},
     {"Servers…", QStringLiteral("connect-dialog")},
     {"Keyboard Shortcuts…", QStringLiteral("shortcuts-dialog")},
@@ -60,6 +88,7 @@ void MainWindowGuiTest::dialogShots(MainWindow& win, const QString& theme, const
     if (dialog.name == QLatin1String("script-dialog")) stencil::model::ScriptBuffer::instance().setText(SCRIPT);
     grabModal(win, actionNamed(win, QString::fromUtf8(dialog.action)), dialog.name);
   }
+  if (shots.has("open-image-dialog")) openImageUrlShot(win, QStringLiteral("open-image-dialog"));
 
   // The drag-out zones (dialogs/projects/list/ProjectDragZones.hpp): the overlay the WINDOW paints while a
   // project row is dragged out of the list. They live only for the drag, and the dialog's own

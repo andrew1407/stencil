@@ -109,6 +109,15 @@ namespace stencil::support {
 
   inline constexpr const char* NO_OUTSIDE_DISMISS_PROPERTY = "stencilNoOutsideDismiss";
 
+  // Set while an open window is hidden and re-shown to change its modality (Qt takes a new
+  // modality only across a show): no close flight plays and nothing re-centres it.
+  inline constexpr const char* REMODAL_PROPERTY = "stencilRemodal";
+  // macOS's click-outside catcher under an application-modal dialog (modalDismissMac.mm): a child
+  // window by this name, and the dialog's flag that it has one. Dropped when the dialog goes
+  // non-modal, so clicks reach the app; re-attached on its next modal show.
+  inline constexpr const char* MODAL_CATCHER_NAME = "stencilModalBackdrop";
+  inline constexpr const char* MODAL_CATCHER_ATTACHED_PROPERTY = "stencilModalBackdropAttached";
+
   // The SAME ceiling as DisintegrateOverlay::SURFACE_MAX_CELLS and the browser's
   // SURFACE_COLS * SURFACE_ROWS = 46 * 30 (modalReveal.cpp static_asserts it).
   inline constexpr int DIALOG_DUST_MAX_CELLS = 46 * 30;

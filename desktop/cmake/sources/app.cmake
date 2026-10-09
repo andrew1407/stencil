@@ -64,6 +64,7 @@ set(STENCIL_GUI_SOURCES
   src/app/context/CanvasContextMenuShow.cpp
   src/app/actions/export/ExportMenusVariants.cpp
   src/app/context/CanvasContextMenuRows.cpp
+  src/app/context/MenuRowReveal.cpp
   src/app/events/dropSources.cpp
   src/app/events/MainWindowDnd.cpp
   src/app/chrome/DockChromeDust.cpp
@@ -77,6 +78,7 @@ set(STENCIL_GUI_SOURCES
   src/app/open/source/SourceOpener.cpp
   src/app/project/flows/ProjectFlowsOpenIn.cpp
   src/app/events/popover/PopoverGestures.cpp
+  src/app/events/popover/PopoverGesturesSideBySide.cpp
   src/app/project/MainWindowProjectClose.cpp
   src/app/project/flows/ProjectFlowsCrud.cpp
   src/app/project/flows/ProjectFlowsClose.cpp

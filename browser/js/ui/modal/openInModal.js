@@ -27,9 +27,9 @@ export class StencilOpenInModal extends StencilElement {
                     <span class="footer-hint" id="open-in-status"></span>
                 </div>
                 <div class="vs-row oi-row">
-                    <label>Incognito</label>
+                    <label for="open-in-incognito">Incognito</label>
                     <input type="checkbox" id="open-in-incognito" class="oi-slot">
-                    <span class="footer-hint">Open it there without saving (Stencil incognito mode).</span>
+                    <label class="footer-hint" for="open-in-incognito">Open it there without saving (Stencil incognito mode).</label>
                 </div>
                 <!-- Fallback shown when a Telegram start payload can't fit in 64 chars. -->
                 <div class="vs-row" id="open-in-fallback-row" style="display:none">

@@ -3,6 +3,7 @@
 #include <QPoint>
 #include <QSize>
 #include <algorithm>
+#include <climits>
 #include <cmath>
 #include <optional>
 
@@ -47,14 +48,20 @@ namespace stencil::gui {
     // `p` in window coordinates; `panelWidth` 0 while hidden. Asked separately because the bars move first.
     // The revealed panel's tab row sits inside the band, and the rows would push it out from under the cursor
     // (the browser's strip is an overlay): from over the panel, the rows never start to reveal.
-    bool wantBars(const QPoint& p, int toolbarBottom, bool isOverPanel = false) const {
-      if (!barsShown && isOverPanel) return false;
+    // `canvasLeft..canvasRight`: the canvas's own columns (window px); a docked chat beside them or
+    // the revealed panel never starts a reveal (browser fullscreen/panels.js canvasSpan).
+    bool wantBars(const QPoint& p, int toolbarBottom, bool isOverPanel = false,
+                  int canvasLeft = INT_MIN, int canvasRight = INT_MAX) const {
+      if (!barsShown && (isOverPanel || p.x() < canvasLeft || p.x() > canvasRight)) return false;
       return barsShown ? (p.y() < toolbarKeepBand(toolbarBottom))
                        : (p.y() > REVEAL_TOP && p.y() < REVEAL_BOTTOM);
     }
-    bool wantPanel(const QPoint& p, const QSize& win, int panelWidth) const {
-      return panelShown ? (p.x() > win.width() - panelKeepBand(win.width(), panelWidth))
-                        : (p.x() > win.width() - PANEL_REVEAL_PX);
+    // `areaRight`: the right edge of the canvas, or of the panel once it shows (a chat docked past it reveals nothing).
+    bool wantPanel(const QPoint& p, const QSize& win, int panelWidth, int areaRight = -1) const {
+      const int right = areaRight < 0 ? win.width() : areaRight;
+      if (p.x() > right) return false;
+      return panelShown ? (p.x() > right - panelKeepBand(win.width(), panelWidth))
+                        : (p.x() > right - PANEL_REVEAL_PX);
     }
 
     // Cursor outside the window: skipped, not counted as a leave.

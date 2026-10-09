@@ -16,6 +16,7 @@ import {
   notifyAttachmentsChanged, CHAT_ATTACHMENTS_EVENT, wireChatRowMenu, chatRowMenuOpen,
 } from '../chat/view.js';
 import { subscribe } from '../../eventBus/appBus.js';
+import { wireStatusTip } from '../chat/statusTip.js';
 
 export const wireCtxAssistantChat = (app, host, openChatPanel) => {
   const item = document.getElementById('ctx-assist-menu');
@@ -45,7 +46,14 @@ export const wireCtxAssistantChat = (app, host, openChatPanel) => {
 
   // The gear opens the panel's settings modal and closes the menu first (a modal behind a
   // popup is unusable). Its dot mirrors the shared probe.
-  const setDot = (probe) => { statusDot.className = `conn-status conn-status-${probeStatusClass(probe)}`; };
+  // The "…" shows the same status table on hover as the panel's (chat/statusTip.js).
+  let lastProbe = null;
+  const tip = wireStatusTip(item.querySelector('.ctx-assist-config'), () => lastProbe);
+  const setDot = (probe) => {
+    statusDot.className = `conn-status conn-status-${probeStatusClass(probe)}`;
+    lastProbe = probe;
+    tip.refresh();
+  };
   const refreshDot = () => {
     const settings = loadLlmSettings();
     const known = cachedProbe(settings);
@@ -139,6 +147,7 @@ export const wireCtxAssistantChat = (app, host, openChatPanel) => {
 
   // Escape bubbles out of the composer on purpose (the document listener closes the menu).
   wireChatMoreMenu('ctx-assist', document, { onOpen: () => {
+    tip.hide();
     updateControls();
     const clr = document.getElementById('ctx-assist-clear');
     if (clr) clr.disabled = !!transcript.querySelector('.chat-empty');

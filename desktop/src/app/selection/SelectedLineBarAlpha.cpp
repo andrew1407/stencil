@@ -35,6 +35,10 @@ namespace stencil::gui {
     lineColorDefault = std::move(source);
   }
 
+  void SelectedLineBar::setPointColorDefault(std::function<QColor()> source) {
+    pointColorDefault = std::move(source);
+  }
+
   // Early-returns while showLine repopulates (updating), the browser's selectedLineIdx guard.
   // Cancel hands the original back through pickColorAnimated.
   void SelectedLineBar::wireColorWell(QPushButton* well, QColor& current, const char* title,

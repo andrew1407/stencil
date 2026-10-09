@@ -4,8 +4,9 @@ import { wireModalDrag } from './drag.js';
 import { wireModalResize } from './resize.js';
 import { sweepDust } from '../motion.js';
 import { isTypingTarget } from '../../utils.js';
-import { modalShells, wireEscapeOnce, closeOpenModal } from './registry.js';
-import { createModalFlight, shownRect } from './flight.js';
+import { modalShells, wireEscapeOnce, wireCollapseOnce, closeOpenModal, closeOpenPopovers, raiseWindow } from './registry.js';
+import { multiWindow } from '../motion/motionPrefs.js';
+import { createModalFlight, shownRect, MODAL_CLOSE_MS } from './flight.js';
 import { canvasAnchorRect } from './imageAnchor.js';
 
 // Open/close/overlay-mousedown/Escape for every app modal. onOpen/onClose run BEFORE the
@@ -48,17 +49,19 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
   // `at`, a client point, takes the window's top-left corner; one already up at full size only moves.
   const open = (from, backTo = null, { stacked: stackThisOpen = stacked, at = null } = {}) => {
     if (at && api.isOpen() && !overlay.classList.contains('modal-popover')) { drag.placeAt(at); return; }
+    if (multiWindow() && api.isPopover()) close();   // the popover grows into the window
     originEl = anchorLike(from) ? from
              : (from === null ? null : defaultOrigin());
     closeOriginEl = anchorLike(backTo) || typeof backTo === 'function' ? backTo : null;
     stackedNow = stackThisOpen;
-    if (!stackedNow) closeOpenModal(api);
+    if (!stackedNow) (multiWindow() ? closeOpenPopovers(api) : closeOpenModal(api));
     finishClose();
     drag.reset();   // a window opens where its flight puts it, never where it was dragged
     resize.reset(); // …and at its own size
     onOpen?.();
     fromAbove = !rectOf(originEl);
     overlay.classList.add('modal-open');
+    if (multiWindow()) raiseWindow(api);
     if (at) drag.placeAt(at, true);
     // The box has no size while display:none.
     if (!reducedMotion() && setOriginVars()) playDust(true);
@@ -88,6 +91,9 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     const back = onScreenRect(rectOf(home)) ? home : ((fromAbove || closeOriginEl) ? null : canvasAnchorRect());
     const animate = overlay.classList.contains('modal-open') && !reducedMotion() && setOriginVars(back);
     overlay.classList.remove('modal-open');
+    // It flies home at its own level: dropped at once, it would jump over the windows it sat under.
+    api.raisedAt = 0;
+    setTimeout(() => { if (!api.isOpen()) api.setZ(null); }, MODAL_CLOSE_MS);
     if (animate) {
       flight.playClosing();
     } else {
@@ -97,9 +103,13 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     // A leaked 'sticky' mode would let a later Alt glide close a full modal.
     gestures?.notifyClosed();
   };
+  // Side by side, a popover gesture on a window that is up re-shapes it into the popover.
   const openPopover = (anchorEl) => {
-    if (overlay.classList.contains('modal-open')) return;
-    if (!stacked) closeOpenModal(api);
+    if (overlay.classList.contains('modal-open')) {
+      if (!multiWindow() || api.isPopover()) return;
+      close();
+    }
+    if (!stacked) (multiWindow() ? closeOpenPopovers(api) : closeOpenModal(api));
     finishClose();
     onOpen?.();
     // Unless the anchor is hidden (a gear inside the menu that just closed).
@@ -122,17 +132,27 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     // After pinning, so the popover grows toward where it lands.
     if (!reducedMotion() && setOriginVars()) playDust(true);
   };
-  // The icon (and its shortcut) toggles: pressing again closes.
+  // The icon (and its shortcut) toggles: pressing again closes; side by side, a popover grows into the window.
   const toggle = (from) => {
-    if (overlay.classList.contains('modal-open')) { close(); return; }
+    if (overlay.classList.contains('modal-open') && !(multiWindow() && api.isPopover())) { close(); return; }
     open(from);
   };
+  const isPopover = () => overlay.classList.contains('modal-open') && overlay.classList.contains('modal-popover');
   const api = { open, close, openPopover, toggle, isOpen: () => overlay.classList.contains('modal-open'),
+                isPopover, raisedAt: 0,
+                setZ: (z) => { if (overlay.style) overlay.style.zIndex = z === null ? '' : String(z); },
+                contains: (el) => !!el && !!overlay.contains?.(el),
+                // Its dim and blur wait out the windows closing beside it, then fade in.
+                holdBackdrop: () => {
+                  overlay.classList?.add('backdrop-wait');
+                  setTimeout(() => overlay.classList?.remove('backdrop-wait'), MODAL_CLOSE_MS);
+                },
                 overlayId: overlay?.id || null,
                 get stacked() { return stackedNow; },
                 takesEscape: () => escapeClose || overlay.classList.contains('modal-popover') };
   modalShells.add(api);
   wireEscapeOnce();
+  wireCollapseOnce();
   overlay.__stencilModal = api;
   if (openBtn) openBtn.__stencilModal = api;
   if (openBtn) {
@@ -179,6 +199,8 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     }, true);
   }
   if (closeBtn) closeBtn.addEventListener('click', close);
-  overlay.addEventListener('mousedown', e => { if (e.target === overlay) close(); });
+  // Side by side, a press outside closes nothing, and a press inside brings the window to the top.
+  overlay.addEventListener('mousedown', e => { if (e.target === overlay && (!multiWindow() || isPopover())) close(); });
+  overlay.addEventListener('pointerdown', () => { if (multiWindow() && api.isOpen() && !isPopover()) raiseWindow(api); }, true);
   return api;
 };

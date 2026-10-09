@@ -112,6 +112,12 @@ namespace stencil::support {
                          Qt::LeftButton, Qt::NoModifier);
         if (button()) QApplication::sendEvent(button(), &away);
         leaving = false;
+        // The press is the drag's now: the control stands at rest, so neither it nor its ghost
+        // wears the hover or pressed look (the browser's clone carries neither).
+        if (button()) button()->setDown(false);
+        source->setAttribute(Qt::WA_UnderMouse, false);
+        source->update();
+        mark = new DragSourceMark(source, origin());
         if (ghostWanted)
           ghost = new DragGhost(source, machine.hooks.ghostCentred ? source->rect().center()
                                                                    : source->mapFromGlobal(global),
@@ -126,6 +132,7 @@ namespace stencil::support {
       void end() {
         qApp->removeEventFilter(this);
         delete ghost.data();
+        delete mark.data();
         if (grabbed || machine.active()) holdTips(false);
       }
 
@@ -161,6 +168,7 @@ namespace stencil::support {
       QRect held;   // what the press took hold of (IconDragHooks::grab); empty: the whole source
       IconDragMachine machine;
       QPointer<DragGhost> ghost;
+      QPointer<DragSourceMark> mark;
       bool ghostWanted = true;
       bool grabbed = false;   // from the drag's start to the release, Escape or not
       bool leaving = false;

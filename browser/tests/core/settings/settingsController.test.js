@@ -12,6 +12,18 @@ test('setColor: updates model + persists', () => {
   assert.equal(app.rec.save, 1);
 });
 
+test('setColor never recolours the points: following the line, they keep the colour they showed', () => {
+  const app = makeApp();
+  app.color = '#00ff00';
+  app.pointColor = '';
+  const c = new SettingsController(app);
+  c.setColor('#ff0000');
+  assert.deepEqual([app.color, app.pointColor], ['#ff0000', '#00ff00']);
+  c.setPointColor('#8000ff');
+  c.setColor('#0000ff');
+  assert.equal(app.pointColor, '#8000ff', 'an own point colour is left alone');
+});
+
 test('setColor persist:false skips the write', () => {
   const app = makeApp();
   new SettingsController(app).setColor('#abc', { persist: false });

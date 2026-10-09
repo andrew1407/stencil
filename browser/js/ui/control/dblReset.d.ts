@@ -4,3 +4,5 @@ export declare const dropResetTarget: (target: EventTarget | null) => HTMLSelect
 export declare const defaultOf: (el: HTMLSelectElement | HTMLInputElement) => string | boolean;
 export declare const resetControl: (el: HTMLSelectElement | HTMLInputElement) => boolean;
 export declare const installDblReset: (root?: Document | HTMLElement) => void;
+/** A colour button whose open waits out the double-click window; a second click inside it resets. */
+export declare const wireColorButton: (btn: HTMLElement, hooks: { open: () => void; reset: () => void }) => void;

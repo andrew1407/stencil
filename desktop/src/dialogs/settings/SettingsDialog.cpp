@@ -77,7 +77,8 @@ namespace stencil::gui {
              {theme, d.themeMode}, {accent, QString(DEF_ACCENT)}, {nativeMenuBar, d.nativeMenuBar},
              {autosave, d.autosave}, {showPoints, d.showPoints}, {showLines, d.showLines},
              {style, d.defaultStyle}, {page, d.pageSize}, {drawAnim, DEF_DRAW_ANIM},
-             {modalBackdrop, d.modalBackdrop}, {motionMode, QString(DEF_MOTION_MODE)},
+             {modalBackdrop, d.modalBackdrop}, {multiWindow, d.multiWindow},
+             {motionMode, QString(DEF_MOTION_MODE)},
              {notifyChannel, QString(DEF_NOTIFY_CHANNEL)}})
       support::setResetDefault(w, v);
 
@@ -102,6 +103,8 @@ namespace stencil::gui {
       columnFields.push_back(field);
     }
     QWidget* w = modalRow(r.host, label, field, /*grow=*/false);
+    if (auto* caption = w->findChild<QLabel*>())   // its row's tip, as the browser label's data-title
+      caption->setToolTip(field->toolTip());
     r.col->addWidget(w);
     groups.last().rows.push_back({label, w});
   }
@@ -113,13 +116,13 @@ namespace stencil::gui {
   }
 
   void SettingsDialog::addWell(Rows& r, QPushButton*& btn, QString& hex, const QString& tip,
-                               const QString& title) {
+                               const QString& title, const QString& def) {
     btn = new QPushButton(r.host);
     btn->setFont(r.mono);
     setColorSwatch(btn, QColor(hex), QSize(ctrlW, CTRL_H), /*withHex=*/true);
     btn->setToolTip(tip);
-    connect(btn, &QPushButton::clicked, this,
-            [this, &hex, title, b = btn] { pickColorInto(b, hex, title); });
+    support::wireColorChip(btn, [this, &hex, title, b = btn] { pickColorInto(b, hex, title); },
+                           [this, &hex, def, b = btn] { takeColor(b, hex, QColor(def)); });
     support::installColorDrag(btn, {[&hex] { return QColor(hex); },
                                     [this, &hex, b = btn](const QColor& c) { takeColor(b, hex, c); }});
   }
@@ -203,6 +206,7 @@ namespace stencil::gui {
     style->setCurrentIndex(qMax(0, style->findData(def.style)));
     accent->setCurrentIndex(qMax(0, accent->findData(DEF_ACCENT)));
     drawAnim->setChecked(DEF_DRAW_ANIM);
+    multiWindow->setChecked(Settings().multiWindow);
     motionMode->setCurrentIndex(qMax(0, motionMode->findData(QLatin1String(DEF_MOTION_MODE))));
     notifyChannel->setCurrentIndex(qMax(0, notifyChannel->findData(QLatin1String(DEF_NOTIFY_CHANNEL))));
     motionTouched = true;   // a reset is the user's own pick: it ends a skin's session override

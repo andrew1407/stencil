@@ -66,27 +66,16 @@ test.describe('AI assistant chat panel', () => {
       await page.locator('#ctx-assist-input').press('Escape');
       await expect(menu).not.toHaveClass(/ctx-open/);
 
-      // Assistant switched off → the entry is gone and the menu is its old self,
-      // classic flyouts included.
+      // No provider → the entry stays (its chat status says what is missing), with no separator
+      // of its own, classic flyouts included.
       await page.evaluate((key) => {
         localStorage.setItem(key, JSON.stringify({ provider: 'none' }));
         window.dispatchEvent(new Event('stencil:llm-settings-changed'));
       }, LLM_SETTINGS_KEY);
       await openCanvasMenu(page);
-      await expect(page.locator('#ctx-assist-menu')).toBeHidden();
-      // The separator set is the original one — nothing dangling where the entry was.
+      await expect(page.locator('#ctx-assist-menu')).toBeVisible();
       const offSeps = await page.locator('#ctx-menu > .ctx-sep:visible').count();
-      expect(offSeps, 'same separators as a menu that never had an assistant').toBe(3);
-      // The hidden entry occupies no space: the group leader (Stencil Script) sits right
-      // under the group separator (≈11px), with no dead band where the Assistant row was.
-      const gap = await page.evaluate(() => {
-        const above = document.getElementById('ctx-fullscreen').getBoundingClientRect().bottom;
-        const lead = document.getElementById('ctx-script').getBoundingClientRect().top;
-        return lead - above;
-      });
-      expect(gap, 'the group runs straight on from the separator').toBeLessThan(20);
-      expect(await page.evaluate(() => document.getElementById('ctx-assist-menu').getBoundingClientRect().height))
-        .toBe(0);
+      expect(offSeps, 'the entry brings no separator of its own').toBe(3);
       await page.locator('#ctx-style-menu').hover();
       await expectFlyoutOnScreen(page, '#ctx-style-sub');
     });

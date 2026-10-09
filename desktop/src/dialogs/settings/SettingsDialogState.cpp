@@ -75,6 +75,7 @@ namespace stencil::gui {
     // force, and a skin's stillness must not persist through an unrelated edit.
     s.drawingAnimations = motionTouched ? drawAnim->isChecked() : heldDrawAnim;
     s.modalBackdrop = motionTouched ? modalBackdrop->isChecked() : heldBackdrop;
+    s.multiWindow = multiWindow->isChecked();
     s.motionMode = motionTouched ? motionMode->currentData().toString() : heldMotionMode;
     s.notifyChannel = notifyChannel->currentData().toString();
     s.browserBaseUrl = browserUrl->text().trimmed();

@@ -3,6 +3,7 @@
 #include "../../support/control/lineLimits.hpp"
 #include "MainWindow.hpp"
 #include "CanvasContextMenu.hpp"
+#include "MenuCheckBox.hpp"
 #include "numericInput.hpp"
 #include "modalReveal.hpp"
 #include <QActionGroup>
@@ -30,7 +31,7 @@ namespace stencil::gui {
   void CanvasContextMenu::addContextCheckRow(const QString& text, bool checked, QCheckBox*& box,
                                      QWidgetAction*& act) {
     auto* lay = makeContextMenuRow(act);
-    box = new QCheckBox(text, lay->parentWidget());
+    box = new MenuCheckBox(text, lay->parentWidget());
     box->setChecked(checked);
     box->setSizePolicy(QSizePolicy::Expanding, box->sizePolicy().verticalPolicy());
     lay->addWidget(box);

@@ -46,7 +46,7 @@
   "refresh": "<polyline points=\"23 4 23 10 17 10\"/><polyline points=\"1 20 1 14 7 14\"/><path d=\"M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15\"/>",
   "calendar": "<rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\" ry=\"2\"/><g class=\"ic-rings\"><line x1=\"16\" y1=\"2\" x2=\"16\" y2=\"6\"/><line x1=\"8\" y1=\"2\" x2=\"8\" y2=\"6\"/></g><line x1=\"3\" y1=\"10\" x2=\"21\" y2=\"10\"/>",
   "image": "<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><circle class=\"ic-orb\" cx=\"8.5\" cy=\"8.5\" r=\"1.5\"/><polyline class=\"ic-ridge\" points=\"21 15 16 10 5 21\"/>",
-  "function": "<path class=\"ic-curve\" d=\"M16 5a3 3 0 0 0-3 3v8a3 3 0 0 1-3 3\"/><line class=\"ic-bar\" x1=\"8\" y1=\"11\" x2=\"15\" y2=\"11\"/>",
+  "function": "<path class=\"ic-curve\" d=\"M18 3a4 4 0 0 0-4 4v10a4 4 0 0 1-4 4\"/><line class=\"ic-bar\" x1=\"7\" y1=\"11\" x2=\"17\" y2=\"11\"/>",
   "message": "<g transform=\"translate(0 1.5)\"><path class=\"ic-outline\" d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\"/></g>",
   "eye": "<path d=\"M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z\"/><circle class=\"ic-pupil\" cx=\"12\" cy=\"12\" r=\"3\"/>",
   "external": "<path d=\"M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6\"/><g class=\"ic-arrow\"><polyline points=\"15 3 21 3 21 9\"/><line x1=\"10\" y1=\"14\" x2=\"21\" y2=\"3\"/></g>",

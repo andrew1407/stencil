@@ -31,13 +31,6 @@
       "height": 640
     }
   },
-  "clips": {
-    "open-here": {
-      "ms": 3600,
-      "everyMs": 100,
-      "fps": 10
-    }
-  },
   "timeouts": {
     "scanMs": 15000,
     "replyMs": 120000,

@@ -24,6 +24,7 @@
 namespace stencil::gui {
 
   int MainWindow::execMaybePopover(QDialog& dlg, QAction* opener) {
+    if (support::multiWindow() && !pop.anchor) return parts.popoverGestures.runSideBySide(dlg);
     wireWindowSwitching(dlg, pop.dialogActions, opener);
     // Park the originals while the dialog owns those chords.
     QList<QPair<QAction*, Qt::ShortcutContext>> parked;
@@ -43,8 +44,9 @@ namespace stencil::gui {
     if (!anchor) {
       support::revealDialog(dlg, pop.dialogAnchor.data(), pop.dialogAnchorRect, QRect(),
                             std::move(closeRectFor));
-      return dlg.exec();
+      return parts.popoverGestures.runModal(dlg);
     }
+    if (support::multiWindow()) parts.popoverGestures.closeSideBySideKind(dlg);
     // A CHILD WIDGET, never its own window: a small frameless top-level does not animate on macOS.
     // This branch flies itself — opt out of the app-wide DialogRevealFilter or its flight piles on.
     dlg.setProperty(support::NO_DIALOG_REVEAL_PROPERTY, true);
@@ -200,15 +202,7 @@ namespace stencil::gui {
       overlayAlive->deleteLater();
     }
     support::resyncHover(this);
-    if (pop.peekNextAction) {
-      QTimer::singleShot(0, this, [this] {
-        QToolButton* b = pop.peekNextButton.data();
-        QAction* a = pop.peekNextAction.data();
-        pop.peekNextButton.clear();
-        pop.peekNextAction.clear();
-        parts.popoverGestures.altPeekOpen(b, a);
-      });
-    }
+    parts.popoverGestures.openAfterPopover();
     return result;
   }
 

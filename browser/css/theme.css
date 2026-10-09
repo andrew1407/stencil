@@ -11,6 +11,8 @@
     --on-accent:      #ffffff;
     /* A data URL can't read a CSS var, so the whole url() is the token. */
     --accent-tick:    url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Cpath%20d='M3.5%208.5L6.4%2011.4L12.5%204.5'%20fill='none'%20stroke='%23ffffff'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
+    /* A context-menu check: the tick in the menu's own text colour (--text-main). */
+    --menu-tick:      url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Cpath%20d='M3.5%208.5L6.4%2011.4L12.5%204.5'%20fill='none'%20stroke='%23000000'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
     --bg-page:        #f0f0f0;
     --bg-container:   #ffffff;
     --bg-controls:    #f8f9fa;
@@ -103,6 +105,7 @@
     --accent-2:       color-mix(in srgb, var(--accent) 78%, white);
     --dust-ink:        #ffffff;
     --dust-accent-alt: color-mix(in srgb, var(--accent) 30%, #ffffff);
+    --menu-tick:      url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Cpath%20d='M3.5%208.5L6.4%2011.4L12.5%204.5'%20fill='none'%20stroke='%23e0e0e0'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
     --bg-page:        #1a1a1a;
     --bg-container:   #242424;
     --bg-controls:    #2d2d2d;

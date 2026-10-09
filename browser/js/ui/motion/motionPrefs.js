@@ -11,10 +11,13 @@ export const MOTION_STORAGE_KEY = 'drawingApp_motion';
 export const MOTION_EVENT = EVENTS.motionChanged;
 const MOTION_ATTR = 'data-motion';
 const BACKDROP_ATTR = 'data-modal-backdrop';
+const MULTI_WINDOW_ATTR = 'data-multi-window';
 
 const MOTION_PARTICLES = 'particles';
 // On by default: a window that dims what it covers is the shape both surfaces ship with.
 export const DEFAULT_MODAL_BACKDROP = true;
+// Off by default: one window at a time, over a backdrop; on, windows stay open side by side.
+export const DEFAULT_MULTI_WINDOW = false;
 const MOTION_WATER = 'water';
 const MOTION_FIRE = 'fire';
 const MOTION_SLIDE = 'slide';
@@ -45,7 +48,7 @@ export const normalizeMotionMode = (v) => {
 
 const defaultMotionPrefs = () => ({
   mode: DEFAULT_MOTION_MODE, drawing: DEFAULT_DRAWING_ANIMATIONS,
-  backdrop: DEFAULT_MODAL_BACKDROP,
+  backdrop: DEFAULT_MODAL_BACKDROP, multiWindow: DEFAULT_MULTI_WINDOW,
 });
 
 const mergePatch = (base, patch = {}) => {
@@ -53,6 +56,7 @@ const mergePatch = (base, patch = {}) => {
   if (patch.mode !== undefined) next.mode = normalizeMotionMode(patch.mode);
   if (patch.drawing !== undefined) next.drawing = !!patch.drawing;
   if (patch.backdrop !== undefined) next.backdrop = !!patch.backdrop;
+  if (patch.multiWindow !== undefined) next.multiWindow = !!patch.multiWindow;
   return next;
 };
 
@@ -79,6 +83,8 @@ export const drawingAnimations = () => effective().drawing;
 // Whether an open window blurs and darkens what is behind it. Desktop twin:
 // support/motionPrefs.hpp modalBackdrop().
 export const modalBackdrop = () => effective().backdrop;
+// Many windows at once, none dimming or blocking the app. Desktop twin: support/motionPrefs.hpp multiWindow().
+export const multiWindow = () => effective().multiWindow;
 export const motionOverridden = () => override !== null;
 export const storedMotionMode = () => prefs.mode;
 export const showMotionStyle = () => PARTICLE_STYLE_OF[effective().mode] || 'dust';
@@ -105,7 +111,8 @@ export const applyMotionAttr = (root = typeof document !== 'undefined' ? documen
   const now = effective();
   root?.setAttribute?.(MOTION_ATTR, now.mode);
   // A plain attribute, so the blur is a CSS rule rather than a per-overlay inline style.
-  root?.toggleAttribute?.(BACKDROP_ATTR, now.backdrop);
+  root?.toggleAttribute?.(BACKDROP_ATTR, now.backdrop && !now.multiWindow);
+  root?.toggleAttribute?.(MULTI_WINDOW_ATTR, now.multiWindow);
 };
 
 const announce = () => {

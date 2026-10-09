@@ -131,8 +131,8 @@ export function contextMenuInner() {
             <div class="ctx-sub" id="ctx-transform-sub">
                 <div class="ctx-sub-label">Coordinate Formulas</div>
                 <label class="ctx-checkbox-item"><input type="checkbox" id="ctx-allow-formulas"> Allow Formulas</label>
-                <div id="ctx-formula-inputs" style="display:none;padding:5px 14px 8px;">
-                    <div style="margin-top:4px;display:flex;flex-direction:column;gap:5px;">
+                <div id="ctx-formula-inputs" style="display:none;">
+                    <div style="padding:9px 14px 8px;display:flex;flex-direction:column;gap:5px;">
                         <div style="display:flex;align-items:center;gap:6px;">
                             <label style="font-size:12px;color:var(--text-muted);min-width:36px;font-weight:normal;">x(x)=</label>
                             <input type="text" id="ctx-formula-x" class="ctx-formula-input" placeholder="e.g. x + 9">

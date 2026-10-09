@@ -4,11 +4,12 @@ import { normalizeHex } from '../../../core/settings/accents.js';
 import { previewProjectColor } from '../../projects/window/projectTitle.js';
 import { colorTrial } from './colorTrial.js';
 import { registerColorSwatch } from '../../drag/colorDragSwatches.js';
+import { wireColorButton } from '../../control/dblReset.js';
 // The neutral grey an uncoloured project name is painted in, not the theme accent.
 const UNSET_NAME_COLOR = '#80868f';
 export function wireProjectColorButton(app) {
   // A native picker for the colour of the project NAME: a drag tries colours on the name alone, closing
-  // on one stores and pushes it once; a right-click (or Alt at open) clears it to the theme accent.
+  // on one stores and pushes it once; a right-click or a double-click clears it to the theme accent.
   const colorBtn = document.getElementById('project-color-btn');
   const colorInput = document.getElementById('project-color-input');
   if (colorBtn && colorInput) {
@@ -31,9 +32,9 @@ export function wireProjectColorButton(app) {
       colorInput.value = nameColor();
       openTrial(colorBtn);
     };
-    colorBtn.addEventListener('click', e => {
+    let openMenuNow = null;   // the clear/choose menu while it is up
+    const openColorMenu = () => {
       if (app.activeProjectId == null || app.storage.incognito) return;
-      e.stopPropagation();
       // The menu is sand like every other popup (projects kebab parity): it forms out
       // of the button and pours back into it, whichever way it is dismissed.
       const btnPoint = () => rectCenter(colorBtn);
@@ -54,9 +55,11 @@ export function wireProjectColorButton(app) {
       const close = () => {
         surfaceOut(menu, btnPoint(), { ms: SURFACE_MENU_OUT_MS });
         menu.remove();
+        openMenuNow = null;
         document.removeEventListener('mousedown', onDoc, true);
       };
       menu.__close = close;
+      openMenuNow = menu;
       const item = (ic, label, onClick) => {
         const b = document.createElement('button');
         b.className = 'project-menu-item btn-icon-text';
@@ -76,10 +79,15 @@ export function wireProjectColorButton(app) {
       surfaceIn(menu, btnPoint(), { ms: SURFACE_MENU_IN_MS });
       const onDoc = ev => { if (!menu.contains(ev.target)) close(); };
       setTimeout(() => document.addEventListener('mousedown', onDoc, true), 0);
-    });
+    };
+    const clearColor = () => {
+      openMenuNow?.__close?.();
+      if (app.activeProjectId != null && !app.storage.incognito) app.projectTransfer.setProjectColor(app.activeProjectId, '');
+    };
+    wireColorButton(colorBtn, { open: openColorMenu, reset: clearColor });
     colorBtn.addEventListener('contextmenu', e => {
       e.preventDefault();
-      if (app.activeProjectId != null) app.projectTransfer.setProjectColor(app.activeProjectId, '');
+      clearColor();
     });
   }
 }

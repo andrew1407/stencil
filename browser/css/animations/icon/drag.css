@@ -18,8 +18,10 @@ svg.icon-drag-ghost {
                        0 0 4px color-mix(in srgb, var(--accent) 25%, transparent); }
     to   { box-shadow: var(--ghost-rim); }
 }
+/* Two shadows at both ends, in the accent alone: a list that changes length or colour mid-breath is
+   blended through oklab, and the engines pass through near-white greens on the way (user report). */
 @keyframes icon-ghost-shine-mark {
-    from { filter: drop-shadow(0 0 1px color-mix(in srgb, var(--accent) 50%, transparent)); }
+    from { filter: drop-shadow(0 0 0.5px var(--accent)) drop-shadow(0 0 1px var(--accent)); }
     to   { filter: var(--ghost-mark); }
 }
 /* Still under no motion: the rim held at its brightest. */

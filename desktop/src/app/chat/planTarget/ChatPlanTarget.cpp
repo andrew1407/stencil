@@ -130,6 +130,8 @@ namespace stencil::gui {
         if (const auto rgba = core::parseColor(a.color.toStdString()))
           c = QColor(rgba->r, rgba->g, rgba->b);
       if (c.isValid()) {
+        // The points keep their colour unless the plan names one (§10 pointColor, below).
+        if (w.settings.defaultPointColor.isEmpty()) w.settings.defaultPointColor = w.settings.defaultColor;
         w.tools.lineColorValue = c;
         w.updateColorSwatch(w.tools.lineColorBtn, c);
         w.settings.defaultColor = c.name(QColor::HexRgb);

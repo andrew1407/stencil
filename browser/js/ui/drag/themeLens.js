@@ -1,6 +1,6 @@
 // Dragging the theme switch opens a lens: a circle on the pointer previewing the page in the other
-// theme, built once and moved by its clip alone. A preview only: wherever the drag ends, or on
-// Escape, the lens closes and the theme stays; a plain click on the switch still toggles it.
+// theme, built once and moved by its clip alone. A preview only: released anywhere, or on Escape,
+// the lens closes and the theme stays; a plain click is still the switch's own.
 // Desktop twin: desktop/src/app/theme/ThemeLens.{hpp,cpp}, opened by ThemePainterLens.cpp.
 import { wireIconDrag } from './iconDrag.js';
 import { NO_COPY_ATTR, buildPageCopy, cutInheritance, pageSheets, readPageCss } from '../accent/themeCopy.js';
@@ -10,8 +10,9 @@ import { motionReduced } from '../motion/motionPrefs.js';
 
 export const LENS_RADIUS_PX = 90;
 // ms the circle takes to open from a point to its full radius, and to close back into one
-// (desktop ThemeLens::GROW_MS).
-export const LENS_GROW_MS = 480;
+// (desktop ThemeLens::GROW_MS / CLOSE_MS).
+export const LENS_GROW_MS = 192;
+export const LENS_CLOSE_MS = 360;
 export const LENS_CLASS = 'theme-lens';
 export const RIM_CLASS = 'theme-lens-rim';
 
@@ -23,9 +24,9 @@ export const rimTransform = (x, y, r = LENS_RADIUS_PX) =>
 // The radius `ms` after the lens opened: an ease-out (cubic) from 0, full at LENS_GROW_MS.
 export const lensRadiusAt = (ms) =>
   (ms >= LENS_GROW_MS ? LENS_RADIUS_PX : LENS_RADIUS_PX * (1 - (1 - Math.max(0, ms) / LENS_GROW_MS) ** 3));
-// Closing from `from` px: the same ease, run back down to 0 over LENS_GROW_MS.
+// Closing from `from` px: the same ease, run back down to 0 over LENS_CLOSE_MS.
 export const closingRadiusAt = (ms, from = LENS_RADIUS_PX) =>
-  from * (1 - lensRadiusAt(ms) / LENS_RADIUS_PX);
+  from * (1 - lensRadiusAt(ms * LENS_GROW_MS / LENS_CLOSE_MS) / LENS_RADIUS_PX);
 
 let current = null;
 
@@ -71,11 +72,12 @@ export const openThemeLens = (x, y, { theme, isPicture, doc = globalThis.documen
       at = { x: px, y: py };
       paint();
     },
-    close() {
+    // `done` runs once the circle has closed into its point (at once when nothing shrinks).
+    close(done = null) {
       if (!open) return;
       open = false;
       if (current === lens) current = null;
-      const gone = () => { host.remove(); rim.remove(); };
+      const gone = () => { host.remove(); rim.remove(); done?.(); };
       if (!grows || r <= 0) { gone(); return; }
       const from = r;
       t0 = now();
@@ -106,7 +108,12 @@ const lensAllowed = (doc) => {
 
 export const themeLensHooks = (app, { open = openThemeLens, doc = globalThis.document } = {}) => {
   let lens = null;
-  const shut = () => { lens?.close(); lens = null; };
+  const shut = (done = null) => {
+    const closing = lens;
+    lens = null;
+    if (closing) closing.close(done);
+    else done?.();
+  };
   const isPicture = (canvas) => !!app.renderer?.layers?.().includes(canvas);
   return {
     start: ({ x, y }) => {
@@ -117,8 +124,8 @@ export const themeLensHooks = (app, { open = openThemeLens, doc = globalThis.doc
       return true;
     },
     move: ({ x, y }) => lens?.move(x, y),
-    drop: shut,
-    cancel: shut,
+    drop: () => shut(),
+    cancel: () => shut(),
   };
 };
 
