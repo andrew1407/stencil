@@ -106,7 +106,9 @@
       "leadMs": 600,
       "typeDelayMs": 18,
       "ranMs": 900,
-      "holdMs": 1600
+      "holdMs": 1600,
+      "fps": 8,
+      "width": 900
     },
     "fullscreen-strip": {
       "leadMs": 600,
