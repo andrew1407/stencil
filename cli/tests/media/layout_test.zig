@@ -45,7 +45,7 @@ test "mapPoint: rotate step matches core rotateImageRGBA's pixel mapping" {
     const mx: usize = 3;
     const my: usize = 0;
     inline for ([_]i32{ 1, 2, 3 }) |q| {
-        var src = [_]u8{0} ** (4 * 2 * 4);
+        var src: [4 * 2 * 4]u8 = @splat(0);
         src[(my * 4 + mx) * 4] = 255; // R of the marker
         const dims = core.rotatedDims(4, 2, q);
         const uw: usize = @intCast(dims.w);

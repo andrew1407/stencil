@@ -45,8 +45,7 @@ ask one concise clarifying question before running anything.
    `cli/build.zig` (from `browser/` it's `..`). The built binary is
    `cli/zig-out/bin/stencil`.
 2. **Build if missing.** If the binary isn't there, run `zig build` in `cli/`
-   (the first build fetches the `stb` headers; where the SDK is newer than Zig supports —
-   `INFINITY` undeclared — use the `ZIG_LIBC` recipe in `CLAUDE.md`). If `zig` isn't on
+   (the first build fetches the `stb` headers). If `zig` isn't on
    `PATH`, tell the user — offer the Docker path (`docker build -f cli/Dockerfile
    -t stencil-cli . && docker run --rm -v "$PWD:/work" -w /work stencil-cli …`,
    built from the repo root) — and stop.

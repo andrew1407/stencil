@@ -58,7 +58,11 @@ namespace stencil::gui {
     void buildAppearanceRows(Rows& r, const Settings& current);
     void buildMotionRows(Rows& r, const Settings& current);
     void resetMotionRows();
-    void setMotionSpeedRow(double speed);   // both speed controls, without either echoing
+    // A speed as a number and a slider in hundredths, kept in step (browser vs-motion-speed / vs-console-speed).
+    QWidget* buildSpeedPair(Rows& r, QDoubleSpinBox*& spin, QSlider*& slider, const char* name,
+                            double min, double max, double step, double current);
+    static void setSpeedPair(QDoubleSpinBox* spin, QSlider* slider, double speed);   // both, without either echoing
+    void setMotionSpeedRow(double speed) { setSpeedPair(motionSpeedSpin, motionSpeed, speed); }
     void buildNotifyRows(Rows& r, const Settings& current);
     void buildDrawingRows(Rows& r, const Settings& current);
     void buildPreferenceRows(Rows& r, const Settings& current);
@@ -108,6 +112,8 @@ namespace stencil::gui {
     QComboBox* motionMode = nullptr;       // particles | water | fire | slide | none (browser vs-motion-mode)
     QDoubleSpinBox* motionSpeedSpin = nullptr;   // the animation speed (browser vs-motion-speed)
     QSlider* motionSpeed = nullptr;              // …and the same in hundredths
+    QDoubleSpinBox* consoleSpeedSpin = nullptr;  // the console text speed (browser vs-console-speed)
+    QSlider* consoleSpeed = nullptr;
     QTimer* speedSettle = nullptr;   // the full apply once a dragged or key-held speed rests
     QComboBox* notifyChannel = nullptr;    // toast | system (browser vs-notify-channel)
     QPushButton* selGlow = nullptr;        // selection highlight glow

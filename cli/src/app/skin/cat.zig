@@ -8,7 +8,7 @@ pub const Look = enum { open, blink, left, right, up, down };
 pub const Face = struct { text: []const u8, cols: usize };
 
 // One row per face style, one face per `Look`. ｀ is fullwidth, ˙ is a dot above.
-const styles = [_][6]Face{
+pub const styles = [_][6]Face{
     .{ f("(=^･ｪ･^=)", 9), f("(=^-ｪ-^=)", 9), f("(=^･･ｪ^=)", 9), f("(=^ｪ･･^=)", 9), f("(=^˙ｪ˙^=)", 9), f("(=^.ｪ.^=)", 9) },
     .{ f("(=^･ω･^=)", 9), f("(=^-ω-^=)", 9), f("(=^･･ω^=)", 9), f("(=^ω･･^=)", 9), f("(=^˙ω˙^=)", 9), f("(=^.ω.^=)", 9) },
     .{ f("^._.^", 5), f("^-_-^", 5), f("^.._^", 5), f("^_..^", 5), f("^˙_˙^", 5), f("^,_,^", 5) },
@@ -21,8 +21,8 @@ fn f(text: []const u8, cols: usize) Face {
 
 // Each leg: walk to a new spot a cell per step, then rest there till the leg ends. A step is
 // `step_frames` animation frames (80ms each).
-const leg_frames = 24;
-const step_frames = 2;
+pub const leg_frames = 24;
+pub const step_frames = 2;
 
 pub const Pose = struct { col: usize, row: usize, face: Face };
 
@@ -43,7 +43,7 @@ pub fn catPose(width: usize, rows: usize) Pose {
         (if (to.row > row) .down else .up)
     else
         rest(leg, t);
-    const face = style[@intFromEnum(look)];
+    const face = style[@backingInt(look)];
     return .{ .col = @min(col, width -| face.cols), .row = row, .face = face };
 }
 
@@ -63,7 +63,7 @@ fn approach(a: usize, b: usize, steps: usize) usize {
 fn rest(leg: u64, t: usize) Look {
     const h = std.hash.Wyhash.hash(skin.seedValue() +% 1, std.mem.asBytes(&leg));
     if (t + 3 >= leg_frames and t + 1 < leg_frames and h % 2 == 0) return .blink;
-    if (h % 3 == 0 and t % 12 >= 6) return @enumFromInt(2 + (h >> 8) % 4);
+    if (h % 3 == 0 and t % 12 >= 6) return @fromBackingInt(@intCast(2 + (h >> 8) % 4));
     return .open;
 }
 
@@ -73,7 +73,7 @@ test "cat: stays inside the frame and never moves more than a cell a frame" {
     skin.reseed(11);
     defer skin.reseed(0);
     var last = catPose(14, 6);
-    var looks = [_]bool{false} ** 6;
+    var looks: [6]bool = @splat(false);
     for (0..2000) |_| {
         skin.tick();
         const p = catPose(14, 6);

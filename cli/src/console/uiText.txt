@@ -74,6 +74,11 @@ Commands  (a leading '/' is optional)
 /fetch <name> [url]	load a server project's image to keep editing
 /sync [on|off]	live mode (bare /sync toggles): push edits + pull peers' changes
 
+§Apps
+/browser [url] [incognito]	open this session in the browser app (url: STENCIL_BROWSER_URL, else the app's default)
+/desktop [sync] [incognito]	open this session in the desktop app: a server project by link, else as a .stencil file; sync keeps that file live in both
+/desktopsync [file.stencil|n|off]	link a .stencil file both apps edit live (bare: pick one the desktop app has open)
+
 §Assistant
 /prompt <text>	ask the LLM assistant; it plans + runs edits and renders variant-<label>.png files (alias /p)
 /llm [key]	show or set the LLM provider config (provider | url | model | key [forget] | server; env STENCIL_LLM_*)
@@ -83,7 +88,7 @@ Commands  (a leading '/' is optional)
 /status	show the working image (path, size, edit position)
 /theme [name]	list or switch the accent colour (default violet)
 /mouse [on|off]	full-screen: toggle mouse (off frees text selection)
-/reveal-speed [0.01-1]	full-screen: how fast output is revealed (1 = instantly, 0.5 default)
+/reveal-speed [0.01-1]	full-screen: how fast output is revealed (1 = instantly, 0.25 default)
 /clear	clear the screen, redraw the logo + image header
 /drop	forget the working image entirely
 /help   /exit	show this list / leave (Ctrl-D, or Ctrl-C twice)

@@ -38,8 +38,8 @@ pub fn envelope(
     var refused: ?scriptCore.Diagnostic = null;
     if (!script.hasErrors()) {
         const checker: ?opplan.Schema = if (opts.plan_surface) |surface| opplan.Schema.open(
-            try a.dupeZ(u8, surface),
-            if (opts.plan_capabilities) |cap| try a.dupeZ(u8, cap) else null,
+            try a.dupeSentinel(u8, surface, 0),
+            if (opts.plan_capabilities) |cap| try a.dupeSentinel(u8, cap, 0) else null,
         ) else null;
         defer if (checker) |c| c.close();
         // The bot is url-only (llm-contract §10) and its scripts come from chat users.

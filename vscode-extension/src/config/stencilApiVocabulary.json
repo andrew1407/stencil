@@ -6,7 +6,7 @@
       "signature": "stencil.EasterEggs: EasterEggsFacade",
       "summary": "The logo shows, one call each.",
       "readOnly": true,
-      "detail": "Each call opens its show over the bare window; Escape or a click on the page ends it, as does EasterEggs.close(). EasterEggs.what() lists the words a keyboard can spell, and EasterEggs.of(word) runs one.",
+      "detail": "Each call opens its show over the bare window; Escape or a click on the page ends it, as does EasterEggs.close(). EasterEggs.what() lists the words a keyboard can spell, and EasterEggs.of(word) runs one. EasterEggs.cliMode switches the secret CLI mode on and off; while it is on, the members that open a window, move the chat, go fullscreen or change a look or motion setting throw.",
       "example": "stencil.EasterEggs.neonOn();"
     },
     "allowFormulas": {
@@ -474,6 +474,13 @@
       "detail": "0.1 is the slowest and 1 the fastest; a value outside that is clamped. The default 0.37 plays every animation at its tuned pace.",
       "example": "stencil.motionSpeed = 0.6;"
     },
+    "consoleSpeed": {
+      "group": "settings",
+      "signature": "stencil.consoleSpeed: number",
+      "summary": "How fast the console windows type their answers in.",
+      "detail": "0.01 is the slowest and 1 instant; a value outside that is clamped. The default 0.5 plays the typewriter at its tuned pace.",
+      "example": "stencil.consoleSpeed = 0.8;"
+    },
     "multiWindow": {
       "group": "settings",
       "signature": "stencil.multiWindow: boolean",
@@ -507,6 +514,13 @@
       "summary": "Open the connections window.",
       "detail": "Hands the facade back, so calls chain.",
       "example": "stencil.openConnectionsWindow();"
+    },
+    "openConsoleWindow": {
+      "group": "windows",
+      "signature": "stencil.openConsoleWindow(): Stencil",
+      "summary": "Open the console window, beside whatever is up.",
+      "detail": "A window that blocks nothing: it takes the slash commands over the open project and closes only from its own Close or /exit. Hands the facade back, so calls chain.",
+      "example": "stencil.openConsoleWindow();"
     },
     "openCropWindow": {
       "group": "windows",

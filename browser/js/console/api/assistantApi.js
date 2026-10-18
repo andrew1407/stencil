@@ -8,6 +8,7 @@ import {
 } from '../../ui/chat/layoutPrefs.js';
 import { publish, EVENTS } from '../../eventBus/appBus.js';
 import { str } from '../coerce.js';
+import { cliModeGate } from '../shell/gate.js';
 
 export const createAssistantApi = ({ app, guard }) => {
   let stencil;   // the frozen facade, handed over by setFacade after the guard
@@ -94,9 +95,9 @@ export const createAssistantApi = ({ app, guard }) => {
     // Chat panel control — the same code paths as the panel's own buttons.
     get chat() {
       return guard({
-        open() { chatPanel().open(); return stencil; },
+        open() { cliModeGate('the chat'); chatPanel().open(); return stencil; },
         close() { chatPanel().close(); return stencil; },
-        dock(mode) { chatPanel().dock(mode); return stencil; },
+        dock(mode) { cliModeGate('the chat'); chatPanel().dock(mode); return stencil; },
         get isOpen() { return !!app.chat && app.chat.isOpen(); },
         // The settled transcript (contract §12.1 display form): [{ role, text }]
         // copies — no raw model JSON, no error cards, no in-flight row.
@@ -118,7 +119,7 @@ export const createAssistantApi = ({ app, guard }) => {
         // Dictation into the panel's composer — the mic face (the "…" item, a
         // double-click or a hold on Send). Turning it on stops the hands-free voice chat.
         get voiceInput() { return !!app.chat && app.chat.voiceInput; },
-        set voiceInput(v) { chatPanel().setVoiceInput(!!v); },
+        set voiceInput(v) { if (v) cliModeGate('voice input'); chatPanel().setVoiceInput(!!v); },
       });
     },
   };

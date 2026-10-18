@@ -103,7 +103,7 @@ pub fn doEgg(which: skin.Skin) void {
             s.fullPaint();
         },
         .bluescreen => {
-            const pad = " " ** 40;
+            const pad = &@as([40]u8, @splat(' '));
             logo.print(msg.bluescreen_title, .{ pad[0..@min(pad.len, (s.cols -| 9) / 2)], logo.colorSeq("\x1b[7m"), logo.resetSeq() });
             logo.print(msg.bluescreen_body, .{});
         },

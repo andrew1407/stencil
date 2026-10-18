@@ -2,6 +2,7 @@
 #include "ActionsBuilder.hpp"
 #include "CanvasContextMenu.hpp"
 #include "ChatAppliers.hpp"
+#include "ConsoleHost.hpp"
 #include "DockChrome.hpp"
 #include "DocumentPersistence.hpp"
 #include "EditorView.hpp"
@@ -31,7 +32,7 @@ namespace stencil::gui {
         : toolbarBuilder(w), actionsBuilder(w), menuBuilder(w), canvasMenu(w), sourceOpener(w),
           dockChrome(w), view(w), theme(w), projects(w), projectCopy(w), chatAppliers(w),
           persistence(w), popoverGestures(w), hoverTip(w), dialogs(w), scriptHost(w),
-          exportMenus(w), assembly(w), events(w), styleControls(w) {}
+          exportMenus(w), assembly(w), events(w), styleControls(w), console(w) {}
 
     ToolbarBuilder toolbarBuilder;
     ActionsBuilder actionsBuilder;
@@ -53,6 +54,7 @@ namespace stencil::gui {
     WindowAssembly assembly;
     WindowEvents events;
     StyleControls styleControls;
+    ConsoleHost console;
   };
 
 }  // namespace stencil::gui

@@ -105,6 +105,18 @@ docker run --rm -p 8080:80 stencil-browser   # -> http://localhost:8080
   press-and-hold. A dragged row brings a **⋯** beside the window's title: held there it opens that
   row's menu, and releasing the row on an item runs it. Dropping the open project on
   **Close**, or `Alt+Shift+W`, closes it here; it stays in Projects.
+- **Console** — the Data section's console icon (`Alt+Shift+T`) opens a console window beside
+  the editor: it blocks nothing, resizes, and takes the CLI's slash commands over the open
+  project — `/crop x1=10% x2=90%`, `/rotate 1`, `/filter bw`, `/theme dark|light|auto`,
+  `/color red`, `/connect <url>`, `/open <project>`, `/desktop` and more; `/help` lists them
+  (the leading `/` is optional). A bare `/upload` opens the file picker. **Visuals → Motion →
+  Console text speed** sets how fast its answers type in. Typing `cliclicli` outside a field, or
+  dropping the logo on the console icon, switches the whole page into **CLI mode**: the CLI's own
+  terminal, banner and secrets on the app's theme: a click on the logo cycles the accent with the
+  terminal's own wipe, a double-click lands on a random vivid colour, and the picture's name sits
+  under it (click it to see the picture you are editing, double-click for the original, Alt+hover
+  to peek, Shift too for a magnified peek). `/clioff`, `/exit` or a 3 s press on the logo leaves; everything you
+  edited inside stays.
 - **PWA** — installable from the browser's own install UI; runs in its own window and works
   offline.
 - **Servers** — connect to a [collaboration server](../server/README.md) from the Servers
@@ -240,7 +252,11 @@ Orientation:
   and `stencil.chat` for the panel (`open()`, `dock()`, `history`, `abort()`, `clear()`). For
   Anthropic, `stencil.llm.apiKey = '…'` holds your key for this tab and reads back only as
   `'[redacted]'`; `stencil.llm.keyExpiresAt` and `stencil.llm.forgetKey()` go with it.
-- **Motion**: `stencil.drawingAnimations`, `stencil.motionMode`, `stencil.motionSpeed`, `stencil.holdDrawDelay`.
+- **Motion**: `stencil.drawingAnimations`, `stencil.motionMode`, `stencil.motionSpeed`, `stencil.consoleSpeed`, `stencil.holdDrawDelay`.
+- **Console and CLI mode**: `openConsoleWindow()`; `stencil.EasterEggs.cliMode` (get/set) is the
+  secret terminal, `EasterEggs.what()` lists its word with the shows'. While it is on, the members
+  that open a window, move the chat, go fullscreen or change a look or motion setting throw
+  `CLI mode is on — … waits until /clioff`; edits, the theme, projects and servers still work.
 - **Notifications**: `stencil.notifyChannel` — `'toast'` (in the app) or `'system'`.
 
 The object is a frozen facade: reassigning a method or read-only field throws, and members

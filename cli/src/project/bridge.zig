@@ -37,6 +37,7 @@ pub fn loadInto(session: *Session, io: std.Io, path: []const u8) !Project {
         return e;
     };
     try session.loadImage(decoded, label, net.isUrl(path), fmt, sb);
+    try session.setProjectPath(if (net.isUrl(path)) null else path);
     session.adoptServerLayout(proj.layout_json) catch
         report.note("ignoring an invalid embedded layout in '{s}'\n", .{path});
     // §12: a saved chat block restores the conversation (replacing) — only when the /chat
@@ -112,6 +113,7 @@ pub fn saveInto(session: *Session, io: std.Io, path: []const u8, meta: SaveMeta)
         report.err("could not write project to {s} ({s})\n", .{ path, @errorName(e) });
         return e;
     };
+    session.setProjectPath(path) catch {};
     // No "WxH px" token (like the console's "(layout)") so the mcp/bot `wrote` parsers skip it.
     report.print("wrote {s} (project)\n", .{path});
 }

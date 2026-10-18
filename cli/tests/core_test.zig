@@ -56,7 +56,7 @@ test "parseDuration through the ABI" {
 test "namedPageSize + blank fill round trips through the ABI" {
     const p = namedPageSize("A4").?;
     try testing.expectApproxEqAbs(@as(f64, 21.0), p.w, 0.01);
-    var px = [_]u8{0} ** 8;
+    var px: [8]u8 = @splat(0);
     fillRGBA(&px, 2, .{ .r = 10, .g = 20, .b = 30, .a = 40 });
     try testing.expectEqual(@as(u8, 10), px[0]);
     try testing.expectEqual(@as(u8, 40), px[7]);
@@ -89,7 +89,7 @@ test "invert + contour filters through the ABI" {
     try testing.expectEqual(@as(u8, 225), px[2]);
     try testing.expectEqual(@as(u8, 40), px[3]);
     // Contour on a flat image finds no edges -> uniform white, alpha preserved.
-    var flat = [_]u8{ 90, 90, 90, 200 } ** 4; // 2x2, all identical
+    var flat = [_]u8{ 90, 90, 90, 200 } ++ [_]u8{ 90, 90, 90, 200 } ++ [_]u8{ 90, 90, 90, 200 } ++ [_]u8{ 90, 90, 90, 200 }; // 2x2, all identical
     applyContour(&flat, 2, 2);
     try testing.expectEqual(@as(u8, 255), flat[0]);
     try testing.expectEqual(@as(u8, 255), flat[1]);

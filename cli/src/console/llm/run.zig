@@ -166,7 +166,7 @@ pub fn promptTurn(session: *Session, io: std.Io, arg: []const u8) !bool {
                 if (outcome != .again or round != 0) return outcome != .failed;
                 // The note is llm.continuation_note so the §12.1 gate that refuses it in the
                 // persisted document and this writer can never drift apart.
-                cont_text = std.fmt.allocPrint(gpa, "{s}\n\n" ++ llm.continuation_note, .{text}) catch return true;
+                cont_text = gpa.print("{s}\n\n" ++ llm.continuation_note, .{text}) catch return true;
                 turn_text = cont_text.?;
                 continue;
             },

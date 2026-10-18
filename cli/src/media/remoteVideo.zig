@@ -28,7 +28,7 @@ pub fn stage(gpa: std.mem.Allocator, io: std.Io, src: []const u8, strict: bool) 
     var rnd: [8]u8 = undefined;
     io.random(&rnd);
     const sep: []const u8 = if (builtin.os.tag == .windows) "\\" else "/";
-    const path = try std.fmt.allocPrint(gpa, "{s}{s}stencil_video_{s}{s}", .{ tmpDir(), sep, &std.fmt.bytesToHex(rnd, .lower), extOf(src) });
+    const path = try gpa.print("{s}{s}stencil_video_{s}{s}", .{ tmpDir(), sep, &std.fmt.bytesToHex(rnd, .lower), extOf(src) });
     errdefer gpa.free(path);
     const perms: std.Io.File.Permissions = if (@hasDecl(std.Io.File.Permissions, "fromMode")) .fromMode(0o600) else .default_file;
     const file = try std.Io.Dir.cwd().createFile(io, path, .{ .exclusive = true, .permissions = perms });

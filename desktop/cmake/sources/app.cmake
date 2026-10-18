@@ -3,6 +3,34 @@
 # The app's entry point, the one unit no test target links.
 set(STENCIL_APP_MAIN src/app/main.cpp)
 
+# The console part (app/console): the handlers over the grammar's table, and the host that opens
+# the window and the CLI stage.
+set(STENCIL_CONSOLE_SOURCES
+  src/app/console/consoleCommands.cpp
+  src/app/console/consoleCommandsEdit.cpp
+  src/app/console/consoleCommandsNet.cpp
+  src/app/console/ConsoleHost.cpp
+  src/app/console/ConsoleHostCli.cpp
+  src/app/console/ConsoleHostFlows.cpp
+  src/app/console/ConsoleHostOpen.cpp)
+
+# CLI mode (app/cli): the banner maths and the skins are pure over the qrc tables and travel into
+# their headless suite without the stage.
+set(STENCIL_CLI_BANNER_SOURCES
+  src/app/cli/CliBanner.cpp
+  src/app/cli/CliSkins.cpp
+  src/app/cli/CliSkinPictures.cpp)
+set(STENCIL_CLI_SOURCES
+  ${STENCIL_CLI_BANNER_SOURCES}
+  src/app/cli/CliSkinFx.cpp
+  src/app/cli/CliPeek.cpp
+  src/app/cli/CliStage.cpp
+  src/app/cli/CliStageWipe.cpp
+  src/app/cli/CliStageInput.cpp
+  src/app/cli/CliStagePaint.cpp
+  src/app/cli/CliStagePaintRun.cpp
+  src/app/cli/CliStagePaintBanner.cpp)
+
 # The full GUI translation-unit set MINUS the entry point (main.cpp), shared between
 # the app and the MainWindow GUI e2e test target below so the two never drift.
 set(STENCIL_GUI_SOURCES
@@ -78,6 +106,8 @@ set(STENCIL_GUI_SOURCES
   src/app/project/flows/ProjectFlowsMeta.cpp
   src/app/open/source/SourceOpener.cpp
   src/app/project/flows/ProjectFlowsOpenIn.cpp
+  ${STENCIL_CONSOLE_SOURCES}
+  ${STENCIL_CLI_SOURCES}
   src/app/events/popover/PopoverGestures.cpp
   src/app/events/popover/PopoverGesturesSideBySide.cpp
   src/app/project/MainWindowProjectClose.cpp

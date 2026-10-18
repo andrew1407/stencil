@@ -27,7 +27,7 @@ lint: every group directory is on one flat include path, so includes are bare
 | `color/` | hex/keyword parsing, the luma formulas | `luma.hpp` names each formula once |
 | `parse/` | the formula parser and its context, length tokens, crop and duration specs | recursive descent only — no `eval`; a name is the bound axis or a `FormulaContext` constant |
 | `page/` | pixel ↔ page conversion, the `PAGE_SIZES` table, locale unit | the one page table; adapters read it over the ABI |
-| `format/` | the hover tooltip's coordinate rows | string building only |
+| `format/` | the hover tooltip's coordinate rows, the console logo banner rows | string building only |
 | `state/` | snapshot history, co-edit line merge, projects store + expiry, zoom/pan, the hold-draw state machine | in-memory only; persistence and the event loop belong to the GUI |
 | `script/` | the `.stc` language: lexer, parser, templates, lowering, diagnostics, canonical dump | parses and lowers only — no file, URL or pixel |
 | `json/` | a `JSON.parse`-equal reader under caps and a `JSON.stringify`-equal writer | nothing recurses on input |

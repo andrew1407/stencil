@@ -79,7 +79,7 @@ pub fn addPending(self: *Session, label_src: []const u8, bytes: []u8, fmt: image
 /// read) and drop the rest — how the editor reports a marker the user deleted or moved.
 pub fn keepPending(self: *Session, kept: []const usize) void {
     var out: [max_pending]Attachment = undefined;
-    var taken = [_]bool{false} ** max_pending;
+    var taken: [max_pending]bool = @splat(false);
     var n: usize = 0;
     for (kept) |i| {
         if (i >= self.pending.items.len or i >= max_pending or taken[i] or n == out.len) continue;

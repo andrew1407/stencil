@@ -1,0 +1,28 @@
+{
+  "_doc": "The console's animation numbers (cli/src/console/render/logoFx/, screen/prefs.zig), shared with the browser's and desktop's CLI mode: `reveal` paces how new output types in (stepMs × jumps, the short burst form after under quietMs of silence, nothing longer than ceilingMs), scaled by (1 − speed) / speed, three times the tuned step at `consoleSpeed`'s default of 0.25; `wipe` is the accent recolour sweep, at its own tempo whatever the speed (jumps × stepMs, the wordmark letter by letter at flourishStepMs, the rule line ruleWipePct percent ahead, the S icon turning like a clock hand over iconCols columns of cellAspect at iconSpeed times the seam); `press` the compact logo frame a click shows; `rain` the matrix skin's entrance. The CLI keeps its constants and cli/tests/config/console_fx_drift_test.zig pins them here.",
+  "reveal": {
+    "stepMs": 13,
+    "jumps": 8,
+    "burstJumps": 2,
+    "quietMs": 250,
+    "burstMaxMs": 900,
+    "ceilingMs": 5000
+  },
+  "wipe": {
+    "jumps": 14,
+    "stepMs": 61,
+    "flourishStepMs": 115,
+    "ruleWipePct": 178,
+    "iconCols": 21,
+    "cellAspect": 2,
+    "iconSpeed": 1.25
+  },
+  "press": {
+    "ms": 95
+  },
+  "rain": {
+    "frames": 90,
+    "frameMs": 30,
+    "trail": 14
+  }
+}

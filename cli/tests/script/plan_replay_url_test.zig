@@ -38,16 +38,16 @@ test "line, crop, line over a URL source, and a URL @layout added or replacing, 
     const a = testing.allocator;
     const src = try server.url(a, "sample.png");
     defer a.free(src);
-    const head = try std.fmt.allocPrint(a, "@source {s}:\n", .{src});
+    const head = try a.print("@source {s}:\n", .{src});
     defer a.free(head);
     const doc = try server.url(a, "doc.json");
     defer a.free(doc);
 
     try replay.expectSame(io, head, green ++ "; @crop 25%; @line (1,1) (6,4)");
-    const added = try std.fmt.allocPrint(a, green ++ "; @layout {s}; @line (1,1) (6,4)", .{doc});
+    const added = try a.print(green ++ "; @layout {s}; @line (1,1) (6,4)", .{doc});
     defer a.free(added);
     try replay.expectSame(io, head, added);
-    const replaced = try std.fmt.allocPrint(a, green ++ "; @layout {s} replace; @crop 25%", .{doc});
+    const replaced = try a.print(green ++ "; @layout {s} replace; @crop 25%", .{doc});
     defer a.free(replaced);
     try replay.expectSame(io, head, replaced);
 }
@@ -61,7 +61,7 @@ test "under the bot's surface a loopback URL is refused, as the bot's own guard 
     const a = testing.allocator;
     const src = try server.url(a, "sample.png");
     defer a.free(src);
-    const text = try std.fmt.allocPrint(a, "@source {s}:\n  @line (0,0) (1,1)\n", .{src});
+    const text = try a.print("@source {s}:\n  @line (0,0) (1,1)\n", .{src});
     defer a.free(text);
     var s = try scriptCore.Script.parse(text);
     defer s.deinit();

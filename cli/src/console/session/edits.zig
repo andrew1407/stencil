@@ -151,6 +151,13 @@ pub fn setPageSize(self: *Session, name: []const u8) !void {
     self.page_size = dup;
 }
 
+/// Remember the local `.stencil` this session was opened from or saved to (a URL is none).
+pub fn setProjectPath(self: *Session, path: ?[]const u8) !void {
+    const dup: ?[]u8 = if (path) |p| try self.gpa.dupe(u8, p) else null;
+    if (self.project_path) |p| self.gpa.free(p);
+    self.project_path = dup;
+}
+
 /// Replace the displayed label (e.g. after a rename), owned copy.
 pub fn setLabel(self: *Session, name: []const u8) !void {
     const dup = try self.gpa.dupe(u8, name);

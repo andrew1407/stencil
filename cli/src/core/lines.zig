@@ -5,9 +5,7 @@ const std = @import("std");
 const LineDraw = @import("../core.zig").LineDraw;
 const testing = std.testing;
 
-const c = @cImport({
-    @cInclude("core/cliApi.h");
-});
+const c = @import("cApi.zig");
 
 /// What a layout may hold (constants.json LIMITS): lines kept, points per line, points in all.
 pub const LayoutCaps = struct { lines: usize, line_points: usize, points: usize };

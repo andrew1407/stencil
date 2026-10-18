@@ -20,7 +20,7 @@ const Pages = struct {
             @memcpy(asked[n][0..at], url[0..at]);
             asked[n][at] = 0;
         }
-        if (endless) return std.fmt.allocPrint(gpa, "{{\"projects\":[],\"nextCursor\":\"c{d}\"}}", .{n});
+        if (endless) return gpa.print("{{\"projects\":[],\"nextCursor\":\"c{d}\"}}", .{n});
         return gpa.dupe(u8, bodies[@min(n, bodies.len - 1)]);
     }
 

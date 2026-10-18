@@ -84,7 +84,7 @@ fn resolveOutput(gpa: std.mem.Allocator, out_raw: []const u8, fallback: image.Fo
         if (image.formatFromExt(e)) |f| return .{ .path = out, .fmt = f };
     }
     defer gpa.free(out);
-    const path = try std.fmt.allocPrint(gpa, "{s}.{s}", .{ out, fallback.ext() });
+    const path = try gpa.print("{s}.{s}", .{ out, fallback.ext() });
     return .{ .path = path, .fmt = fallback };
 }
 

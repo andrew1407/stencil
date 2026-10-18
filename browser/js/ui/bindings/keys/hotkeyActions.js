@@ -120,6 +120,7 @@ export function hotkeyActions(app) {
     cropImage: () => clickIfActive('crop-image'),
     downloadJson: () => clickIfActive('download-json'),
     uploadJson: () => clickIfActive('upload-json-btn'),
+    openConsole: () => clickIfActive('console-btn'),
     openScript: () => clickIfActive('script-btn'),
     saveProject: () => clickIfActive('save-project-btn'),
     openProject: () => clickIfActive('open-project-btn'),

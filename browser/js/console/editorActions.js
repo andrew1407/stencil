@@ -1,5 +1,6 @@
 import { startDrawingMode, stopDrawingMode } from '../core/draw/mode.js';
 import { flipSelectedLine, rotateSelectedLineQuarter } from '../core/draw/transformOps.js';
+import { cliModeGate } from './shell/gate.js';
 // ── window.stencil's chainable editor actions ────────────────────────────────
 // Transforms, the draw/voice toggles, viewport pan/zoom, and the bulk apply() that
 // fans one object out over the settings namespace and these same members.
@@ -20,19 +21,20 @@ export const createEditorActions = ({ app }) => {
     rotateMinus90() { rotateSelectedLineQuarter(app, -1); return stencil; },
     undo() { app.undo(); return stencil; },
     redo() { app.redo(); return stencil; },
-    startDrawing() { startDrawingMode(app); return stencil; },
+    startDrawing() { cliModeGate('drawing'); startDrawingMode(app); return stencil; },
     stopDrawing() { stopDrawingMode(app); return stencil; },
     // Point-adding mode as a get/set toggle (mirrors the Start/Stop drawing buttons).
     // Enabling needs a loaded image (matches the toolbar's guard).
     get drawing() { return !!app.isDrawing; },
     set drawing(on) {
-      if (on) { if (app.image && !app.isDrawing) startDrawingMode(app); }
+      if (on) { cliModeGate('drawing'); if (app.image && !app.isDrawing) startDrawingMode(app); }
       else if (app.isDrawing) stopDrawingMode(app);
     },
     // Hands-free voice chat (js/llm/voice/modes.js): listens with the chat closed and sends
     // every utterance as a turn. Turning it on stops any composer dictation.
     get voiceChat() { return !!app.voice?.voiceChat; },
     set voiceChat(on) {
+      if (on) cliModeGate('voice chat');
       if (!app.voice) throw new Error('Voice input not ready — the editor UI has not wired yet');
       app.voice.voiceChat = !!on;
     },

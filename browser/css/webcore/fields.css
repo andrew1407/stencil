@@ -99,3 +99,60 @@
     background: radial-gradient(circle, var(--wc-ink) 0 3px, var(--wc-window) 3.5px);
 }
 :root[data-skin="webcore"] input[type="range"] { accent-color: var(--wc-select); }
+
+/* ── The console window: the shell's own command prompt — light grey monospace on a black,
+   sunken field, the heads in the chosen accent, its selection colours (desktop
+   webcore/fields.qss console rules). The skin's own font and field rules are !important, so these are. ── */
+:root[data-skin="webcore"] .console-modal .console-body {
+    background: #000;
+    border: 0;
+    border-radius: 0;
+    box-shadow: var(--wc-sunken);
+}
+:root[data-skin="webcore"] .console-modal .console-out,
+:root[data-skin="webcore"] .console-modal .console-out *,
+:root[data-skin="webcore"] .console-modal .console-prompt,
+:root[data-skin="webcore"] .console-modal .console-prompt-row .console-input,
+:root[data-skin="webcore"] .console-modal .console-prompt-row .console-input:focus,
+:root[data-skin="webcore"] .console-modal .console-prompt-row .console-input:hover {
+    font-family: 'Menlo', 'Consolas', 'DejaVu Sans Mono', monospace !important;
+    font-size: 12px !important;
+    line-height: 1.45 !important;
+}
+:root[data-skin="webcore"] .console-modal .console-out { color: #c0c0c0; padding: 8px 10px; }
+:root[data-skin="webcore"] .console-modal .console-prompt-row .console-input,
+:root[data-skin="webcore"] .console-modal .console-prompt-row .console-input:focus,
+:root[data-skin="webcore"] .console-modal .console-prompt-row .console-input:hover {
+    color: #c0c0c0 !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
+}
+:root[data-skin="webcore"] .console-modal .console-prompt-row { border-top-color: #c0c0c0; padding: 6px 10px 8px; }
+:root[data-skin="webcore"] .console-modal .console-prompt,
+:root[data-skin="webcore"] .console-modal .console-line-cmd,
+:root[data-skin="webcore"] .console-modal .console-line-section,
+:root[data-skin="webcore"] .console-modal .console-input[data-word="cmd"] { color: var(--wc-focus) !important; }   /* the chosen accent, as the desktop paints them */
+:root[data-skin="webcore"] .console-modal .console-line-secret,
+:root[data-skin="webcore"] .console-modal .console-input[data-word="secret"] { color: #ffff80 !important; }
+:root[data-skin="webcore"] .console-modal .console-line-error-prefix { color: #ff8080; }
+:root[data-skin="webcore"] .console-modal .console-out ::selection,
+:root[data-skin="webcore"] .console-modal .console-input::selection { background: var(--wc-select); color: var(--wc-on-select); }
+
+/* The CLI stage under the skin: its prompt row is the terminal's, never the skin's white well. */
+:root[data-skin="webcore"] .cli-stage .cli-input,
+:root[data-skin="webcore"] .cli-stage .cli-input:focus,
+:root[data-skin="webcore"] .cli-stage .cli-input:hover {
+    font-family: 'Menlo', 'Consolas', 'DejaVu Sans Mono', monospace !important;
+    font-size: 13px !important;
+    color: inherit !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
+}

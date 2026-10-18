@@ -6,7 +6,7 @@ const std = @import("std");
 /// Batches per measurement, as core's `best_ms` and mcp's `per_call` use.
 pub const reps = 5;
 
-/// Elapsed monotonic milliseconds since `t0` (Zig 0.16 clocks live on std.Io).
+/// Elapsed monotonic milliseconds since `t0` (clocks live on std.Io).
 pub fn elapsedMs(io: std.Io, t0: std.Io.Timestamp) f64 {
     const ns = t0.durationTo(std.Io.Clock.awake.now(io)).toNanoseconds();
     return @as(f64, @floatFromInt(ns)) / 1e6;

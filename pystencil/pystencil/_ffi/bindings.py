@@ -214,5 +214,8 @@ def _bind_opplan(lib: ctypes.CDLL) -> None:
   lib.stencil_cli_opplanJson.restype = _cstr
   lib.stencil_cli_opplanJson.argtypes = [_i]
 
+  lib.stencil_cli_logoBanner.restype = _i
+  lib.stencil_cli_logoBanner.argtypes = [_cstr, _i, _i, ctypes.c_char_p, _i]
+
   lib.stencil_cli_opplanDestroy.restype = None
   lib.stencil_cli_opplanDestroy.argtypes = [_i]

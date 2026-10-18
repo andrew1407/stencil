@@ -1,8 +1,7 @@
-// POSIX regex shim for the CLI's --source-name filter. Zig 0.16's translate-c renders
-// glibc's `regex_t` as an opaque type (it carries bitfields), so it can no longer be embedded
-// by value in a Zig struct. This shim owns the `regex_t` storage on the C side — where
-// `sizeof(regex_t)` is known natively, so no size guessing and it stays portable across libcs
-// — and hands Zig an opaque handle. Compiled only where <regex.h> exists (POSIX); on
+// POSIX regex shim for the CLI's --source-name filter. glibc's `regex_t` carries bitfields,
+// which no Zig binding can embed by value. This shim owns the `regex_t` storage on the C side
+// — where `sizeof(regex_t)` is known natively, so no size guessing and it stays portable
+// across libcs — and hands Zig an opaque handle. Compiled only where <regex.h> exists (POSIX); on
 // Windows/WASI the entry points compile away and scrape.zig uses its substring fallback.
 #if !defined(_WIN32) && !defined(__wasi__)
 #include <regex.h>

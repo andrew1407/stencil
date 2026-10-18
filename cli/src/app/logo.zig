@@ -186,7 +186,7 @@ fn emitElsewhere(bytes: []const u8) void {
 fn formatted(comptime fmt: []const u8, args: anytype, emit: *const fn ([]const u8) void) void {
     var buf: [8192]u8 = undefined;
     if (std.fmt.bufPrint(&buf, fmt, args)) |s| return emit(s) else |_| {}
-    const big = std.fmt.allocPrint(std.heap.page_allocator, fmt, args) catch {
+    const big = std.heap.page_allocator.print(fmt, args) catch {
         var w = std.Io.Writer.fixed(&buf);
         w.print(fmt, args) catch {};
         return emit(w.buffered());

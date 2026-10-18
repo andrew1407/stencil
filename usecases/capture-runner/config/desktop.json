@@ -36,6 +36,8 @@
     "keywords-dialog",
     "links-dialog",
     "open-in-dialog",
+    "console-dialog",
+    "cli-mode",
     "context-menu-copy",
     "context-menu-script",
     "projects-row-copy",

@@ -76,8 +76,13 @@ int main(int argc, char** argv) {
 
   // Which group owns each header basename, and every core/ header name.
   QHash<QString, QString> owner;   // basename → group dir ("app", "canvas", …)
+  QHash<QString, QString> folder;  // basename → its folder under src/ ("app/console", …)
   for (const QFileInfo& g : src.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot))
     for (const QString& h : headersIn(QDir(g.absoluteFilePath()))) owner.insert(h, g.fileName());
+  {
+    QDirIterator hi(src.absolutePath(), {QStringLiteral("*.hpp"), QStringLiteral("*.h")}, QDir::Files, QDirIterator::Subdirectories);
+    while (hi.hasNext()) { const QFileInfo fi(hi.next()); folder.insert(fi.fileName(), src.relativeFilePath(fi.absolutePath())); }
+  }
   check(owner.value(QStringLiteral("MainWindow.hpp")) == QStringLiteral("app"),
         "the header index found app/MainWindow.hpp");
   check(owner.value(QStringLiteral("CanvasWidget.hpp")) == QStringLiteral("canvas"),
@@ -108,7 +113,7 @@ int main(int argc, char** argv) {
   // Any include, quoted or angled; a quoted one is the same header under every path spelling.
   static const QRegularExpression ANY_INCLUDE(QStringLiteral("^\\s*#\\s*include\\s+([<\"])([^>\"]+)[>\"]"));
   static const QRegularExpression CONDITIONAL(QStringLiteral("^\\s*#\\s*(if|ifdef|ifndef|endif)\\b"));
-  QStringList intoApp, intoCanvas, intoCore, staleCore, staleApp, twice, passedOn;
+  QStringList intoApp, intoCanvas, intoCore, staleCore, staleApp, twice, passedOn, consoleLeaf;
   QSet<QString> sawCore, sawApp;
   int scanned = 0;
   QDirIterator it(src.absolutePath(),
@@ -150,6 +155,12 @@ int main(int argc, char** argv) {
         continue;
       }
       const QString from = owner.value(inc);
+      // The console leaves: the CLI stage sees app/ only through its own folder, the console window only support/.
+      const QString dir = folder.value(inc);
+      if (rel.startsWith(QStringLiteral("app/cli/")) && from == QStringLiteral("app") && dir != QStringLiteral("app/cli"))
+        consoleLeaf << (rel + " → " + dir + "/" + inc);
+      if (rel.startsWith(QStringLiteral("dialogs/console/")) && !from.isEmpty() && from != group && from != QStringLiteral("support"))
+        consoleLeaf << (rel + " → " + dir + "/" + inc);
       if (from.isEmpty() || from == group) continue;
       if (from == QStringLiteral("app")) {
         const QString key = rel + ":" + inc;
@@ -177,6 +188,10 @@ int main(int argc, char** argv) {
   // ── Rule 4: one include per header per file.
   for (const QString& v : twice) std::printf("  included twice: %s\n", qPrintable(v));
   check(twice.isEmpty(), "no file includes the same header twice");
+
+  // ── Rule 6: app/cli/ includes no app/ header outside its folder; dialogs/console/ only support/.
+  for (const QString& v : consoleLeaf) std::printf("  console-leaf include: %s\n", qPrintable(v));
+  check(consoleLeaf.isEmpty(), "the CLI stage and the console window stay leaves of their layers");
 
   // ── Rule 5: the window and the canvas are a translation unit's include, never a header's —
   // a header names them by forward declaration, so its includers do not all recompile with them.

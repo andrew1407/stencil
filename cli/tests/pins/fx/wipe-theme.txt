@@ -42,28 +42,28 @@
 \x1b[6;24H\x1b[1mS\x1b[0m\x1b[1m \x1b[0m\x1b[1mT\x1b[0m\x1b[1m \x1b[0m\x1b[1mE\x1b[0m\x1b[1m \x1b[0m\x1b[1mN\x1b[0m\x1b[1m \x1b[0m\x1b[1mC\x1b[0m\x1b[1m \x1b[0m\x1b[1m\x1b[38;2;37;99;235mI\x1b[0m\x1b[1m \x1b[0m\x1b[1mL\x1b[0m\x1b8
 ~wait 115
 @690 3596B baca47b878ca67c8
-~wait 13
-@703 22B b4be0886e467b9e6
+~wait 39
+@729 22B b4be0886e467b9e6
 \x1b7
 \x1b[17;1Hthem\x1b[0m\x1b[K\x1b8
-~wait 13
-@716 26B f72ab90984c0c179
+~wait 39
+@768 26B f72ab90984c0c179
 \x1b7
 \x1b[17;1Htheme se\x1b[0m\x1b[K\x1b8
-~wait 13
-@729 30B 5b01fc5a94e9910e
+~wait 39
+@807 30B 5b01fc5a94e9910e
 \x1b7
 \x1b[17;1Htheme set to\x1b[0m\x1b[K\x1b8
-~wait 13
-@742 34B 9190c17132a4bf19
+~wait 39
+@846 34B 9190c17132a4bf19
 \x1b7
 \x1b[17;1Htheme set to blu\x1b[0m\x1b[K\x1b8
-~wait 13
-@755 38B 0b8aede44e293ad0
+~wait 39
+@885 38B 0b8aede44e293ad0
 \x1b7
 \x1b[17;1Htheme set to blue (#\x1b[0m\x1b[K\x1b8
-~wait 13
-@768 975B 6f96ae3dfe233ff9
+~wait 39
+@924 975B 6f96ae3dfe233ff9
 \x1b7
 \x1b[17;1Htheme set to blue (#2563\x1b[0m\x1b[K
 \x1b[12;1H\x1b[38;2;37;99;235m> \x1b[0m/theme\x1b[0m\x1b[K

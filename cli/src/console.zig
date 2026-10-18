@@ -6,6 +6,7 @@ const std = @import("std");
 const logo = @import("app/logo.zig");
 const llm = @import("llm.zig");
 const args = @import("args.zig");
+const AppEnv = @import("console/handlers/apps/env.zig").AppEnv;
 const line_edit = @import("line_edit/line_edit.zig");
 const session_mod = @import("console/session.zig");
 const ui = @import("console/ui.zig");
@@ -22,8 +23,8 @@ pub const handle = dispatch_mod.handle;
 const runInteractive = loop.runInteractive;
 const runPiped = loop.runPiped;
 
-pub fn run(gpa: std.mem.Allocator, io: std.Io, full_screen: bool, llm_env: llm.Env, server_tokens: args.EnvTokens) !void {
-    var session = Session{ .gpa = gpa, .llm_env = llm_env, .server_tokens = server_tokens };
+pub fn run(gpa: std.mem.Allocator, io: std.Io, full_screen: bool, llm_env: llm.Env, server_tokens: args.EnvTokens, app_env: AppEnv) !void {
+    var session = Session{ .gpa = gpa, .llm_env = llm_env, .server_tokens = server_tokens, .app_env = app_env };
     defer session.deinit();
 
     const stdin_file = std.Io.File.stdin();

@@ -61,7 +61,7 @@ fn emit(sev: Severity, comptime fmt: []const u8, args: anytype) void {
         var buf: [8192]u8 = undefined;
         if (std.fmt.bufPrint(&buf, fmt, args)) |s| return w.emitFn(w.ctx, sev, s) else |_| {}
         // Longer than one chunk: the heap, so the line arrives whole; without memory, what fits.
-        const big = std.fmt.allocPrint(std.heap.page_allocator, fmt, args) catch {
+        const big = std.heap.page_allocator.print(fmt, args) catch {
             var fw = std.Io.Writer.fixed(&buf);
             fw.print(fmt, args) catch {};
             return w.emitFn(w.ctx, sev, fw.buffered());
@@ -106,7 +106,7 @@ test "a line past 8 KB reaches an installed writer whole, never dropped" {
     var unused: u8 = 0;
     install(.{ .ctx = @ptrCast(&unused), .emitFn = Cap.take });
     defer uninstall();
-    const long = "y" ** 12000;
+    const long = &@as([12000]u8, @splat('y'));
     print("{s}\n", .{long});
     try std.testing.expectEqual(long.len + 1, Cap.len);
 }

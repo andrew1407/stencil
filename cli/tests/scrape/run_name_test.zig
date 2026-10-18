@@ -65,7 +65,11 @@ test "run: an over-long --source-name pattern is refused before regcomp" {
     try mock.serve("http://example.com/", "<img src=\"cat.png\">");
 
     // A nest of counted repetitions is exactly the shape glibc's regexec backtracks on.
-    const long = "(a+)+" ** 60;
+    const long = comptime blk: {
+        var s: []const u8 = "";
+        for (0..60) |_| s = s ++ "(a+)+";
+        break :blk s;
+    };
     try testing.expect(long.len > max_name_pattern);
     var opts = args.Options{};
     opts.source_site = "http://example.com/";
@@ -74,7 +78,7 @@ test "run: an over-long --source-name pattern is refused before regcomp" {
     try testing.expectError(error.NamePatternTooLong, runImpl(testing.allocator, io, opts, mock.deps()));
     try testing.expectEqual(@as(usize, 0), mock.files.count());
     // A pattern at the cap still compiles.
-    opts.source_name = "c" ++ ("a" ** (max_name_pattern - 1));
+    opts.source_name = "c" ++ @as([max_name_pattern - 1]u8, @splat('a'));
     try testing.expect(NameMatcher.init(opts.source_name, a) catch null != null);
 }
 

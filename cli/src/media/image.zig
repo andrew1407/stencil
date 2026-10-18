@@ -4,10 +4,19 @@
 //! stb_read_impl.c / stb_write_impl.c). Pure in-memory: the pipeline does the I/O.
 const std = @import("std");
 
-const c = @cImport({
-    @cInclude("stb_image.h");
-    @cInclude("stb_image_write.h");
-});
+// The vendored stb_image / stb_image_write entry points this file calls, spelled as translate-c
+// spelled them; stb_read_impl.c and stb_write_impl.c compile the C bodies.
+const c = struct {
+    pub const stbi_uc = u8;
+    pub const stbi_write_func = fn (context: ?*anyopaque, data: ?*anyopaque, size: c_int) callconv(.c) void;
+    pub extern fn stbi_load_from_memory(buffer: [*c]const stbi_uc, len: c_int, x: [*c]c_int, y: [*c]c_int, channels_in_file: [*c]c_int, desired_channels: c_int) [*c]stbi_uc;
+    pub extern fn stbi_info_from_memory(buffer: [*c]const stbi_uc, len: c_int, x: [*c]c_int, y: [*c]c_int, comp: [*c]c_int) c_int;
+    pub extern fn stbi_image_free(retval_from_stbi_load: ?*anyopaque) void;
+    pub extern fn stbi_write_png_to_func(func: ?*const stbi_write_func, context: ?*anyopaque, w: c_int, h: c_int, comp: c_int, data: ?*const anyopaque, stride_in_bytes: c_int) c_int;
+    pub extern fn stbi_write_jpg_to_func(func: ?*const stbi_write_func, context: ?*anyopaque, x: c_int, y: c_int, comp: c_int, data: ?*const anyopaque, quality: c_int) c_int;
+    pub extern fn stbi_write_bmp_to_func(func: ?*const stbi_write_func, context: ?*anyopaque, w: c_int, h: c_int, comp: c_int, data: ?*const anyopaque) c_int;
+    pub extern fn stbi_write_tga_to_func(func: ?*const stbi_write_func, context: ?*anyopaque, w: c_int, h: c_int, comp: c_int, data: ?*const anyopaque) c_int;
+};
 const imageAlloc = @import("imageAlloc.zig");
 const decodeGuard = @import("decodeGuard.zig");
 

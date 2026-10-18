@@ -59,8 +59,9 @@ namespace stencil::gui {
     // A real palette change gets the browser's flood-from-the-centre wipe. Never under reduced
     // motion, and never while one is in flight - stacking snapshots tore the window.
     const bool paletteMoved = dark != painted.dark || settings.accentColor != painted.accent;
+    // Under CLI mode the stage paints the Zig console's own wipe, so no flood goes over it.
     const bool swapping = painted.done && !support::motionReduced() && !painted.swapping() && paletteMoved &&
-                          !painted.silent;
+                          !painted.silent && !parts.console.cliModeOn();
     // Start the wipe at the icon that owns the change, as the browser blooms from its toggle; the
     // cursor may be up at the menu bar.
     ThemeSwapOverlay* wipe = nullptr;
@@ -125,6 +126,7 @@ namespace stencil::gui {
       const Palette dp = themePalette(dark, settings.accentColor);
       overlays.dropZones->setColors(dp.accent, dp.textKey, dp.textMuted, dp.bgContainer);
     }
+    parts.console.onThemeApplied();
     if (parts.dockChrome.panelGrip || parts.dockChrome.chatEdge) {
       const Palette gp = themePalette(dark, settings.accentColor);
       // Webcore's grip is the ink on the dark face, the shadow on the light one, and never lit.

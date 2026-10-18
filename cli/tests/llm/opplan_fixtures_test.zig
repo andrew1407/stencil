@@ -28,7 +28,7 @@ fn loadCorpus(w: *fx.Walk) ![]Entry {
     }
     const bundle = try fx.loadJson(a, io, opplan_dir ++ "generated/cases.json");
     for (fx.member(bundle, "cases").?.array.items) |c| {
-        const file = try std.fmt.allocPrint(a, "{s}.json", .{fx.memberStr(c, "name").?});
+        const file = try a.print("{s}.json", .{fx.memberStr(c, "name").?});
         try out.append(a, .{ .file = file, .value = c });
     }
     return out.items;

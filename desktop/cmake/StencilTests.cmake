@@ -35,6 +35,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/tests/llm.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/tests/script.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/tests/canon.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/tests/guards.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/tests/console.cmake)
 
 # Every test writes to an ISOLATED state dir, never the dev .stencil the real
 # app uses — a ctest run used to persist test-flipped settings (view toggles,

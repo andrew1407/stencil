@@ -70,8 +70,9 @@ size) work as in the browser app, with the same keyboard shortcuts.
   **Controls & Shortcuts Info** (`Alt+H`), and the **Keyboard Shortcuts** editor (`Alt+K`: click
   a combo and press the new chord).
 - **Motion** — Settings → Motion: *Drawing animation* on/off, *Interface animation*
-  (Dust, Water, Fire, Sliding, None) and its *Animation speed* (0.1 slowest to 1 fastest,
-  0.37 the standard pace). `STENCIL_NO_ANIM=1` overrides the setting.
+  (Dust, Water, Fire, Sliding, None), its *Animation speed* (0.1 slowest to 1 fastest,
+  0.37 the standard pace) and the *Console text speed* the console windows type at (0.01 to 1,
+  0.25 the standard pace; 1 is instant). `STENCIL_NO_ANIM=1` overrides the setting.
 - **Notifications** — Settings → Notifications: *In the app* (the corner toasts, the default) or
   *System notifications* (the OS notification centre, through a tray icon shown while chosen).
   Where the OS offers none, the toasts stay.
@@ -80,6 +81,25 @@ size) work as in the browser app, with the same keyboard shortcuts.
 - **Project actions** — `Ctrl+Alt+R` removes the current project from the editor,
   `Ctrl+Alt+N` renames it.
 - **Autosave** — the in-progress drawing is restored on next launch.
+
+### Console
+
+**Data ▸ Console…** (`Alt+Shift+T`, the first button of the Data section) opens a console
+window beside the editor: it blocks nothing, resizes from its corner, follows the theme and
+takes the CLI's slash commands over the open project — `/crop x1=10% x2=90%`, `/rotate 1`,
+`/filter bw`, `/theme dark|light|auto`, `/color red`, `/connect <url>`, `/open <project|path|url>`,
+`/upload <path|url>` (bare, it opens the Open Image window), `/save [path]`, `/browser` to hand the
+project to the browser app, and more; `/help` lists them and the leading `/` is optional. Tab
+completes, Up/Down recall history, `/exit` closes it.
+
+Typing `cliclicli` into the bare window, or dropping the logo on the console icon, switches the
+whole window into **CLI mode**: the CLI's own terminal — its logo, the picture's name and size
+under it, the same secrets — on the app's theme. Click the logo to cycle the accent (it wipes
+over like the terminal's), double-click it for a random vivid colour, click the picture's name to
+see what you are editing, double-click for the original, Alt+hover to peek (Shift too for a
+magnified one). `/clioff`, `/exit` or a 3 s press on the logo leaves; every edit made
+inside stays. The CLI's `/desktopsync` sees the `.stencil` files this app has open through its
+project registry.
 
 ### Scripts (`.stc`)
 

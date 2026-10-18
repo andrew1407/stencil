@@ -28,6 +28,8 @@ test {
     _ = @import("tests/console/echo_test.zig");
     _ = @import("tests/console/worker_print_test.zig");
     _ = @import("tests/console/script_runs_test.zig");
+    _ = @import("tests/console/apps_commands_test.zig");
+    _ = @import("tests/console/file_link_test.zig");
     _ = @import("tests/console/rotate_flip_lines_test.zig");
     _ = @import("tests/console/crop_lines_test.zig");
     _ = @import("tests/line_edit/markers_test.zig");
@@ -52,6 +54,10 @@ test {
     _ = @import("tests/config/theme_tokens_drift_test.zig");
     _ = @import("tests/config/media_types_drift_test.zig");
     _ = @import("tests/config/fetch_workers_drift_test.zig");
+    _ = @import("tests/config/capi_drift_test.zig");
+    _ = @import("tests/config/skins_drift_test.zig");
+    _ = @import("tests/config/console_fx_drift_test.zig");
+    _ = @import("tests/config/logo_mark_drift_test.zig");
     _ = @import("tests/console/commands_test.zig");
     _ = @import("tests/console/commands_args_test.zig");
     _ = @import("tests/llm/config_test.zig");

@@ -11,6 +11,7 @@
 
 #include "guiHelpers.hpp"
 #include "../../support/motionPrefs.hpp"
+#include "../../support/console/consolePace.hpp"
 #include "modalChrome.hpp"
 
 namespace stencil::gui {
@@ -80,6 +81,7 @@ namespace stencil::gui {
     s.multiWindow = multiWindow->isChecked();
     s.motionMode = motionTouched ? motionMode->currentData().toString() : heldMotionMode;
     s.motionSpeed = support::clampMotionSpeed(motionSpeedSpin->value());
+    s.consoleSpeed = support::clampConsoleSpeed(consoleSpeedSpin->value());
     s.notifyChannel = notifyChannel->currentData().toString();
     s.browserBaseUrl = browserUrl->text().trimmed();
     s.telegramBotUsername = botUsername->text().trimmed().remove(QLatin1Char('@'));

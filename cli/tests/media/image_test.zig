@@ -20,7 +20,7 @@ test "formatFromExt" {
 
 test "a decode hands stb's own buffer over, leaving no block behind" {
     const a = testing.allocator;
-    var pixels = [_]u8{ 9, 8, 7, 255 } ** 4;
+    var pixels = [_]u8{ 9, 8, 7, 255 } ++ [_]u8{ 9, 8, 7, 255 } ++ [_]u8{ 9, 8, 7, 255 } ++ [_]u8{ 9, 8, 7, 255 };
     const enc = try encode(a, .{ .width = 2, .height = 2, .pixels = &pixels }, .png);
     defer a.free(enc);
     var dec = try decode(a, enc);
@@ -38,7 +38,7 @@ test "a top-down BMP decodes with its rows in stored order; its header measures 
     // 1x2, 24-bit, height -2: the first stored row (red, BGR + pad) is the top one.
     const bmp = "BM\x3e\x00\x00\x00\x00\x00\x00\x00\x36\x00\x00\x00" ++
         "\x28\x00\x00\x00\x01\x00\x00\x00\xfe\xff\xff\xff\x01\x00\x18\x00" ++
-        "\x00" ** 24 ++ "\x00\x00\xff\x00" ++ "\xff\x00\x00\x00";
+        &@as([24]u8, @splat(0)) ++ "\x00\x00\xff\x00" ++ "\xff\x00\x00\x00";
     const d = image.dims(bmp).?;
     try testing.expectEqual(@as(usize, 1), d.width);
     try testing.expectEqual(@as(usize, 2), d.height);

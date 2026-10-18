@@ -44,7 +44,7 @@ fn forcePngDataUrls(a: std.mem.Allocator, body: std.json.Value) !void {
             const url = iu.object.getPtr("url") orelse continue;
             if (url.* != .string) continue;
             const at = std.mem.indexOf(u8, url.string, ";base64,") orelse continue;
-            url.* = .{ .string = try std.fmt.allocPrint(a, "data:image/png{s}", .{url.string[at..]}) };
+            url.* = .{ .string = try a.print("data:image/png{s}", .{url.string[at..]}) };
         }
     }
 }
@@ -154,7 +154,7 @@ test "providerWire corpus: request building + reply extraction against the cli c
 
                 var want = fx.memberStr(expect_err, "message").?;
                 if (ov != null and fx.memberStr(ov.?, "detail") != null) want = fx.memberStr(ov.?, "detail").?;
-                const fallback = try std.fmt.allocPrint(a, "HTTP {d}", .{status});
+                const fallback = try a.print("HTTP {d}", .{status});
                 if (std.mem.eql(u8, want, fallback)) want = "";
                 if (!std.mem.eql(u8, got, want))
                     w.fail("providerWire '{s}': error detail mismatch\n  want: {s}\n  cli:  {s}\n", .{ name, want, got });

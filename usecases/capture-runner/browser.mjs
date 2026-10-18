@@ -11,6 +11,7 @@ import { makeShotRunner } from './lib/shot/runner.mjs';
 import { makeBrowserPages } from './browser/pageTools.mjs';
 import { makeStillSteps } from './browser/stillSteps.mjs';
 import { makeHandoffSteps } from './browser/handoffSteps.mjs';
+import { makeConsoleSteps } from './browser/consoleSteps.mjs';
 import { makeDragSteps } from './browser/dragSteps.mjs';
 import { makeClipSteps } from './browser/clipSteps.mjs';
 import { makeGestureSteps } from './browser/gestureSteps.mjs';
@@ -29,6 +30,7 @@ const pages = makeBrowserPages({ config, browser });
 console.log('browser stills');
 const ctx = await runner.play(makeStillSteps({ config, runner, pages, stub, appUrl: server.url, browser }), {});
 await runner.play(makeHandoffSteps({ config, runner, pages }), ctx);
+await runner.play(makeConsoleSteps({ runner, pages }), ctx);
 await ctx.page?.close();
 
 // Its own page: a clip left in the shared one would sit under every later shot.

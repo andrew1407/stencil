@@ -68,12 +68,8 @@ CMake + Doctest; each other surface uses its platform's default.
   extension's `src/lib/` ports, the config copies in `pystencil/pystencil/_data/` …) is never
   edited in place: edit the original, then `node tools/syncTwins.mjs` re-copies every twin
   listed in `tools/twins.json` (`--check` only reports).
-- The CLI builds with Zig 0.16 (`cli/build.zig.zon` `minimum_zig_version`); a newer Zig fails
-  inside `build.zig` on the changed build API.
-- `zig build` where every SDK `xcrun` offers is newer than Zig supports (`INFINITY`
-  undeclared) needs a libc file naming an older SDK still installed:
-  `zig libc | sed -E 's#MacOSX[0-9.]*\.sdk#MacOSX<older>.sdk#' > "$TMPDIR/zig-libc.txt"`, then
-  `ZIG_LIBC="$TMPDIR/zig-libc.txt" zig build`.
+- The CLI builds with Zig 0.17 (`cli/build.zig.zon` `minimum_zig_version`); its C ABI
+  bindings are the hand-written `cli/src/core/cApi.zig`, pinned to `core/cliApi.h` by a drift test.
 
 ## Commits
 

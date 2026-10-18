@@ -21,6 +21,8 @@ export declare const onAltKeys: (entry: {
   /** `e` is the Alt keyup; a window blur releases with none. */
   release?: (e?: KeyboardEvent) => void;
 }) => void;
+/** Drops a trigger `onAltKeys` registered, once its owner is gone. */
+export declare const offAltKeys: (entry: object) => void;
 
 /** Pointer inside `box`, or inside a list one of its dropdowns opened on <body>. */
 export declare const peekEngaged: (box: Element | null | undefined) => boolean;

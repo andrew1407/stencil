@@ -365,6 +365,18 @@ interface StencilSettings {
    * [Stencil console API](https://github.com/andrew1407/stencil/blob/main/browser/README.md#console-api)
    */
   motionSpeed: number;
+  /**
+   * How fast the console windows type their answers in.
+   *
+   * 0.01 is the slowest and 1 instant; a value outside that is clamped. The default 0.5 plays the typewriter at its tuned pace.
+   *
+   * ```js
+   * stencil.consoleSpeed = 0.8;
+   * ```
+   *
+   * [Stencil console API](https://github.com/andrew1407/stencil/blob/main/browser/README.md#console-api)
+   */
+  consoleSpeed: number;
   /** Many windows open at once: no backdrop, and a click outside closes none. Off, one window
    *  at a time dims and blurs the page behind it. */
   /**
@@ -1151,6 +1163,18 @@ interface Stencil extends StencilSettings {
    */
   openVisualsWindow(): Stencil;
   /**
+   * Open the console window, beside whatever is up.
+   *
+   * A window that blocks nothing: it takes the slash commands over the open project and closes only from its own Close or /exit. Hands the facade back, so calls chain.
+   *
+   * ```js
+   * stencil.openConsoleWindow();
+   * ```
+   *
+   * [Stencil console API](https://github.com/andrew1407/stencil/blob/main/browser/README.md#console-api)
+   */
+  openConsoleWindow(): Stencil;
+  /**
    * Open the help window.
    *
    * Hands the facade back, so calls chain.
@@ -1189,7 +1213,7 @@ interface Stencil extends StencilSettings {
   /**
    * The logo shows, one call each.
    *
-   * Each call opens its show over the bare window; Escape or a click on the page ends it, as does EasterEggs.close(). EasterEggs.what() lists the words a keyboard can spell, and EasterEggs.of(word) runs one.
+   * Each call opens its show over the bare window; Escape or a click on the page ends it, as does EasterEggs.close(). EasterEggs.what() lists the words a keyboard can spell, and EasterEggs.of(word) runs one. EasterEggs.cliMode switches the secret CLI mode on and off; while it is on, the members that open a window, move the chat, go fullscreen or change a look or motion setting throw.
    *
    * ```js
    * stencil.EasterEggs.neonOn();

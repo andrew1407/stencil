@@ -5,7 +5,7 @@ const std = @import("std");
 
 pub const Addr = struct {
     v6: bool,
-    bytes: [16]u8 = [_]u8{0} ** 16,
+    bytes: [16]u8 = @splat(0),
 
     pub fn v4(b: [4]u8) Addr {
         var a = Addr{ .v6 = false };
@@ -111,7 +111,7 @@ pub fn parseV6(text: []const u8) ?[16]u8 {
         nh = parseGroups(s, &head) orelse return null;
         if (nh != room) return null;
     }
-    var groups = [_]u16{0} ** 8;
+    var groups: [8]u16 = @splat(0);
     for (head[0..nh], 0..) |g, i| groups[i] = g;
     for (rest[0..nr], 0..) |g, i| groups[room - nr + i] = g;
     var out: [16]u8 = undefined;

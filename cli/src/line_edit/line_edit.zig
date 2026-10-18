@@ -99,7 +99,7 @@ pub const Editor = struct {
         raw.iflag.IXOFF = false;
         try std.posix.tcsetattr(tty_fd, .FLUSH, raw);
         terminal.holdRaw(tty_fd, orig);
-        const erase = orig.cc[@intFromEnum(std.posix.V.ERASE)];
+        const erase = orig.cc[@backingInt(std.posix.V.ERASE)];
         // Bracketed paste (ESC[200~ … ESC[201~): a multi-line paste lands in the buffer as one line.
         // Asked of the terminal on stderr, so only when stderr IS one.
         const out = std.posix.STDERR_FILENO;

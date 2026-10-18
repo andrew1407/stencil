@@ -34,11 +34,11 @@ pub fn renderVariants(session: *Session, io: std.Io, plan: *const llm.Plan, base
 fn variantStem(gpa: std.mem.Allocator, used: *std.ArrayList([]u8), label: []const u8, i: usize) ![]const u8 {
     var stem = try llm.sanitizeLabel(gpa, label);
     errdefer gpa.free(stem); // frees whatever stem currently holds on any later failure
-    if (stem.len == 0) stem = try std.fmt.allocPrint(gpa, "{d}", .{i + 1});
+    if (stem.len == 0) stem = try gpa.print("{d}", .{i + 1});
     if (stemTaken(used.items, stem)) {
         var n: usize = 2;
         while (true) : (n += 1) {
-            const cand = try std.fmt.allocPrint(gpa, "{s}-{d}", .{ stem, n });
+            const cand = try gpa.print("{s}-{d}", .{ stem, n });
             if (!stemTaken(used.items, cand)) {
                 gpa.free(stem);
                 stem = cand;
@@ -156,7 +156,7 @@ pub fn renderVariant(session: *Session, io: std.Io, v: llm.Variant, stem: []cons
     // The same page-label derivation the session header / wrote lines share.
     const label = pipeline.pageLabelAlloc(gpa, page_size, page_w, page_h, out.width, out.height) catch return;
     defer gpa.free(label);
-    const path = std.fmt.allocPrint(gpa, "variant-{s}.png", .{stem}) catch return;
+    const path = gpa.print("variant-{s}.png", .{stem}) catch return;
     defer gpa.free(path);
     pipeline.writeOutputLabeled(gpa, io, out, path, .png, label) catch return;
 }

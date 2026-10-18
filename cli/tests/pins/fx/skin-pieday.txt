@@ -2,37 +2,38 @@
 # echo
 \x01> \x1b[0m\x1b[1;38;2;255;215;0m/pieday\x1b[0m
 @0 2716B f362cddae18ae77a
-~wait 13
-@13 41B 7e65bcb15c8413ad
+~wait 39
+@39 41B 7e65bcb15c8413ad
 \x1b7
 \x1b[17;1H\x1b[1;38;2;255;215;0mYou \x1b[0m\x1b[K\x1b8
-~wait 13
-@26 45B 69908d236711b445
+~wait 39
+@78 45B 69908d236711b445
 \x1b7
 \x1b[17;1H\x1b[1;38;2;255;215;0mYou happ\x1b[0m\x1b[K\x1b8
-~wait 13
-@39 49B e812184bc19e5a1e
+~wait 39
+@117 49B e812184bc19e5a1e
 \x1b7
 \x1b[17;1H\x1b[1;38;2;255;215;0mYou happen t\x1b[0m\x1b[K\x1b8
-~wait 13
-@52 53B 425dd9f7dd127408
+~wait 39
+@156 53B 425dd9f7dd127408
 \x1b7
 \x1b[17;1H\x1b[1;38;2;255;215;0mYou happen to li\x1b[0m\x1b[K\x1b8
-~wait 13
-@65 57B 24648dcd6b4891c1
+~wait 39
+@195 165B 9fc6b4a33a8bdaea
 \x1b7
+\x1b[14;1H\x1b[1m\x1b[38;2;255;215;0m🥮\x1b[3G🥧\x1b[5G🥧\x1b[7G🥧\x1b[9G🥮\x1b[11G \x1b[0mthe accent reaches this far\x1b[0m\x1b[K
 \x1b[17;1H\x1b[1;38;2;255;215;0mYou happen to like a\x1b[0m\x1b[K\x1b8
-~wait 13
-@78 61B 6da56aa493d54d32
+~wait 39
+@234 61B 6da56aa493d54d32
 \x1b7
 \x1b[17;1H\x1b[1;38;2;255;215;0mYou happen to like aged \x1b[0m\x1b[K\x1b8
-~wait 13
-@91 1073B 189559f8a5f86713
+~wait 39
+@273 1073B b4cb69fadd5462fb
 \x1b7
 \x1b[17;1H\x1b[1;38;2;255;215;0mYou happen to like aged thin\x1b[0m\x1b[K
 \x1b[12;1H\x1b[38;2;255;215;0m🥧\x1b[3G \x1b[0m/theme\x1b[0m\x1b[K
 \x1b[13;1Hwrote out.png (640x480 px · A4 29.7×21cm)\x1b[0m\x1b[K
-\x1b[14;1H\x1b[1m\x1b[38;2;255;215;0m🥮\x1b[3G🥧\x1b[5G🥮\x1b[7G🥧\x1b[9G🥮\x1b[11G \x1b[0mthe accent reaches this far\x1b[0m\x1b[K
+\x1b[14;1H\x1b[1m\x1b[38;2;255;215;0m🥮\x1b[3G🥧\x1b[5G🥧\x1b[7G🥧\x1b[9G🥮\x1b[11G \x1b[0mthe accent reaches this far\x1b[0m\x1b[K
 \x1b[15;1Himage: out.png (640x480 px · A4)\x1b[0m\x1b[K
 \x1b[16;1H\x1b[38;2;255;215;0m🥧\x1b[3G \x1b[0m\x1b[1;38;2;255;215;0m/pieday\x1b[0m\x1b[0m\x1b[K
 \x1b[17;1H\x1b[1;38;2;255;215;0mYou happen to like aged things.\x1b[0m\x1b[0m\x1b[K
@@ -56,9 +57,6 @@
 
 # idle
 ~idle 80
-@171 112B 051c5f2852538302
-\x1b7
-\x1b[14;1H\x1b[1m\x1b[38;2;255;215;0m🥮\x1b[3G🥧\x1b[5G🥧\x1b[7G🥧\x1b[9G🥮\x1b[11G \x1b[0mthe accent reaches this far\x1b[0m\x1b[K\x1b8
 ~idle 80
 ~idle 80
 ~idle 80
@@ -75,7 +73,7 @@
 # /pieday
 # echo
 \x01> \x1b[0m\x1b[1;38;2;255;215;0m/pieday\x1b[0m
-@1211 2399B 5bcbdb5852bd601b
+@1393 2399B 5bcbdb5852bd601b
 # header off
   \x1b[38;2;124;58;237m ╭──────────────╮\x1b[0m
   \x1b[38;2;124;58;237m╱\x1b[48;2;43;47;58m                \x1b[0m\x1b[38;2;124;58;237m╲\x1b[0m

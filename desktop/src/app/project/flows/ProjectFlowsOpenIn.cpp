@@ -33,11 +33,16 @@ namespace stencil::gui {
                     "(or a Telegram bot for server projects).");
       return;
     }
+    dispatchOpenIn(liveOpenInSource(), browserAvailable, telegramAvailable,
+                   [this](OpenInDialog& dlg) { return w.execMaybePopover(dlg); });
+  }
+
+  ProjectFlows::OpenInSource ProjectFlows::liveOpenInSource() const {
     OpenInSource src;
     src.serverUrl = w.remote.session->getLink().address;
     src.serverId = w.remote.session->getLink().id;
     src.version = w.remote.session->getLink().version;
-    if (!serverProject) {
+    if (src.serverUrl.isEmpty() || src.serverId.isEmpty()) {
       src.image = w.canvas->getOriginalImage();
       src.name = w.projectBaseName();
       src.source = w.docSource.currentSource;
@@ -48,8 +53,54 @@ namespace stencil::gui {
           w.canvas->getRotationQuarters(), w.currentLayoutMeta(), w.canvas->getMirrored());
     }
     src.startIncognito = w.incognito;
-    dispatchOpenIn(src, browserAvailable, telegramAvailable,
-                   [this](OpenInDialog& dlg) { return w.execMaybePopover(dlg); });
+    return src;
+  }
+
+  QString ProjectFlows::browserLaunchUrl(const OpenInSource& src, bool incognito) const {
+    QJsonObject payload;
+    if (!src.serverUrl.isEmpty() && !src.serverId.isEmpty()) {
+      QJsonObject server;
+      server["url"] = src.serverUrl;
+      server["id"] = src.serverId;
+      if (src.version > 0) server["version"] = src.version;
+      payload["server"] = server;
+    } else {
+      QByteArray png;
+      QBuffer buf(&png);
+      buf.open(QIODevice::WriteOnly);
+      src.image.save(&buf, "PNG");
+      payload["dataUrl"] =
+          QStringLiteral("data:image/png;base64,") + QString::fromLatin1(png.toBase64());
+      payload["name"] = src.name + ".png";
+      payload["layout"] = src.layout;
+      if (!src.source.isEmpty()) payload["source"] = src.source;
+      if (!src.resource.isEmpty()) payload["resource"] = src.resource;
+    }
+    if (incognito) payload["incognito"] = true;
+    return deepLink::buildBrowserLaunchUrl(w.settings.browserBaseUrl, payload);
+  }
+
+  ProjectFlows::LaunchFit ProjectFlows::launchUrlFit(const QString& url, bool serverProject) {
+    if (serverProject) return LaunchFit::OK;
+    return url.size() > 1000000 ? LaunchFit::REFUSE : url.size() > 200000 ? LaunchFit::LARGE : LaunchFit::OK;
+  }
+
+  QString ProjectFlows::browserLaunchUrl(bool incognito, QString* err) const {
+    if (!w.canvas->hasImage()) {
+      *err = QStringLiteral("no image to hand off — open a project first");
+      return {};
+    }
+    if (w.settings.browserBaseUrl.trimmed().isEmpty()) {
+      *err = QStringLiteral("no browser URL — set one in Settings");
+      return {};
+    }
+    const OpenInSource src = liveOpenInSource();
+    const QString url = browserLaunchUrl(src, incognito);
+    if (launchUrlFit(url, !src.serverUrl.isEmpty() && !src.serverId.isEmpty()) == LaunchFit::REFUSE) {
+      *err = QStringLiteral("the picture is too large to hand off inline — save it to a server and open that project");
+      return {};
+    }
+    return url;
   }
 
   // The hand-off itself; `run` shows the dialog as a popover off the toolbar, or out of a projects row.
@@ -81,36 +132,14 @@ namespace stencil::gui {
       return;
     }
 
-    QJsonObject payload;
-    if (serverProject) {
-      QJsonObject server;
-      server["url"] = src.serverUrl;
-      server["id"] = src.serverId;
-      if (src.version > 0) server["version"] = src.version;
-      payload["server"] = server;
-    } else {
-      QByteArray png;
-      QBuffer buf(&png);
-      buf.open(QIODevice::WriteOnly);
-      src.image.save(&buf, "PNG");
-      payload["dataUrl"] =
-          QStringLiteral("data:image/png;base64,") + QString::fromLatin1(png.toBase64());
-      payload["name"] = src.name + ".png";
-      payload["layout"] = src.layout;
-      if (!src.source.isEmpty()) payload["source"] = src.source;
-      if (!src.resource.isEmpty()) payload["resource"] = src.resource;
-    }
-    if (incog) payload["incognito"] = true;
-
-    const QString url =
-        deepLink::buildBrowserLaunchUrl(w.settings.browserBaseUrl, payload);
-    // The OS launcher's argv tolerates far less than an in-page URL: refuse absurd payloads, warn on large ones.
-    if (!serverProject && url.size() > 1000000) {
+    const QString url = browserLaunchUrl(src, incog);
+    const LaunchFit fit = launchUrlFit(url, serverProject);
+    if (fit == LaunchFit::REFUSE) {
       w.notify->error(
           "Image too large to hand off inline — save it to a server and share the server link");
       return;
     }
-    if (!serverProject && url.size() > 200000)
+    if (fit == LaunchFit::LARGE)
       w.notify->info("Large image — the hand-off may fail; prefer saving to a server");
     QDesktopServices::openUrl(QUrl(url));
   }

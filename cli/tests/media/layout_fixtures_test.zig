@@ -67,7 +67,7 @@ test "layout corpus: sparse.json — the tolerant parser's per-line defaults" {
     try w.loadOverrides();
     for (try w.cases("layout/sparse.json")) |case| {
         const name = fx.memberStr(case, "name").?;
-        const doc = try std.fmt.allocPrint(a, "{{\"lines\":{s}}}", .{try fx.stringify(a, fx.member(case, "sparse").?)});
+        const doc = try a.print("{{\"lines\":{s}}}", .{try fx.stringify(a, fx.member(case, "sparse").?)});
         var L = try layout.parse(testing.allocator, doc);
         defer L.deinit();
 

@@ -28,6 +28,8 @@ namespace stencil::gui {
     void syncImageInfoDockHeight();
     QPixmap makeLogoPixmap(int size) const;
     void openAccentPicker();
+    // The logo click: the next preset, wrapping; a custom colour goes back to the default.
+    void cycleAccentPreset();
     void remarkAccentPopover();
     // Browser twin accentController.previewAccent: instant repaint, no wipe, no persist.
     void previewAccent(const QString& key);

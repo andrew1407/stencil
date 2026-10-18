@@ -1,6 +1,7 @@
-//! Child processes (ffmpeg, the clipboard helpers) spawned WITHOUT the user's credentials:
-//! `STENCIL_LLM_API_KEY` and its siblings, and the server tokens — nothing the CLI execs has
-//! any business inheriting them, and each one under a deadline that kills it.
+//! Child processes (ffmpeg, the clipboard helpers, the apps the console opens) spawned WITHOUT
+//! the user's credentials: `STENCIL_LLM_API_KEY` and its siblings, and the server tokens — nothing
+//! the CLI execs has any business inheriting them. A helper runs under a deadline that kills
+//! it; a launched app is left to run.
 const std = @import("std");
 const builtin = @import("builtin");
 const report = @import("../app/report.zig");
@@ -46,6 +47,48 @@ pub fn run(
         report.err("{s} did not finish within {d}s — stopped\n", .{ tool, (timeout_ms + 999) / 1000 });
         return error.TimedOut;
     };
+}
+
+pub const LaunchError = std.process.SpawnError || std.mem.Allocator.Error;
+
+/// What is started for `argv`: on POSIX a shell that backgrounds it and exits at once, so the app
+/// is reparented and leaves no zombie behind the console; elsewhere `argv` itself.
+pub fn detachedArgv(gpa: std.mem.Allocator, argv: []const []const u8) std.mem.Allocator.Error![]const []const u8 {
+    if (builtin.os.tag == .windows) return gpa.dupe([]const u8, argv);
+    const head = [_][]const u8{ "/bin/sh", "-c", "\"$@\" &", "stencil-launch" };
+    return std.mem.concat(gpa, []const u8, &.{ &head, argv });
+}
+
+/// Start `argv` and leave it running: a GUI app or an OS opener the console hands a file or a
+/// URL to outlives the command. The same scrubbed environment, no stdio of ours lent.
+pub fn launch(gpa: std.mem.Allocator, io: std.Io, argv: []const []const u8) LaunchError!void {
+    var env = try scrubbedEnv(gpa);
+    defer if (env) |*m| m.deinit();
+    const run_argv = try detachedArgv(gpa, argv);
+    defer gpa.free(run_argv);
+    var child = try std.process.spawn(io, .{
+        .argv = run_argv,
+        .environ_map = if (env) |*m| m else null,
+        .stdin = .ignore,
+        .stdout = .ignore,
+        .stderr = .ignore,
+    });
+    _ = child.wait(io) catch {}; // the shell is gone the moment it has backgrounded the app
+}
+
+test "a launch goes through a shell that backgrounds the app and exits" {
+    const a = testing.allocator;
+    const argv = try detachedArgv(a, &.{ "open", "x.stencil" });
+    defer a.free(argv);
+    if (builtin.os.tag == .windows) {
+        try testing.expectEqual(@as(usize, 2), argv.len);
+    } else {
+        try testing.expectEqual(@as(usize, 6), argv.len);
+        try testing.expectEqualStrings("/bin/sh", argv[0]);
+        try testing.expectEqualStrings("\"$@\" &", argv[2]);
+        try testing.expectEqualStrings("open", argv[4]);
+        try testing.expectEqualStrings("x.stencil", argv[5]);
+    }
 }
 
 /// A copy of the captured environment without the credentials; null when none was captured.

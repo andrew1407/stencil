@@ -26,9 +26,9 @@ pub fn fieldF64(obj: std.json.ObjectMap, key: []const u8, default: f64) f64 {
 
 fn fieldStrZ(a: std.mem.Allocator, obj: std.json.ObjectMap, key: []const u8, default: []const u8) ![:0]const u8 {
     if (obj.get(key)) |v| {
-        if (v == .string) return a.dupeZ(u8, v.string);
+        if (v == .string) return a.dupeSentinel(u8, v.string, 0);
     }
-    return a.dupeZ(u8, default);
+    return a.dupeSentinel(u8, default, 0);
 }
 
 /// One line object with at most `max_points` of its points, every point object kept (a

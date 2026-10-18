@@ -53,6 +53,20 @@ test('the hold opens the accent\'s show, and the release cannot reach the accent
   closeLogoStage();
 });
 
+test('a hold given its own onHold fires that instead of a show, after its own holdMs', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { logo, wrap } = makeLogo();
+  let held = 0;
+  wireLogoHold(logo, { accent: 'violet', customAccent: null }, { holdMs: 300, onHold: () => held++ });
+  press(wrap);
+  t.mock.timers.tick(299);
+  assert.equal(held, 0);
+  t.mock.timers.tick(1);
+  assert.equal(held, 1);
+  assert.equal(logoStageOpen(), false, 'no show: the hold was the caller\'s');
+  assert.ok(wrap.listeners.click?.[0], 'the click that follows is still swallowed');
+});
+
 test('a short press, a drag and a modified press all open nothing', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const { logo, wrap } = makeLogo();

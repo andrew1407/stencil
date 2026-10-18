@@ -56,5 +56,5 @@ pub fn pageCmFor(page_size: []const u8, custom_w: f64, custom_h: f64, w: usize, 
 pub fn pageLabelAlloc(gpa: std.mem.Allocator, page_size: []const u8, custom_w: f64, custom_h: f64, w: usize, h: usize) ![]u8 {
     const name: []const u8 = if (page_size.len != 0) page_size else "A4";
     const dims = pageCmFor(page_size, custom_w, custom_h, w, h);
-    return std.fmt.allocPrint(gpa, "{s} {d}×{d}cm", .{ name, dims.w, dims.h });
+    return gpa.print("{s} {d}×{d}cm", .{ name, dims.w, dims.h });
 }

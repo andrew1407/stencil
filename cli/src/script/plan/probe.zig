@@ -49,6 +49,6 @@ pub fn size(a: std.mem.Allocator, env: *Env, script: scriptCore.Script, block: s
     const op = firstDraw(script, block) orelse return null;
     const bytes = net.fetch(a, env.io, input, env.remote) catch null;
     if (bytes) |b| if (dimsOf(b)) |d| return d;
-    env.refusal = .{ .op = op, .code = "E_PLAN_SOURCE_UNREADABLE", .message = try std.fmt.allocPrint(a, "the lines this block draws need the size of '{s}', which could not be fetched as an image", .{input}) };
+    env.refusal = .{ .op = op, .code = "E_PLAN_SOURCE_UNREADABLE", .message = try a.print("the lines this block draws need the size of '{s}', which could not be fetched as an image", .{input}) };
     return error.PlanRefused;
 }

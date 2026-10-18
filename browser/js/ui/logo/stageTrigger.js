@@ -91,7 +91,8 @@ export const heldShow = (app) => resolveShow(app?.accent, app?.customAccent, sto
 
 // A press held on the mark for holdMs. The release must not reach the logo's own click, which
 // would cycle the accent 220ms later. The handle drops a waiting hold, and says if this press fired.
-export const wireLogoHold = (logo, app, { holdMs = HOLD_MS } = {}) => {
+// `onHold` replaces the show the accent would open (the CLI stage's logo leaves the mode).
+export const wireLogoHold = (logo, app, { holdMs = HOLD_MS, onHold = null } = {}) => {
   if (!logo || !app) return;
   trackPointer(logo.ownerDocument);
   const wrap = logo.closest?.('.app-logo-wrap') || logo;
@@ -104,11 +105,11 @@ export const wireLogoHold = (logo, app, { holdMs = HOLD_MS } = {}) => {
     from = { x: e.clientX ?? 0, y: e.clientY ?? 0 };
     timer = setTimeout(() => {
       timer = null;
-      const name = heldShow(app);
-      if (!name) return;
+      const name = onHold ? null : heldShow(app);
+      if (!name && !onHold) return;
       fired = true;
       wrap.addEventListener('click', swallowClick, { capture: true, once: true });
-      activateShow(name, app, originOf(wrap));
+      if (onHold) onHold(); else activateShow(name, app, originOf(wrap));
     }, holdMs);
   });
   wrap.addEventListener('pointermove', (e) => {

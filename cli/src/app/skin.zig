@@ -3,7 +3,6 @@
 //! paints), which one is on and the animation clock. `console/render/ansi/restyle.zig` applies
 //! the skin to every row the full-screen console paints.
 const std = @import("std");
-const msg = @import("messages.zig");
 const pictures = @import("skin/pictures.zig");
 const cat = @import("skin/cat.zig");
 const hues = @import("skin/hues.zig");
@@ -18,7 +17,7 @@ pub const nextBulb = hues.nextBulb;
 
 pub const Skin = enum { none, matrix, bluescreen, rainbow, fruit, meow, pie, bifrost, fairylight };
 
-pub const list_word = "eastereggs";
+pub const list_word = table.list_word;
 // Gold is the one colour no skin rewrites: secret words, their list and phrases, on every skin.
 pub const gold = "\x1b[1;38;2;255;215;0m";
 // What the theme accent becomes under the picture skins: the same gold, not bold.
@@ -46,36 +45,10 @@ pub const Traits = struct {
     wash: ?[3]u8 = null, // the selection wash; null = the theme accent
 };
 
-const traits = std.EnumArray(Skin, Traits).init(.{
-    .none = .{},
-    .matrix = .{
-        .word = "mranderson",
-        .phrase = msg.mranderson_on,
-        .paints_cells = true,
-        .base = "\x1b[0;38;2;35;209;139;48;2;0;0;0m",
-        .title = "\x1b[0;38;2;0;0;0;48;2;35;209;139m",
-        .osc = "\x1b]10;#23d18b\x07\x1b]11;#000000\x07",
-        .wash = .{ 35, 209, 139 },
-    },
-    .bluescreen = .{
-        .word = "theverybluescreen",
-        .wordmark = "T H E  B L U E  S C R E E N  O F  D E A T H",
-        .paints_cells = true,
-        .base = "\x1b[0;38;2;255;255;255;48;2;0;0;170m",
-        .title = "\x1b[0;38;2;0;0;170;48;2;170;170;170m",
-        .osc = "\x1b]10;#ffffff\x07\x1b]11;#0000aa\x07",
-        .wash = .{ 170, 170, 170 },
-    },
-    .rainbow = .{ .word = "sunafterrain", .phrase = msg.sunafterrain_on, .wordmark_accented = true, .paints_runs = true },
-    .fruit = .{ .word = "theyareinthetrees", .phrase = msg.fruit_on, .wordmark_accented = true, .animated = true, .replaces_letters = true, .wash = .{ 255, 140, 0 } },
-    .meow = .{ .word = "meow", .phrase = msg.meow_on, .phrase_off = msg.meow_off, .wordmark_accented = true, .animated = true, .moves_logo = true, .replaces_letters = true, .wash = .{ 255, 170, 60 } },
-    .pie = .{ .word = "pieday", .phrase = msg.pieday_on, .wordmark = "S T E N C I L  P I E", .animated = true, .replaces_letters = true, .wash = .{ 205, 140, 70 } },
-    .bifrost = .{ .word = "bifrost", .phrase = msg.bifrost_on, .wordmark = "M I D G A R D", .wordmark_accented = true, .animated = true, .paints_runs = true, .slides = true },
-    .fairylight = .{ .word = "fairylight", .phrase = msg.fairylight_on, .wordmark = "B A D  S T E N C I L", .wordmark_accented = true, .animated = true },
-});
+const table = @import("skin/table.zig");
 
 pub fn traitsOf(s: Skin) *const Traits {
-    return traits.getPtrConst(s);
+    return table.traits.getPtrConst(s);
 }
 
 var current: Skin = .none;
@@ -213,4 +186,5 @@ test {
     _ = pictures;
     _ = cat;
     _ = hues;
+    _ = table;
 }

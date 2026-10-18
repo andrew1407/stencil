@@ -15,8 +15,7 @@ test "completions: every console command is offered by Tab-complete" {
     // …and every verb must be reachable from the list, so a new command can't ship without
     // Tab-completion (this is how /reveal, /chat and /project-description were found missing).
     var missing = false;
-    inline for (@typeInfo(commands.Verb).@"enum".fields) |f| {
-        const want: commands.Verb = @enumFromInt(f.value);
+    inline for (std.enums.values(commands.Verb)) |want| {
         var found = false;
         for (completions) |w| {
             if (commands.verbOf(w)) |v| {
@@ -27,7 +26,7 @@ test "completions: every console command is offered by Tab-complete" {
             }
         }
         if (!found) {
-            std.debug.print("no completion offers the '{s}' command\n", .{f.name});
+            std.debug.print("no completion offers the '{s}' command\n", .{@tagName(want)});
             missing = true;
         }
     }

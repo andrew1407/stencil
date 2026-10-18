@@ -134,7 +134,7 @@ test "a block names its source kind so the runner knows how to open it" {
         .{ .spec = "shots/a*.png", .kind = .glob },
     };
     for (cases) |c| {
-        const src = try std.fmt.allocPrint(testing.allocator, "@source {s}:\n  @filter bw\n", .{c.spec});
+        const src = try testing.allocator.print("@source {s}:\n  @filter bw\n", .{c.spec});
         defer testing.allocator.free(src);
         var s = try scriptCore.Script.parse(src);
         defer s.deinit();

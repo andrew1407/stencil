@@ -57,6 +57,9 @@ namespace stencil::gui {
     core::Lines allLines() const;
     bool canUndo() const { return history.canUndo(); }
     bool canRedo() const { return history.canRedo(); }
+    // The step on screen and the steps kept: -1 and 0 on the pristine picture.
+    int historyStep() const { return history.step(); }
+    int historySize() const { return int(history.size()); }
     // The step on screen: the lines, the crop and turn they sit on, and the filter over them.
     core::EditorMemento memento() const;
 

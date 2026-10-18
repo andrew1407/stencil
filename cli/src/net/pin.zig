@@ -102,7 +102,7 @@ pub fn dial(client: *Client, url: []const u8, pins: Pins) !void {
     const uri = try std.Uri.parse(url);
     const protocol = Client.Protocol.fromUri(uri) orelse return error.UnsupportedUriScheme;
     var hbuf: [std.Io.net.HostName.max_len]u8 = undefined;
-    const d = HttpDial{ .client = client, .port = uri.port orelse if (protocol == .tls) 443 else 80, .protocol = protocol, .host = try uri.getHost(&hbuf) };
+    const d = HttpDial{ .client = client, .port = uri.port orelse if (protocol == .tls) 443 else 80, .protocol = protocol, .host = try std.Io.net.HostName.fromUri(uri, &hbuf) };
     if (protocol == .tls and client.now == null) { // the CA bundle client.request loads before its own dial
         const now = std.Io.Clock.real.now(io);
         try client.ca_bundle.rescan(client.allocator, io, now);

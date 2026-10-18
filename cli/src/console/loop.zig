@@ -83,6 +83,7 @@ pub fn runInteractive(gpa: std.mem.Allocator, io: std.Io, session: *Session, ed:
         // pending sync upload and surface any concurrent server edits before the prompt.
         remoteEvents.flushSync(session, false);
         _ = remoteEvents.pollEvents(session, io);
+        _ = remoteEvents.pollFileLink(session, io);
         switch (ed.readLine(ui.promptStr(session), &buf, &hist, &ui.completions, &armed, "")) {
             .eof => break, // Ctrl-D / closed tty
             .interrupt => { // Ctrl-C: require a second press in a row to leave
@@ -215,6 +216,8 @@ pub fn runPiped(io: std.Io, session: *Session) void {
         // buffered, flushing once the reader's buffer drains (the burst has settled).
         remoteEvents.flushSync(session, r.bufferedLen() != 0);
         _ = remoteEvents.pollEvents(session, io);
+        if (r.bufferedLen() == 0) _ = remoteEvents.pollFileLink(session, io);
     }
     remoteEvents.flushSync(session, false); // final flush at end-of-stream
+    _ = remoteEvents.pollFileLink(session, io);
 }

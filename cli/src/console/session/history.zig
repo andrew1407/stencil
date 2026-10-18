@@ -96,6 +96,8 @@ pub fn clearAll(self: *Session) void {
     self.cursor = 0;
     if (self.label) |l| self.gpa.free(l);
     self.label = null;
+    if (self.project_path) |p| self.gpa.free(p);
+    self.project_path = null;
     self.temp = false;
     self.default_fmt = .png;
     self.filter_dirty = false;

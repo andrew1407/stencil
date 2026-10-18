@@ -22,7 +22,7 @@ fn resolve(a: std.mem.Allocator, from: []const u8, rel: []const u8) ![]u8 {
         dir = if (std.mem.lastIndexOfScalar(u8, dir, '/')) |s| dir[0..s] else "";
     }
     if (dir.len == 0) return a.dupe(u8, path);
-    return std.fmt.allocPrint(a, "{s}/{s}", .{ dir, path });
+    return a.print("{s}/{s}", .{ dir, path });
 }
 
 test "test registration: every src module is pulled into the test build by a test {} block" {
@@ -103,7 +103,7 @@ test "test registration: every suite under tests/ is named in test_root.zig" {
     var failures: usize = 0;
     while (try walker.next(io)) |e| {
         if (e.kind != .file or !std.mem.endsWith(u8, e.basename, "_test.zig")) continue;
-        const rel = try std.fmt.allocPrint(a, "\"tests/{s}\"", .{e.path});
+        const rel = try a.print("\"tests/{s}\"", .{e.path});
         std.mem.replaceScalar(u8, rel, '\\', '/');
         suites += 1;
         if (std.mem.indexOf(u8, root_src, rel) != null) continue;

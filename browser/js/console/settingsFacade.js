@@ -9,6 +9,7 @@ import { loadVoiceSettings, saveVoiceSettings, isLanguageTag, clampSilenceMs, SI
 import { validateHexColor } from '../core/parse/validation.js';
 import { splitKeywords, str } from './coerce.js';
 import { setDrawMode } from '../core/draw/mode.js';
+import { cliModeGate, GATED_SETTINGS } from './shell/gate.js';
 
 export const createSettingsFacade = ({ app, guard }) => {
   // ── Settings namespace (fresh object per access; setters close over app) ──
@@ -91,6 +92,9 @@ export const createSettingsFacade = ({ app, guard }) => {
     // The interface's animation speed, clamped 0.1–1 (motion.json speed); the default 0.37 is the tuned pace.
     get motionSpeed() { return motionPrefs().speed; },
     set motionSpeed(v) { app.settings.setMotion('speed', v); },
+    // How fast the console reveals new output, clamped 0.01–1 (motion.json consoleSpeed); 1 shows it at once.
+    get consoleSpeed() { return motionPrefs().consoleSpeed; },
+    set consoleSpeed(v) { app.settings.setMotion('consoleSpeed', v); },
     // Where a notice shows: 'toast' (in the app) | 'system' (the browser's own, once granted).
     get notifyChannel() { return notifyChannel(); },
     set notifyChannel(v) { app.settings.setNotifyChannel(v); },
@@ -113,6 +117,14 @@ export const createSettingsFacade = ({ app, guard }) => {
       saveVoiceSettings({ ...loadVoiceSettings(), silenceMs: clampSilenceMs(v) });
     },
   });
-  const settings = () => guard(settingsAccessors());
-  return { settingsAccessors, settings };
+  // The look and animation settings refuse while CLI mode covers the page (shell/gate.js).
+  const gated = (obj) => {
+    for (const key of GATED_SETTINGS) {
+      const d = Object.getOwnPropertyDescriptor(obj, key);
+      if (d?.set) Object.defineProperty(obj, key, { ...d, set(v) { cliModeGate(`the ${key} setting`); d.set.call(this, v); } });
+    }
+    return obj;
+  };
+  const settings = () => guard(gated(settingsAccessors()));
+  return { settingsAccessors: () => gated(settingsAccessors()), settings };
 };

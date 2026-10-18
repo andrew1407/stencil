@@ -83,7 +83,7 @@ pub fn build(gpa: std.mem.Allocator, opts: BuildOpts) ![]u8 {
     try list.append(gpa, '"');
     try list.appendSlice(gpa, ",\"ext\":");
     try appendJsonString(gpa, &list, opts.image_ext);
-    const wh = try std.fmt.allocPrint(gpa, ",\"w\":{d},\"h\":{d}}}", .{ opts.image_w, opts.image_h });
+    const wh = try gpa.print(",\"w\":{d},\"h\":{d}}}", .{ opts.image_w, opts.image_h });
     defer gpa.free(wh);
     try list.appendSlice(gpa, wh);
     try list.appendSlice(gpa, ",\"layout\":");

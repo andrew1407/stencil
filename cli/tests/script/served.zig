@@ -43,7 +43,7 @@ pub const Served = struct {
 
     /// `http://127.0.0.1:<port>/<path>`, caller-owned.
     pub fn url(self: *const Served, a: std.mem.Allocator, path: []const u8) ![]u8 {
-        return std.fmt.allocPrint(a, "http://127.0.0.1:{d}/{s}", .{ self.port, path });
+        return a.print("http://127.0.0.1:{d}/{s}", .{ self.port, path });
     }
 
     fn serve(self: *Served) void {

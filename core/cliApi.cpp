@@ -15,6 +15,7 @@
 #include "imageOps.hpp"
 #include "lineMerge.hpp"
 #include "linesCodec.hpp"
+#include "logoBanner.hpp"
 #include "pageMetrics.hpp"
 #include "planSchema.hpp"
 #include "planWalk.hpp"
@@ -24,6 +25,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <mutex>
 #include <string>
 #include <string_view>

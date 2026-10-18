@@ -78,6 +78,7 @@ namespace stencil::gui {
   void adoptLinkOptions(LaunchOptions& o, const LaunchOptions& link) {
     o.serverUrl = link.serverUrl;
     o.serverProjectId = link.serverProjectId;
+    o.serverVersion = link.serverVersion;
     if (!link.src.isEmpty()) o.src = link.src;
     if (!link.layoutJson.isEmpty()) o.layoutJson = link.layoutJson;
     if (link.frame > 0) o.frame = link.frame;
@@ -97,6 +98,9 @@ namespace stencil::gui {
       // A server reference wins over inline content (the server copy is canonical).
       o.serverUrl = server;
       o.serverProjectId = id;
+      bool vok = false;
+      const qint64 v = q.queryItemValue("version").toLongLong(&vok);
+      o.serverVersion = (vok && v > 0) ? v : 0;
     } else {
       o.src = q.queryItemValue("src", QUrl::FullyDecoded).trimmed();
       // Deep links are remotely clickable: only web/data image sources may ride them, never LOCAL files.

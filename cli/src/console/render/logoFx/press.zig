@@ -17,17 +17,17 @@ const waitFrame = timing.waitFrame;
 const frame = @import("../../screen/frame.zig");
 const icon_cols = clock.icon_cols;
 
-const flourish_step_ms = 115; // per-letter pace of the theme-change wordmark wave
+pub const flourish_step_ms = 115; // per-letter pace of the theme-change wordmark wave
 // How long the logo stays shrunk after a click — the first half of the press-to-recolour
 // lag, kept just long enough to read as a button going down.
-const press_ms = 95;
+pub const press_ms = 95;
 // The recolour sweep jumps the new colour left to right, measured in JUMPS rather than columns so
 // the animation lasts the same ~2s at any width; `wipe_step_ms` is the pause between jumps.
-const wipe_step_ms = 61;
-const wipe_jumps = 14;
+pub const wipe_step_ms = 61;
+pub const wipe_jumps = 14;
 // How much faster the separator line turns over than the seam itself, in percent (400 = 4×) —
 // a percentage rather than a whole multiple so it can be tuned by fractions.
-const rule_wipe_pct = 178;
+pub const rule_wipe_pct = 178;
 
 /// Flash the logo one cell smaller and back — the pressed state of a button, for a click on the
 /// pinned logo. Plays before the accent changes; silent when the header was never captured.

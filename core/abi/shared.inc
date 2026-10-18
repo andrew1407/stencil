@@ -120,3 +120,23 @@ int STENCIL_ABI(mergeLinesKeep, mergeLinesKeep)(const double* sNums, int sNumsLe
     keep[i] = k[i] ? 1 : 0;
   return static_cast<int>(k.size());
 }
+
+// The console logo (format/logoBanner.hpp) as rows joined by '\n', `mark` "S" | "P" | "M", `boxed`
+// the rounded panel: returns the bytes needed with the NUL, written only when `cap` holds them; 0 = unknown mark.
+int STENCIL_ABI(logoBanner, logoBanner)(const char* mark, int compact, int boxed, char* out,
+                                        int cap) {
+  LogoMark m;
+  if (!mark || mark[1] != '\0') return 0;
+  if (mark[0] == 'S') m = LogoMark::S;
+  else if (mark[0] == 'P') m = LogoMark::P;
+  else if (mark[0] == 'M') m = LogoMark::M;
+  else return 0;
+  std::string text;
+  for (const std::string& row : boxed ? logoBannerRows(m, compact != 0) : rasteriseMark(m, compact != 0)) {
+    if (!text.empty()) text += '\n';
+    text += row;
+  }
+  const int needed = static_cast<int>(text.size()) + 1;
+  if (out && cap >= needed) std::memcpy(out, text.c_str(), static_cast<std::size_t>(needed));
+  return needed;
+}

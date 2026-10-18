@@ -12,14 +12,13 @@ const editPort = urls.editPort;
 /// Build one NDJSON frame: compact JSON + '\n'. Compact JSON never contains a raw
 /// newline, so '\n' is an unambiguous delimiter for the TCP edit transport.
 pub fn frame(gpa: std.mem.Allocator, json: []const u8) ![]u8 {
-    return std.fmt.allocPrint(gpa, "{s}\n", .{json});
+    return gpa.print("{s}\n", .{json});
 }
 
 /// Build the hello frame that opens a TCP/WS edit session (empty project_id selects
 /// the global events feed). Caller owns the returned slice.
 pub fn helloFrame(gpa: std.mem.Allocator, token: []const u8, project_id: []const u8, client_id: []const u8) ![]u8 {
-    return std.fmt.allocPrint(
-        gpa,
+    return gpa.print(
         "{{\"type\":\"hello\",\"token\":\"{s}\",\"projectId\":\"{s}\",\"clientId\":\"{s}\"}}\n",
         .{ token, project_id, client_id },
     );

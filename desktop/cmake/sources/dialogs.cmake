@@ -101,4 +101,7 @@ list(APPEND STENCIL_GUI_SOURCES
   src/dialogs/settings/ShortcutsDialogRows.cpp
   ${STENCIL_CONNECTDIALOG_SOURCES}
   src/dialogs/meta/OpenInDialog.cpp
-  src/dialogs/projects/copy/CopyProjectDialog.cpp)
+  src/dialogs/projects/copy/CopyProjectDialog.cpp
+  src/dialogs/console/ConsoleWindow.cpp
+  src/dialogs/console/ConsoleWindowInput.cpp
+  src/dialogs/console/ConsoleWindowReveal.cpp)

@@ -70,6 +70,7 @@ namespace stencil::gui {
       : std::string(core::ProjectsStore::DEFAULT_PERIOD);
     pr.meta.autoRefresh = o.value("autoRefresh").toBool(true);
     pr.imagePath = o.value("imagePath").toString();
+    pr.linkedFile = o.value("linkedFile").toString();
     pr.meta.hasImage = !pr.imagePath.isEmpty();
     pr.meta.source = o.value("source").toString().toStdString();
     pr.meta.resource = o.value("resource").toString().toStdString();
@@ -135,6 +136,7 @@ namespace stencil::gui {
     o["refreshPeriod"] = QString::fromStdString(pr.meta.refreshPeriod);
     o["autoRefresh"] = pr.meta.autoRefresh;
     o["imagePath"] = pr.imagePath;
+    if (!pr.linkedFile.isEmpty()) o["linkedFile"] = pr.linkedFile;
     if (!pr.meta.source.empty()) o["source"] = QString::fromStdString(pr.meta.source);
     if (!pr.meta.resource.empty()) o["resource"] = QString::fromStdString(pr.meta.resource);
     if (!pr.meta.color.empty()) o["color"] = QString::fromStdString(pr.meta.color);

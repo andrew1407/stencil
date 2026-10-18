@@ -34,7 +34,8 @@ pub fn idleTick(raw: *anyopaque) bool {
     };
     const resized = if (c.screen) |s| s.tick() else false;
     const evented = remoteEvents.pollEvents(c.session, c.io);
-    return resized or evented; // true → the line editor repaints the prompt
+    const linked = remoteEvents.pollFileLink(c.session, c.io);
+    return resized or evented or linked; // true → the line editor repaints the prompt
 }
 
 // Single-click on the pinned logo: advance the accent, mirroring the browser logo.

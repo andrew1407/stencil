@@ -102,7 +102,7 @@ const Batch = struct {
     /// Land the waiting shapes as one layout document on a `w`×`h` view.
     pub fn flush(self: *Batch, session: *Session, w: usize, h: usize) !void {
         if (self.ends.items.len == 0) return;
-        const doc = try std.fmt.allocPrint(session.gpa, "{{\"imageWidth\":{d},\"imageHeight\":{d},\"lines\":[{s}]}}", .{ w, h, self.lines.items });
+        const doc = try session.gpa.print("{{\"imageWidth\":{d},\"imageHeight\":{d},\"lines\":[{s}]}}", .{ w, h, self.lines.items });
         defer session.gpa.free(doc);
         try session.addLines(doc);
         self.lines.clearRetainingCapacity();

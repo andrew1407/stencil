@@ -12,6 +12,8 @@ const derivedView = @import("render/derivedView.zig");
 const geom = @import("session/geom.zig");
 const layoutJson = @import("session/layoutJson.zig");
 const state_mod = @import("session/state.zig");
+const AppEnv = @import("handlers/apps/env.zig").AppEnv;
+const FileLink = @import("remoteEvents/fileLink.zig").FileLink;
 
 pub const max_states = state_mod.max_states;
 pub const EditState = state_mod.EditState;
@@ -59,6 +61,9 @@ pub const Session = struct {
     events: ?server.EditConn = null, // live read-only project-events feed (opened while syncing)
     events_url: ?[]u8 = null, // owned base URL the events feed is connected to
     server_tokens: args.EnvTokens = .{}, // STENCIL_SERVER_TOKEN(S): what /connect dials with, no token given
+    app_env: AppEnv = .{}, // what /browser and /desktop read from the environment
+    file_link: ?FileLink = null, // the .stencil file /desktopsync shares with the desktop app
+    project_path: ?[]u8 = null, // owned path of the local .stencil this session was opened from or saved to
 
     // LLM assistant (/prompt, /llm)
     llm_env: llm.Env = .{}, // the raw STENCIL_LLM_* values captured at startup
@@ -116,6 +121,8 @@ pub const Session = struct {
 
     pub fn deinit(self: *Session) void {
         self.clearAll();
+        if (self.file_link) |*l| l.deinit(self.gpa);
+        self.file_link = null;
         self.closeEvents();
         self.history.deinit(self.gpa);
         for (self.servers.items) |*c| c.deinit();
@@ -162,6 +169,7 @@ pub const Session = struct {
     pub const setRemote = @import("session/servers.zig").setRemote;
     pub const setPageSize = @import("session/edits.zig").setPageSize;
     pub const setLabel = @import("session/edits.zig").setLabel;
+    pub const setProjectPath = @import("session/edits.zig").setProjectPath;
     pub const setRemoteColor = @import("session/servers.zig").setRemoteColor;
     pub const clearRemote = @import("session/servers.zig").clearRemote;
     pub const hasImage = @import("session/history.zig").hasImage;

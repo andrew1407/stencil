@@ -32,10 +32,10 @@ pub const Marks = struct {
         const a = self.arena.allocator();
         var copy = line;
         copy.points = try a.dupe(f64, line.points);
-        copy.color = try a.dupeZ(u8, line.color);
-        copy.style = try a.dupeZ(u8, line.style);
-        copy.fill_color = try a.dupeZ(u8, line.fill_color);
-        copy.point_color = try a.dupeZ(u8, line.point_color);
+        copy.color = try a.dupeSentinel(u8, line.color, 0);
+        copy.style = try a.dupeSentinel(u8, line.style, 0);
+        copy.fill_color = try a.dupeSentinel(u8, line.fill_color, 0);
+        copy.point_color = try a.dupeSentinel(u8, line.point_color, 0);
         try self.items.append(a, copy);
     }
 

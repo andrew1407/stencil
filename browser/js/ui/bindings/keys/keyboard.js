@@ -8,9 +8,11 @@ import { selectedIndices } from '../../../core/line/selection.js';
 import { dragMove } from '../../../core/touch/dragGestures.js';
 import { removeSelectedLines } from '../../../core/line/editOps.js';
 import { CHANGE, changed } from '../../../core/app/changes.js';
+import { cliModeOn } from '../../../console/shell/gate.js';
 export function wireKeyboard(app) {
   const { HK_HANDLERS, EDIT_HOTKEYS, LINE_TRANSFORM_HOTKEYS } = hotkeyActions(app);
   document.addEventListener('keydown', e => {
+    if (cliModeOn()) return;   // the stage's prompt owns every key, the typing chords too
     if (isTypingTarget(e.target)) {
       const id = typingHotkeyId(e, hotkeys);
       if (id) {

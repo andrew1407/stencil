@@ -5,6 +5,7 @@
 import { wireIconDrag, markDropTarget } from './iconDrag.js';
 import { logoTargetAt, sameTarget, glowOf, dropControlAt, resetDropped } from './logoTargets.js';
 import { applyToolbarStyle, setListHoverLine } from '../../core/line/selection.js';
+import { enterCliMode } from '../cli/mode.js';
 
 // Only what is applied changes: a picture already unfiltered records no filter step.
 export const commitCleanView = (app) => {
@@ -39,6 +40,7 @@ const showTarget = (app, t, on, frame) => {
 const commitTarget = (app, t, reset) => {
   if (t?.kind === 'clean') commitCleanView(app);
   else if (t?.kind === 'control') reset(t.el);
+  else if (t?.kind === 'console') enterCliMode(app, { origin: t.el });
   else if (t?.kind === 'line' && applyToolbarStyle(app, t.idx) && t.idx === app.selectedLineIdx)
     app.showSelectionPanel(app.lines[t.idx]);
 };

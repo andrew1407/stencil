@@ -52,6 +52,8 @@ export interface CoreOps extends LineOps {
   snapCropRect(r: CropRect, imageW: number, imageH: number): CropRect;
   rotateEditQuarter(crop: CropRect, quarters: number, originalW: number, originalH: number, clockwise: boolean): { crop: CropRect; quarters: number };
   mirrorEdit(crop: CropRect, quarters: number, originalW: number, originalH: number): { crop: CropRect; quarters: number };
+  /** The console logo rows (core/format/logoBanner.hpp): the mark alone, or boxed in its panel. */
+  logoBanner(mark: string, compact: boolean, boxed: boolean): string[];
   HoldDrawController: new (opts?: HoldDrawOptions) => WasmHoldDrawController;
   HistoryStack: new () => WasmHistoryStack;
 }

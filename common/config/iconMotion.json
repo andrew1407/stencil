@@ -2038,6 +2038,22 @@
         }
       ]
     },
+    "terminal": {
+      "action": "open the console window",
+      "mode": "hold",
+      "note": "the prompt chevron steps right, as a cursor does once a command is typed",
+      "parts": [
+        {
+          "hook": "ic-prompt",
+          "to": {
+            "translate": [
+              1.4,
+              0
+            ]
+          }
+        }
+      ]
+    },
     "script": {
       "action": "open the script window",
       "mode": "hold",

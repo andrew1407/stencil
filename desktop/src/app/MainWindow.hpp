@@ -173,6 +173,7 @@ namespace stencil::gui {
     friend class ActionsBuilder;
     friend class ToolbarBuilder;
     friend struct SiblingWindows;
+    friend class ConsoleHost;
     // The GUI e2e drives private completion paths (mocked chat replies → toast).
     friend class ::MainWindowGuiTest;
 

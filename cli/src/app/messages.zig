@@ -132,7 +132,6 @@ pub const reveal_usage = "usage: /reveal-speed [{d} … {d}] — {d} slowest, {d
 pub const reveal_instant = "{s} {d} — output appears instantly\n";
 
 pub const eggs_full_screen_only = "that one only works in --console-full-screen\n";
-pub const mranderson_on = "WHY, Mr. Anderson, WHY?\n";
 pub const bluescreen_title = "{s}{s} Stencil {s}\n\n";
 pub const bluescreen_body =
     \\A fatal exception 0E has occurred at 0028:57E4C11. The current
@@ -144,10 +143,26 @@ pub const bluescreen_body =
     \\Press any key to continue _
     \\
 ;
-pub const bifrost_on = "Whosoever activates this secret, if they be worthy, shall possess the power of the Stencil.\n";
-pub const sunafterrain_on = "Been saving it for a rainy day!\n";
-pub const pieday_on = "You happen to like aged things.\n";
-pub const fairylight_on = "The world ain't fair. You've gotta take what you need when you can get it.\n";
-pub const meow_on = "Meow)\n";
-pub const meow_off = "Meow(\n";
-pub const fruit_on = "Fruits! Johnny, they're in the trees!\n";
+
+// The other apps (/browser, /desktop, /desktopsync).
+pub const browser_usage = "browser takes '[url] [incognito]' — '{s}' is neither\n";
+pub const browser_too_big = "the picture is {d} KiB, too large for a browser launch link ({d} KiB) — '/save x.stencil' and open it there, or push it to a server and run '/browser' again\n";
+pub const browser_opened = "opened in the browser at {s}\n";
+pub const app_no_opener = "could not start the app ({s}) — set STENCIL_DESKTOP to the desktop binary, or open the file yourself\n";
+pub const desktop_usage = "desktop takes '[sync] [incognito]' — '{s}' is neither\n";
+pub const desktop_opened = "opened in the desktop app: {s}\n";
+pub const desktop_cancelled = "desktop cancelled\n";
+pub const desktop_incognito_needs_bin = "incognito for a local file needs STENCIL_DESKTOP=<desktop binary>; opened as a normal project\n";
+pub const desktop_links_none = "the desktop app has no linked .stencil file — '/desktopsync <file.stencil>' links one, or '/desktop sync' opens this session there\n";
+pub const desktop_links_head = "The desktop app's linked files ('/desktopsync <n>' edits one here too):\n";
+pub const desktop_links_row = "  {d}. {s}{s}  {s}\n";
+pub const desktop_links_hint = "'/desktopsync off' unlinks\n";
+pub const desktopsync_usage = "desktopsync takes '<file.stencil>', a number from the list, or 'off'\n";
+pub const desktopsync_no_such_row = "no such row — the list has {d}\n";
+pub const desktopsync_linked = "linked to {s} — edits here and in the desktop app meet in that file\n";
+pub const desktopsync_unlinked = "unlinked {s}\n";
+pub const desktopsync_not_linked = "no linked file — '/desktopsync' lists the desktop's, '/desktop sync' makes one\n";
+pub const filelink_gone = "the linked file {s} is gone — unlinked\n";
+pub const filelink_conflict = "{s} changed on disk while you edited; your edits are written over it\n";
+pub const filelink_reloaded = "↺ took the desktop's change from {s}\n";
+pub const filelink_reload_failed = "could not read {s} ({s})\n";

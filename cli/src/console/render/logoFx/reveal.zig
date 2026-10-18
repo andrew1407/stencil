@@ -14,16 +14,16 @@ const frame = @import("../../screen/frame.zig");
 
 // New output sweeps in from the left, jump-by-jump like the recolour wipe, but much
 // quicker — it plays on EVERY line, so the total stays ~0.1s and queued keystrokes skip it.
-const reveal_step_ms = 13;
-const reveal_jumps = 8;
+pub const reveal_step_ms = 13;
+pub const reveal_jumps = 8;
 // A BURST — output arriving with under `reveal_quiet_ms` of silence — gets the short form; past
 // `reveal_burst_max_ms` of continuous output the sweep gives up and the rest lands at once.
-const reveal_burst_jumps = 2;
-const reveal_quiet_ms = 250;
-const reveal_burst_max_ms = 900;
+pub const reveal_burst_jumps = 2;
+pub const reveal_quiet_ms = 250;
+pub const reveal_burst_max_ms = 900;
 
 // However slow the speed, no burst animates for longer than this — output still has to arrive.
-const reveal_burst_ceiling_ms = 5000;
+pub const reveal_burst_ceiling_ms = 5000;
 
 // Whether new output should be swept in rather than printed at once: not turned off (speed 1 = no
 // waiting) and there is a real terminal to animate on (tests drive a Screen with no fd).
@@ -144,13 +144,13 @@ fn paintNewRows(self: *Screen, first_new: usize, x: u16) void {
 
 const testing = std.testing;
 
-test "reveal speed: 0.5 by default, 1 means instantly, and no terminal never animates" {
+test "reveal speed: 0.25 by default, 1 means instantly, and no terminal never animates" {
     const a = testing.allocator;
     var threaded = std.Io.Threaded.init(a, .{});
     defer threaded.deinit();
     var s = Screen{ .gpa = a, .io = threaded.io(), .fd = -1, .rows = 10, .cols = 40 };
     defer s.freeAllForTest();
-    try testing.expectEqual(@as(f64, 0.5), s.revealSpeed()); // the default the console starts with
+    try testing.expectEqual(@as(f64, 0.25), s.revealSpeed()); // the default the console starts with
     // No fd = no terminal (tests, a captured sink): the sweep must not run, so a suite
     // never sits through an animation nobody can see.
     try testing.expect(!revealing(&s));
@@ -167,13 +167,16 @@ test "reveal speed: 0.5 by default, 1 means instantly, and no terminal never ani
     try testing.expectEqual(screen_mod.speed_max, s.revealSpeed());
     s.fd = -1;
 }
-test "reveal speed: the pace scales off it, and is 1x at the default" {
+test "reveal speed: the pace scales off it, 1x at 0.5 and 3x at the default" {
     const a = testing.allocator;
     var threaded = std.Io.Threaded.init(a, .{});
     defer threaded.deinit();
     var s = Screen{ .gpa = a, .io = threaded.io(), .fd = -1, .rows = 10, .cols = 40 };
     defer s.freeAllForTest();
-    // 0.5 → factor 1: exactly the pace the sweep had before the speed setting existed.
+    // The default 0.25 → factor 3; 0.5 → factor 1: exactly the pace the sweep was tuned at.
+    const def = pace(&s);
+    try testing.expectEqual(@as(i64, 3 * reveal_step_ms), def.step_ms);
+    s.setRevealSpeed(0.5);
     const mid = pace(&s);
     try testing.expectEqual(@as(i64, reveal_step_ms), mid.step_ms);
     try testing.expectEqual(@as(i64, reveal_quiet_ms), mid.quiet_ms);

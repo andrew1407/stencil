@@ -74,21 +74,20 @@ test "help: every console verb is documented" {
     var docs = try documented(arena.allocator());
 
     var missing: usize = 0;
-    inline for (@typeInfo(commands.Verb).@"enum".fields) |f| {
-        const want: commands.Verb = @enumFromInt(f.value);
+    inline for (std.enums.values(commands.Verb)) |want| {
         var found = false;
         var it = docs.keyIterator();
         while (it.next()) |slash| {
             if (commands.verbOf(slash.*[1..])) |v| found = found or v == want;
         }
         var excused = false;
-        for (undocumented) |e| excused = excused or std.mem.eql(u8, e, f.name);
+        for (undocumented) |e| excused = excused or std.mem.eql(u8, e, @tagName(want));
         if (!found and !excused) {
-            std.debug.print("no /help row documents the '{s}' command\n", .{f.name});
+            std.debug.print("no /help row documents the '{s}' command\n", .{@tagName(want)});
             missing += 1;
         }
         if (found and excused) {
-            std.debug.print("'{s}' is now documented — drop it from `undocumented`\n", .{f.name});
+            std.debug.print("'{s}' is now documented — drop it from `undocumented`\n", .{@tagName(want)});
             missing += 1;
         }
     }

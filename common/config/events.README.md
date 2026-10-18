@@ -25,3 +25,10 @@ every other channel is dispatched on `window`.
 - `registryChanged` — the editor **dispatches** it when the projects registry changes
   (`TabsCoordinator.projectsChanged`); the extension's `editorBridge` listens and
   republishes the registry to the background page.
+
+## The console's channels
+
+- `consoleToggle` — the toolbar's console icon and its hotkey **dispatch** it; the console window
+  (`ui/console/modal.js`) listens and toggles itself. No detail.
+- `cliModeChanged` — `console/shell/gate.js` **dispatches** it as CLI mode goes on or off; the
+  detail is the boolean. The stage, the typed-words listener and the facade's gate read it.

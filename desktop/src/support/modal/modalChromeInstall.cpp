@@ -90,10 +90,11 @@ namespace stencil::gui {
     if (support::isWebcore()) header->setContentsMargins(8, 3, 4, 3);
     header->setSpacing(8);
     if (!iconName.isEmpty()) {
-      auto* glyph = new QLabel(dlg);
+      c.glyph = new QLabel(dlg);
+      c.iconName = iconName;
       const QColor txt = dlg->palette().color(QPalette::WindowText);
-      glyph->setPixmap(themedIcon(iconName, txt, 18).pixmap(18, 18));
-      header->addWidget(glyph);
+      c.glyph->setPixmap(themedIcon(iconName, txt, 18).pixmap(18, 18));
+      header->addWidget(c.glyph);
     }
     auto* titleLbl = new QLabel(title, dlg);
     titleLbl->setObjectName(QStringLiteral("modalTitle"));
@@ -182,5 +183,13 @@ namespace stencil::gui {
   bool confirmModal(QWidget* parent, const ConfirmSpec& spec) {
     return confirmModalChoice(parent, spec) == ConfirmChoice::CONFIRM;
   }
+  void retintModalChrome(ModalChrome& chrome, QDialog* dlg) {
+    const QColor txt = dlg->palette().color(QPalette::WindowText);
+    if (chrome.glyph) chrome.glyph->setPixmap(themedIcon(chrome.iconName, txt, 18).pixmap(18, 18));
+    if (!chrome.close) return;
+    if (support::isWebcore()) chrome.close->setIcon(QIcon(themedIcon("x", txt, 14).pixmap(QSize(14, 14))));
+    else chrome.close->setIcon(labelIcon("x", txt, 14));
+  }
+
 }  // namespace stencil::gui
 

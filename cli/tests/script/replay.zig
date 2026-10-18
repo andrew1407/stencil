@@ -20,7 +20,7 @@ fn quiet(_: *anyopaque, _: []const u8) void {}
 /// What `--script` saves for `ops` under `head`.
 fn oneShot(io: std.Io, head: []const u8, ops: []const u8) ![]u8 {
     const dir = std.Io.Dir.cwd();
-    const text = try std.fmt.allocPrint(testing.allocator, "{s}{s}; @save " ++ out ++ "\n", .{ head, ops });
+    const text = try testing.allocator.print("{s}{s}; @save " ++ out ++ "\n", .{ head, ops });
     defer testing.allocator.free(text);
     try dir.writeFile(io, .{ .sub_path = stc, .data = text });
     defer dir.deleteFile(io, stc) catch {};
@@ -33,7 +33,7 @@ fn oneShot(io: std.Io, head: []const u8, ops: []const u8) ![]u8 {
 /// script itself standing in for the user text its openFile/openUrl targets must echo.
 fn replayed(io: std.Io, head: []const u8, ops: []const u8) ![]u8 {
     const gpa = testing.allocator;
-    const text = try std.fmt.allocPrint(gpa, "{s}{s}\n", .{ head, ops });
+    const text = try gpa.print("{s}{s}\n", .{ head, ops });
     defer gpa.free(text);
     var s = try scriptCore.Script.parse(text);
     defer s.deinit();

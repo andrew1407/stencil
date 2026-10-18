@@ -27,7 +27,7 @@ namespace stencil::gui {
 
     // What the pointer aims at; a line before a control, since the selected-line bar holds controls.
     struct Aim {
-      enum Kind { NONE, CLEAN, LINE, CONTROL } kind = NONE;
+      enum Kind { NONE, CLEAN, LINE, CONTROL, CONSOLE } kind = NONE;
       QPointer<QWidget> glow;
       int idx = -1;
       bool operator==(const Aim& o) const { return kind == o.kind && glow == o.glow && idx == o.idx; }
@@ -44,6 +44,8 @@ namespace stencil::gui {
       if (const LogoLineAim line = h->lineAt ? h->lineAt(p.target, p.global) : LogoLineAim{}; line.idx >= 0)
         return Aim{Aim::LINE, line.glow, line.idx};
       if (QWidget* control = support::dropResetTarget(p.target)) return Aim{Aim::CONTROL, control};
+      QWidget* console = h->consoleIcon ? h->consoleIcon() : nullptr;
+      if (console && (p.target == console || console->isAncestorOf(p.target))) return Aim{Aim::CONSOLE, console};
       QWidget* canvas = area();
       if (canvas && picture() && (p.target == canvas || canvas->isAncestorOf(p.target)))
         return Aim{Aim::CLEAN, canvas};
@@ -79,6 +81,7 @@ namespace stencil::gui {
       if (a.kind == Aim::CLEAN && h->commit) h->commit();
       if (a.kind == Aim::LINE && h->styleLine) h->styleLine(a.idx);
       if (a.kind == Aim::CONTROL) support::resetToDefault(a.glow);
+      if (a.kind == Aim::CONSOLE && h->cliMode) h->cliMode();
     };
     drag.cancel = end;
     drag.face = [h, logo] { return ghostFace(logo, h->mark ? h->mark() : QPixmap()); };

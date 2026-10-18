@@ -10,7 +10,7 @@ const Action = opplan.Action;
 /// prompt assembly, so it falls to §1's unknown-op skip. The shipped console wires all of them.
 pub const OpCapability = enum { theme, network, filesystem, clipboard };
 pub const OpCaps = std.EnumSet(OpCapability);
-pub const full_capabilities = OpCaps.initFull();
+pub const full_capabilities = OpCaps.full;
 
 /// One §13 descriptor: an op's wire name, its `Action` tag, its prompt bullet(s) VERBATIM and its
 /// capability. Key schema and variant gates live in opRegistry.json; a comptime check pins it to `Action`.

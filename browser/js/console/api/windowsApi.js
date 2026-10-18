@@ -4,6 +4,7 @@
 import { closeOpenModal } from '../../ui/base.js';
 import UI_STRINGS from '../../../../common/config/uiStrings.json' with { type: 'json' };
 import { str } from '../coerce.js';
+import { cliModeGate } from '../shell/gate.js';
 
 // The editor's windows, for stencil.openWindow(title). The table is config/uiStrings.json;
 // an opener's disabled state gates the script route exactly as it gates the click.
@@ -25,6 +26,7 @@ export const createWindowsApi = () => {
     // hotkey ids work too). A disabled control throws the button's reason.
     get windows() { return WINDOWS.map((w) => w.title); },
     openWindow(title) {
+      cliModeGate('a window');
       const w = findWindow(title);
       if (!w) throw new Error(`stencil: no window called "${str(title)}" — one of: ${WINDOWS.map((x) => x.title).join(', ')}`);
       const doc = typeof document !== 'undefined' ? document : null;
@@ -64,6 +66,7 @@ export const createWindowsApi = () => {
     openHelpWindow() { return stencil.openWindow('help'); },
     openImageWindow() { return stencil.openWindow('open-image'); },
     openCropWindow() { return stencil.openWindow('crop'); },
+    openConsoleWindow() { return stencil.openWindow('console'); },
   };
 
   return { api, setFacade: (f) => { stencil = f; } };

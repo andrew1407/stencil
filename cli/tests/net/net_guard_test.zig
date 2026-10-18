@@ -133,7 +133,7 @@ const Fake = struct {
     }
 
     fn url(self: *Fake, a: std.mem.Allocator) ![]u8 {
-        return std.fmt.allocPrint(a, "http://127.0.0.1:{d}/x", .{self.port});
+        return a.print("http://127.0.0.1:{d}/x", .{self.port});
     }
 
     fn serve(self: *Fake) void {
@@ -155,7 +155,7 @@ const Fake = struct {
         var writer = stream.writer(self.io, &wbuf);
         writer.interface.writeAll(self.head) catch return;
         if (self.mode == .flood) {
-            const chunk = [_]u8{'x'} ** 4096;
+            const chunk: [4096]u8 = @splat('x');
             while (true) writer.interface.writeAll(&chunk) catch break;
         }
         writer.interface.flush() catch {};

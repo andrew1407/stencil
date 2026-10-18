@@ -24,7 +24,8 @@ test('every show in the table is a call and a <show>Mode switch, plus close, wha
   for (const name of SHOW_NAMES) assert.equal(typeof eggs[name], 'function', `${name} is missing`);
   for (const extra of ['close', 'what', 'of']) assert.equal(typeof eggs[extra], 'function', extra);
   for (const name of SHOW_NAMES) assert.equal(typeof eggs[`${name}Mode`], 'boolean', `${name}Mode`);
-  assert.equal(Object.keys(eggs).length, 2 * SHOW_NAMES.length + 3);
+  assert.equal(typeof eggs.cliMode, 'boolean', 'cliMode is the terminal switch');
+  assert.equal(Object.keys(eggs).length, 2 * SHOW_NAMES.length + 4);
 });
 
 test('webcoreMode reads the skin off the page, and assigning the state it is in changes nothing', () => {
@@ -49,7 +50,7 @@ test('webcoreMode reads the skin off the page, and assigning the state it is in 
 
 test('what() lists the words, and of() runs one by its word, however it is cased', () => {
   const stencil = facade();
-  assert.deepEqual(stencil.EasterEggs.what(), SHOW_NAMES, 'the words themselves');
+  assert.deepEqual(stencil.EasterEggs.what(), [...SHOW_NAMES, 'cliclicli', 'cli'], 'the words themselves, the terminal\'s among them');
   assert.notEqual(stencil.EasterEggs.what(), stencil.EasterEggs.what(), 'a copy, never the table');
   assert.equal(stencil.EasterEggs.of('  WaTeRsHoW '), stencil, 'case and space do not matter');
   assert.equal(logoStageOpen(), true);

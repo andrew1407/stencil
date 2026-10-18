@@ -129,7 +129,7 @@ test "sniff: PNG / GIF / BMP / JPEG / WebP headers" {
     try testing.expectEqual(@as(u32, 3), gs.height);
 
     // BMP 10x20 (width @18, height @22, little-endian).
-    var bmp = [_]u8{0} ** 26;
+    var bmp: [26]u8 = @splat(0);
     bmp[0] = 'B';
     bmp[1] = 'M';
     bmp[18] = 10;
@@ -146,7 +146,7 @@ test "sniff: PNG / GIF / BMP / JPEG / WebP headers" {
     try testing.expectEqualStrings("jpg", js.fmt);
 
     // WebP (lossy VP8) 64x48.
-    var webp = [_]u8{0} ** 30;
+    var webp: [30]u8 = @splat(0);
     @memcpy(webp[0..4], "RIFF");
     @memcpy(webp[8..12], "WEBP");
     @memcpy(webp[12..16], "VP8 ");

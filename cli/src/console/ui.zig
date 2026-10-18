@@ -24,7 +24,7 @@ pub const completions = [_][]const u8{
     "rename",     "project-color", "blank-color", "project-description", "keywords",    "keywords-search", "keywords-add", "keywords-del",
     "expire",     "fetch",         "sync",        "copy",                "status",      "theme",           "mouse",        "reveal-speed",
     "clear",      "drop",          "prompt",      "llm",                 "chat",        "help",            "exit",         "script",
-    "script-run",
+    "script-run", "browser",       "desktop",     "desktopsync",
 };
 
 pub fn setInteractive(v: bool) void {
@@ -166,7 +166,7 @@ pub fn intro() void {
 // The console's prose — intro, filter list, command list — lives in the embedded uiText.txt;
 // tests/console/repl_text_test.zig checks the command list against commands.zig.
 const ui_text = @embedFile("uiText.txt");
-const help_spaces = " " ** 32;
+const help_spaces = &@as([32]u8, @splat(' '));
 
 /// The lines of the '@name' block in uiText.txt, without its trailing newline. Comptime so a
 /// missing block is a compile error, not a blank screen.

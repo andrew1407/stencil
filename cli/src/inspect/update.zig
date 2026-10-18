@@ -36,7 +36,7 @@ pub fn update(gpa: std.mem.Allocator, client: *server.Client, id: []const u8, se
     const version = set.if_version orelse try client.getProjectVersion(id);
     const payload = try body(gpa, set, version);
     defer gpa.free(payload);
-    const path = try std.fmt.allocPrint(gpa, "/projects/{s}", .{id});
+    const path = try gpa.print("/projects/{s}", .{id});
     defer gpa.free(path);
     return client.request(.PUT, path, payload, "application/json");
 }

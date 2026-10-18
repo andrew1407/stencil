@@ -74,7 +74,7 @@ pub fn once(
     }) catch |e| return failed(url, e, muted);
 
     return .{
-        .status = @intFromEnum(result.status),
+        .status = @backingInt(result.status),
         .body = try gpa.dupe(u8, body.buffered()),
     };
 }

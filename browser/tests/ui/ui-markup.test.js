@@ -31,13 +31,14 @@ const IDS = [
     'point-size', 'line-style', 'draw-toggle', 'draw-mode-toggle', 'undo', 'redo', 'show-points',
     'show-lines', 'clear-all-lines', 'zoom-out', 'zoom-input', 'zoom-menu', 'zoom-in', 'zoom-fit', 'page-size', 'unit-select', 'custom-size-group',
     'custom-page-width', 'custom-page-height', 'allow-formulas', 'formula-inputs', 'formula-x', 'formula-y',
-    'formula-error', 'download-json', 'copy-json-btn', 'save-image', 'upload-json', 'upload-json-btn', 'clear-storage',
+    'formula-error', 'console-btn', 'download-json', 'copy-json-btn', 'save-image', 'upload-json', 'upload-json-btn', 'clear-storage',
     'theme-toggle', 'fullscreen-toggle', 'settings-btn', 'visuals-btn', 'info-btn', 'selection-panel',
     'sel-color', 'sel-thickness', 'sel-point-size', 'sel-style', 'sel-fill-group', 'sel-fill',
     'sel-fill-clear', 'sel-deselect', 'image-info', 'canvas-viewport', 'canvas-container', 'canvas', 'canvas-overlay', 'zoom-rect-overlay',
     'tooltip', 'coord-status', 'coord-panel', 'coord-panel-header', 'coord-tab-points', 'coord-tab-lines', 'toggle-coord-panel', 'coord-body', 'coordinates-table',
     'coordinates-body', 'lines-list', 'notify-balloon', 'settings-modal-overlay', 'settings-modal', 'settings-close', 'hotkey-table',
     'reset-all-hotkeys', 'visuals-modal-overlay', 'visuals-close', 'vs-line-color', 'vs-thickness', 'vs-point',
+    'vs-console-speed-value', 'vs-console-speed',
     'vs-style', 'vs-notify-channel', 'vs-fill', 'vs-sel-glow', 'vs-hover-ring', 'vs-focus-ring', 'vs-reset', 'info-modal-overlay',
     'info-close', 'info-search', 'info-body',
     // Crop modal (stencil-crop-modal) + its toolbar trigger (cropImage, above).
@@ -79,11 +80,13 @@ const IDS = [
     // "Make a copy" confirmation (stencil-copy-project-modal).
     'copy-project-modal-overlay', 'copy-project-close', 'copy-project-question', 'copy-project-local-row',
     'copy-project-local', 'copy-project-local-label', 'copy-project-incognito-row', 'copy-project-incognito',
-    'copy-project-incognito-label', 'copy-project-cancel', 'copy-project-just', 'copy-project-newtab', 'copy-project-open'
+    'copy-project-incognito-label', 'copy-project-cancel', 'copy-project-just', 'copy-project-newtab', 'copy-project-open',
+    // The console window (stencil-console-modal), appended at the END of REGIONS.
+    'console-overlay', 'console-close', 'console-out', 'console-input', 'console-upload',
 ];
 
 test('fixture has exactly 283 IDs', () => {
-    assert.strictEqual(IDS.length, 283);
+    assert.strictEqual(IDS.length, 291);
 });
 
 test('every static body ID is present exactly once', () => {

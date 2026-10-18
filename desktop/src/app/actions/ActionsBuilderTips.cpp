@@ -58,6 +58,7 @@ namespace stencil::gui {
     w.keys.actions["loadImage"] = w.acts.open;
     w.keys.actions["openAnotherImage"] = w.acts.openAnother;
     w.keys.actions["openProjects"] = w.acts.projects;
+    w.keys.actions["openConsole"] = w.acts.console;
     w.keys.actions["clearProject"] = w.acts.clearProject;
     w.keys.actions["closeProject"] = w.acts.closeProject;
     w.keys.actions["renameProject"] = w.acts.renameProject;
@@ -102,6 +103,7 @@ namespace stencil::gui {
     w.setActionTip(w.acts.zoomOut, "Zoom out");
     w.setActionTip(w.acts.downloadJson, "Download Layout JSON");
     w.setActionTip(w.acts.uploadJson, "Upload Layout JSON");
+    w.setActionTip(w.acts.console, "Console — type /commands over this project (/help lists them)");
     w.setActionTip(w.acts.script, "Stencil script (.stc) — write and run a script over this project");
     w.setActionTip(w.acts.copyLayout, "Copy full Layout JSON (lines + all applied edits)");
     w.setActionTip(w.acts.theme, "Toggle dark / light theme");

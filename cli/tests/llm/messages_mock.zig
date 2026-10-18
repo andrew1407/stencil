@@ -52,7 +52,7 @@ pub const Mock = struct {
 
     /// `http://127.0.0.1:<port>`, caller-owned.
     pub fn base(self: *const Mock, a: std.mem.Allocator) ![]u8 {
-        return std.fmt.allocPrint(a, "http://127.0.0.1:{d}", .{self.port});
+        return a.print("http://127.0.0.1:{d}", .{self.port});
     }
 
     /// The value of header `name` in the recorded request (case-insensitive), or null.

@@ -13,5 +13,7 @@
   "chatPopup": "stencil:chat-popup",
   "voiceStateChanged": "stencil:voice-state-changed",
   "voiceSettingsChanged": "stencil:voice-settings-changed",
-  "notifyChannelChanged": "stencil:notify-channel-changed"
+  "notifyChannelChanged": "stencil:notify-channel-changed",
+  "consoleToggle": "stencil:console-toggle",
+  "cliModeChanged": "stencil:cli-mode-changed"
 }

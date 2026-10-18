@@ -19,19 +19,19 @@ pub fn resolveUrl(alloc: std.mem.Allocator, base: []const u8, raw: []const u8) !
     if (hasScheme(r)) return r; // already absolute (http/data/blob/…)
     if (std.mem.startsWith(u8, r, "//")) {
         const scheme = schemeOf(base) orelse "http";
-        return try std.fmt.allocPrint(alloc, "{s}:{s}", .{ scheme, r });
+        return try alloc.print("{s}:{s}", .{ scheme, r });
     }
     if (r[0] == '/') {
-        return try std.fmt.allocPrint(alloc, "{s}{s}", .{ originOf(base), r });
+        return try alloc.print("{s}{s}", .{ originOf(base), r });
     }
     if (r[0] == '?') {
-        return try std.fmt.allocPrint(alloc, "{s}{s}", .{ baseNoQuery(base), r });
+        return try alloc.print("{s}{s}", .{ baseNoQuery(base), r });
     }
     // Path-relative: join against the base "directory". dirOf yields the origin (no trailing
     // slash) when the base has no path, so insert a separator in that case.
     const dir = dirOf(base);
     const sep: []const u8 = if (dir.len != 0 and dir[dir.len - 1] == '/') "" else "/";
-    return try std.fmt.allocPrint(alloc, "{s}{s}{s}", .{ dir, sep, r });
+    return try alloc.print("{s}{s}{s}", .{ dir, sep, r });
 }
 
 /// True when `raw`, RESOLVED against `base`, is an http(s) URL — the gate on `<video src>` and in-
@@ -101,11 +101,11 @@ pub fn deriveName(alloc: std.mem.Allocator, url: []const u8, ext: []const u8, in
     }
     // Strip leading dots so a segment like ".htaccess" / "." can't hide the name or escape.
     const name = std.mem.trimStart(u8, san.items, ".");
-    if (name.len == 0) return std.fmt.allocPrint(alloc, "source-{d}.{s}", .{ index, use_ext });
+    if (name.len == 0) return alloc.print("source-{d}.{s}", .{ index, use_ext });
 
     // Ensure a plausible extension; if the segment has none, append the derived one.
     if (!hasNameExt(name)) {
-        return std.fmt.allocPrint(alloc, "{s}.{s}", .{ name, use_ext });
+        return alloc.print("{s}.{s}", .{ name, use_ext });
     }
     return alloc.dupe(u8, name);
 }
@@ -123,7 +123,7 @@ fn hasNameExt(name: []const u8) bool {
 pub fn joinPath(alloc: std.mem.Allocator, dir: []const u8, name: []const u8) ![]u8 {
     if (dir.len == 0 or std.mem.eql(u8, dir, ".")) return alloc.dupe(u8, name);
     const sep: []const u8 = if (dir[dir.len - 1] == '/') "" else "/";
-    return std.fmt.allocPrint(alloc, "{s}{s}{s}", .{ dir, sep, name });
+    return alloc.print("{s}{s}{s}", .{ dir, sep, name });
 }
 
 test "resolveUrl: absolute, protocol/root/path-relative" {

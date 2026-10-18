@@ -165,7 +165,7 @@ pub fn runImpl(gpa: std.mem.Allocator, io: std.Io, opts: args.Options, deps: Dep
         var fbuf: [16]u8 = undefined;
         const ext = formatFor(&fbuf, it.media, dims);
         var name = try deriveName(arena, it.media.url, ext, idx);
-        if (used.contains(name)) name = try std.fmt.allocPrint(arena, "source-{d}.{s}", .{ idx, ext });
+        if (used.contains(name)) name = try arena.print("source-{d}.{s}", .{ idx, ext });
         try used.put(name, {});
         if (pipeline.hasParentTraversal(name)) continue; // sanitized names never do; belt-and-braces
         const path = try joinPath(arena, dir, name);

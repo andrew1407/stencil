@@ -77,7 +77,7 @@ pub fn decode(
                 .src = script.opStr(i, 0),
                 .mode = script.opStr(i, 1),
                 // The core carries the layout source's own classification as its first number.
-                .kind = @enumFromInt(@as(c_int, @intFromFloat(script.opNum(i, 0) orelse 1))),
+                .kind = @fromBackingInt(@intCast(@as(c_int, @intFromFloat(script.opNum(i, 0) orelse 1)))),
             },
         },
         .save => return .{ .save = script.opStr(i, 0) },

@@ -22,6 +22,7 @@ import { createCropApi } from './api/cropApi.js';
 import { createScriptApi } from './api/scriptApi.js';
 import { createEasterEggsApi } from './api/easterEggsApi.js';
 import { promoteIncognitoToLocal } from '../core/launch/incognitoFlow.js';
+import { cliModeGate } from './shell/gate.js';
 
 export { WINDOWS } from './api/windowsApi.js';
 
@@ -137,7 +138,7 @@ export const createStencil = (app) => {
     // ── Settings / modes ──
     get settings() { return settings(); },
     get fullscreen() { return typeof document !== 'undefined' && document.body.classList.contains('fullscreen-mode'); },
-    set fullscreen(v) { if (!!v !== stencil.fullscreen && typeof app.toggleFullscreen === 'function') app.toggleFullscreen(); },
+    set fullscreen(v) { if (v) cliModeGate('fullscreen'); if (!!v !== stencil.fullscreen && typeof app.toggleFullscreen === 'function') app.toggleFullscreen(); },
     get imageSize() { const img = app.image; return img ? { width: img.width, height: img.height } : undefined; },
     // Current crop rect in rotated-original px — {x,y,w,h} plus legacy width/height
     // aliases; null before an image loads. The LLM plan executor re-maps against it (§1).
@@ -161,11 +162,12 @@ export const createStencil = (app) => {
     promoteIncognito() { return promoteIncognitoToLocal(app); },
     // Tooltip sections as a live get/set object.
     get tooltip() {
+      const set = (key, v) => { cliModeGate('the tooltip'); app.settings.setTooltipOption(key, v); };
       return guard({
-        get enabled() { return app.tooltipEnabled; }, set enabled(v) { app.settings.setTooltipOption('enabled', v); },
-        get page() { return app.tooltipShowPage; }, set page(v) { app.settings.setTooltipOption('page', v); },
-        get screen() { return app.tooltipShowScreen; }, set screen(v) { app.settings.setTooltipOption('screen', v); },
-        get coords() { return app.tooltipShowCoords; }, set coords(v) { app.settings.setTooltipOption('coords', v); },
+        get enabled() { return app.tooltipEnabled; }, set enabled(v) { set('enabled', v); },
+        get page() { return app.tooltipShowPage; }, set page(v) { set('page', v); },
+        get screen() { return app.tooltipShowScreen; }, set screen(v) { set('screen', v); },
+        get coords() { return app.tooltipShowCoords; }, set coords(v) { set('coords', v); },
       });
     },
 

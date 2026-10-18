@@ -55,7 +55,7 @@ namespace stencil::gui {
   QStringList stylesheetPieces(const QString& sheet) {
     static const QHash<QString, QStringList> order = {
         {"app", {"shell", "selectedLine", "toolButtons", "menus", "buttons", "fields", "dock",
-                 "lists", "modals", "dialogs", "overlays"}},
+                 "lists", "modals", "dialogs", "console", "overlays"}},
         {"webcore", {"chrome", "menus", "fields", "chat", "checks", "tables", "windows",
                      "scrollbars", "notices"}}};
     return order.value(sheet);

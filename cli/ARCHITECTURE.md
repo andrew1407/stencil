@@ -44,10 +44,10 @@ or import nothing reads.
 | `src/args.zig` + `params/` | `Options` + `Mode` and the argv loop | the flag surface is `CONTRACT.md`; `tests/help_flags_test.zig` scans every parser file |
 | `src/pipeline.zig` + `pipeline/` | the one-shot orchestration | headless; reports through `report.zig` |
 | `src/script.zig` + `script/` | the `.stc` modes, including emit for another surface (`emit/`) | the core owns the language; this owns files, pixels and output |
-| `src/core.zig` + `core/`, `media/` | the core bridge, codecs, page policy, layout JSON, the ffmpeg frame grab and ffprobe read | the decoder TU stays narrowed (`STBI_NO_*`, `STBI_MAX_DIMENSIONS`) with UBSan on; `media/decodeGuard.zig` bounds what stb may read; ffmpeg and ffprobe read only a local file (`media/remoteVideo.zig`) |
+| `src/core.zig` + `core/`, `media/` | the core bridge over the hand-written ABI sheet `core/cApi.zig`, codecs, page policy, layout JSON, the ffmpeg frame grab and ffprobe read | `cApi.zig` is pinned to `core/cliApi.h` by name and arity (`tests/config/capi_drift_test.zig`); the decoder TU stays narrowed (`STBI_NO_*`, `STBI_MAX_DIMENSIONS`) with UBSan on; `media/decodeGuard.zig` bounds what stb may read; ffmpeg and ffprobe read only a local file (`media/remoteVideo.zig`) |
 | `src/net.zig` + `net/` | the **one fetch guard** over the embedded `common/config/net/blockedRanges.json`, the pinned server dial, the bounded fan-out, the watched call | every outbound URL passes `net.zig`; nothing keeps its own address list or waits on a host without a deadline |
-| `src/safety/` | output-path confinement, the one capped reader for a report mode's document, the one sanitizer for untrusted text, child spawning without `STENCIL_LLM_*` or server tokens and under a deadline | `..` always refused; absolute or symlinked escapes refused under `--confine-output`; every child is killed at its deadline |
-| `src/console.zig` + `console/` | the REPL: session, `commands`, `handlers/`, `render/`, `screen/` (the TUI) | grammar is parsed in `commands.zig` and executed in `handlers/`; a model's or server's text prints through `render/inert.zig` |
+| `src/safety/` | output-path confinement, the one capped reader for a report mode's document, the one sanitizer for untrusted text, child spawning without `STENCIL_LLM_*` or server tokens — a helper under a deadline, an app launched and left to run | `..` always refused; absolute or symlinked escapes refused under `--confine-output`; every helper is killed at its deadline |
+| `src/console.zig` + `console/` | the REPL: session, `commands` (+ `commands/verbs.zig`), `handlers/` (`handlers/apps/` opens the other apps), `remoteEvents/` (the server feed and the linked `.stencil` file), `render/`, `screen/` (the TUI) | grammar is parsed in `commands.zig` and executed in `handlers/`; a model's or server's text prints through `render/inert.zig`; an app is started through `safety/child.zig`'s detached launch |
 | `src/line_edit/` | the raw-mode line editor and the hidden secret read | TTY only; piped stdin takes the plain reader |
 | `src/clipboard.zig` + `clipboard/` | `/paste` + `/copy` over the per-OS shell helpers | |
 | `src/llm.zig` + `llm/` | the provider `Config`, the embedded `providers.json`, `wire/` (one mapping per provider), the transport, `opplan/` and `--plan-check` | the validator is core's; nothing here re-checks a key; a key is never printed and is zeroed when dropped |
@@ -96,6 +96,7 @@ classDiagram
 | `Project` (`project/shape.zig`) | A parsed `.stencil` document: metadata, encoded original, layout, chat | Its own arena | The browser's `.stencil` writer is canonical |
 | `Client` (`server/rest.zig`) | One server connection: origin, session token, what the credential proved to be | `Session.servers` or one one-shot run | Re-mints once on a stale session |
 | `EditConn` (`server/edit.zig`) | The read-only NDJSON events subscription on the raw-TCP edit port | `Session.events`, while a project is synced | `pullAction` decides what a peer's edit means |
+| `FileLink` (`console/remoteEvents/fileLink.zig`) | The `.stencil` file `/desktopsync` shares with the desktop app, and how it looked when last seen | `Session.file_link`, until `/desktopsync off` or the file goes | `project.loadInto` / `saveInto`; `linkAction` decides save or reload |
 | `Edit` (`script/decode.zig`) | One lowered `.stc` op as a union, every length already in pixels | The caller's buffer, until the next decode | How runner, console and planner read core's op stream |
 | `Config` (`llm/config.zig`) | The provider configuration: provider, URL, model, key (an anthropic key with its expiry) | `Session.llm_cfg`, from `STENCIL_LLM_*`; the key zeroed when dropped | `providers.json` is canonical |
 | `Request` (`llm/wire/request.zig`) | One ready call: URL, credential header, body | One round; credentials zeroed on `deinit` | Built from a `Config` |
@@ -108,7 +109,7 @@ classDiagram
 | Facade over core | `core.zig` over `cliApi.h`; the package roots | Typed, allocation-free wrappers |
 | Command | `EditState` on `Session.history`; `Verb` → `dispatch.handle` → `handlers/` | Every edit is a snapshot; the view is rebuilt from it, never patched |
 | Strategy | `Provider` wire mappings; the injected transport, scrape and report seams | Selected by enum or fn pointer; tests swap the seam |
-| Observer | `EditConn` drained at the prompt boundary | `PullAction` is a pure decision over version, dirty and id |
+| Observer | `EditConn` and the linked file polled at the prompt boundary | `PullAction` is a pure decision over version, dirty and id; `linkAction` over dirty and changed-on-disk |
 | Repository | `project.loadInto` / `saveInto`; the `Client` project calls | Persistence behind one bridge, shared by console and one-shot |
 | Chain of Responsibility | `net.request`; `safety/confine.zig` | One guard per concern, in a fixed order |
 | Adapter | `media/layout.zig`, `server/payload.zig`, `media/image.zig` over stb | The CLI never edits the layout schema, it translates to and from it |
@@ -171,6 +172,15 @@ classDiagram
   version-guarded update; a 409 re-reads the project, joins the peer's lines with ours
   (`core.mergeKeep`, `session/peerMerge.zig`) and retries. Each drained `Event` goes through
   `pullAction`.
+- **A linked file.** `/desktopsync` (or `/desktop sync`) links the session to a `.stencil` file
+  the desktop app also has open. At each prompt boundary `fileLink.poll` writes the file when an
+  edit was recorded, else re-reads it when its stat changed: the same picture's layout lands as
+  one history step, another picture reloads the project. The desktop's open files are read out
+  of its registry (`handlers/apps/registry.zig`), never written.
+- **An app hand-off.** `/browser` builds the browser's `#stencil=` launch fragment — a server
+  project by reference, else the picture and layout inline, refused when it would not fit the
+  opener's argument — and `/desktop` the `stencil://` link, or writes the project file and opens
+  it; both go through the OS opener (`handlers/apps/launch.zig`) or the `STENCIL_DESKTOP` binary.
 - **A watched call.** The input loop runs every `net.request` on `jobCall.zig`'s worker while
   Ctrl-C is polled; a Ctrl-C stops the worker at its next Io call and waits for it, so nothing
   borrowed outlives the wait. While one thread owns the human channel, another thread's print
@@ -204,6 +214,7 @@ server rejection (`server/http.zig`, set and read on the caller), stb's allocato
 | `net/fetchPool.zig` pool | Io tasks in waves of `max_workers` (8) | a per-job arena and result row | submission-order `await` | a task the Io will not spawn runs on the caller; each job releases its thread's body scratch when it ends |
 | `media/imageRows.zig` bands | `std.Thread`s, at most 8, the caller taking the last band | disjoint output rows | `join` before returning | a band that will not spawn runs on the caller |
 | child processes (`safety/child.zig`) | another process, read on the calling thread | its stdout and stderr pipes | `media_timeout_ms` (60 s) for ffmpeg and ffprobe, `helper_timeout_ms` (10 s) for clipboard helpers | killed (SIGTERM, then reaped) at the deadline, with `error: <tool> did not finish within Ns — stopped`; output past `stdout_limit` ends the run |
+| launched apps (`safety/child.zig` `launch`) | another process, never waited on | nothing: its stdio is `/dev/null` | — | a spawn that fails is reported; a running app is the OS's |
 | `app/logo/deferred.zig` held prints | any thread that does not own the human channel | the held queue | a spinlock; no callback runs inside it | past 1 MiB a print is dropped; the owner lands the rest at its next flush |
 | `console/screen/terminal.zig` signal handlers | the interrupted thread, in signal context | the borrowed terminal state | only `write` and `raise`, which are async-signal-safe | TERM, HUP, INT and QUIT restore the terminal and re-raise under `SA_RESETHAND`; WINCH writes one byte to a non-blocking pipe |
 | `server/edit.zig` `EditConn` | the console thread, at each prompt boundary | its frame buffer | single owner; `poll` never blocks | a line past `max_frame_bytes` (16 MiB, the server's frame cap) closes the feed with a note; one boundary handles at most `max_events_per_poll` (64) events, the rest wait for the next |
@@ -222,16 +233,20 @@ server rejection (`server/http.zig`, set and read on the caller), stb's allocato
    every suite under `tests/`.
 3. **Embedded tables come from `common/config/`** via `@embedFile` straight from the canonical
    file, so there is no copy to drift. A value read at comptime (`app/brand.zig`'s colours and
-   `tokenLight`, `llm/providers.zig`'s `cli_chat_seconds`) is cross-checked against a real
-   parse of the same bytes, and the one port of a constant no build can embed
-   (`net/fetchPool.zig` `max_workers` = pystencil's `MAX_FETCH_WORKERS`) is pinned by
-   `tests/config/fetch_workers_drift_test.zig`.
+   `tokenLight`, `app/skin/table.zig`'s skins, `llm/providers.zig`'s `cli_chat_seconds`,
+   `handlers/apps/launch.zig`'s app URL and fragment cap) is cross-checked against a real
+   parse of the same bytes; a constant kept beside the code that paces on it (the console's
+   animation numbers, `console/fx.json`; the skins' pictures, faces and bulbs) is pinned to the
+   table by a `tests/config/*_drift_test.zig`, as the one port of a constant no build can embed
+   (`net/fetchPool.zig` `max_workers` = pystencil's `MAX_FETCH_WORKERS`) is. The C ABI sheet
+   `core/cApi.zig` is pinned to `core/cliApi.h` the same way, and the logo raster to core's
+   `logoBanner`.
 4. **The stderr grammar is a contract.** `wrote {path} ({w}x{h})`, `error: …`, `note: …` and the
    scrape lines are parsed by mcp and bot and pinned by `CONTRACT.md`, `testdata/` and both
    adapters' fixtures.
 5. **Security guards are singular**: one fetch guard (`net.zig`), one output confinement
    (`safety/confine.zig`), one prose sanitizer (`safety/sanitize.zig`), one child spawner
-   (`safety/child.zig`). A video URL passes the fetch guard like any other before a child
+   (`safety/child.zig`, a waited `run` or a detached `launch`). A video URL passes the fetch guard like any other before a child
    sees its bytes. A collaboration server is dialled at the address judged; any other fetch
    judges a name's resolved addresses and lets `std.http.Client` resolve it again
    (`net/host.zig` `hostResolvesToBlocked`), so a host that rebinds between the two lookups

@@ -5,6 +5,7 @@ const builtin = @import("builtin");
 const args = @import("args.zig");
 const pipeline = @import("pipeline.zig");
 const console = @import("console.zig");
+const AppEnv = @import("console/handlers/apps/env.zig").AppEnv;
 const scrape = @import("scrape.zig");
 const script = @import("script.zig");
 const inspect = @import("inspect.zig");
@@ -66,7 +67,7 @@ pub fn main(init: std.process.Init) !void {
                 report.err("the interactive console is not available on Windows\n", .{});
                 std.process.exit(1);
             }
-            return console.run(gpa, io, c.full_screen, llm.Env.fromMap(init.environ_map), opts.env_tokens) catch
+            return console.run(gpa, io, c.full_screen, llm.Env.fromMap(init.environ_map), opts.env_tokens, AppEnv.fromMap(init.environ_map)) catch
                 std.process.exit(1);
         },
         // Scrape mode: --source-site fetches a page, extracts + filters media, and downloads

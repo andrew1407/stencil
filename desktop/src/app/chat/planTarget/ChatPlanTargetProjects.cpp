@@ -74,6 +74,10 @@ namespace stencil::gui {
   }
   // §10 chatPanel: the panel's OWN placement calls (browser session.js setChatPlacement parity).
   bool ChatPlanTarget::setChatPlacement(int open, const QString& dock, QString* note) {
+    if (const auto gate = w.parts.console.cliGate(QStringLiteral("the assistant panel"))) {
+      *note = *gate;
+      return true;
+    }
     if (!w.chatDock || !w.acts.chat) {
       *note = QStringLiteral("there is no assistant panel here");
       return true;
@@ -98,6 +102,10 @@ namespace stencil::gui {
 
   // §10 dialog: opened on the NEXT event-loop turn — they exec() modally, which would park the plan behind an unannounced window.
   bool ChatPlanTarget::openDialog(const QString& name, QString* note) {
+    if (const auto gate = w.parts.console.cliGate(QStringLiteral("a window"))) {
+      *note = *gate;
+      return true;
+    }
     if (name.isEmpty()) {
       QWidget* open = QApplication::activeModalWidget();
       if (!open) {

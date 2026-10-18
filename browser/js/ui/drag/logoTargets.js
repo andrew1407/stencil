@@ -42,10 +42,15 @@ const canvasLine = (app, x, y) => {
   return lineIndex(app, app.findLineAt(at.x, at.y));
 };
 
-/** `{ kind: 'line', idx, el } | { kind: 'control', el } | { kind: 'clean', el } | null` for a
- *  pointer at (x, y) over `target`; `viewport` is the canvas region. */
+const CONSOLE_BTN = '#console-btn';
+
+/** `{ kind: 'line', idx, el } | { kind: 'control', el } | { kind: 'clean', el } | { kind: 'console', el }
+ *  | null` for a pointer at (x, y) over `target`; `viewport` is the canvas region. The console icon
+ *  takes the logo into CLI mode. */
 export const logoTargetAt = (app, { target, x, y }, viewport, controlAt = dropControlAt) => {
   if (!target) return null;
+  const consoleBtn = target.closest?.(CONSOLE_BTN);
+  if (consoleBtn) return { kind: 'console', el: consoleBtn };
   const row = target.closest?.('tr.lines-row');
   if (row) {
     const idx = lineIndex(app, parseInt(row.dataset?.idx, 10));

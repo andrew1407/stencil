@@ -4,6 +4,7 @@
 #include "../../support/menu/SearchCombo.hpp"
 #include "../../support/icon/motionIcons.hpp"
 #include "../../support/motionPrefs.hpp"
+#include "../../support/console/consolePace.hpp"
 #include "../../support/control/dblReset.hpp"
 #include "../../support/control/scrubBar.hpp"
 #include <QCheckBox>
@@ -90,36 +91,18 @@ namespace stencil::gui {
     addRow(r, tr("Interface animation"), motionMode);
     connect(motionMode, &QComboBox::activated, this, [this, touched] { touched(); applyLive(); });
 
-    // The number and a slider in hundredths, kept in step (browser vs-motion-speed); either applies live.
-    const support::MotionSpeedRange& speed = support::motionSpeedRange();
-    auto* box = new QWidget(r.host);
-    auto* lay = new QHBoxLayout(box);
-    lay->setContentsMargins(0, 0, 0, 0);
-    lay->setSpacing(8);
-    motionSpeedSpin = new ClampingSpin(box);
-    motionSpeedSpin->setObjectName(QStringLiteral("motionSpeedSpin"));
-    motionSpeedSpin->setLocale(QLocale::c());   // "0.37", as the browser writes it
-    motionSpeedSpin->setRange(speed.min, speed.max);
-    motionSpeedSpin->setSingleStep(speed.step);
-    motionSpeedSpin->setDecimals(2);
-    motionSpeedSpin->setFixedWidth(64);
-    motionSpeed = new QSlider(Qt::Horizontal, box);
-    makeScrubBar(motionSpeed, QStringLiteral("motionSpeedSlider"));
-    motionSpeed->setRange(qRound(speed.min * 100), qRound(speed.max * 100));
-    motionSpeed->setSingleStep(qMax(1, qRound(speed.step * 100)));
-    lay->addWidget(motionSpeedSpin);
-    lay->addWidget(motionSpeed, 1);
-    setMotionSpeedRow(support::clampMotionSpeed(current.motionSpeed));
-    addRow(r, tr("Animation speed"), box);
-    support::setResetHook(box, [this] { setMotionSpeedRow(Settings().motionSpeed); applyLive(); });
-    support::setResetHook(motionSpeed, [this] { setMotionSpeedRow(Settings().motionSpeed); applyLive(); });
-    support::setResetHook(motionSpeedSpin, [this] { setMotionSpeedRow(Settings().motionSpeed); applyLive(); });
-    // A drag or a held arrow moves the speed itself at once (one number every animation reads); the
+    // A drag or a held arrow moves a speed itself at once (one number every animation reads); the
     // whole-window apply and save wait until it rests, or the dialog closes (SettingsDialogs settle-up).
     speedSettle = new QTimer(this);
     speedSettle->setSingleShot(true);
     speedSettle->setInterval(SPEED_SETTLE_MS);
     connect(speedSettle, &QTimer::timeout, this, &SettingsDialog::applyLive);
+    const support::MotionSpeedRange& speed = support::motionSpeedRange();
+    QWidget* box = buildSpeedPair(r, motionSpeedSpin, motionSpeed, "motionSpeed", speed.min, speed.max, speed.step,
+                                  support::clampMotionSpeed(current.motionSpeed));
+    addRow(r, tr("Animation speed"), box);
+    for (QWidget* target : {box, static_cast<QWidget*>(motionSpeed), static_cast<QWidget*>(motionSpeedSpin)})
+      support::setResetHook(target, [this] { setMotionSpeedRow(Settings().motionSpeed); applyLive(); });
     const auto moved = [this](double v) {
       setMotionSpeedRow(v);
       support::setMotionSpeed(motionSpeedSpin->value());
@@ -127,13 +110,51 @@ namespace stencil::gui {
     };
     connect(motionSpeed, &QSlider::valueChanged, this, [moved](int v) { moved(v / 100.0); });
     connect(motionSpeedSpin, &QDoubleSpinBox::valueChanged, this, moved);
+
+    // The console text speed (browser vs-console-speed): how fast the console windows type.
+    const support::ConsoleSpeedRange& pace = support::consoleSpeedRange();
+    QWidget* consoleBox = buildSpeedPair(r, consoleSpeedSpin, consoleSpeed, "consoleSpeed", pace.min, pace.max, pace.step,
+                                         support::clampConsoleSpeed(current.consoleSpeed));
+    addRow(r, tr("Console text speed"), consoleBox);
+    for (QWidget* target : {consoleBox, static_cast<QWidget*>(consoleSpeed), static_cast<QWidget*>(consoleSpeedSpin)})
+      support::setResetHook(target, [this] { setSpeedPair(consoleSpeedSpin, consoleSpeed, Settings().consoleSpeed); applyLive(); });
+    const auto typed = [this](double v) {
+      setSpeedPair(consoleSpeedSpin, consoleSpeed, v);
+      support::setConsoleSpeed(consoleSpeedSpin->value());
+      speedSettle->start();
+    };
+    connect(consoleSpeed, &QSlider::valueChanged, this, [typed](int v) { typed(v / 100.0); });
+    connect(consoleSpeedSpin, &QDoubleSpinBox::valueChanged, this, typed);
   }
 
-  void SettingsDialog::setMotionSpeedRow(double speed) {
-    const QSignalBlocker quietSpin(motionSpeedSpin);
-    const QSignalBlocker quietSlider(motionSpeed);
-    motionSpeedSpin->setValue(speed);
-    motionSpeed->setValue(qRound(speed * 100));
+  QWidget* SettingsDialog::buildSpeedPair(Rows& r, QDoubleSpinBox*& spin, QSlider*& slider, const char* name,
+                                          double min, double max, double step, double current) {
+    auto* box = new QWidget(r.host);
+    auto* lay = new QHBoxLayout(box);
+    lay->setContentsMargins(0, 0, 0, 0);
+    lay->setSpacing(8);
+    spin = new ClampingSpin(box);
+    spin->setObjectName(QString::fromLatin1(name) + QStringLiteral("Spin"));
+    spin->setLocale(QLocale::c());   // "0.37", as the browser writes it
+    spin->setRange(min, max);
+    spin->setSingleStep(step);
+    spin->setDecimals(2);
+    spin->setFixedWidth(64);
+    slider = new QSlider(Qt::Horizontal, box);
+    makeScrubBar(slider, QString::fromLatin1(name) + QStringLiteral("Slider"));
+    slider->setRange(qRound(min * 100), qRound(max * 100));
+    slider->setSingleStep(qMax(1, qRound(step * 100)));
+    lay->addWidget(spin);
+    lay->addWidget(slider, 1);
+    setSpeedPair(spin, slider, current);
+    return box;
+  }
+
+  void SettingsDialog::setSpeedPair(QDoubleSpinBox* spin, QSlider* slider, double speed) {
+    const QSignalBlocker quietSpin(spin);
+    const QSignalBlocker quietSlider(slider);
+    spin->setValue(speed);
+    slider->setValue(qRound(speed * 100));
   }
 
   // Reset All's motion half, as the browser's reset does.
@@ -143,6 +164,7 @@ namespace stencil::gui {
     multiWindow->setChecked(d.multiWindow);
     motionMode->setCurrentIndex(qMax(0, motionMode->findData(d.motionMode)));
     setMotionSpeedRow(d.motionSpeed);
+    setSpeedPair(consoleSpeedSpin, consoleSpeed, d.consoleSpeed);
   }
 
   void SettingsDialog::buildNotifyRows(Rows& r, const Settings& current) {

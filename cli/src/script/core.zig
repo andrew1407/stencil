@@ -3,9 +3,7 @@
 //! handed back points into the handle and dies with it — copy before destroy.
 const std = @import("std");
 
-const c = @cImport({
-    @cInclude("core/cliApi.h");
-});
+const c = @import("../core/cApi.zig");
 
 pub const TokenKind = enum(c_int) {
     comment = 0,
@@ -120,7 +118,7 @@ pub const Script = struct {
         var at: [3]c_int = .{ 0, 0, 0 };
         const related = c.stencil_cli_scriptDiagRelated(self.handle, @intCast(i), &at[0], &at[1], &at[2]) == 1;
         return .{
-            .severity = @enumFromInt(sev),
+            .severity = @fromBackingInt(@intCast(sev)),
             .code = std.mem.span(code),
             .line = @intCast(line),
             .col = @intCast(col),
@@ -141,7 +139,7 @@ pub const Script = struct {
         var col: c_int = 0;
         var len: c_int = 0;
         if (c.stencil_cli_scriptTokenAt(self.handle, @intCast(i), &kind, &line, &col, &len) == 0) return null;
-        return .{ .kind = @enumFromInt(kind), .line = @intCast(line), .col = @intCast(col), .len = @intCast(len) };
+        return .{ .kind = @fromBackingInt(@intCast(kind)), .line = @intCast(line), .col = @intCast(col), .len = @intCast(len) };
     }
 
     pub fn blockCount(self: Script) u32 {
@@ -158,7 +156,7 @@ pub const Script = struct {
         if (spec == null) return null;
         return .{
             .source = std.mem.span(spec),
-            .kind = @enumFromInt(kind),
+            .kind = @fromBackingInt(@intCast(kind)),
             .frame = @intCast(frame),
             .op_start = @intCast(start),
             .op_count = @intCast(count),
@@ -181,7 +179,7 @@ pub const Script = struct {
         if (c.stencil_cli_scriptOpAt(self.handle, @intCast(i), &kind, &blk, &edit, &line, &col, &strs, &nums) == 0)
             return null;
         return .{
-            .kind = @enumFromInt(kind),
+            .kind = @fromBackingInt(@intCast(kind)),
             .block = @intCast(blk),
             .edit_index = @intCast(edit),
             .line = @intCast(line),

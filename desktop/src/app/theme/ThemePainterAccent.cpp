@@ -81,6 +81,15 @@ namespace stencil::gui {
     w.applyTheme();   // floods the palette out of the logo, exactly as a real change does
   }
 
+  void ThemePainter::cycleAccentPreset() {
+    const auto& presets = accentPresets();
+    if (presets.empty()) return;
+    int idx = -1;
+    for (size_t i = 0; i < presets.size(); ++i)
+      if (presets[i].key == w.settings.accentColor) { idx = static_cast<int>(i); break; }
+    commitAccent(idx < 0 ? presets.front().key : presets[(idx + 1) % presets.size()].key);
+  }
+
   void ThemePainter::commitAccent(const QString& key) {
     accentPreviewActive = false;   // a pick commits; no close or leave may revert it
     auto next = w.settings;

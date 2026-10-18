@@ -75,7 +75,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
 
     const QStringList chain = focusChain(&win);
-    QCOMPARE(chain.size(), 113);
+    QCOMPARE(chain.size(), 114);
     QCOMPARE(focusRuns(chain),
              QStringLiteral(
                  "stencil::gui::CanvasWidget 1|QScrollArea 1|QToolButton 2|QTabWidget 1|"
@@ -91,7 +91,7 @@ class MainWindowGuiTest : public QObject {
                  "QToolButton 1|QComboBox 1|QToolButton 2|"
                  "stencil::gui::ExprDoubleSpinBox 1|QLineEdit 1|"
                  "stencil::gui::ExprDoubleSpinBox 1|QLineEdit 1|QCheckBox 1|QLineEdit 2|"
-                 "QToolButton 11"));
+                 "QToolButton 12"));
     QCOMPARE(focusMarks(chain),
              QStringLiteral("canvasViewport selectionTabs pointsTable linesList "
                             "selectedLineColorSwatch selectedLinePointSwatch "

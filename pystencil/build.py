@@ -63,6 +63,7 @@ STENCIL_CORE_SOURCES = [
   "page/pageMetrics.cpp",
   "page/localeUnit.cpp",
   "format/tooltipRows.cpp",
+  "format/logoBanner.cpp",
   "state/HistoryStack.cpp",
   "state/lineMerge.cpp",
   "state/ProjectsStore.cpp",

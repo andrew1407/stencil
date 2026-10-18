@@ -13,10 +13,10 @@ pub const icon_cols = 21;
 // The S icon recolours as a clock instead of taking the seam: a hand pivots on its middle, one full
 // clockwise turn over the seam's travel. Rows count `cell_aspect` times as far as columns.
 const wipe_degrees = 360.0;
-const cell_aspect = 2.0;
+pub const cell_aspect = 2.0;
 // The hand turns a shade faster than the seam (1.25×), so the icon is home at 12 o'clock
 // a little before the text finishes.
-const icon_speed = 1.25;
+pub const icon_speed = 1.25;
 
 /// The angle of a cell from the pivot, degrees clockwise from 12 o'clock (up = 0, right = 90). Rows
 /// count `cell_aspect` times as far as columns; the pivot answers 0, so the first frame sweeps it.

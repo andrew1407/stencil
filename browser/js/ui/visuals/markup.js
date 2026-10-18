@@ -1,7 +1,7 @@
 // ── Markup: the Visuals & Settings modal ────────────────────────────────────
 // The searchable rows of visual defaults: accent mount, motion mode, drawing colours.
 import { icon } from '../icons.js';
-import { MOTION_MODE_LABELS, MOTION_SPEED } from '../motion/motionPrefs.js';
+import { MOTION_MODE_LABELS, MOTION_SPEED, CONSOLE_SPEED } from '../motion/motionPrefs.js';
 import { NOTIFY_CHANNEL_LABELS } from '../../core/settings/notifyChannel.js';
 import { SILENCE_MS_MIN, SILENCE_MS_MAX } from '../../llm/voice/settings.js';
 import { THICKNESS_RANGE, POINT_SIZE_RANGE } from '../../core/settings/limits.js';
@@ -41,6 +41,9 @@ export const visualsModalInner = () => `
                 </div>
                 <div class="vs-row"><label>Animation speed</label>
                     <span class="vs-ctrl vs-speed"><input type="number" id="vs-motion-speed-value" class="vs-speed-num" aria-label="Animation speed" min="${MOTION_SPEED.min}" max="${MOTION_SPEED.max}" step="${MOTION_SPEED.step}"><input type="range" id="vs-motion-speed" class="vs-range" min="${MOTION_SPEED.min}" max="${MOTION_SPEED.max}" step="${MOTION_SPEED.step}"></span>
+                </div>
+                <div class="vs-row"><label data-title="How fast the console reveals what it prints: 1 shows it at once">Console text speed</label>
+                    <span class="vs-ctrl vs-speed"><input type="number" id="vs-console-speed-value" class="vs-speed-num" aria-label="Console text speed" min="${CONSOLE_SPEED.min}" max="${CONSOLE_SPEED.max}" step="${CONSOLE_SPEED.step}"><input type="range" id="vs-console-speed" class="vs-range" min="${CONSOLE_SPEED.min}" max="${CONSOLE_SPEED.max}" step="${CONSOLE_SPEED.step}"></span>
                 </div>
                 <div class="vs-section">Notifications</div>
                 <div class="vs-row"><label data-title="In the app: the notice stack in the corner. Browser notifications: the browser's own, shown even when this tab is in the background — asks for permission once">Show notifications</label>

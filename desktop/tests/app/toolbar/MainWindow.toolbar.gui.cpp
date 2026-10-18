@@ -37,8 +37,9 @@ class MainWindowGuiTest : public QObject {
     win.acts.shareImage->setEnabled(true);
     QVERIFY2(!win.acts.shareImage->isEnabled(), "an invisible Share action took enabling");
   }
-  // The script window's button opens the DATA section (browser toolbar.js puts #script-btn first
-  // there) and carries the shared registry's chord. Its dialog is exec()'d, so this checks the wiring.
+  // The console's button opens the DATA section, the script window's beside it (browser toolbar.js
+  // puts #console-btn then #script-btn first there), each with the shared registry's chord. The
+  // script dialog is exec()'d, so this checks the wiring.
   void scriptButtonOpensTheDataSection() {
     MainWindow win(nullptr, false);
     win.resize(1400, 850);
@@ -52,8 +53,10 @@ class MainWindowGuiTest : public QObject {
     QList<QAction*> got;
     for (QToolButton* b : data->findChildren<QToolButton*>())
       if (b->defaultAction()) got << b->defaultAction();
-    QVERIFY2(!got.isEmpty(), "the DATA section has no buttons");
-    QCOMPARE(got.first(), win.acts.script);
+    QVERIFY2(got.size() > 1, "the DATA section has no buttons");
+    QCOMPARE(got.at(0), win.acts.console);
+    QCOMPARE(got.at(1), win.acts.script);
+    QCOMPARE(win.acts.console->shortcut(), QKeySequence(win.keys.value("openConsole", "Alt+Shift+T")));
 
     QCOMPARE(win.acts.script->shortcut(), QKeySequence(win.keys.value("openScript", "Alt+Shift+S")));
     QMenu* dataMenu = nullptr;

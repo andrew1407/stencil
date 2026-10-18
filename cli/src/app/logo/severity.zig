@@ -99,7 +99,7 @@ test "err/note reach the sink as one line, and a print past 8 KB arrives whole" 
     err("cannot read '{s}'\n", .{"a.png"});
     note("{d} left\n", .{3});
     try testing.expectEqual(@as(usize, 2), Count.calls);
-    const long = "x" ** 20000;
+    const long = &@as([20000]u8, @splat('x'));
     print("{s}\n", .{long});
     try testing.expectEqual(@as(usize, 3), Count.calls);
     try testing.expectEqual(long.len + 1, Count.len);

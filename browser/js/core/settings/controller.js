@@ -1,6 +1,6 @@
 import { setVal } from '../../utils.js';
 import { COMMIT_DEBOUNCE_MS } from '../../ui/control/numericInput.js';
-import { MOTION_MODES, setMotionPrefs, motionPrefs, clampMotionSpeed } from '../../ui/motion/motionPrefs.js';
+import { MOTION_MODES, setMotionPrefs, motionPrefs } from '../../ui/motion/motionPrefs.js';
 import { NOTIFY_CHANNELS, setNotifyChannel } from './notifyChannel.js';
 import {
   applyMirror, paintFormulaToggle, paintFormulaError,
@@ -195,10 +195,10 @@ export class SettingsController {
     } else if (Object.hasOwn(MOTION_SWITCHES, key)) {
       setMotionPrefs({ [key]: !!value });
       MOTION_SWITCHES[key](value);
-    } else if (key === 'speed') {
-      setMotionPrefs({ speed: clampMotionSpeed(value) });
+    } else if (key === 'speed' || key === 'consoleSpeed') {
+      setMotionPrefs({ [key]: value });   // clamped as it is stored
     } else {
-      throw new Error(`Unknown motion setting: ${key} (use mode | drawing | multiWindow | speed)`);
+      throw new Error(`Unknown motion setting: ${key} (use mode | drawing | multiWindow | speed | consoleSpeed)`);
     }
     return motionPrefs();
   }

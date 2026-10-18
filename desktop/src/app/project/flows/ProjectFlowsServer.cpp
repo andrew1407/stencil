@@ -27,7 +27,7 @@ namespace stencil::gui {
   // Mirrors the browser projectsModal openRemote(). Async chain: getProject →
   // downloadFile("original") → fetchUrlBytes(source) on empty → decode (pool) → adopt.
   void ProjectFlows::openServerProject(const QString& serverUrl, const QString& id, bool silent,
-                                     bool link) {
+                                     bool link, qint64 version) {
     if (!w.remote.connections) return;
     stencil::net::ServerClient* c = w.remote.session->requireClient(serverUrl);
     if (!c || (silent && w.remote.reloading)) return;
@@ -73,7 +73,7 @@ namespace stencil::gui {
       return true;
     };
     QPointer<MainWindow> self(&w);
-    c->getProjectAsync(id, [this, self, c, serverUrl, id, silent, link, reloadGuard, applyLayoutOnly,
+    c->getProjectAsync(id, [this, self, c, serverUrl, id, silent, link, version, reloadGuard, applyLayoutOnly,
                             editsSince, seq](
                                bool ok, stencil::net::ServerProject meta, QJsonObject layout) {
       if (!self) return;
@@ -82,7 +82,7 @@ namespace stencil::gui {
         return;
       }
       // A null image is the layout-only path: the picture on the canvas IS the server's.
-      auto adopt = [this, self, serverUrl, id, silent, link, meta, layout, reloadGuard, seq](
+      auto adopt = [this, self, serverUrl, id, silent, link, version, meta, layout, reloadGuard, seq](
                        QImage img, std::optional<core::Lines> local) {
         if (!self || w.remote.reloadSeq != seq) return;   // a newer open owns the canvas now
         if (!img.isNull()) w.loadImageWithLayout(img, layout);
@@ -99,6 +99,7 @@ namespace stencil::gui {
           w.remote.session->getLink().bind(serverUrl, id, meta.name, meta.color, meta.version);
           if (!img.isNull())
             w.remote.session->noteAdoptedOriginal(meta.originalHash, w.canvas->getOriginalImage().cacheKey());
+          if (version > 0) w.remoteSync->onRemoteProjectEvent(id, version, false);   // the link's version, if newer
         } else {
           w.remote.session->getLink().unbind();
           w.remoteSync->stopRemotePoll();

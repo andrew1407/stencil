@@ -8,6 +8,15 @@ const mustPlan = validate.mustPlan;
 const mustReject = validate.mustReject;
 const planFor = validate.planFor;
 const rejectFor = validate.rejectFor;
+
+fn rep(comptime s: []const u8, comptime n: usize) []const u8 {
+    comptime {
+        @setEvalBranchQuota(20_000);
+        var out: []const u8 = "";
+        for (0..n) |_| out = out ++ s;
+        return out;
+    }
+}
 const planInVariant = validate.planInVariant;
 
 test "parsePlan: chat-only fallback (no JSON object, or braces that are not JSON)" {
@@ -57,18 +66,18 @@ test "wording: every envelope failure is core's canonical message" {
     const rot = "{\"op\":\"rotate\",\"dir\":\"left\"}";
     const cases = [_][2][]const u8{
         .{ "{\"reply\":\"ok\",\"actions\":{}}", "Invalid plan: \"actions\" must be an array" },
-        .{ "{\"reply\":\"ok\",\"actions\":[" ++ ((rot ++ ",") ** 16) ++ rot ++ "]}", "Invalid plan: more than 16 actions in \"actions\"" },
+        .{ "{\"reply\":\"ok\",\"actions\":[" ++ comptime rep(rot ++ ",", 16) ++ rot ++ "]}", "Invalid plan: more than 16 actions in \"actions\"" },
         .{ "{\"reply\":\"ok\",\"actions\":[5]}", "Invalid plan: every action in \"actions\" must be an object with an \"op\"" },
         .{ "{\"reply\":\"ok\",\"actions\":[{\"x\":1}]}", "Invalid plan: every action in \"actions\" must be an object with an \"op\"" },
         .{ "{\"reply\":\"ok\",\"variants\":{}}", "Invalid plan: \"variants\" must be an array" },
-        .{ "{\"reply\":\"ok\",\"variants\":[" ++ ("{\"actions\":[]}," ** 8) ++ "{\"actions\":[]}]}", "Invalid plan: more than 8 variants" },
+        .{ "{\"reply\":\"ok\",\"variants\":[" ++ comptime rep("{\"actions\":[]},", 8) ++ "{\"actions\":[]}]}", "Invalid plan: more than 8 variants" },
         .{ "{\"reply\":\"ok\",\"variants\":[5]}", "Invalid plan: every variant must be an object" },
         .{ "{\"reply\":\"ok\",\"variants\":[{\"label\":7}]}", "Invalid plan: variant \"label\" must be a string" },
-        .{ "{\"reply\":\"ok\",\"variants\":[{\"label\":\"" ++ ("x" ** 5001) ++ "\"}]}", "Invalid plan: variant \"label\" must be a string" },
+        .{ "{\"reply\":\"ok\",\"variants\":[{\"label\":\"" ++ &@as([5001]u8, @splat('x')) ++ "\"}]}", "Invalid plan: variant \"label\" must be a string" },
         .{ "{\"reply\":\"ok\",\"variants\":[{\"actions\":{}}]}", "Invalid plan: variant 1 must be an array" },
         .{ "{\"reply\":\"ok\",\"variants\":[{\"actions\":[5]}]}", "Invalid plan: every action in variant 1 must be an object with an \"op\"" },
         .{ "{\"reply\":\"ok\",\"variants\":[{\"actions\":[{\"x\":1}]}]}", "Invalid plan: every action in variant 1 must be an object with an \"op\"" },
-        .{ "{\"reply\":\"ok\",\"variants\":[{\"actions\":[" ++ ((rot ++ ",") ** 16) ++ rot ++ "]}]}", "Invalid plan: more than 16 actions in variant 1" },
+        .{ "{\"reply\":\"ok\",\"variants\":[{\"actions\":[" ++ comptime rep(rot ++ ",", 16) ++ rot ++ "]}]}", "Invalid plan: more than 16 actions in variant 1" },
         .{ "{\"reply\":\"ok\",\"ask\":{\"question\":\"Q\",\"options\":[{\"label\":\"A\",\"actions\":[{\"x\":1}]},{\"label\":\"B\"}]}}", "Invalid plan: every action in ask option 1 must be an object with an \"op\"" },
         .{ "{\"reply\":\"ok\",\"actions\":[{\"op\":\"llm\"}]}", "Invalid plan: the \"llm\" op is never model-drivable" },
         .{ "{\"reply\":\"ok\",\"ask\":\"q\"}", "Invalid plan: \"ask\" must be an object" },

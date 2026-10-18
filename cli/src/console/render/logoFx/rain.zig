@@ -6,9 +6,9 @@ const timing = @import("timing.zig");
 const frame = @import("../../screen/frame.zig");
 const Screen = screen_mod.Screen;
 
-const frames = 90;
-const frame_ms = 30;
-const trail = 14; // rows a drop's digits stay lit behind its head
+pub const frames = 90;
+pub const frame_ms = 30;
+pub const trail = 14; // rows a drop's digits stay lit behind its head
 const max_cols = 512;
 const head_sgr = "\x1b[1;38;2;150;245;200;48;2;0;0;0m";
 const body_sgr = "\x1b[0;38;2;35;209;139;48;2;0;0;0m";

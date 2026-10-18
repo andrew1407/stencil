@@ -57,7 +57,7 @@ const BmpHeader = struct { offset: i64, info: i64, width: i64, height: i64, bpp:
 
 // stb's reading of a BMP header: an OS/2 core header's 16-bit sides, a top-down height's magnitude.
 fn bmpHeader(bytes: []const u8) BmpHeader {
-    const le = std.builtin.Endian.little;
+    const le = std.lang.Endian.little;
     const offset = std.mem.readInt(u32, bytes[10..14], le);
     const info = std.mem.readInt(u32, bytes[14..18], le);
     if (info == 12) return .{
@@ -150,7 +150,7 @@ test "bmpPrepared: a short palette grows in front of the pixels; a short file is
     const a = testing.allocator;
     // 4x1 8-bit, one palette entry (red), offset 58, indices 0 200 200 0.
     const bmp = "BM\x3e\x00\x00\x00\x00\x00\x00\x00\x3a\x00\x00\x00\x28\x00\x00\x00" ++
-        "\x04\x00\x00\x00\x01\x00\x00\x00\x01\x00\x08\x00" ++ "\x00" ** 24 ++
+        "\x04\x00\x00\x00\x01\x00\x00\x00\x01\x00\x08\x00" ++ &@as([24]u8, @splat(0)) ++
         "\x00\x00\xff\x00" ++ "\x00\xc8\xc8\x00";
     const grown = (try prepared(a, bmp)).?;
     defer a.free(grown);

@@ -23,7 +23,7 @@ pub fn writeCheck(
     var arena: std.heap.ArenaAllocator = .init(gpa);
     defer arena.deinit();
     const a = arena.allocator();
-    const schema = opplan.Schema.open(try a.dupeZ(u8, surface), if (capabilities) |cap| try a.dupeZ(u8, cap) else null);
+    const schema = opplan.Schema.open(try a.dupeSentinel(u8, surface, 0), if (capabilities) |cap| try a.dupeSentinel(u8, cap, 0) else null);
     defer schema.close();
     if (schema.failure().len != 0) {
         report.err("core refused the op registry for '{s}': {s}\n", .{ surface, schema.failure() });

@@ -39,6 +39,7 @@ namespace stencil::gui {
     // Clipboard hotkeys come from hotkeysConfig.json so a rebind re-applies live; the file export/import are menu-only.
     w.acts.downloadJson = newAction("Export Layout JSON…", w.keys.value("downloadJson", "Ctrl+Shift+J"));
     w.acts.uploadJson = newAction("Import Layout JSON…", w.keys.value("uploadJson", "Ctrl+Shift+U"));
+    w.acts.console = newAction("Console…", w.keys.value("openConsole", "Alt+Shift+T"));
     w.acts.script = newAction("Stencil Script…", w.keys.value("openScript", "Alt+Shift+S"));
     w.acts.saveProjectFile = newAction("Save Project As… (.stencil)", w.keys.value("saveProject", "Ctrl+Shift+S"));
     w.acts.openProjectFile = newAction("Open Project… (.stencil)", w.keys.value("openProject", "Ctrl+Shift+F"));
@@ -81,6 +82,7 @@ namespace stencil::gui {
 
     QObject::connect(w.acts.downloadJson, &QAction::triggered, &w, [this] { w.dataExport->downloadLayout(); });
     QObject::connect(w.acts.uploadJson, &QAction::triggered, &w, [this] { w.dataExport->uploadLayout(); });
+    QObject::connect(w.acts.console, &QAction::triggered, &w, [this] { w.parts.console.openConsole(); });
     QObject::connect(w.acts.script, &QAction::triggered, &w, [this] { w.parts.scriptHost.openScript(); });
     QObject::connect(w.acts.saveProjectFile, &QAction::triggered, &w, [this] { w.parts.persistence.saveProjectFileAs(); });
     QObject::connect(w.acts.stencilLiveSync, &QAction::toggled, &w, [this](bool on) { w.stencilSync->setLiveSync(on); });

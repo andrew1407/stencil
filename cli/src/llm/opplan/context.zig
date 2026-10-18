@@ -106,7 +106,7 @@ pub fn consoleContextAlloc(
 }
 
 fn appendFmt(gpa: std.mem.Allocator, out: *std.ArrayList(u8), comptime fmt: []const u8, fargs: anytype) error{OutOfMemory}!void {
-    const s = try std.fmt.allocPrint(gpa, fmt, fargs);
+    const s = try gpa.print(fmt, fargs);
     defer gpa.free(s);
     try out.appendSlice(gpa, s);
 }
@@ -138,7 +138,7 @@ test "sanitizeLabel + cropSpecString" {
     const s2 = try sanitizeLabel(a, "___");
     defer a.free(s2);
     try testing.expectEqualStrings("", s2); // callers fall back to the position
-    const s3 = try sanitizeLabel(a, "a" ** 60);
+    const s3 = try sanitizeLabel(a, &@as([60]u8, @splat('a')));
     defer a.free(s3);
     try testing.expectEqual(@as(usize, max_label_chars), s3.len);
 

@@ -80,7 +80,7 @@ pub const Client = struct {
         content_type: ?[]const u8,
         extra: ?std.http.Header,
     ) ![]u8 {
-        const url = try std.fmt.allocPrint(self.gpa, "{s}{s}", .{ self.base, path });
+        const url = try self.gpa.print("{s}{s}", .{ self.base, path });
         defer self.gpa.free(url);
         var headers: [3]std.http.Header = undefined;
         var n: usize = 0;
@@ -95,9 +95,9 @@ pub const Client = struct {
 
     /// POST /auth/token with the stored credential as bearer, swapping in the new session.
     fn remint(self: *Client) !void {
-        const url = try std.fmt.allocPrint(self.gpa, "{s}/auth/token", .{self.base});
+        const url = try self.gpa.print("{s}/auth/token", .{self.base});
         defer self.gpa.free(url);
-        const bearer = try std.fmt.allocPrint(self.gpa, "Bearer {s}", .{self.credential});
+        const bearer = try self.gpa.print("Bearer {s}", .{self.credential});
         defer self.gpa.free(bearer);
         const headers = [_]std.http.Header{
             .{ .name = "content-type", .value = "application/json" },
@@ -107,7 +107,7 @@ pub const Client = struct {
         defer self.gpa.free(body);
         const token = try parseToken(self.gpa, body);
         errdefer self.gpa.free(token);
-        const auth = try std.fmt.allocPrint(self.gpa, "Bearer {s}", .{token});
+        const auth = try self.gpa.print("Bearer {s}", .{token});
         self.gpa.free(self.token);
         self.gpa.free(self.auth);
         self.token = token;
@@ -152,7 +152,7 @@ pub const Client = struct {
     }
 
     pub fn getProject(self: *Client, id: []const u8) ![]u8 {
-        const path = try std.fmt.allocPrint(self.gpa, "/projects/{s}", .{id});
+        const path = try self.gpa.print("/projects/{s}", .{id});
         defer self.gpa.free(path);
         return self.request(.GET, path, null, null);
     }
@@ -166,7 +166,7 @@ pub const Client = struct {
     }
 
     pub fn downloadFile(self: *Client, id: []const u8, kind: []const u8) ![]u8 {
-        const path = try std.fmt.allocPrint(self.gpa, "/projects/{s}/files/{s}", .{ id, kind });
+        const path = try self.gpa.print("/projects/{s}/files/{s}", .{ id, kind });
         defer self.gpa.free(path);
         return self.request(.GET, path, null, null);
     }
@@ -183,10 +183,10 @@ pub const Client = struct {
     /// PUT a layout for `id`, version-guarded (stale → Error.Conflict); the name is left untouched. The
     /// structured payload is what open GUI editors render, so this is how CLI edits show up live for peers.
     pub fn updateProject(self: *Client, id: []const u8, layout_json: []const u8, version: i64) !void {
-        const path = try std.fmt.allocPrint(self.gpa, "/projects/{s}", .{id});
+        const path = try self.gpa.print("/projects/{s}", .{id});
         defer self.gpa.free(path);
         // `layout_json` is buildLayout's already-serialized envelope, spliced in raw.
-        const payload = try std.fmt.allocPrint(self.gpa, "{{\"layout\":{s},\"version\":{d}}}", .{ layout_json, version });
+        const payload = try self.gpa.print("{{\"layout\":{s},\"version\":{d}}}", .{ layout_json, version });
         defer self.gpa.free(payload);
         const body = try self.request(.PUT, path, payload, "application/json");
         self.gpa.free(body);
@@ -206,8 +206,7 @@ pub const Client = struct {
     /// Upload raw image bytes for a project (kind = original|result). The server is
     /// codec-free, so width/height are passed in.
     pub fn uploadFile(self: *Client, id: []const u8, kind: []const u8, bytes: []const u8, ext: []const u8, w: usize, h: usize) !void {
-        const path = try std.fmt.allocPrint(
-            self.gpa,
+        const path = try self.gpa.print(
             "/projects/{s}/files/{s}?ext={s}&w={d}&h={d}",
             .{ id, kind, ext, w, h },
         );
@@ -219,7 +218,7 @@ pub const Client = struct {
     /// DELETE a project's stored file kind (the filestore-only kinds — video/variantN/chat). Idempotent on
     /// the server: a kind with no stored bytes still answers 204, so a repeat delete is not an error.
     pub fn deleteFile(self: *Client, id: []const u8, kind: []const u8) !void {
-        const path = try std.fmt.allocPrint(self.gpa, "/projects/{s}/files/{s}", .{ id, kind });
+        const path = try self.gpa.print("/projects/{s}/files/{s}", .{ id, kind });
         defer self.gpa.free(path);
         const body = try self.request(.DELETE, path, null, null);
         self.gpa.free(body);

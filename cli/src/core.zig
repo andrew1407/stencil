@@ -8,9 +8,7 @@ const formula = @import("core/formula.zig");
 const crop = @import("core/crop.zig");
 const lines = @import("core/lines.zig");
 
-const c = @cImport({
-    @cInclude("core/cliApi.h");
-});
+const c = @import("core/cApi.zig");
 
 pub const Rgba = struct { r: u8, g: u8, b: u8, a: u8 };
 pub const Rect = crop.Rect;
@@ -179,6 +177,15 @@ pub fn colorNameAt(index: usize) ?struct { name: [:0]const u8, rgb: u32 } {
 
 /// The `/expire` unit words and keep-forever aliases the core parser accepts, joined as help text.
 /// Backed by a call-local static buffer: both lists are short and fixed, and the console prints at once.
+/// The console logo (core/format/logoBanner) as rows joined by '\n', `mark` "S", "P" or "M",
+/// `boxed` the rounded panel; null for an unknown mark or a `buf` too small.
+pub fn logoBanner(buf: []u8, mark: [:0]const u8, compact: bool, boxed: bool) ?[]const u8 {
+    const needed = c.stencil_cli_logoBanner(mark.ptr, @intFromBool(compact), @intFromBool(boxed), null, 0);
+    if (needed <= 0 or @as(usize, @intCast(needed)) > buf.len) return null;
+    _ = c.stencil_cli_logoBanner(mark.ptr, @intFromBool(compact), @intFromBool(boxed), buf.ptr, @intCast(buf.len));
+    return buf[0 .. @as(usize, @intCast(needed)) - 1];
+}
+
 pub fn durationUnitsHelp() []const u8 {
     const S = struct {
         var buf: [96]u8 = undefined;
@@ -208,6 +215,7 @@ fn joinPipes(buf: []u8, words: []const u8) []const u8 {
 }
 
 test {
+    _ = c;
     _ = formula;
     _ = crop;
     _ = lines;

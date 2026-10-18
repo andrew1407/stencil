@@ -42,6 +42,10 @@ reach into them include them. The document state lives in `CanvasScene` (`core::
 | Path | Holds | Rule |
 |---|---|---|
 | `src/app/` | `main.cpp`, the controllers, and `MainWindow` (hub and state groups in `MainWindow.hpp`, its parts in `WindowParts.hpp`), a folder per feature | composition only; a new job is a part or a TU in its feature folder, and a part never reaches into another |
+| `src/app/console/` | the console part: the handlers keyed by the grammar's rows (`consoleCommands*`), and `ConsoleHost`, the window's part that opens the console window and the CLI stage and holds the flows they call | a handler parses its argument and asks the host; a flow runs through the same appliers a click or a script op takes (`ChatPlanTarget`, the `.stc` runner, the actions); the table's rows and the handlers are proved to match both ways |
+| `src/app/cli/` | CLI mode: `CliStage`, the stage over the whole window painted as a cell grid, its banner and clock-hand wipe (`CliBanner`), the skins over `skins.json` and `fx.json` (`CliSkins`, `CliSkinFx`; every run in the accent paints through `CliStage::paintRun`, the Zig restyle) and the picture peek (`CliPeek`) | includes `canvas/`, `model/` and `support/`, never `app/` beyond its own folder; the stage holds the window only as `Hooks`; `QPainter` only, no transition or flight |
+| `src/dialogs/console/` | `ConsoleWindow`, the non-modal console window on the modal shell with a typewriter scrollback and a prompt | the flows arrive as `Hooks`; it is never `exec()`'d, never one of `PopoverHost::windows`, and no backdrop sits under it |
+| `src/support/console/` | the console text: the reply types (`consoleReply`), the speed and reveal pace (`consolePace`, over `motion.json` `consoleSpeed` and `console/fx.json`), the `TypewriterReveal` and the `PromptLine` both consoles type into, and the line grammar and command table over `common/config/console/commands.json` (`consoleGrammar`) | QtCore-only; the pace is a session value like `motionPrefs.hpp`; the table is read once from the qrc |
 | `src/canvas/` | `scene/` `CanvasScene`, the document and its paint path with no widget; `CanvasWidget`, the scene plus the pointer | pixel, geometry and page math come from `core/` through `model/canvasCore.hpp`; pointer tunings come from `constants.json` through `input/pointerTuning` and `scene/markMetrics`, ranges through `support/control/lineLimits`; an offscreen render uses a `CanvasScene`, never a hidden widget; the canvas never reads a file |
 | `src/model/` | Qt-shaped wrappers over core types the GUI needs whole (`ScriptDoc`, `imageTurn`, `lineUnion`, `markHits`, `lineName`, `OpPlanSchema`, `canvasCore.hpp`) and `ScriptBuffer` | the core seam: `core/` headers enter through `model/`, beyond the frozen `CORE_INCLUDE_ALLOWANCE` in `tests/layerBoundary.headless.cpp`; nothing here is persisted |
 | `src/dialogs/` | a folder per window, one dialog per file, plus `ScriptEditorWidget` and `ScriptMenuPanel` | every prompt and choice goes through `promptModal` / `chooseModal`, never `QInputDialog` / `QMessageBox`; the native file picker (`QFileDialog`) and the non-native `QColorDialog` inside the reveal helper are the exempt pickers; a menu-hosted panel reuses the window's widgets |
@@ -75,6 +79,10 @@ classDiagram
     MainWindow --> Session : autosaves
     MainWindow --> LaunchOptions : applyLaunchOptions
     MainWindow *-- WindowParts : parts
+    WindowParts *-- ConsoleHost : console
+    ConsoleHost o-- CliStage : stage, on the first entry
+    ConsoleHost o-- ConsoleWindow : window, on the first open
+    CliStage ..> CommandSpec : resolves its words through
     WindowParts --> MainWindow : each part holds it by reference
     MainWindow *-- ConnectionManager : remote.connections
     MainWindow *-- RemoteLink : remote.session link
@@ -115,6 +123,8 @@ classDiagram
 | `OpPlan` | A registry-validated assistant reply typed from `core/opplan`'s result; `contracts/llm/llm-contract.md` is canonical | Transient, `parseOpPlan` to the end of its run | `Action`, `Variant`, `AskCard`, `ExecResult` |
 | `Action` | One op of a plan, a tagged union on `OpKind` | Inside `OpPlan` | `PlanTarget` appliers |
 | `PlanAwait` | One plan or `.stc` op waiting on I/O; it settles once (answer, timeout or close) and resumes the run | A child of `MainWindow`, in `PopoverHost::awaits` while unsettled | `PlanTarget`'s `…Then` ops, the close guard |
+| `CommandSpec` | One row of `commands.json` the desktop carries: name, aliases, argument hint, help, section, whether it answers only in CLI mode (`support/console/consoleGrammar.hpp`) | Read once from the qrc; the handler table is keyed by its name | `ConsoleHost`'s flows through `consoleHandlers()` |
+| `CliStage` | CLI mode's stage: the Zig console over the whole window as a cell grid — banner, status line, scrollback, prompt — with the skin it wears and the wipe in flight (`app/cli/CliStage.hpp`) | `ConsoleHost::stage`, built on the first entry, a child of the window | The window through `Hooks`; `TypewriterReveal`, `PromptLine`, `CliSkinFx`, `CliPeek` |
 
 ## Patterns
 
@@ -151,6 +161,9 @@ classDiagram
 | Colour drag | `installColorDrag`, `installColorDragCells` (`support/drag/colorDrag`) | A control drag carrying an RGBA; the target applies it through its own pick path |
 | Press-drag pick | `SearchComboBox::dragPick` (`support/menu/SearchComboPopup.cpp`) | The list opens on the press and a release on a row picks it; a plain click keeps it open |
 | Drag release menu | `ProjectDragMenu` (`dialogs/projects/list/`) | A held project row shows its menu; only the release takes an item, run once the drag loop has unwound |
+| Command table | `consoleHandlers()` keyed by `CommandSpec::name` (`app/console/consoleCommands`), resolved by `resolveConsoleCommand` over aliases | A row and its handler are proved to match both ways; a `cliMode` row answers only inside CLI mode; an unknown word is one error line |
+| Typewriter reveal | `support::TypewriterReveal` paced by `revealPace(consoleSpeed())` (`support/console/consolePace.hpp`) | Every line arrives whole and shows a growing cut on one timer; a burst sweeps in fewer jumps and pouring output lands at once; the fastest speed is instant |
+| Gate | `ConsoleHost::cliGate`, asked by `ChatPlanTarget::openDialog` and `setChatPlacement` | While CLI mode is on, an op that would open a window or move the chat is noted and skipped, never run under the stage |
 
 ## Design
 
@@ -245,6 +258,39 @@ classDiagram
   are exclusive, and while up the stage filters `qApp` with Escape the way out. The pink show runs
   through `ChatPlanTarget`, one step on the user's history. The webcore show toggles the session
   skin through `ThemePainter::toggleWebcore` (`support/webcore/look`), storing nothing.
+- **The console.** The Data section's first button, **Data ▸ Console…** and its chord open
+  `ConsoleWindow` through `ConsoleHost::openConsole`: a `Qt::Tool` window on the modal shell,
+  non-modal, revealed from its icon (`veilForReveal` before it maps, `revealWindow`,
+  `dismissWindow` on close) and never under a `ModalBackdrop`, so it sits beside any other window
+  and the editor keeps working behind it. A typed line goes to `runConsoleLine`: the table
+  resolves the word, the handler parses the argument and asks the host for the flow — `/crop`,
+  `/filter`, `/apply <url>` and `/script` run a one-line `.stc` through `runScriptThen` over a
+  `ChatPlanTarget`, so their grammar and messages are the contract's; `/rotate`, `/flip`,
+  `/undo` trigger the actions; the colours, theme, page and assistant words go through the plan
+  target's §10 appliers; `/upload`, `/open` and `/save` take a local path or an http(s) URL, a
+  bare `/upload` the Open Image window; `/browser` builds the Open-in link. The answer types in
+  through the reveal at the Settings **Console text speed**.
+- **CLI mode.** Typing the secret word (`commands.json` `cliMode.typedWord`, joined to the logo
+  stage's typed words) or dropping the header mark on the console icon reaches
+  `ConsoleHost::enterCli`: `closeEverything` clears the way (the modal or popover, every side
+  window, the chat, the console window, the logo show, fullscreen), a poll waits for the window
+  to be bare, then `CliStage::enter` covers it. The stage paints the core's banner rows
+  (`model/consoleBanner.hpp`) in the accent with the mark in yellow, the status line with the
+  image's name in the project colour, the scrollback and a prompt; it filters the application's
+  input so the host window's shortcuts and presses are its own while another window keeps its
+  events. A banner click shows the compact press frame and cycles the accent; every new accent —
+  a `/theme`, the click, a fairy-light bulb — wipes over the banner, with no window flood under
+  CLI mode, as a clock hand
+  inside the icon and a seam past it, the wordmark lighting letter by letter and the rule ahead;
+  a 3 s hold, `/clioff` or `/exit` leaves, a lone Escape nothing. The skin words dress the stage from
+  `skins.json` — cells, hues, pictures, the cat, the rain, the fairy lights' bulbs on the
+  accent — and `/eastereggs` lists them in gold; leaving takes the skin off and the accent back.
+  The commands are the console's with `cli` on, so `ls`, `ll` and `clioff` answer; every edit
+  is the editor's own and stays after leaving.
+- **The linked file in the registry.** `Project::linkedFile` carries the `.stencil` a project
+  syncs to: `StencilFileSync`'s `linkChanged` hook stamps the active row and saves through
+  `SharedState`, an unlink clears it, and the row omits the key when empty. The CLI's
+  `/desktopsync` reads it out of `projects.json` to offer the desktop's open files.
 - **Drags on the chrome.** The header mark (`app/logo/LogoDrag`), the theme switch (`ThemeLens`,
   `app/theme/`) and the toolbar icons (`ToolbarBuilder::buildIconDrags`, `app/drag/`) are control
   drags. A drop applies through the same appliers and actions a click uses, so an edit is one undo
@@ -331,6 +377,13 @@ in-flight layout push and then for the co-edit result, each up to `RESULT_CLOSE_
 10. **Persisted state has one owner.** The registry and `Settings` are `SharedState`'s; a window
     writes them through it and never serialises a copy of its own, so a sibling's save cannot
     revert another window's change.
+11. **The console tables are aliased.** `commands.json`, `skins.json` and `console/fx.json`
+    reach the app from `common/config/console/` over the qrc; a command word, a skin or a tempo
+    is never a literal here, and the handler table is proved against the rows.
+12. **CLI mode is a view.** The stage holds no editor state: every command runs the flows a
+    click or a script op takes, every edit is one of the editor's own steps, and leaving restores
+    nothing but the window it covered. While it is on, `ConsoleHost::cliGate` refuses the plan
+    ops that would open a window or move the chat under it.
 
 ## Tests
 
@@ -349,6 +402,10 @@ loopback `/v1/messages`, then found in no file under the state dir and no `QSett
 `tests/support/mockRest.hpp` stands in for the server's REST routes, holding a request on demand
 so a close or a project switch can race it. `layerBoundary.headless.cpp`
 is the import lint; `testFloor.headless.cpp` holds the floor of registered targets.
+The console suites prove the grammar and table, the handlers' parity with the rows, the reveal
+pace over a fake clock and the banner maths; the console and CLI-mode GUI areas drive the real
+window — the window beside another one, the typed word, the logo drop, the hold, the peeks, the
+skins and an edit that outlives leaving.
 `uiPins.headless.cpp` pins the stylesheet hash per theme and accent (`tests/pins/stylesheets.txt`)
 and the renders at device pixel ratio 1 and 2 against `tests/pins/<platform>/`, a gitignored
 per-platform baseline (a platform without one skips that half). Core's doctest suite runs under

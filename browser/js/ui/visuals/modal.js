@@ -5,10 +5,11 @@ import { DEFAULT_ACCENT } from '../../core/settings/accents.js';
 import { buildAccentPicker } from '../accent/picker.js';
 import { motionModeIcon } from '../motion/icons.js';
 import { enhanceSelect } from '../control/customSelect.js';
-import { motionPrefs, MOTION_EVENT, DEFAULT_MOTION_MODE, DEFAULT_DRAWING_ANIMATIONS, DEFAULT_MULTI_WINDOW, DEFAULT_MOTION_SPEED } from '../motion/motionPrefs.js';
+import { motionPrefs, MOTION_EVENT, DEFAULT_MOTION_MODE, DEFAULT_DRAWING_ANIMATIONS, DEFAULT_MULTI_WINDOW, DEFAULT_MOTION_SPEED, DEFAULT_CONSOLE_SPEED } from '../motion/motionPrefs.js';
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';
 import { wireVoiceSilenceRow } from './voiceRow.js';
 import { wireNotifyRow } from './notifyRow.js';
+import { wireSpeedRow } from './speedRow.js';
 import { clampThickness, clampPointSize } from '../../core/settings/limits.js';
 import constants from '../../../../common/config/constants.json' with { type: 'json' };
 // ── Component: visual defaults modal ────────────────────────────
@@ -93,13 +94,9 @@ export class StencilVisualsModal extends StencilElement {
 
     // ── Motion: the stroke animation, side-by-side windows, and the interface, all
     // app-wide (ui/motion/motionPrefs.js), routed through the shared setter the console uses. ──
-    const [motionMode, speed, speedValue] = ['vs-motion-mode', 'vs-motion-speed', 'vs-motion-speed-value'].map((id) => document.getElementById(id));
-    // The box and the bar show one value; the bar fills to its thumb (the scrub's --scrub-fill).
-    const paintSpeed = (v) => {
-      speed.value = v;
-      speedValue.value = Number(v).toFixed(2);
-      speed.style.setProperty('--scrub-fill', `${((v - speed.min) / (speed.max - speed.min)) * 100}%`);
-    };
+    const [motionMode, speed, speedValue, cSpeed, cSpeedValue] = ['vs-motion-mode', 'vs-motion-speed', 'vs-motion-speed-value', 'vs-console-speed', 'vs-console-speed-value'].map((id) => document.getElementById(id));
+    const speedRow = wireSpeedRow({ range: speed, number: speedValue, key: 'speed', app });
+    const consoleRow = wireSpeedRow({ range: cSpeed, number: cSpeedValue, key: 'consoleSpeed', app });
     // Enhanced HERE, with each mode's glyph (animated on hover), not by the app-wide pass
     // — data-cs-skip on the <select> keeps that pass off it, or its plain rows would win.
     enhanceSelect(motionMode, { icons: motionModeIcon });
@@ -108,13 +105,12 @@ export class StencilVisualsModal extends StencilElement {
       const m = motionPrefs();
       for (const [box, key] of checks) box.checked = m[key];
       motionMode.value = m.mode;
-      paintSpeed(m.speed);
+      speedRow.paint(m.speed);
+      consoleRow.paint(m.consoleSpeed);
     };
     syncMotion();
     for (const [box, key] of checks) box.addEventListener('change', () => app.settings.setMotion(key, box.checked));
     motionMode.addEventListener('change', () => app.settings.setMotion('mode', motionMode.value));
-    speed.addEventListener('input', () => paintSpeed(app.settings.setMotion('speed', speed.value).speed));
-    speedValue.addEventListener('change', () => paintSpeed(app.settings.setMotion('speed', speedValue.value).speed));
     // Moved from the console (or another dialog) while this one is open.
     subscribe(MOTION_EVENT, syncMotion);
 
@@ -196,7 +192,8 @@ export class StencilVisualsModal extends StencilElement {
       Object.assign(app, VIS_DEFAULTS);
       app.accents.setAccent(DEFAULT_ACCENT);
       const motionDefaults = [['drawing', DEFAULT_DRAWING_ANIMATIONS],
-        ['multiWindow', DEFAULT_MULTI_WINDOW], ['mode', DEFAULT_MOTION_MODE], ['speed', DEFAULT_MOTION_SPEED]];
+        ['multiWindow', DEFAULT_MULTI_WINDOW], ['mode', DEFAULT_MOTION_MODE], ['speed', DEFAULT_MOTION_SPEED],
+        ['consoleSpeed', DEFAULT_CONSOLE_SPEED]];
       for (const [k, v] of motionDefaults) app.settings.setMotion(k, v);
       voiceRow.reset();
       notifyRow.reset();

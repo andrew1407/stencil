@@ -89,16 +89,16 @@ pub fn planSavePath(session: *Session, io: std.Io, name: []const u8, active: ?us
         defer gpa.free(home);
         const stem = saveStem(session, name, active) orelse return null;
         const sep: []const u8 = if (home.len != 0 and home[home.len - 1] == '/') "" else "/";
-        return std.fmt.allocPrint(gpa, "{s}{s}{s}.png", .{ home, sep, stem }) catch null;
+        return gpa.print("{s}{s}{s}.png", .{ home, sep, stem }) catch null;
     }
     const stem = saveStem(session, name, active) orelse return null;
     const dir = std.Io.Dir.cwd();
-    var path = std.fmt.allocPrint(gpa, "{s}.stencil", .{stem}) catch return null;
+    var path = gpa.print("{s}.stencil", .{stem}) catch return null;
     var n: usize = 2;
     while (n < 100) : (n += 1) {
         dir.access(io, path, .{}) catch break; // free name (or unreadable) → take it
         gpa.free(path);
-        path = std.fmt.allocPrint(gpa, "{s} {d}.stencil", .{ stem, n }) catch return null;
+        path = gpa.print("{s} {d}.stencil", .{ stem, n }) catch return null;
     }
     return path;
 }
@@ -175,5 +175,5 @@ pub fn acquirePlanBlank(session: *const Session, b: anytype, variant: ?[]const u
 /// Wrap a validated plan lines ARRAY into the `{"lines":[…]}` document shape the session's
 /// /apply path (layout.zig) consumes. Caller owns the result.
 pub fn linesDoc(gpa: std.mem.Allocator, lines_json: []const u8) error{OutOfMemory}![]u8 {
-    return std.fmt.allocPrint(gpa, "{{\"lines\":{s}}}", .{lines_json});
+    return gpa.print("{{\"lines\":{s}}}", .{lines_json});
 }

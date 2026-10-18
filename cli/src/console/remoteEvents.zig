@@ -3,6 +3,7 @@
 //! push + adopt helpers shared by /save, /fetch and the flush.
 const poll = @import("remoteEvents/poll.zig");
 const push = @import("remoteEvents/push.zig");
+const fileLink = @import("remoteEvents/fileLink.zig");
 
 pub const PullAction = poll.PullAction;
 pub const pullAction = poll.pullAction;
@@ -15,7 +16,12 @@ pub const pushResult = push.pushResult;
 pub const restoreServerChat = push.restoreServerChat;
 pub const adoptServerLayout = push.adoptServerLayout;
 
+pub const FileLink = fileLink.FileLink;
+pub const linkAction = fileLink.linkAction;
+pub const pollFileLink = fileLink.poll;
+
 test {
     _ = poll;
     _ = push;
+    _ = fileLink;
 }

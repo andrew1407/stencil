@@ -6,9 +6,7 @@
 const std = @import("std");
 const core = @import("../core.zig");
 
-const c = @cImport({
-    @cInclude("core/cliApi.h");
-});
+const c = @import("../core/cApi.zig");
 
 /// Upper bound on bands. Past a handful of threads these ops are memory-bandwidth bound,
 /// and each band costs a thread spawn.

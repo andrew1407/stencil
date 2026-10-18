@@ -5,9 +5,7 @@ const std = @import("std");
 const core = @import("../core.zig");
 const image = @import("image.zig");
 
-const c = @cImport({
-    @cInclude("core/cliApi.h");
-});
+const c = @import("../core/cApi.zig");
 
 /// The size whose longer side is at most `max_side`, aspect kept; an image that fits keeps its own.
 pub fn dims(w: usize, h: usize, max_side: u32) core.Size {

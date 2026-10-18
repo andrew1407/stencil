@@ -1,0 +1,505 @@
+{
+  "_doc": "The GUI consoles' command table, read by the browser (js/console/shell/table.js) and the desktop (support/console/consoleGrammar.cpp): one row per command with its aliases, argument hint, help line, help section and the surfaces it exists on; a `cliMode` row answers only inside the secret CLI mode. The Zig CLI's own console keeps its list in cli/src/console/uiText.txt. `cliMode` names the typed word that opens the secret CLI mode in both apps, the ms a press on its logo takes to leave it, and the command that leaves it. Each surface's test proves every one of its rows has a handler and every handler a row.",
+  "sections": [
+    "Image",
+    "Edit",
+    "Save",
+    "Connections",
+    "Apps",
+    "Assistant",
+    "System"
+  ],
+  "cliMode": {
+    "typedWord": "cliclicli",
+    "holdMs": 3000,
+    "offCommand": "clioff"
+  },
+  "commands": [
+    {
+      "name": "upload",
+      "aliases": [
+        "load"
+      ],
+      "arg": "[url]",
+      "help": "load a picture or video frame; bare: pick a file (browser: the file dialog; desktop: the Open Image window)",
+      "section": "Image",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "open",
+      "aliases": [],
+      "arg": "<name|id|url>",
+      "help": "open a saved project by name or id, or a picture by URL; the desktop app takes a local image, layout or .stencil path too",
+      "section": "Image",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "blank",
+      "aliases": [
+        "new"
+      ],
+      "arg": "[fmt] [w h] [color]",
+      "help": "create a blank page (default: the picked format or A4, white)",
+      "section": "Image",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "format",
+      "aliases": [
+        "formats"
+      ],
+      "arg": "[name|custom w h]",
+      "help": "list the page formats or pick one (drives /blank + the layout)",
+      "section": "Image",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "apply",
+      "aliases": [
+        "draw"
+      ],
+      "arg": "<url|json>",
+      "help": "draw a layout JSON onto the image, from a URL or pasted inline",
+      "section": "Edit",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "crop",
+      "aliases": [],
+      "arg": "<spec> [album]",
+      "help": "crop, e.g. \"x1=10% x2=90% y1=10% y2=90%\"",
+      "section": "Edit",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "rotate",
+      "aliases": [
+        "rot",
+        "turn"
+      ],
+      "arg": "<int>",
+      "help": "rotate int*90 degrees (e.g. -1, 2, 3)",
+      "section": "Edit",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "flip",
+      "aliases": [
+        "mirror"
+      ],
+      "arg": "",
+      "help": "mirror the image left-right (crop and lines follow)",
+      "section": "Edit",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "filter",
+      "aliases": [
+        "tint"
+      ],
+      "arg": "<mode>",
+      "help": "bw | sepia | invert | contour | none | a colour name/#hex (tint)",
+      "section": "Edit",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "script",
+      "aliases": [
+        "stc"
+      ],
+      "arg": "<directives>",
+      "help": "run .stc directives on this project (';' separates statements)",
+      "section": "Edit",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "undo",
+      "aliases": [
+        "u"
+      ],
+      "arg": "",
+      "help": "step back through edits",
+      "section": "Edit",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "redo",
+      "aliases": [
+        "r"
+      ],
+      "arg": "",
+      "help": "step forward through edits",
+      "section": "Edit",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "reset",
+      "aliases": [
+        "revert"
+      ],
+      "arg": "",
+      "help": "undo every edit back to the original",
+      "section": "Edit",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "color",
+      "aliases": [
+        "colour",
+        "line-color"
+      ],
+      "arg": "<#hex|name>",
+      "help": "the line colour new lines are drawn in",
+      "section": "Edit",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "point-color",
+      "aliases": [],
+      "arg": "[#hex|clear]",
+      "help": "the point colour (clear: follow the line colour)",
+      "section": "Edit",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "project-color",
+      "aliases": [],
+      "arg": "[#hex|clear]",
+      "help": "show or set the project's name colour",
+      "section": "Edit",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "save",
+      "aliases": [
+        "write"
+      ],
+      "arg": "[path]",
+      "help": "save the project (a .stencil path writes the project file; another path the picture)",
+      "section": "Save",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "layout",
+      "aliases": [],
+      "arg": "",
+      "help": "save the layout JSON",
+      "section": "Save",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "connect",
+      "aliases": [],
+      "arg": "<url> [token]",
+      "help": "connect to a collaboration server",
+      "section": "Connections",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "disconnect",
+      "aliases": [],
+      "arg": "[url]",
+      "help": "close a connection (or the most recent)",
+      "section": "Connections",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "connections",
+      "aliases": [
+        "servers"
+      ],
+      "arg": "",
+      "help": "list the connected servers",
+      "section": "Connections",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "projects",
+      "aliases": [],
+      "arg": "[url]",
+      "help": "list the local projects and the ones on every connected server",
+      "section": "Connections",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "open-tab",
+      "aliases": [],
+      "arg": "<name|id>",
+      "help": "open a saved project in a new tab",
+      "section": "Connections",
+      "surfaces": [
+        "browser"
+      ]
+    },
+    {
+      "name": "open-window",
+      "aliases": [],
+      "arg": "<name|id>",
+      "help": "open a saved project in a new window",
+      "section": "Connections",
+      "surfaces": [
+        "desktop"
+      ]
+    },
+    {
+      "name": "fetch",
+      "aliases": [
+        "pull"
+      ],
+      "arg": "<name> [url]",
+      "help": "open a server project here",
+      "section": "Connections",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "sync",
+      "aliases": [],
+      "arg": "[on|off]",
+      "help": "write edits of a server project back to its server as they happen",
+      "section": "Connections",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "desktop",
+      "aliases": [],
+      "arg": "[incognito]",
+      "help": "open this project in the desktop app",
+      "section": "Apps",
+      "surfaces": [
+        "browser"
+      ]
+    },
+    {
+      "name": "browser",
+      "aliases": [],
+      "arg": "[incognito]",
+      "help": "open this project in the browser app",
+      "section": "Apps",
+      "surfaces": [
+        "desktop"
+      ]
+    },
+    {
+      "name": "prompt",
+      "aliases": [
+        "p"
+      ],
+      "arg": "<text>",
+      "help": "ask the assistant; it plans and runs edits",
+      "section": "Assistant",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "llm",
+      "aliases": [],
+      "arg": "[provider|url|model|key <value>]",
+      "help": "show or set the assistant's provider config",
+      "section": "Assistant",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "status",
+      "aliases": [
+        "info",
+        "image"
+      ],
+      "arg": "",
+      "help": "show the working image (name, size, page, edit position)",
+      "section": "System",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "theme",
+      "aliases": [
+        "themes"
+      ],
+      "arg": "[dark|light|auto|name|#hex]",
+      "help": "dark, light or auto follows the OS; a name or #hex sets the accent",
+      "section": "System",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "reveal-speed",
+      "aliases": [],
+      "arg": "[0.01-1]",
+      "help": "how fast output is revealed (1 = instantly, 0.25 default)",
+      "section": "System",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "clear",
+      "aliases": [
+        "cls"
+      ],
+      "arg": "",
+      "help": "clear the console",
+      "section": "System",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "help",
+      "aliases": [
+        "?",
+        "h"
+      ],
+      "arg": "",
+      "help": "show this list",
+      "section": "System",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "exit",
+      "aliases": [
+        "quit",
+        "q"
+      ],
+      "arg": "",
+      "help": "close the console (CLI mode: leave it)",
+      "section": "System",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ]
+    },
+    {
+      "name": "clioff",
+      "aliases": [],
+      "arg": "",
+      "help": "leave CLI mode",
+      "section": "System",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ],
+      "cliMode": true
+    },
+    {
+      "name": "ls",
+      "aliases": [],
+      "arg": "",
+      "help": "list the local projects",
+      "section": "System",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ],
+      "cliMode": true
+    },
+    {
+      "name": "ll",
+      "aliases": [],
+      "arg": "",
+      "help": "list the local projects with their size, colour and date",
+      "section": "System",
+      "surfaces": [
+        "browser",
+        "desktop"
+      ],
+      "cliMode": true
+    },
+    {
+      "name": "browser-tab",
+      "aliases": [],
+      "arg": "",
+      "help": "open this project in a new browser tab",
+      "section": "Apps",
+      "surfaces": [
+        "browser"
+      ],
+      "cliMode": true
+    }
+  ]
+}

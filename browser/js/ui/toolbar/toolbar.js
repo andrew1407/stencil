@@ -3,7 +3,7 @@ import { hotkeys } from '../../core/settings/hotkeys.js';
 import { icon } from '../icons.js';
 import { wireHoverDust, foldDust, revealControls, CONTROLS_DUST_IN_MS, CONTROLS_DUST_OUT_MS } from '../motion.js';
 import { onWindowResize } from '../../utils.js';
-import { subscribe, EVENTS } from '../../eventBus/appBus.js';
+import { subscribe, publish, EVENTS } from '../../eventBus/appBus.js';
 import { syncWrappedSeparators } from './separators.js';
 import { wireVoiceChatToggle } from '../visuals/voiceToggle.js';
 import { wireLogoColorPicker } from '../logo/accent.js';
@@ -32,6 +32,7 @@ ${toolbarPageSectionsHtml()}
             <div class="ctrl-section">
                 <div class="ctrl-section-label">Data</div>
                 <div class="ctrl-section-row">
+                    <button id="console-btn" class="btn-icon" data-hk-title="openConsole" data-title="Console — type commands to edit, connect and switch projects">${icon('terminal')}</button>
                     <button id="script-btn" class="btn-icon" data-hk-title="openScript" data-title="Stencil script (.stc) — write and run a script over this project">${icon('script')}</button>
                     <button id="copy-json-btn" class="btn-icon" data-hk-title="copyLayout" data-title="Copy full Layout JSON (lines + all applied edits)" data-disabled-reason="Draw at least one line to copy">${icon('clipboard')}</button>
                     <button id="download-json" class="btn-icon" data-hk-title="downloadJson" data-title="Download Layout JSON" data-disabled-reason="Draw at least one line to export">${icon('file-down')}</button>
@@ -120,6 +121,7 @@ ${toolbarPageSectionsHtml()}
     new MutationObserver(refresh).observe(document.body, { attributes: true, attributeFilter: ['class'] });
     refresh();
 
+    this.querySelector('#console-btn')?.addEventListener('click', (e) => publish(EVENTS.consoleToggle, { from: e.currentTarget }));
     const logo = this.querySelector('.app-logo');
     wireLogoColorPicker(logo, _app);
     wireLogoDrag(logo, _app, { hold: wireLogoHold(logo, _app) });

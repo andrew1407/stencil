@@ -50,15 +50,15 @@ pub fn parseCapped(gpa: std.mem.Allocator, bytes: []const u8, caps: core.LayoutC
     if (obj.get("imageHeight")) |v| layout.image_height = asF64(v, 0);
     // Canonical "imageFilter" wins over the legacy "filter" spelling.
     if (obj.get("imageFilter") orelse obj.get("filter")) |v| {
-        if (v == .string) layout.filter = try a.dupeZ(u8, v.string);
+        if (v == .string) layout.filter = try a.dupeSentinel(u8, v.string, 0);
     }
     // "custom" names its tint in "filterColor", as the browser exports it (renderer.js).
     if (layout.filter != null and std.mem.eql(u8, layout.filter.?, "custom")) {
         const color = if (obj.get("filterColor")) |v| (if (v == .string and v.string.len != 0) v.string else null) else null;
-        layout.filter = try a.dupeZ(u8, color orelse default_tint);
+        layout.filter = try a.dupeSentinel(u8, color orelse default_tint, 0);
     }
     if (obj.get("pageSize")) |v| {
-        if (v == .string) layout.page_size = try a.dupeZ(u8, v.string);
+        if (v == .string) layout.page_size = try a.dupeSentinel(u8, v.string, 0);
     }
     layout.custom_page_w = fieldF64(obj, "customPageWidth", 0);
     layout.custom_page_h = fieldF64(obj, "customPageHeight", 0);

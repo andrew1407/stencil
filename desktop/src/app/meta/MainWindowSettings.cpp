@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "../../support/console/consolePace.hpp"
 #include "ModalBackdrop.hpp"
 #include "ChatSessionController.hpp"
 #include "Notifications.hpp"
@@ -106,6 +107,8 @@ namespace stencil::gui {
     settings = s;
     settings.motionSpeed = support::clampMotionSpeed(s.motionSpeed);
     support::setMotionSpeed(settings.motionSpeed);
+    settings.consoleSpeed = support::clampConsoleSpeed(s.consoleSpeed);
+    support::setConsoleSpeed(settings.consoleSpeed);
     // Motion first: every animation asks these switches (support/modal/modalReveal.hpp), the dialog's
     // own closing flight included.
     support::setMotionMode(support::motionModeFromKey(s.motionMode));

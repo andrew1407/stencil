@@ -9,7 +9,7 @@
 namespace stencil::gui {
 
   void ProjectFlows::openServerLaunch(const QString& serverUrl, const QString& id,
-                                    bool incognito) {
+                                    bool incognito, qint64 version) {
     // normalizeBase yields "" on junk.
     const QString url = stencil::net::ServerClient::normalizeBase(serverUrl);
     if (url.isEmpty()) {
@@ -42,7 +42,7 @@ namespace stencil::gui {
         if (!confirmModal(&w, spec)) return;
       }
       QPointer<MainWindow> self(&w);
-      mgr->connectToAsync(url, token, [this, self, url, id, incognito](bool ok, QString err) {
+      mgr->connectToAsync(url, token, [this, self, url, id, incognito, version](bool ok, QString err) {
         if (!self) return;
         if (!ok) {
           // The normal connect path: surface the failure and open the Servers dialog.
@@ -51,11 +51,11 @@ namespace stencil::gui {
           return;
         }
         w.warnInsecureConnections();
-        openServerProject(url, id, /*silent=*/false, /*link=*/!incognito);
+        openServerProject(url, id, /*silent=*/false, /*link=*/!incognito, version);
       }, kind);
       return;
     }
-    openServerProject(url, id, /*silent=*/false, /*link=*/!incognito);
+    openServerProject(url, id, /*silent=*/false, /*link=*/!incognito, version);
   }
 
   bool ProjectFlows::openProjectByName(const QString& name) {

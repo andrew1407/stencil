@@ -19,6 +19,12 @@ beforeEach(() => {
 
 const { wireTypedWords, matchTypedWord, typedLetter } = await import('../../../../js/ui/bindings/keys/typedWords.js');
 const { logoStageOpen, closeLogoStage, currentLogoStage } = await import('../../../../js/ui/logo/stage.js');
+// The facade rig installs a document of its own on import, so it loads here, before each test's.
+const { installMemoryStorage } = await import('../../../helpers/memoryStorage.js');
+installMemoryStorage();
+const { makeApp, createStencil } = await import('../../../helpers/stencilApiRig.js');
+const { cliModeOn } = await import('../../../../js/console/shell/gate.js');
+const { exitCliMode } = await import('../../../../js/ui/cli/mode.js');
 
 const type = (text, over = {}) => {
   for (const key of text) doc.dispatch('keydown', { key, target: body, ...over });
@@ -64,6 +70,22 @@ test('the buffer clears after a match, so the same word must be typed again', ()
   type('neonon');
   assert.equal(logoStageOpen(), true);
   closeLogoStage();
+});
+
+test('the CLI word takes the page over, and typed again inside it opens nothing twice', () => {
+  const app = makeApp({ chat: { close() {}, open() {}, isOpen: () => false } });
+  app.changes = { on: () => () => {} };
+  app.accents.themeMode = 'system';
+  app.accents.setThemeMode = () => {};
+  window.stencil = createStencil(app);
+  wireTypedWords(app, doc);
+  type('cliclicli', { stopPropagation() {} });
+  assert.equal(cliModeOn(), true);
+  assert.equal(logoStageOpen(), false, 'the CLI is not a logo show');
+  type('cliclicli', { stopPropagation() {} });
+  assert.equal(cliModeOn(), true);
+  exitCliMode(app);
+  assert.equal(cliModeOn(), false);
 });
 
 test('a field with the caret in it keeps its keys, and so does any chord', () => {

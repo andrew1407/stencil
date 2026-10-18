@@ -16,7 +16,7 @@ namespace stencil::gui {
       : QObject(host), host(host), notify(std::move(notify)), h(std::move(hooks)) {}
 
   void StencilFileSync::link(const QString& file, const QByteArray& baseline) {
-    path = file;
+    path = file.isEmpty() ? QString() : QFileInfo(file).absoluteFilePath();   // the registry row outlives this cwd
     this->baseline = baseline;
     if (!watcher) {
       watcher = new QFileSystemWatcher(this);

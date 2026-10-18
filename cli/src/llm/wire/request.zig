@@ -92,10 +92,10 @@ pub fn buildRequestWithSystem(
     errdefer gpa.free(body);
 
     const url = switch (cfg.provider) {
-        .ollama => try std.fmt.allocPrint(gpa, "{s}/api/chat", .{cfg.base_url}),
-        .openai_compat => try std.fmt.allocPrint(gpa, "{s}/chat/completions", .{cfg.base_url}),
-        .anthropic => try std.fmt.allocPrint(gpa, "{s}{s}", .{ cfg.base_url, providers.get().anthropic_chat_path }),
-        .stencil_server => try std.fmt.allocPrint(gpa, "{s}/llm/chat", .{trimUrl(server_url)}),
+        .ollama => try gpa.print("{s}/api/chat", .{cfg.base_url}),
+        .openai_compat => try gpa.print("{s}/chat/completions", .{cfg.base_url}),
+        .anthropic => try gpa.print("{s}{s}", .{ cfg.base_url, providers.get().anthropic_chat_path }),
+        .stencil_server => try gpa.print("{s}/llm/chat", .{trimUrl(server_url)}),
     };
     errdefer gpa.free(url);
 
@@ -110,7 +110,7 @@ pub fn buildRequestWithSystem(
         .stencil_server => server_token,
     };
     const auth: ?[]u8 = if (secret.len != 0)
-        try std.fmt.allocPrint(gpa, "Bearer {s}", .{secret})
+        try gpa.print("Bearer {s}", .{secret})
     else
         null;
 

@@ -7,6 +7,7 @@ const server = @import("../../server/client.zig");
 const logo = @import("../../app/logo.zig");
 const llm = @import("../../llm.zig");
 const Session = @import("../session.zig").Session;
+const fileLink = @import("fileLink.zig");
 
 // Each edit sets a cheap `dirty` flag (markDirty) and the REPL flushes once the input burst
 // settles (flushSync, at the prompt boundary) — one upload per run of edits, not per action.
@@ -15,6 +16,7 @@ const Session = @import("../session.zig").Session;
 /// deferred to `flushSync`. No-op unless sync is on and a server project is active.
 pub fn markDirty(session: *Session) void {
     if (session.sync and session.hasRemote()) session.dirty = true;
+    fileLink.markDirty(session);
 }
 
 /// Pure debounce decision: upload only when sync is on, a project is active, an edit is

@@ -4,10 +4,10 @@ const std = @import("std");
 const theme = @import("../../app/theme.zig");
 
 // `/reveal-speed <speed>`, 0.01 … 1: 1 = instant, smaller = slower (0 would never finish). The sweep's
-// constants are the pace at the default 0.5; each scales by (1-speed)/speed, which is 1 there.
+// constants are the pace at speed 0.5; each scales by (1-speed)/speed, 3 at the default 0.25.
 pub const speed_min = 0.01;
 pub const speed_max = 1.0;
-pub const speed_default = 0.5;
+pub const speed_default = 0.25;
 
 pub fn parseRevealSpeed(text: []const u8) ?f64 {
     const v = std.fmt.parseFloat(f64, std.mem.trim(u8, text, " \t")) catch return null;

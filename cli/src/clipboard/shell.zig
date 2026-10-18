@@ -23,7 +23,7 @@ pub fn tmpDir() []const u8 {
 // A scratch PNG path of our own, in the per-user temp dir and carrying the PID.
 pub fn scratchPath(gpa: std.mem.Allocator, comptime name: []const u8) ![]u8 {
     const sep: []const u8 = if (builtin.os.tag == .windows) "\\" else "/";
-    return std.fmt.allocPrint(gpa, "{s}{s}stencil_clip_{s}.{d}.png", .{ tmpDir(), sep, name, std.c.getpid() });
+    return gpa.print("{s}{s}stencil_clip_{s}.{d}.png", .{ tmpDir(), sep, name, std.c.getpid() });
 }
 
 /// Read an image off the clipboard as owned PNG bytes (caller frees). `NoImage` when the

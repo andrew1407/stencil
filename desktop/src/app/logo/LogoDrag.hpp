@@ -29,6 +29,8 @@ namespace stencil::gui {
     std::function<LogoLineAim(QWidget* at, const QPoint& global)> lineAt;
     std::function<void(int idx)> lineHover;   // the canvas hover glow on a line; -1 clears it
     std::function<void(int idx)> styleLine;   // the toolbar's style onto line idx, one undo step
+    std::function<QWidget*()> consoleIcon;    // the Data section's console button: a drop on it opens CLI mode
+    std::function<void()> cliMode;
   };
 
   // A modified press is the accent menu's and one whose hold opened a show is the show's, so

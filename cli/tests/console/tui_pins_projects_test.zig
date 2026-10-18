@@ -27,7 +27,7 @@ fn addRow(
     srv: []const u8,
 ) !void {
     var tb: [32]u8 = undefined;
-    const size = if (w == 0 and h == 0) try a.dupe(u8, "-") else try std.fmt.allocPrint(a, "{d}x{d}", .{ w, h });
+    const size = if (w == 0 and h == 0) try a.dupe(u8, "-") else try a.print("{d}x{d}", .{ w, h });
     const created = try a.dupe(u8, server.formatAgo(&tb, now_ms, created_ms));
     const expires = try a.dupe(u8, server.formatUntil(&tb, now_ms, expires_ms));
     const changed = try a.dupe(u8, server.formatAgo(&tb, now_ms, updated_ms));

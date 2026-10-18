@@ -42,7 +42,7 @@ fn pxToken(a: std.mem.Allocator, tok: []const u8) ![]const u8 {
     const t = split(tok) orelse return tok;
     const u = cmUnit(t.unit) orelse return tok;
     const px = t.value * u.mul / u.div * scriptCore.PX_PER_CM;
-    return std.fmt.allocPrint(a, "{s}{d}px", .{ if (t.from_end) "-" else "", px });
+    return a.print("{s}{d}px", .{ if (t.from_end) "-" else "", px });
 }
 
 /// core resolveAxisPx: a token's position on an axis `len` long, a bare number moving `base`.
@@ -88,7 +88,7 @@ pub fn cropAction(a: std.mem.Allocator, script: scriptCore.Script, i: u32, dims:
         if (tok.len != 0) {
             try spec.put(a, key, .{ .string = try pxToken(a, tok) });
         } else if (far) |f| {
-            const edge = if (k % 2 == 0) "0px" else try std.fmt.allocPrint(a, "{d}px", .{f});
+            const edge = if (k % 2 == 0) "0px" else try a.print("{d}px", .{f});
             try spec.put(a, key, .{ .string = edge });
         }
     }

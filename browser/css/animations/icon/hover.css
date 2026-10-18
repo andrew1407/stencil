@@ -70,6 +70,7 @@
 .ic-upload .ic-arrow   { transform: translateY(calc(var(--ic-on) * -2.2px)); }
 .ic-file-down .ic-arrow { transform: translateY(calc(var(--ic-on) * 2.2px)); }
 .ic-file-up .ic-arrow   { transform: translateY(calc(var(--ic-on) * -2.2px)); }
+.ic-terminal .ic-prompt { transform: translateX(calc(var(--ic-on) * 1.4px)); }
 .ic-paste .ic-arrow    { transform: translateY(calc(var(--ic-on) * 1.6px)); }
 .ic-external .ic-arrow { transform: translate(calc(var(--ic-on) * 1.4px), calc(var(--ic-on) * -1.4px)); }
 .ic-crop .ic-crop-bl { transform: translate(calc(var(--ic-on) * 1px), calc(var(--ic-on) * -1px)); }

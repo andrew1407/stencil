@@ -1,9 +1,15 @@
 {
-  "_doc": "Every tuned number, count and easing the browser's motion layer runs on, lifted out of the code that reads it so the values have ONE home. `ui` is js/ui/motion.js (the surface and row flights, the theme swap, the stroke effects), and its PANEL_* keys js/ui/panel/coordFold.js, the points panel's fold, which the desktop reads too (qrc :/config/motion.json, app/chrome/PanelSlide.hpp) — PANEL_FOLD_* are the desktop's toolbar fold alone; `dust` is js/ui/cloud.js, the one-canvas painter the extension duplicates byte-for-byte — so browser-extension/src/config/motion.json is a checked-in copy of THIS file, pinned by browser-extension/tests/dataParity.test.js. Keys are the constant names the two modules export, unchanged; what each one means stays as a comment beside its export. Values only: anything DERIVED from another (CHAT_ENTER_MS, ITEM_DUST_MS, the px-suffixed twins) stays in code. browser/tests/ui/motion/ and the browser/tests/ui/motion*.test.js suites pin the behaviour these drive. `speed` is the Visuals \"Animation speed\" coefficient both apps offer (browser ui/motion/motionPrefs.js, desktop support/motionPrefs.hpp): every interface animation runs `default / speed` times its tuned length, so the default leaves each one exactly as tuned; a value outside min–max is clamped.",
+  "_doc": "Every tuned number, count and easing the browser's motion layer runs on, lifted out of the code that reads it so the values have ONE home. `ui` is js/ui/motion.js (the surface and row flights, the theme swap, the stroke effects), and its PANEL_* keys js/ui/panel/coordFold.js, the points panel's fold, which the desktop reads too (qrc :/config/motion.json, app/chrome/PanelSlide.hpp) — PANEL_FOLD_* are the desktop's toolbar fold alone; `dust` is js/ui/cloud.js, the one-canvas painter the extension duplicates byte-for-byte — so browser-extension/src/config/motion.json is a checked-in copy of THIS file, pinned by browser-extension/tests/dataParity.test.js. Keys are the constant names the two modules export, unchanged; what each one means stays as a comment beside its export. Values only: anything DERIVED from another (CHAT_ENTER_MS, ITEM_DUST_MS, the px-suffixed twins) stays in code. browser/tests/ui/motion/ and the browser/tests/ui/motion*.test.js suites pin the behaviour these drive. `speed` is the Visuals \"Animation speed\" coefficient both apps offer (browser ui/motion/motionPrefs.js, desktop support/motionPrefs.hpp): every interface animation runs `default / speed` times its tuned length, so the default leaves each one exactly as tuned; a value outside min–max is clamped. `consoleSpeed` is the \"Console text speed\" both apps' consoles reveal new output at (browser ui/console/reveal.js, desktop support/console/consolePace.hpp; the CLI's /reveal-speed range): 1 is instant, the default leaves the TUI's tempo as tuned in console/fx.json.",
   "speed": {
     "min": 0.1,
     "max": 1,
     "default": 0.37,
+    "step": 0.01
+  },
+  "consoleSpeed": {
+    "min": 0.01,
+    "max": 1,
+    "default": 0.25,
     "step": 0.01
   },
   "ui": {

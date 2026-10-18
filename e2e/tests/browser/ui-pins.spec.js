@@ -97,6 +97,18 @@ test.describe('browser UI pins', () => {
     await expectPin(page, { name: 'accent-picker-open', root: 'body > .accent-dd-menu' });
     await page.keyboard.press('Escape');
     await closeModal('visuals-modal-overlay');
+
+    // The console window opens beside the others and closes itself alone; the CLI stage covers the
+    // page. Both are pinned on a blank picture, so the status line names a size this file chose.
+    await page.evaluate(() => window.stencil.blank('#ffffff', { size: { width: 240, height: 200 } }));
+    await openModal('openConsoleWindow', 'console-overlay');
+    await expectPin(page, { name: 'console-window', root: '#console-overlay' });
+    await closeModal('console-overlay');
+    await page.evaluate(() => { window.stencil.EasterEggs.cliMode = true; });
+    await expect(page.locator('.cli-stage')).toBeVisible();
+    await expectPin(page, { name: 'cli-mode', root: '.cli-stage' });
+    await page.evaluate(() => { window.stencil.EasterEggs.cliMode = false; });
+    await expect(page.locator('.cli-stage')).toHaveCount(0);
   });
 
   test('chat panel placements and the fullscreen control strip', async ({ page }) => {

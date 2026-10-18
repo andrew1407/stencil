@@ -20,12 +20,12 @@ import uiStrings from '../../../../common/config/uiStrings.json' with { type: 'j
 const MARKUP = layout();
 const src = (p) => readFileSync(fileURLToPath(new URL(p, import.meta.url)), 'utf8');
 
-test('the opener leads the Data section', () => {
+test('the console leads the Data section, the script opener beside it', () => {
   const data = MARKUP.slice(MARKUP.indexOf('<div class="ctrl-section-label">Data</div>'));
   const section = data.slice(0, data.indexOf('</div>\n            </div>'));
   const order = [...section.matchAll(/id="([a-z-]+)"/g)].map((m) => m[1]);
   assert.deepEqual(order, [
-    'script-btn', 'copy-json-btn', 'download-json', 'upload-json', 'upload-json-btn', 'clear-storage',
+    'console-btn', 'script-btn', 'copy-json-btn', 'download-json', 'upload-json', 'upload-json-btn', 'clear-storage',
   ]);
 });
 

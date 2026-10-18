@@ -58,7 +58,7 @@ pub fn expandHome(gpa: std.mem.Allocator, path: []const u8) ![]u8 {
     if (home.len == 0) return gpa.dupe(u8, path);
     const rest = path[1..]; // "" for a bare "~", else "/…"
     const base = if (home.len > 1 and home[home.len - 1] == '/') home[0 .. home.len - 1] else home;
-    return std.fmt.allocPrint(gpa, "{s}{s}", .{ base, rest });
+    return gpa.print("{s}{s}", .{ base, rest });
 }
 
 pub fn mapMediaError(e: anyerror) anyerror {
@@ -101,7 +101,7 @@ test "expandHome: a leading ~ becomes $HOME, everything else is untouched" {
 
     const under = try expandHome(a, "~/Downloads/out.png");
     defer a.free(under);
-    const want = try std.fmt.allocPrint(a, "{s}/Downloads/out.png", .{home});
+    const want = try a.print("{s}/Downloads/out.png", .{home});
     defer a.free(want);
     try testing.expectEqualStrings(want, under);
 

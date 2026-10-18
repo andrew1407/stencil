@@ -39,6 +39,8 @@ int main(int argc, char** argv) {
         "stencil://open?server=http%3A%2F%2Flocalhost%3A8090&id=p_1a2b3c_x1&version=7&incognito=1"));
     check(o.serverUrl == "http://localhost:8090", "server url decoded");
     check(o.serverProjectId == "p_1a2b3c_x1", "project id decoded");
+    check(o.serverVersion == 7, "the link's version rides along");
+    check(parseStencilUrl(QUrl("stencil://open?server=http%3A%2F%2Fh&id=p&version=-3")).serverVersion == 0, "a junk version is none");
     check(o.incognito, "incognito flag decoded");
     check(o.src.isEmpty(), "server+id: no src");
     check(!o.empty(), "server link is not empty()");

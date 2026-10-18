@@ -7,6 +7,7 @@
 #include "Notifications.hpp"
 #include "RemoteSession.hpp"
 #include "RemoteSyncController.hpp"
+#include "StencilFileSync.hpp"
 #include "ProjectTitleController.hpp"
 #include "IncognitoOverlay.hpp"
 
@@ -68,6 +69,7 @@ namespace stencil::gui {
     pr.meta.blankColor = docSource.blankColor.toStdString();  // blank-fill colour (empty = ordinary image)
     pr.meta.blank = !docSource.blankColor.isEmpty();
     pr.meta.fromFile = fromFile;  // provenance: opened from a .stencil (bronze projects-list outline)
+    if (stencilSync) pr.linkedFile = stencilSync->linkedPath();
     parts.view.stampCanvasMeta(pr.meta);     // cache image px dims + line length (cm) for the projects-list tooltip
     projectList.push_back(pr);
     activeProjectId = QString::fromStdString(pr.meta.id);

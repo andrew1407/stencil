@@ -225,6 +225,23 @@ window** and **Remove**; the zone under the pointer lights up and the drop decid
 |---|---|
 | ![image links](img/links-dialog.png) | ![open in](img/open-in-dialog.png) |
 
+## Type commands in the console
+
+**Data ▸ Console…** (`Alt+Shift+T`, the first button of the Data section) opens a console window
+beside the editor. It blocks nothing: type `/help` for the commands, `/crop x1=10% x2=90%`,
+`/rotate 1`, `/filter bw`, `/theme dark`, `/connect <url>` or `/browser`, and the answer types in at
+the **Console text speed** from Settings ▸ Motion.
+
+![the console window beside the editor, after /help](img/console-dialog.png)
+
+Type `cliclicli` into the bare window, or drop the logo on the console icon, and the whole window
+becomes the CLI's terminal on the app's theme: the logo (click it to cycle the accent, which wipes
+over like the terminal's), the picture's name and size under it (click the name to see what you are
+editing, double-click for the original, Alt+hover to peek), and the same commands and secrets.
+`/clioff` or a long press on the logo brings the window back, every edit kept.
+
+![CLI mode over the window, after /status and /help](img/cli-mode.png)
+
 ## Shortcuts and help
 
 **Help ▸ Keyboard Shortcuts…** (`Alt+K`) rebinds any action live; **Help ▸ Controls &

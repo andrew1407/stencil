@@ -52,9 +52,10 @@ namespace stencil::gui {
     // Its stay-open requests: the dialog confirms in place, the window acts and repaints it.
     void wireProjectsRequests(ProjectsDialog& dlg, const std::function<bool()>& unsavedSession);
     void resetToBlankEditor();
+    // `version` is the one a link named: once the open lands, a newer one on the server reloads.
     void openServerProject(const QString& serverUrl, const QString& id, bool silent = false,
-                           bool link = true);
-    void openServerLaunch(const QString& serverUrl, const QString& id, bool incognito);
+                           bool link = true, qint64 version = 0);
+    void openServerLaunch(const QString& serverUrl, const QString& id, bool incognito, qint64 version = 0);
     // Browser openInModal.js, for the current session.
     void openInAnotherApp();
     void openInAnotherAppFor(const QString& id, const QString& serverUrl, const QRect& closeRect);
@@ -68,6 +69,11 @@ namespace stencil::gui {
     };
     void dispatchOpenIn(const OpenInSource& src, bool browserAvailable, bool telegramAvailable,
                         const std::function<int(OpenInDialog&)>& run);
+    // The live session as a hand-off source, and the browser link for one; the console's `/browser`
+    // takes the session's own link, or the reason there is none.
+    OpenInSource liveOpenInSource() const;
+    QString browserLaunchUrl(const OpenInSource& src, bool incognito) const;
+    QString browserLaunchUrl(bool incognito, QString* err) const;
     void adoptServerLayoutMeta(const QJsonObject& layout);
     void eraseLocalProject(const QString& id);
 
@@ -96,6 +102,10 @@ namespace stencil::gui {
     std::optional<QString> normalizeProjectColor(const QString& color) const;
 
    private:
+    // The OS launcher's argv tolerates far less than an in-page URL: an inline link past the cap is
+    // refused, a large one warned about; a server reference is always small.
+    enum class LaunchFit { OK, LARGE, REFUSE };
+    static LaunchFit launchUrlFit(const QString& url, bool serverProject);
     using MetaPut = std::function<void(stencil::net::ServerClient*, qint64, std::function<void(bool, qint64, bool)>)>;
     // A local row's store edit, or a server row's PUT; `what` names the toasts.
     void setProjectMetaById(const QString& id, const QString& serverUrl, const QString& what, bool cleared,

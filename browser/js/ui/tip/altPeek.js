@@ -60,6 +60,7 @@ export const onAltKeys = (entry) => {
   }
   altKeyed.add(entry);
 };
+export const offAltKeys = (entry) => { altKeyed.delete(entry); };
 // A leave counts once the pointer is really out: a flood is waited out, and a hit test still
 // reading inside (the two disagree for a frame) waits for the next move.
 const watching = new WeakMap();

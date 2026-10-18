@@ -342,7 +342,7 @@ jobs:
       - name: Set up Zig
         uses: mlugg/setup-zig@v2
         with:
-          version: 0.16.0
+          version: 0.17.0
       - name: Build
         working-directory: cli
         run: zig build
@@ -386,7 +386,7 @@ jobs:
       - name: Set up Zig
         uses: mlugg/setup-zig@v2
         with:
-          version: 0.16.0
+          version: 0.17.0
       - name: Build the Stencil CLI (for the end-to-end tests)
         working-directory: cli
         run: zig build
@@ -483,7 +483,7 @@ jobs:
       - name: Set up Zig
         uses: mlugg/setup-zig@v2
         with:
-          version: 0.16.0
+          version: 0.17.0
       - name: Build the Stencil CLI
         working-directory: cli
         run: zig build
@@ -521,7 +521,7 @@ jobs:
       - name: Set up Zig
         uses: mlugg/setup-zig@v2
         with:
-          version: 0.16.0
+          version: 0.17.0
       - name: Build the Stencil CLI (for the --plan-check parity tests)
         working-directory: cli
         run: zig build

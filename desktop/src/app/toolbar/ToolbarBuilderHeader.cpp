@@ -1,6 +1,7 @@
 // buildMainToolbar()'s first row: the always-visible header (logo, Controls pill, project name).
 // addToolBarBreak() ends it.
 #include "MainWindow.hpp"
+#include "consoleGrammar.hpp"
 #include "windowSheets.hpp"
 #include "ToolbarBuilder.hpp"
 #include "ToastStack.hpp"
@@ -49,18 +50,7 @@ namespace stencil::gui {
     // Deferred so a double-click can pre-empt it and open the picker (browser logo parity).
     w.tools.logoClickTimer = new QTimer(&w);
     w.tools.logoClickTimer->setSingleShot(true);
-    QObject::connect(w.tools.logoClickTimer, &QTimer::timeout, &w, [this] {
-      const auto& presets = accentPresets();
-      if (presets.empty()) return;
-      int idx = -1;
-      for (size_t i = 0; i < presets.size(); ++i)
-        if (presets[i].key == w.settings.accentColor) { idx = static_cast<int>(i); break; }
-      auto next = w.settings;
-      // Browser parity: a custom colour (idx < 0) resets to the default; else the next preset,
-      // wrapping.
-      next.accentColor = idx < 0 ? presets.front().key : presets[(idx + 1) % presets.size()].key;
-      w.applySettings(next, true);   // apply + persist (re-themes everything, incl. the logo frame)
-    });
+    QObject::connect(w.tools.logoClickTimer, &QTimer::timeout, &w, [this] { w.parts.theme.cycleAccentPreset(); });
     QObject::connect(w.tools.logoBtn, &QToolButton::clicked, &w, [this] {
       if (w.pop.dismissClick) { w.pop.dismissClick = false; return; }
       w.tools.logoClickTimer->start(support::uiTimings().doubleClickMs);
@@ -158,14 +148,10 @@ namespace stencil::gui {
       return !w.fs.active && !QApplication::activeModalWidget() &&
              !QApplication::activePopupWidget() && !w.pop.active;
     };
-    hooks.clearWay = [this] {
-      if (QWidget* menu = QApplication::activePopupWidget()) menu->close();
-      QWidget* modal = QApplication::activeModalWidget();
-      if (w.pop.active) w.dismissPopover();
-      else if (auto* dlg = qobject_cast<QDialog*>(modal)) dlg->reject();
-      else if (modal) modal->close();
-      if (w.fs.active) w.parts.view.toggleFullscreen();
-    };
+    hooks.clearWay = [this] { w.parts.console.clearWay(); };
+    // The CLI mode's word is typed like a show's; it opens the terminal instead (app/console).
+    hooks.cliWord = support::cliModeConfig().typedWord;
+    hooks.cliMode = [this] { w.parts.console.enterCli(); };
     hooks.toast = [this](const QString& text) {
       if (!w.notify) return;
       w.notify->show(text, Notifications::Level::SUCCESS, 3000, /*special=*/true);
@@ -210,6 +196,8 @@ namespace stencil::gui {
     drag.canvas = [this]() -> QWidget* { return w.scroll; };
     drag.hasImage = [this] { return w.canvas->hasImage(); };
     drag.preview = [this](bool on) { w.canvas->setCleanPreview(on); };
+    drag.consoleIcon = [this]() -> QWidget* { return w.buttonForAction(w.acts.console); };
+    drag.cliMode = [this] { w.parts.console.enterCli(); };
     drag.commit = [this] {
       if (w.settings.imageFilter != QLatin1String("none")) w.applyImageFilter(QStringLiteral("none"));
       for (QAction* view : {w.acts.showLines, w.acts.showPoints})

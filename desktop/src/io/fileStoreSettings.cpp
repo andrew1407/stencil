@@ -73,6 +73,7 @@ namespace stencil::gui {
     s.multiWindow = o.value("multiWindow").toBool(s.multiWindow);
     s.motionMode = o.value("motionMode").toString(s.motionMode);
     s.motionSpeed = o.value("motionSpeed").toDouble(s.motionSpeed);
+    s.consoleSpeed = o.value("consoleSpeed").toDouble(s.consoleSpeed);
     s.notifyChannel = o.value("notifyChannel").toString(s.notifyChannel);
     s.browserBaseUrl = o.value("browserBaseUrl").toString(s.browserBaseUrl);
     s.telegramBotUsername = o.value("telegramBotUsername").toString(s.telegramBotUsername);
@@ -129,6 +130,7 @@ namespace stencil::gui {
     o["multiWindow"] = s.multiWindow;
     o["motionMode"] = s.motionMode;
     o["motionSpeed"] = s.motionSpeed;
+    o["consoleSpeed"] = s.consoleSpeed;
     o["notifyChannel"] = s.notifyChannel;
     o["browserBaseUrl"] = s.browserBaseUrl;
     o["telegramBotUsername"] = s.telegramBotUsername;

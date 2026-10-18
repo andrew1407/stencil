@@ -117,7 +117,11 @@ test "renderTable: a long multi-byte description is cut back to a codepoint boun
     logo.init(true, false); // NO_COLOR: the note is plain text
 
     // 60 three-byte codepoints: the 48-byte cut lands mid-character unless backed off.
-    const desc = "\u{4e00}" ** 60;
+    const desc = comptime blk: {
+        var s: []const u8 = "";
+        for (0..60) |_| s = s ++ "\u{4e00}";
+        break :blk s;
+    };
     const row = projectsTable.ProjectRow{
         .name = @constCast("p"),
         .size = @constCast("1x1"),

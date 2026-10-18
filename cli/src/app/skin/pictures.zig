@@ -11,7 +11,7 @@ pub const cats = [_][]const u8{ "🐱", "🦁", "🐯" };
 
 // Each picture swaps for another every `swap_frames` frames, each on its own beat, so the
 // row shimmers — every emoji sits a little differently in its cell, which reads as a small hop.
-const swap_frames = 83; // ~6.6s a picture: at ~150 on screen, a gentle few swaps a second
+pub const swap_frames = 83; // ~6.6s a picture: at ~150 on screen, a gentle few swaps a second
 
 /// The picture for the letter at `col` of the row hashed to `row_key`, never `prev` again:
 /// the same on every repaint of a frame, a new one when that cell's beat comes round.

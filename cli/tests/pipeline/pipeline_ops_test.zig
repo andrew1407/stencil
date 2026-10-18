@@ -87,7 +87,7 @@ test "ops: decode refuses a header claiming absurd dimensions before allocating"
 
     // A TGA header claiming 40000x40000: each side is under the per-side cap, so it is the
     // pixel-AREA cap that refuses it (w*h*4 would overflow the c_int handed back to stb).
-    const tga = [_]u8{ 0, 0, 2 } ++ [_]u8{0} ** 9 ++ [_]u8{ 0x40, 0x9c, 0x40, 0x9c, 24, 0 };
+    const tga = [_]u8{ 0, 0, 2 } ++ @as([9]u8, @splat(0)) ++ [_]u8{ 0x40, 0x9c, 0x40, 0x9c, 24, 0 };
     try testing.expectError(error.ImageTooLarge, image.decode(a, &tga));
 }
 

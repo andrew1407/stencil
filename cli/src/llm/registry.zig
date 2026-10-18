@@ -90,7 +90,7 @@ test "§13 registry: op name set matches the contract's cli-console profile" {
         "clear",   "clearChat",
     };
     try testing.expect(op_registry.len == expected.len);
-    try testing.expect(op_registry.len == std.meta.fields(std.meta.Tag(Action)).len);
+    try testing.expect(op_registry.len == @typeInfo(std.meta.Tag(Action)).@"enum".field_names.len);
     for (expected, op_registry) |name, d| try testing.expectEqualStrings(name, d.name);
     const schema = opSchema.get();
     try testing.expectEqual(op_registry.len, schema.entries.len);

@@ -1,6 +1,6 @@
 export type MotionMode = 'particles' | 'water' | 'fire' | 'slide' | 'none';
 export interface MotionPrefs { mode: MotionMode; drawing: boolean;
-  multiWindow: boolean; speed: number; }
+  multiWindow: boolean; speed: number; consoleSpeed: number; }
 
 export declare const MOTION_STORAGE_KEY: string;
 /** Fired after every change (eventBus/appBus.js EVENTS.motionChanged). */
@@ -15,6 +15,11 @@ export declare const MOTION_SPEED: Readonly<{ min: number; max: number; default:
 export declare const DEFAULT_MOTION_SPEED: number;
 /** Clamped into MOTION_SPEED's range at two decimals; a non-number reads as the default. */
 export declare const clampMotionSpeed: (v: unknown) => number;
+/** common/config/motion.json `consoleSpeed`: how fast the consoles reveal new output, 1 = at once. */
+export declare const CONSOLE_SPEED: Readonly<{ min: number; max: number; default: number; step: number }>;
+export declare const DEFAULT_CONSOLE_SPEED: number;
+export declare const clampConsoleSpeed: (v: unknown) => number;
+export declare const consoleSpeed: () => number;
 /** [modeKey, label] pairs for the desktop combo and the extension options page. */
 export declare const MOTION_MODE_LABELS: [MotionMode, string][];
 

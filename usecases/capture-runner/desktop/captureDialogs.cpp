@@ -3,6 +3,8 @@
 #include "captureShared.hpp"
 
 #include "CanvasWidget.hpp"
+#include "CliStage.hpp"
+#include "ConsoleWindow.hpp"
 #include "fileStore.hpp"
 #include <QDateTime>
 #include "OpenImageDialog.hpp"
@@ -92,6 +94,34 @@ void MainWindowGuiTest::dialogShots(MainWindow& win, const QString& theme, const
     grabModal(win, actionNamed(win, QString::fromUtf8(dialog.action)), dialog.name);
   }
   if (shots.has("open-image-dialog")) openImageUrlShot(win, QStringLiteral("open-image-dialog"));
+
+  // The console window is non-modal: it opens beside the editor, answers a typed /help and is
+  // photographed over the window it does not block.
+  if (shots.has("console-dialog")) {
+    win.parts.console.openConsole();
+    stencil::gui::ConsoleWindow* console = win.parts.console.consoleWindow();
+    waitUntil([&] { return console && console->isVisible(); }, 4000);
+    pumpFor(300);
+    console->submit(QStringLiteral("/help"));
+    pumpFor(1500);
+    saveLayers(QStringLiteral("console-dialog"), &win, {console}, true);
+    win.parts.console.closeConsole();
+    pumpFor(400);
+  }
+  // CLI mode covers the whole window; a status line and the help are typed before the shot.
+  if (shots.has("cli-mode")) {
+    win.parts.console.enterCli();
+    waitUntil([&] { return win.parts.console.cliModeOn(); }, 4000);
+    pumpFor(300);
+    if (stencil::gui::CliStage* stage = win.parts.console.cliStage()) {
+      stage->submit(QStringLiteral("/status"));
+      stage->submit(QStringLiteral("/help"));
+      pumpFor(2500);
+    }
+    save(QStringLiteral("cli-mode"), &win);
+    win.parts.console.leaveCli();
+    pumpFor(400);
+  }
 
   // The drag-out zones (dialogs/projects/list/ProjectDragZones.hpp): the overlay the WINDOW paints while a
   // project row is dragged out of the list. They live only for the drag, and the dialog's own

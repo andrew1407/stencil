@@ -86,6 +86,12 @@ namespace stencil::gui {
             [this](bool linked) {
               if (w.acts.stencilLiveSync) w.acts.stencilLiveSync->setEnabled(linked);
               if (w.acts.deleteProjectFile) w.acts.deleteProjectFile->setEnabled(linked);
+              // The registry row carries the link, so the CLI's /desktopsync can offer the file.
+              Project* pr = w.findProject(w.activeProjectId.toStdString());
+              const QString path = linked ? w.stencilSync->linkedPath() : QString();
+              if (!pr || pr->linkedFile == path) return;
+              pr->linkedFile = path;
+              SharedState::instance().saveProjects(&w);
             },
         });
   }

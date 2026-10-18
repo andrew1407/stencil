@@ -21,13 +21,13 @@ pub const Deps = struct {
     }
     /// Format one stderr line into `arena` and hand it to the sink (a no-op on OOM).
     pub fn emit(self: Deps, arena: std.mem.Allocator, comptime fmt: []const u8, a: anytype) void {
-        const s = std.fmt.allocPrint(arena, fmt, a) catch return;
+        const s = arena.print(fmt, a) catch return;
         self.emitFn(self.ctx, s);
     }
     /// The same as one `error: ` line (report.err's shape, over this sink).
     pub fn err(self: Deps, arena: std.mem.Allocator, comptime fmt: []const u8, a: anytype) void {
-        const msg = std.fmt.allocPrint(arena, fmt, a) catch return;
-        const line = std.fmt.allocPrint(arena, "{s}{s}", .{ report.errPrefix(), msg }) catch return;
+        const msg = arena.print(fmt, a) catch return;
+        const line = arena.print("{s}{s}", .{ report.errPrefix(), msg }) catch return;
         self.emitFn(self.ctx, line);
     }
     pub fn mkdir(self: Deps, io: std.Io, path: []const u8) !void {

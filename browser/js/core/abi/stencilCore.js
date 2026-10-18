@@ -10,6 +10,7 @@ import { buildPageOps } from './corePageOps.js';
 import { buildImageOps } from './coreImageOps.js';
 import { buildCropOps } from './coreCropOps.js';
 import { buildLineOps } from './coreLineOps.js';
+import { buildFormatOps } from './coreFormatOps.js';
 
 // A named constant: native ESM accepts a variable import() specifier, so no build step needs a literal.
 const WASM_MODULE_PATH = '../../wasm/stencilCore.js';
@@ -74,7 +75,7 @@ class StencilCore {
       'isAlbumOrientation', 'cropAspect', 'centeredCrop', 'resizeCropFromCorner',
       'moveCropClamped', 'scaleCropCentered', 'swapCropOrientation', 'cropResizeScale', 'cropChange',
       'snapCropRect', 'rotateEditQuarter', 'mirrorEdit', 'mergeLinesKeep', 'unchainLine', 'pullOutPoint',
-      'HoldDrawController', 'HistoryStack',
+      'HoldDrawController', 'HistoryStack', 'logoBanner',
       'projectPeriodMs', 'projectAddPeriod', 'projectShouldPersist', 'projectIsExpired', 'projectIsExpiringSoon',
     ];
   }
@@ -103,6 +104,7 @@ class StencilCore {
       ...buildImageOps(core, m),
       ...buildCropOps(core, m),
       ...buildLineOps(core, m),
+      ...buildFormatOps(core),
     };
   }
 }

@@ -37,6 +37,8 @@ namespace stencil::gui {
       std::function<void()> stopClick;           // drop the pending accent cycle
       std::function<void(bool)> coverChrome;     // hide the header mark's own overlay
       std::function<void(bool)> hideNotices;    // momentary, for the backdrop photograph only
+      QString cliWord;                           // typed like a show's name, it opens CLI mode instead
+      std::function<void()> cliMode;
     };
     LogoStage(QWidget* host, QToolButton* logo, Hooks hooks);
 

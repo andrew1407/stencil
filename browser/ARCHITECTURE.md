@@ -60,6 +60,10 @@ feed a ui area subscribes to (`core/app/changes.js`) and the app's view seam (`V
 | `js/net/` | the fetch guard, abortable fetch, the capped body read, the connection store + manager, remote sync | a URL the user or a page names goes through `guardedFetch` (`fetchGuard.js`: http(s)/data:/blob: only, the 30 s `NETWORK.fetchTimeoutMs` deadline); the launch `src` image and a dragged image URL are CORS fetches under the same deadline. `ServerConnection` wraps `globalThis.fetch` itself (`redirect: 'manual'`, the same deadline), and so does the LLM client (`llm/http.js`: `redirect: 'error'`, a turn ended by its Stop signal, a probe by the `providers.json` probe timeout). Every server, provider or fetched-image body is read through `cappedBody.js` (64 MiB; a provider reply 8 MiB) |
 | `js/llm/` | provider client, op-plan parser/executor, chat controller, the session key | every plan is validated against `config/llm/opRegistry.json` before anything runs |
 | `js/console/` | the `window.stencil` facade, one module per concern | frozen; it calls what the toolbar calls |
+| `js/console/shell/` | the console interpreter over the facade: the line grammar, the command table (`config/console/commands.json`), the handlers, the help and status lines, and the CLI-mode gate | a handler calls the facade first and reaches an app collaborator only for what the facade has no verb for (the project store, the transfers, the sync flag); the one reader of the table is `table.js`; the gate is the one module the desktop's `app/console/ConsoleHost` mirrors |
+| `js/core/format/` | the console logo banner rows (`logoBanner.js`, ports `core/format/logoBanner.cpp`) | wasm-backed with the JS fallback, like every core twin |
+| `js/ui/console/` | the console window: markup, the typewriter reveal, the view, the prompt input and the `aside` modal | opens beside whatever is up and is closed by nothing but its own close; every line is `textContent`, never `innerHTML` |
+| `js/ui/cli/` | CLI mode: the stage over the page, the banner, the accent recolour (`recolour.js`), the status line and its peeks, the CLI-only commands and the skins (`skin/`, over `config/console/skins.json` and `fx.json`; `skin/restyle.js` re-dresses every run in the accent as the Zig console's restyle does) | a view over the live editor through the same interpreter; its stylesheet carries no `transition` or `animation`; a skin dresses the stage and writes no store |
 | `js/ui/` | string-returning components composed by `layout()`, one folder per region; `bindings/` wires controls to the app, `control/` holds the control areas | a region answers its parent by event and the app by the bus; it may import `net/` and `llm/` (left of it in the layer order) for the connection and assistant controls it renders |
 | `js/worker/` | the cross-tab projects sync worker and the image worker | a worker filter is bit-identical to the main-thread one |
 | `js/wasm/` | the generated `stencilCore.js` | gitignored; built by `npm run build-wasm` / CI |
@@ -139,6 +143,7 @@ classDiagram
 | `ServerConnection` | One connected server: session token, REST surface, `/ws` feed (`net/serverConnection.js`); its `RemoteProjectRecord` is the server's `protocol.Project` | Created by `ConnectionManager.connect`, closed on disconnect | `ConnectionManager`, `RemoteLink` |
 | `ConnectionManager` | The servers one session is connected to plus the expired-credential set; `snapshot()` is what `net/connectionStore.js` persists | Created lazily by the facade, one per app | `ServerConnection` |
 | `Stencil` | The frozen `window.stencil` facade (`console/stencilApi.js`): settings, `Line` / `Point` / `Project` handles, `chat`, `llm` | `createStencil(app)` once at boot | Wraps `DrawingApp`; the executor's only target |
+| `ConsoleInterpreter` | One typed console line to its handler (`console/shell/interpreter.js`): echo, parse, the secret words in CLI mode, the table lookup, the run, the history and the Tab completions | One per console window and one per CLI stage, for as long as it is up | `Stencil`, the `commands.json` table, the host that prints |
 | `OpPlan` | A validated model reply (`llm/plan/parser.js`) | Returned by `parseOpPlan` for one turn | `PlanAction`, `PlanVariant`, `PlanAsk` |
 | `ScriptBuffer` | The one `.stc` the page is editing (`ui/script/buffer.js`): the text plus every view of it | Module state for the session; never persisted | `wireScriptEditor` (`ui/script/editor.js`) |
 | `ChatController` | The client-side conversation: replayed history, queued `Attachment`s, the send loop (`llm/chat/controller.js`); its transcript is the `ChatRow` log in `llm/chat/session.js` | One memoized per app via `sharedChatController` | `OpPlan`, `Stencil`, `LlmClient` |
@@ -163,6 +168,8 @@ classDiagram
 | Interpreter | `FormulaEngine` (`core/parse/formulaEngine.js`), recursive descent over `core/parse/formulaContext.js` | Ports `core/parse/formulaParser.cpp`; never `eval` |
 | Interpreter + runner | `core/script/` lowers a `.stc` to an op stream; `console/scriptRunner.js` executes it | The parser never touches the editor and the runner never re-parses; op-plan caps guard model output, not the user's script |
 | Session override | `setMotionOverride` (`ui/motion/motionPrefs.js`), `setIconSkin` (`ui/icons.js`), `setFaviconArt` (`core/settings/accents.js`), set by `ui/webcore/toggle.js` | Read by everything, written to no store |
+| Gate | `cliModeGate` (`console/shell/gate.js`), asked by every facade member that would open a window, move the chat, go fullscreen or change a look or motion setting (`GATED_SETTINGS`) | One refusal, one message, while CLI mode is on; an edit, the theme, a project switch and a connection pass |
+| Command table | `commandOf` / `completions` (`console/shell/table.js`) over `config/console/commands.json`, dispatching into `createHandlers` | A row and its handler are proved to match both ways; a `cliMode` row answers only inside CLI mode |
 | Double-click reset | `installDblReset` (`ui/control/dblReset.js`), one capture listener on `document` | A control returns to its default and fires `change`; a logo drop resets through the same table, number and formula fields included |
 | Gesture machines | `createIconDrag` (`ui/drag/iconDrag.js`), `createDragPick` (`ui/control/dropdownMenu.js`), `createDragMenu` (`ui/projects/list/dragMenu.js`), `wireColorDrag` (`ui/drag/colorDrag.js`), `wireAltPeek` (`ui/tip/altPeek.js`) | A pure machine under thin DOM wiring; a drag acts only on release, and a release back on its source or Escape changes nothing; the ghost's rim shines in the accent while it follows the pointer (`css/animations/icon/drag.css`); the fullscreen strip's cloned toolbar is wired again (`wireCloneDrags`) and stays up until the drop (`afterIconDrag`) |
 | View preview | `previewFill` and `previewClean` on `Renderer` (`core/draw/renderer.js`) | The view alone paints a trial while no app field moves; a commit goes through each control's own setter |
@@ -211,7 +218,8 @@ classDiagram
   window's `stencil_projects_order` / `_sortmode` / `_searchmode`, and the `drawingApp_*`
   settings — `constants.STORAGE_KEYS` (`theme`, `hotkeys`, and the legacy `image` / `layout` the
   migration reads once), `accent`, `motion`, `notify`, `servers`, `autoConnectServers`,
-  `syncToServer`, `stencilLiveSync`, `llmSettings`, `voiceSettings`. sessionStorage:
+  `syncToServer`, `stencilLiveSync`, `llmSettings`, `voiceSettings` (`motion` carries
+  `consoleSpeed` beside `speed`). sessionStorage:
   `stencil_llm_session_key` alone.
 - **An LLM turn.** `ChatController.send(text)` replays history, calls `LlmClient.chat`,
   `parseOpPlan` validates the reply against the browser profile of `opRegistry.json`, and
@@ -252,6 +260,19 @@ classDiagram
 - **A logo show.** Every trigger reaches `activateShow` (`ui/logo/stageTrigger.js`), which runs
   the stage (`ui/logo/stage.js`) resolved from `config/logoStage.json`; the webcore show toggles
   the session overrides (`ui/webcore/toggle.js`).
+- **A console command.** The Data section's console icon (`EVENTS.consoleToggle`) opens the
+  console window (`ui/console/modal.js`) beside whatever is up; a typed line goes to the
+  `ConsoleInterpreter`, whose handler calls the facade, and the lines it answers type in through
+  the reveal (`ui/console/reveal.js`, paced by the Visuals **Console text speed**). A bare
+  `/upload` opens the page's own file input; `/desktop` builds the same `stencil://` link the
+  Open-in window does.
+- **CLI mode.** Typing the secret word, or dropping the logo on the console icon, reaches
+  `enterCliMode` (`ui/cli/mode.js`): the way is cleared (every window, the chat, the logo show,
+  fullscreen), the gate goes on and the stage (`ui/cli/stage.js`) covers the page with the Zig
+  console's banner, status line and prompt on the app's theme. Its commands are the console's,
+  plus `ls`, `ll`, `browser-tab`, `/eastereggs` and the skin words; a banner click wipes the
+  next accent over it like the TUI's logo press, a 3 s hold or `/clioff` leaves. The edits made
+  inside are the editor's own and stay.
 - **A notice.** `notify()` (`utils/dom.js`) hands the message to the sink `notifyChannel()` names;
   a sink that cannot deliver returns false and the toasts show it.
 - **Drag gestures.** A toolbar icon dragged off its spot carries its action to the release
@@ -343,6 +364,10 @@ debounced saves and the IndexedDB and server writes they start.
 11. **Every control is named, once.** An icon-only control's accessible name is its tooltip
    heading and a field's is the label beside it (`ui/ariaLabels.js`); only a control whose
    name is nowhere on the page writes its own `aria-label`.
+12. **CLI mode is a view.** The stage never holds editor state of its own: every command runs
+   through the facade, every edit is one of the editor's own steps, and leaving restores
+   nothing but the page it covered. While it is on, the facade refuses what the terminal
+   covers — windows, the chat, fullscreen, the look and motion settings — from the one gate.
 
 ## Tests
 
@@ -354,6 +379,9 @@ through one script; they self-skip without it, and CI builds it.
 The op-plan validator stays out of wasm: no `abi/opplanShared.inc` name is in `EXPORTED_FUNCTIONS`
 or the export lists, and the built module carries no `_stencil_opplan*` export.
 
+The console suites run the interpreter over the same partial app, so a `/command` and a
+facade call are proved to land on one path, and the CLI-mode suites prove the gate refuses
+exactly the listed members and that an edit made inside the stage survives leaving it.
 The structural lints assert the design as ratchets: the import direction and the `window.stencil`
 name, the retired pass-through calls on the app, every `.d.ts` against its module, and each config table against
 its consumer. An edit runs only its control areas, each flush matching a full sweep. The CSS pin holds every declaration `index.html`

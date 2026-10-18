@@ -48,7 +48,7 @@ pub fn alphaOf(b: []const u8, fmt: []const u8) ?bool {
 const testing = std.testing;
 
 fn pngHead(color_type: u8, trns: bool) [51]u8 {
-    var b = [_]u8{0} ** 51;
+    var b: [51]u8 = @splat(0);
     @memcpy(b[0..8], &sniff.png_sig);
     b[11] = 13;
     @memcpy(b[12..16], "IHDR");
@@ -66,7 +66,7 @@ test "alphaOf: PNG colour type and tRNS, WebP flags, JPEG never, GIF/BMP unknown
     try testing.expectEqual(@as(?bool, false), alphaOf("\xff\xd8", "jpg"));
     try testing.expectEqual(@as(?bool, null), alphaOf("GIF89a", "gif"));
 
-    var webp = [_]u8{0} ** 30;
+    var webp: [30]u8 = @splat(0);
     @memcpy(webp[12..16], "VP8X");
     webp[20] = 0x10;
     try testing.expectEqual(@as(?bool, true), alphaOf(&webp, "webp"));

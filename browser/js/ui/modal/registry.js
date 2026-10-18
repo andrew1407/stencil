@@ -35,11 +35,11 @@ export const shellFor = (overlayId) => {
 };
 
 // Close every open modal (optionally sparing one); returns the first shell closed. A
-// `stacked` window means two can be up at once.
+// `stacked` window means two can be up at once; an `aside` one stays beside whatever opens.
 export const closeOpenModal = (except = null) => {
   let closed = null;
   for (const shell of modalShells) {
-    if (shell === except || !shell.isOpen()) continue;
+    if (shell === except || shell.aside || !shell.isOpen()) continue;
     shell.close();
     closed = closed || shell;
   }

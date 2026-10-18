@@ -4,10 +4,23 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { SettingsController, makeApp } from '../../helpers/settingsControllerRig.js';
-import { createStubElement } from '../../helpers/dom.js';
+import { createStubElement, installDom } from '../../helpers/dom.js';
+import { installMemoryStorage } from '../../helpers/memoryStorage.js';
+
+installMemoryStorage();
+// A page for the console drop to take over: the CLI stage mounts on the body.
+installDom({ body: createStubElement('body', { querySelectorAll: () => [] }), querySelectorAll: () => [],
+  getElementById: (id) => (id === 'notify-balloon' ? createStubElement('stencil-notifications', { notify() {} }) : null) },
+{ innerWidth: 1000, innerHeight: 600, requestAnimationFrame: () => 1, cancelAnimationFrame: () => {}, performance: { now: () => 0 } });
+globalThis.window = globalThis.window || {};
+globalThis.window.addEventListener ??= () => {};
+globalThis.window.removeEventListener ??= () => {};
+globalThis.window.dispatchEvent ??= () => {};
 
 const { logoDragHooks } = await import('../../../js/ui/drag/logoDrag.js');
-const { originalOf, resetDropped, sameTarget } = await import('../../../js/ui/drag/logoTargets.js');
+const { originalOf, resetDropped, sameTarget, logoTargetAt } = await import('../../../js/ui/drag/logoTargets.js');
+const { cliModeOn } = await import('../../../js/console/shell/gate.js');
+const { exitCliMode } = await import('../../../js/ui/cli/mode.js');
 const { applyToolbarStyle } = await import('../../../js/core/line/selection.js');
 const { TARGET_CLASS, TARGET_OVER_CLASS } = await import('../../../js/ui/drag/iconDrag.js');
 
@@ -118,6 +131,22 @@ test('a fullscreen clone resets its original and then shows what the original ho
   resetDropped(clone);
   assert.equal(orig.value, '2', 'the toolbar thickness default');
   assert.equal(clone.value, '2');
+});
+
+test('over the console icon the icon is the target, and the drop takes the page over as the CLI', async () => {
+  const btn = createStubElement('button', { id: 'console-btn' });
+  const icon = createStubElement('svg', { closest: (sel) => (sel === '#console-btn' ? btn : null) });
+  const { hooks, app } = rig();
+  assert.deepEqual(logoTargetAt(app, { target: icon, x: 0, y: 0 }, createStubElement('div')), { kind: 'console', el: btn });
+  hooks.move({ target: icon, x: 0, y: 0 });
+  assert.ok(btn.classes.has(TARGET_OVER_CLASS), 'the icon glows as the drop target');
+  app.changes = { on: () => () => {} };
+  app.chat = { close() {}, open() {}, isOpen: () => false };
+  app.accents = { themeMode: 'system', setThemeMode() {}, setAccent() {}, setCustomAccent() {} };
+  app.accent = 'violet';
+  hooks.drop({ target: icon, x: 0, y: 0 });
+  assert.equal(cliModeOn(), true);
+  exitCliMode(app);
 });
 
 test('sameTarget tells two aims apart by kind, element and line', () => {

@@ -27,7 +27,7 @@ fn opObject(a: std.mem.Allocator, name: []const u8) !ObjectMap {
 fn hex(a: std.mem.Allocator, token: []const u8) []const u8 {
     const z = core.zstr(token) orelse return token;
     const c = core.parseColor(z) orelse return token;
-    return std.fmt.allocPrint(a, "#{x:0>2}{x:0>2}{x:0>2}", .{ c.r, c.g, c.b }) catch token;
+    return a.print("#{x:0>2}{x:0>2}{x:0>2}", .{ c.r, c.g, c.b }) catch token;
 }
 
 pub fn openAction(a: std.mem.Allocator, target: []const u8, is_url: bool) !Value {

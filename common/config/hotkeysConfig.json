@@ -210,6 +210,11 @@
     "default": "Ctrl+Shift+U"
   },
   {
+    "id": "openConsole",
+    "label": "Open Console Window",
+    "default": "Alt+Shift+T"
+  },
+  {
     "id": "openScript",
     "label": "Open Script Window",
     "default": "Alt+Shift+S"

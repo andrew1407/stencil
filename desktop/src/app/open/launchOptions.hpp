@@ -50,6 +50,7 @@ namespace stencil::gui {
     // stencil:// deep-link fields (parseStencilUrl). A saved token is reused, else minted via POST /auth/token — no token rides the link.
     QString serverUrl;
     QString serverProjectId;
+    qint64 serverVersion = 0;   // `version=`: the project version the link was made at; 0 = none
     // Inline layout JSON (`layout=`), the in-URL variant of --layout.
     QString layoutJson;
 

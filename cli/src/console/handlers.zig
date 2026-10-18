@@ -13,6 +13,8 @@ const keywords = @import("handlers/keywords.zig");
 const lifecycle = @import("handlers/lifecycle.zig");
 const edit = @import("handlers/edit.zig");
 const appearance = @import("handlers/appearance.zig");
+const browser = @import("handlers/apps/browser.zig");
+const desktop = @import("handlers/apps/desktop.zig");
 
 // source in (handlers/media.zig)
 pub const doUpload = media.doUpload;
@@ -78,7 +80,17 @@ pub const randomCustomTheme = appearance.randomCustomTheme;
 pub const doMouse = appearance.doMouse;
 pub const doRevealSpeed = appearance.doRevealSpeed;
 
+// the other apps (handlers/apps/)
+pub const doBrowser = browser.doBrowser;
+pub const doDesktop = desktop.doDesktop;
+pub const doDesktopSync = desktop.doDesktopSync;
+
 test {
+    _ = browser;
+    _ = desktop;
+    _ = @import("handlers/apps/env.zig");
+    _ = @import("handlers/apps/launch.zig");
+    _ = @import("handlers/apps/registry.zig");
     _ = script;
     _ = media;
     _ = files;

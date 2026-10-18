@@ -111,7 +111,7 @@ test "a BMP pixel past a one-entry palette decodes as opaque black, whatever the
     const a = testing.allocator;
     // 4x1 8-bit, bottom-up, one palette entry (red, BGRx), indices 0 200 200 0.
     const bmp = "BM\x3e\x00\x00\x00\x00\x00\x00\x00\x3a\x00\x00\x00\x28\x00\x00\x00" ++
-        "\x04\x00\x00\x00\x01\x00\x00\x00\x01\x00\x08\x00" ++ "\x00" ** 24 ++
+        "\x04\x00\x00\x00\x01\x00\x00\x00\x01\x00\x08\x00" ++ &@as([24]u8, @splat(0)) ++
         "\x00\x00\xff\x00" ++ "\x00\xc8\xc8\x00";
     for (0..3) |_| {
         _ = dirtyStack();
@@ -126,7 +126,7 @@ test "a BMP shorter than its rows is refused, though its header still measures" 
     const a = testing.allocator;
     // 2x2 24-bit, header only: stb would read the missing rows as black.
     const header = "BM\x46\x00\x00\x00\x00\x00\x00\x00\x36\x00\x00\x00\x28\x00\x00\x00" ++
-        "\x02\x00\x00\x00\x02\x00\x00\x00\x01\x00\x18\x00" ++ "\x00" ** 24;
+        "\x02\x00\x00\x00\x02\x00\x00\x00\x01\x00\x18\x00" ++ &@as([24]u8, @splat(0));
     try testing.expectError(error.ImageTruncated, image.decode(a, header));
     const d = image.dims(header).?;
     try testing.expectEqual(@as(usize, 2), d.width);

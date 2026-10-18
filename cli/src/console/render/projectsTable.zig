@@ -36,7 +36,7 @@ pub fn gatherRows(gpa: std.mem.Allocator, rows: *std.ArrayList(ProjectRow), clie
         const name = try gpa.dupe(u8, inert.name(&b, p.name));
         errdefer gpa.free(name);
         // Some projects have no stored dimensions (e.g. never rendered) — show "-", not "0x0".
-        const size = if (p.w == 0 and p.h == 0) try gpa.dupe(u8, "-") else try std.fmt.allocPrint(gpa, "{d}x{d}", .{ p.w, p.h });
+        const size = if (p.w == 0 and p.h == 0) try gpa.dupe(u8, "-") else try gpa.print("{d}x{d}", .{ p.w, p.h });
         errdefer gpa.free(size);
         var tb: [32]u8 = undefined;
         const changed = try gpa.dupe(u8, server.formatAgo(&tb, now, p.updated_at));

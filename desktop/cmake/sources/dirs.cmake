@@ -22,6 +22,8 @@ set(STENCIL_GUI_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/src/app/actions/export
   ${CMAKE_CURRENT_SOURCE_DIR}/src/app/chat
   ${CMAKE_CURRENT_SOURCE_DIR}/src/app/chrome
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/cli
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/console
   ${CMAKE_CURRENT_SOURCE_DIR}/src/app/chat/planTarget
   ${CMAKE_CURRENT_SOURCE_DIR}/src/app/chat/session
   ${CMAKE_CURRENT_SOURCE_DIR}/src/app/context
@@ -42,6 +44,7 @@ set(STENCIL_GUI_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/src/app/toolbar
   ${CMAKE_CURRENT_SOURCE_DIR}/src/app/view
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/connect
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/console
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/crop
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/meta
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/meta/links
@@ -62,6 +65,7 @@ set(STENCIL_GUI_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/src/llm/panel
   ${CMAKE_CURRENT_SOURCE_DIR}/src/llm/plan
   ${CMAKE_CURRENT_SOURCE_DIR}/src/llm/plan/executor
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/support/console
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/control
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/control/reveal
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/control/swap

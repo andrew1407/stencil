@@ -31,6 +31,9 @@ export const DEFAULT_DRAWING_ANIMATIONS = true;
 // The Visuals "Animation speed": every interface flight runs DEFAULT / speed times its tuned length.
 export const MOTION_SPEED = Object.freeze({ ...MOTION.speed });
 export const DEFAULT_MOTION_SPEED = MOTION_SPEED.default;
+// The Visuals "Console text speed": how fast the consoles reveal new output (1 = at once).
+export const CONSOLE_SPEED = Object.freeze({ ...MOTION.consoleSpeed });
+export const DEFAULT_CONSOLE_SPEED = CONSOLE_SPEED.default;
 
 // One list for the desktop combo (dialogs/settings/SettingsDialog.cpp) and the extension's options
 // page (src/lib/accent/accent.js StencilMotion) to mirror.
@@ -50,15 +53,17 @@ export const normalizeMotionMode = (v) => {
 };
 
 // A number outside min–max is clamped; anything else reads as the default. Two decimals, the step.
-export const clampMotionSpeed = (v) => {
+const clampSpeed = (range, v) => {
   const n = typeof v === 'string' && v.trim() !== '' ? Number(v) : v;
-  if (typeof n !== 'number' || !Number.isFinite(n)) return DEFAULT_MOTION_SPEED;
-  return Math.round(Math.min(MOTION_SPEED.max, Math.max(MOTION_SPEED.min, n)) * 100) / 100;
+  if (typeof n !== 'number' || !Number.isFinite(n)) return range.default;
+  return Math.round(Math.min(range.max, Math.max(range.min, n)) * 100) / 100;
 };
+export const clampMotionSpeed = (v) => clampSpeed(MOTION_SPEED, v);
+export const clampConsoleSpeed = (v) => clampSpeed(CONSOLE_SPEED, v);
 
 const defaultMotionPrefs = () => ({
   mode: DEFAULT_MOTION_MODE, drawing: DEFAULT_DRAWING_ANIMATIONS,
-  multiWindow: DEFAULT_MULTI_WINDOW, speed: DEFAULT_MOTION_SPEED,
+  multiWindow: DEFAULT_MULTI_WINDOW, speed: DEFAULT_MOTION_SPEED, consoleSpeed: DEFAULT_CONSOLE_SPEED,
 });
 
 const mergePatch = (base, patch = {}) => {
@@ -67,6 +72,7 @@ const mergePatch = (base, patch = {}) => {
   if (patch.drawing !== undefined) next.drawing = !!patch.drawing;
   if (patch.multiWindow !== undefined) next.multiWindow = !!patch.multiWindow;
   if (patch.speed !== undefined) next.speed = clampMotionSpeed(patch.speed);
+  if (patch.consoleSpeed !== undefined) next.consoleSpeed = clampConsoleSpeed(patch.consoleSpeed);
   return next;
 };
 
@@ -94,6 +100,7 @@ export const drawingAnimations = () => effective().drawing;
 export const multiWindow = () => effective().multiWindow;
 export const motionOverridden = () => override !== null;
 export const motionSpeed = () => effective().speed;
+export const consoleSpeed = () => effective().consoleSpeed;
 // The duration multiplier: exactly 1 at the default, so nothing tuned moves until the user asks.
 export const motionScale = () => DEFAULT_MOTION_SPEED / effective().speed;
 export const motionMs = (ms) => {

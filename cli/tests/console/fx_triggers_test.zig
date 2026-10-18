@@ -104,7 +104,6 @@ test "fx triggers: /eastereggs is the words in gold, and each phrase is gold too
     _ = try console.handle(&rig.session, rig.io, "/bifrost");
     const last = rig.scr.lines.back().?;
     try testing.expectEqualStrings(skin.gold ++ "Whosoever activates this secret, if they be worthy, shall possess the power of the Stencil.\x1b[0m", last);
-    try testing.expectEqualStrings(skin.gold ++ msg.bifrost_on[0 .. msg.bifrost_on.len - 1] ++ "\x1b[0m", last);
 }
 
 test "fx triggers: a bare secret word is no secret — no list, no skin, no gold on its echo" {

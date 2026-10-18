@@ -62,6 +62,7 @@ namespace stencil::gui {
     // "particles" | "water" | "fire" | "slide" | "none"; unknown reads as "particles".
     QString motionMode = "particles";
     double motionSpeed = 0.37;   // motion.json speed.default; clamped where applied (support/motionPrefs.hpp)
+    double consoleSpeed = 0.25;   // motion.json consoleSpeed.default; the console text speed (support/console/consolePace.hpp)
     // "toast" | "system": the in-app stack or the OS notification centre (support/notify).
     QString notifyChannel = "toast";
     // Desktop-only "Open in…" targets; the browser keeps its own in browser/js/config/openInConfig.json.
@@ -108,6 +109,7 @@ namespace stencil::gui {
   struct Project {
     core::ProjectMeta meta;
     QString imagePath;
+    QString linkedFile;   // the .stencil it syncs to; the CLI's /desktopsync reads it out of the registry
     core::Lines lines;
     core::CropRect cropRect;
     int rotationQuarters = 0;

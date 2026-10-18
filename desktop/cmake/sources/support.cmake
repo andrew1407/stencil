@@ -55,6 +55,14 @@ set(STENCIL_LOGOSTAGE_SOURCES
   src/support/logo/logoStageCloud.cpp
   src/support/logo/typedLetter.cpp)
 
+# The console text (support/console): the typewriter reveal and the prompt line both consoles type
+# into, and the line grammar over commands.json, which travels alone into its headless suite.
+set(STENCIL_CONSOLE_GRAMMAR_SOURCES src/support/console/consoleGrammar.cpp)
+set(STENCIL_CONSOLETEXT_SOURCES
+  src/support/console/TypewriterReveal.cpp
+  src/support/console/PromptLine.cpp
+  ${STENCIL_CONSOLE_GRAMMAR_SOURCES})
+
 set(STENCIL_FILTERFADE_SOURCES
   src/support/theme/filterFade.cpp
   src/support/theme/filterFadeList.cpp)
@@ -134,6 +142,7 @@ list(APPEND STENCIL_GUI_SOURCES
   ${STENCIL_CONTROLSWAP_SOURCES}
   ${STENCIL_DUSTKIT_SOURCES}
   ${STENCIL_LOGOSTAGE_SOURCES}
+  ${STENCIL_CONSOLETEXT_SOURCES}
   ${STENCIL_FILTERFADE_SOURCES}
   ${STENCIL_THEMESWAP_SOURCES}
   ${STENCIL_WEBCORE_SOURCES}

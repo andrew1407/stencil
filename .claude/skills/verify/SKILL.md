@@ -30,7 +30,7 @@ is not a pass.
 | 2 | browser-extension | `cd browser-extension && npm test` | 0 fail |
 | 3 | vscode-extension | `cd vscode-extension && npm test` | 0 fail |
 | 4 | core | `cmake -S core -B core/build -DCMAKE_BUILD_TYPE=Release && nice -n 10 cmake --build core/build -j 4 && ctest --test-dir core/build --output-on-failure` | 1/1 — the bench cases skipped |
-| 5 | cli | `cd cli && ZIG_LIBC="$TMPDIR/zig-libc.txt" zig build test --summary all` | 0 fail |
+| 5 | cli | `cd cli && zig build test --summary all` | 0 fail |
 | 6 | pystencil | `cd pystencil && python3 -m unittest discover -s tests` | OK |
 | 7 | server | `cd server && go vet ./... && go test -race ./...` | all ok — the race run covers every package's concurrent tests, as CI's does |
 | 8 | bot | `cd bot && BOT_TEST_CLI=$PWD/../cli/zig-out/bin/stencil dotnet test Stencil.TelegramBot.slnx -m:2` | 0 fail |
@@ -52,7 +52,7 @@ If cargo fails inside `~/Documents` with `os error 1` (macOS refuses its hardlin
 the target outside: `CARGO_TARGET_DIR=/tmp/stencil-mcp-target`.
 
 **Chunks 8 and 9 drive the real CLI.** `zig build test` does not refresh `cli/zig-out/bin/stencil`,
-so run `cd cli && ZIG_LIBC="$TMPDIR/zig-libc.txt" zig build` first. Without `BOT_TEST_CLI` the bot's
+so run `cd cli && zig build` first. Without `BOT_TEST_CLI` the bot's
 CLI parity cases skip; without `STENCIL_CLI` an out-of-tree `CARGO_TARGET_DIR` hides the CLI from
 mcp, whose `cli/*` cases then print `skipping` — both runs stay green, only narrower.
 
@@ -90,23 +90,16 @@ blaming a change. Two or more failures, or the same case twice, is real.
 **`uiPins` run bare fails wholesale** — it needs `QT_QPA_PLATFORM=offscreen` and
 `STENCIL_NO_ANIM=1`, which only ctest sets.
 
-**Zig must be 0.16.x** (`cli/build.zig.zon`): a newer Zig fails inside `build.zig` on the changed
-build API. If `zig version` says otherwise, fetch the pinned tarball named in
-`https://ziglang.org/download/index.json` under `0.16.0`, check its `shasum`, unpack it into a
+**Zig must be 0.17.x** (`cli/build.zig.zon`): another major version fails inside `build.zig` on
+the changed build API. If `zig version` says otherwise, fetch the pinned tarball named in
+`https://ziglang.org/download/index.json` under `0.17.0`, check its `shasum`, unpack it into a
 scratch folder and run that `zig` for chunk 5 and the CLI builds below.
-
-**`ZIG_LIBC` is not optional on macOS when every SDK `xcrun` offers is newer than Zig 0.16
-supports**: the C++ core then fails with `INFINITY` undeclared. A libc file naming an older SDK
-still on disk works: `zig libc | sed -E 's#MacOSX[0-9.]*\.sdk#MacOSX<older>.sdk#' >
-"$TMPDIR/zig-libc.txt"`. `SDKROOT` and `--sysroot` do not reach Zig's libc++ build. A bare
-`zig build` can look fine purely because the C++ compile was cached, so the break only shows up
-once something forces a recompile.
 
 ## Cross-surface gates
 
 - **cli release targets** — required whenever `cli/src/` changed. The Windows package has no
   console (termios), and a POSIX-only type reached from a shared path breaks only there:
-  `cd cli && env -u ZIG_LIBC zig build -Dtarget=x86_64-windows-gnu -Doptimize=ReleaseSmall
+  `cd cli && zig build -Dtarget=x86_64-windows-gnu -Doptimize=ReleaseSmall
   --prefix "$TMPDIR/stencil-win"` must compile, as must `x86_64-linux-musl` (the other
   `cli-packages.yml` targets rarely differ).
 - **wasm parity** — required whenever a `core/` file or a `browser/js` pure-logic module

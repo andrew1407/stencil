@@ -75,8 +75,9 @@ namespace stencil::gui {
       // Queued so the connect + download run after show().
       const QString url = opts.serverUrl, id = opts.serverProjectId;
       const bool incog = opts.incognito;
-      QTimer::singleShot(0, this, [this, url, id, incog] {
-        parts.projects.openServerLaunch(url, id, incog);
+      const qint64 version = opts.serverVersion;
+      QTimer::singleShot(0, this, [this, url, id, incog, version] {
+        parts.projects.openServerLaunch(url, id, incog, version);
       });
     } else if (!opts.src.isEmpty()) {
       docSource.pendingLaunchLayout = opts.layout;  // applied after the image loads

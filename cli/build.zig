@@ -24,6 +24,7 @@ const core_sources = [_][]const u8{
     "page/pageMetrics.cpp",
     "page/localeUnit.cpp",
     "format/tooltipRows.cpp",
+    "format/logoBanner.cpp",
     "state/HistoryStack.cpp",
     "state/lineMerge.cpp",
     "state/ProjectsStore.cpp",
@@ -91,7 +92,7 @@ fn wireNative(b: *std.Build, mod: *std.Build.Module, stb: *std.Build.Dependency)
     mod.addIncludePath(stb.path("."));
     // ReleaseSmall shrinks the Zig code only: C/C++ keep ReleaseFast's -O2 (the later flag wins
     // over Zig's -Os), so the core and codec objects stay byte-identical to a ReleaseFast build.
-    const small = mod.optimize == .ReleaseSmall;
+    const small = mod.optimize == .small;
     mod.addCSourceFiles(.{
         .root = b.path("../core"),
         .files = &core_sources,
@@ -108,6 +109,9 @@ fn wireNative(b: *std.Build, mod: *std.Build.Module, stb: *std.Build.Dependency)
     mod.addAnonymousImport("systemPrompt.json", .{ .root_source_file = b.path("../common/config/llm/systemPrompt.json") });
     mod.addAnonymousImport("opRegistry.json", .{ .root_source_file = b.path("../common/config/llm/opRegistry.json") });
     mod.addAnonymousImport("providers.json", .{ .root_source_file = b.path("../common/config/llm/providers.json") });
+    mod.addAnonymousImport("skins.json", .{ .root_source_file = b.path("../common/config/console/skins.json") });
+    mod.addAnonymousImport("fx.json", .{ .root_source_file = b.path("../common/config/console/fx.json") });
+    mod.addAnonymousImport("motion.json", .{ .root_source_file = b.path("../common/config/motion.json") });
     // stb's DECODER (untrusted input) keeps UBSan on; regex_shim owns the POSIX regex_t for
     // the --source-name filter (Zig can't embed the opaque translated regex_t by value).
     mod.addCSourceFiles(.{
@@ -149,7 +153,7 @@ pub fn build(b: *std.Build) void {
 
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
-    if (b.args) |args| run_cmd.addArgs(args);
+    run_cmd.addPassthruArgs();
     const run_step = b.step("run", "Run the stencil CLI");
     run_step.dependOn(&run_cmd.step);
 
@@ -170,7 +174,7 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_tests.step);
 
     // `zig fmt --check` over every Zig file; `test` depends on it, so CI fails on an unformatted one.
-    const fmt = b.addFmt(.{ .paths = &.{ "build.zig", "test_root.zig", "bench_root.zig", "src", "tests" }, .check = true });
+    const fmt = b.addFmt(.{ .paths = b.pathList(&.{ "build.zig", "test_root.zig", "bench_root.zig", "src", "tests" }), .check = true });
     const fmt_step = b.step("fmt", "Check that every Zig file is zig fmt clean (fix with `zig fmt .`)");
     fmt_step.dependOn(&fmt.step);
     test_step.dependOn(&fmt.step);
@@ -180,12 +184,12 @@ pub fn build(b: *std.Build) void {
     const bench_mod = b.createModule(.{
         .root_source_file = b.path("bench_root.zig"),
         .target = target,
-        .optimize = .ReleaseSmall,
+        .optimize = .small,
     });
     wireNative(b, bench_mod, stb);
     const bench_exe = b.addExecutable(.{ .name = "stencil-bench", .root_module = bench_mod });
     const run_bench = b.addRunArtifact(bench_exe);
-    if (b.args) |args| run_bench.addArgs(args);
+    run_bench.addPassthruArgs();
     const bench_step = b.step("bench", "Run the stencil CLI pipeline benchmark");
     bench_step.dependOn(&run_bench.step);
 }

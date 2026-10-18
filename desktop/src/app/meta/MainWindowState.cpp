@@ -17,6 +17,7 @@ namespace stencil::gui {
 
   void MainWindow::onCanvasChanged() {
     refreshActions();
+    parts.console.onCanvasChanged();
     onSelectionChanged();
     scheduleAutosave();
     remoteSync->scheduleRemotePush();   // live co-edit: push the edit to the server for peers

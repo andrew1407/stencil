@@ -69,7 +69,7 @@ pub fn showsKeyRun(text: []const u8, key: []const u8) bool {
 }
 
 fn hasAny(s: []const u8, needles: []const []const u8) bool {
-    for (needles) |n| if (std.ascii.indexOfIgnoreCase(s, n) != null) return true;
+    for (needles) |n| if (std.ascii.findIgnoreCase(s, n) != null) return true;
     return false;
 }
 

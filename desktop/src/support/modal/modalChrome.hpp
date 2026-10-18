@@ -33,7 +33,11 @@ namespace stencil::gui {
     QVBoxLayout* body = nullptr;   // the padded content column (browser .settings-body)
     QPushButton* close = nullptr;  // the header pill, already wired to reject()
     QLabel* footerHint = nullptr;  // the footer's muted hint, once addModalFooter made one
+    QLabel* glyph = nullptr;       // the header's icon, tinted in the palette's text colour
+    QString iconName;
   };
+  // A window that outlives a theme change re-tints its header icon and close pill from the palette.
+  void retintModalChrome(ModalChrome& chrome, QDialog* dlg);
 
   // `iconName` is an iconSet glyph (empty = no glyph). The dialog must have no layout yet.
   ModalChrome installModalChrome(QDialog* dlg, const QString& iconName, const QString& title);

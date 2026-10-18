@@ -77,6 +77,7 @@ namespace stencil::gui {
     set(w.acts.downloadJson, "file-down");
     set(w.acts.copyLayout, "clipboard");
     set(w.acts.uploadJson, "file-up");
+    set(w.acts.console, "terminal");
     set(w.acts.script, "script");
     setDanger(w.acts.clearProject, "trash");
     set(w.acts.settings, "palette");
@@ -132,6 +133,7 @@ namespace stencil::gui {
     set(w.acts.saveSession, "clipboard");
     set(w.acts.downloadJson, "file-down");
     set(w.acts.uploadJson, "file-up");
+    set(w.acts.console, "terminal");
     set(w.acts.script, "script");
     set(w.acts.copyLayout, "clipboard");
     set(w.acts.pasteLayout, "paste");

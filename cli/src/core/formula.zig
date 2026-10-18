@@ -4,9 +4,7 @@
 const std = @import("std");
 const testing = std.testing;
 
-const c = @cImport({
-    @cInclude("core/cliApi.h");
-});
+const c = @import("cApi.zig");
 
 /// The named values a formula may read besides its own axis (core/parse/formulaContext.hpp).
 /// `unset` means "not supplied": that name stays unknown, so the formula reads as invalid and

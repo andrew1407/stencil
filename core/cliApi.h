@@ -206,6 +206,11 @@ int stencil_cli_opplanStatus(int p);
 const char* stencil_cli_opplanJson(int p);
 void stencil_cli_opplanDestroy(int p);
 
+/* The console logo (format/logoBanner.hpp) as rows joined by '\n': `mark` is "S", "P" or "M",
+ * `boxed` adds the rounded panel around the mark. Returns the bytes needed including the NUL,
+ * copied into `out` only when `cap` holds them; 0 for an unknown mark. */
+int stencil_cli_logoBanner(const char* mark, int compact, int boxed, char* out, int cap);
+
 #ifdef __cplusplus
 }  /* extern "C" */
 #endif

@@ -63,6 +63,20 @@ int main(int argc, char** argv) {
     check(fileStore::projectFromJson(o).meta.fromFile, "fromFile round-trips");
   }
 
+  // The linked .stencil (linkedFile): omitted when empty, round-trips when set — the registry row
+  // the CLI's /desktopsync reads.
+  {
+    Project plain;
+    plain.meta.id = "p6";
+    check(!fileStore::projectToJson(plain).contains("linkedFile"), "linkedFile omitted when empty");
+    Project linked;
+    linked.meta.id = "p7";
+    linked.linkedFile = "/tmp/a.stencil";
+    const QJsonObject o = fileStore::projectToJson(linked);
+    check(o.value("linkedFile").toString() == "/tmp/a.stencil", "linkedFile emitted when set");
+    check(fileStore::projectFromJson(o).linkedFile == "/tmp/a.stencil", "linkedFile round-trips");
+  }
+
   std::printf("%s (%d failure(s))\n", failures ? "FAILED" : "OK", failures);
   return failures ? 1 : 0;
 }

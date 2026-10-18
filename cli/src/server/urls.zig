@@ -37,7 +37,7 @@ pub fn normalizeBase(gpa: std.mem.Allocator, url: []const u8) ![]u8 {
         // Secure by default: a bare REMOTE host gets https, loopback keeps plaintext http (traffic never leaves
         // the machine). An explicit scheme is preserved, so the user can opt into cleartext.
         const scheme = if (isLoopbackHost(net.hostOf(s) orelse "")) "http://" else "https://";
-        buf = try std.fmt.allocPrint(gpa, "{s}{s}", .{ scheme, s });
+        buf = try gpa.print("{s}{s}", .{ scheme, s });
         owned = true;
         s = buf;
     }

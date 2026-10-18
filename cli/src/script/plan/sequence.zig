@@ -46,7 +46,7 @@ const Sequence = struct {
     dy: f64 = 0,
 
     fn refuse(self: *Sequence, op: u32, code: []const u8, comptime fmt: []const u8, args: anytype) error{ PlanRefused, OutOfMemory } {
-        self.env.refusal = .{ .op = op, .code = code, .message = try std.fmt.allocPrint(self.a, fmt, args) };
+        self.env.refusal = .{ .op = op, .code = code, .message = try self.a.print(fmt, args) };
         return error.PlanRefused;
     }
 

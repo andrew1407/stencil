@@ -5,9 +5,7 @@
 const std = @import("std");
 const testing = std.testing;
 
-const c = @cImport({
-    @cInclude("core/cliApi.h");
-});
+const c = @import("cApi.zig");
 
 pub const Rect = struct { x: i32, y: i32, w: i32, h: i32 };
 pub const Size = struct { w: i32, h: i32 };

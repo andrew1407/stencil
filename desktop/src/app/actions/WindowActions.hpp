@@ -66,6 +66,7 @@ namespace stencil::gui {
     // Browser toolbar.js Image/Layout buttons and the paste listener.
     QAction* downloadJson = nullptr;
     QAction* uploadJson = nullptr;
+    QAction* console = nullptr;
     QAction* script = nullptr;
     QAction* saveProjectFile = nullptr;
     QAction* openProjectFile = nullptr;

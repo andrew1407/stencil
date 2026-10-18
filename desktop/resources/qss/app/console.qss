@@ -1,0 +1,18 @@
+      /* The console window (dialogs/console/ConsoleWindow; browser css/components/console/window.css):
+         one monospace field on the modal shell, the prompt its last row, no backdrop behind it. */
+      QFrame#consoleBox, QPlainTextEdit#consoleOutput, QLineEdit#consolePrompt, QLabel#consolePromptMark {
+        font-family: Menlo, Consolas, "DejaVu Sans Mono", monospace;
+      }
+      QFrame#consoleBox { background: %BG_PAGE%; border: 1px solid %BORDER%; border-radius: 8px; }
+      QPlainTextEdit#consoleOutput {
+        background: transparent; color: %TEXT%; border: 0; padding: 6px 8px;
+        selection-background-color: %ACCENT_SOFT2%; selection-color: %TEXT%;
+      }
+      QFrame#consoleRule { background: %ACCENT%; border: 0; }
+      QLineEdit#consolePrompt[word="cmd"] { color: %ACCENT%; }
+      QLabel#cliPeek { background: %BG_CONTAINER%; border: 1px solid %BORDER%; border-radius: 6px; padding: 6px; }
+      QLabel#consolePromptMark { color: %ACCENT%; background: transparent; }
+      QLineEdit#consolePrompt {
+        background: transparent; color: %TEXT%; border: 0; padding: 0;
+        selection-background-color: %ACCENT_SOFT2%; selection-color: %TEXT%;
+      }

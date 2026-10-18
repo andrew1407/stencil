@@ -1,0 +1,114 @@
+/* ── CLI mode (js/ui/cli/) ──
+   The Zig console over the whole page, on the app's theme: a skin's own colours arrive as the
+   --cli-* variables (skin/paint.js). No transition and no animation here — a terminal moves only
+   as the console's own effects (the reveal, the wipe, a skin's frames) move it. */
+.cli-stage {
+    position: fixed;
+    inset: 0;
+    z-index: 100004;
+    display: grid;
+    grid-template-rows: auto 1fr auto auto auto;
+    background: var(--cli-bg, var(--bg-container));
+    color: var(--cli-fg, var(--text-main));
+    font: 13px/1.3 Menlo, Consolas, "DejaVu Sans Mono", monospace;
+    --console-gold: #ffd700;
+    --cli-panel: #2b2f3a;
+    --cli-frame: #3a3f4b;
+}
+.cli-header { padding: 8px 16px 0; }
+.cli-banner { margin: 0; font: inherit; line-height: 1.15; white-space: pre; cursor: pointer; }
+.cli-banner-row { display: block; }
+/* The TUI's two tones: the panel around the art, the art frame's own ground (logo/palette.zig). */
+.cli-cell.cli-panel, .cli-cell.cli-accent { background: var(--cli-panel); }
+.cli-cell.cli-art, .cli-cell.cli-mark { background: var(--cli-frame); }
+.cli-cell.cli-accent { color: var(--accent); }
+/* The art sits on the terminal's grid: a cell a glyph whatever font draws it, two for a fullwidth one, none for its second half. */
+.cli-cell.cli-mark, .cli-cell.cli-art { display: inline-block; width: 1ch; text-align: center; }
+.cli-cell.cli-wide { width: 2ch; }
+.cli-cell.cli-art:empty { width: 0; }
+.cli-wordmark { font-weight: 700; margin-left: 0; }
+.cli-wordmark-title { background: var(--cli-title-bg); color: var(--cli-title-fg); padding: 0 1ch; }
+.cli-status { padding: 4px 0 6px; white-space: pre-wrap; }
+.cli-status-name { cursor: pointer; color: var(--name-color, var(--project-name-fg)); }
+.cli-status-name:hover { text-decoration: underline; }
+.cli-peek { padding: 0 0 6px; }
+.cli-peek-img { display: block; min-height: 20vh; max-width: 40vw; max-height: 40vh; border: 1px solid var(--border-main); }
+.cli-peek-img.is-magnified { min-height: 40vh; max-width: 80vw; max-height: 80vh; }
+.cli-rule {
+    height: 1px;
+    background: linear-gradient(90deg, var(--cli-new, var(--accent)) var(--rule-reach, 100%), var(--cli-old, var(--accent)) 0);
+}
+.cli-out {
+    margin: 0;
+    padding: 8px 16px;
+    overflow: auto;
+    font: inherit;
+    white-space: pre-wrap;
+    word-break: break-word;
+    min-height: 0;
+}
+.cli-out .console-line { display: block; }
+.cli-out .console-line-cmd, .cli-prompt { color: var(--accent); }
+/* Mid-wipe every accented run wears the new accent up to the seam and the old one past it. */
+.cli-stage .console-line-cmd[style*="--seam"], .cli-stage .console-line-section[style*="--seam"], .cli-stage .cli-prompt[style*="--seam"] {
+    background: linear-gradient(90deg, var(--cli-new) var(--seam), var(--cli-old) var(--seam));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+.cli-out .console-line-error-prefix { color: var(--danger); font-weight: 700; }
+.cli-out .console-line-section { color: var(--accent); }
+.cli-out .console-line-secret { color: var(--console-gold); font-weight: 600; }
+.cli-out .console-line-title { width: max-content; background: var(--cli-title-bg, var(--accent)); color: var(--cli-title-fg, var(--on-accent)); padding: 0 1ch; }
+.cli-out .cli-rain-row { color: var(--cli-fg); }
+.cli-out[data-raining] .console-line { display: none; }
+.cli-prompt-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+}
+.cli-rule { margin: 0 16px; }
+/* The prompt is a row of the terminal, not a form control: nothing the page's inputs wear applies. */
+.cli-stage .cli-input,
+.cli-stage .cli-input:focus,
+.cli-stage .cli-input:hover {
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 0 !important;
+    border-radius: 0;
+    box-shadow: none !important;
+    outline: none;
+    background: transparent !important;
+    color: inherit;
+    font: inherit;
+    padding: 0;
+    margin: 0;
+    height: auto;
+    min-height: 0;
+}
+.cli-stage .cli-input[data-word="cmd"] { color: var(--accent); }
+.cli-stage .cli-input[data-word="secret"] { color: var(--console-gold); }
+.cli-stage[data-cli-skin] .cli-cell.cli-panel, .cli-stage[data-cli-skin="matrix"] .cli-cell.cli-mark { background: transparent; }
+/* A skin's restyle (skin/restyle.js, the Zig restyle.zig): the matrix and the blue screen paint every
+   colour theirs, a picture takes two cells, the rainbow runs its hues over every run in the accent —
+   a hard stop per column, slid by --cli-slide under the bifrost — and the rules wear what the accent became. */
+.cli-stage[data-cli-cells] { --danger: var(--cli-fg); --project-name-fg: var(--cli-fg); --on-accent: var(--cli-bg); }
+.cli-stage[data-cli-cells] .cli-status-name { color: var(--cli-fg); }
+.cli-stage[data-cli-restyled] .cli-rule { background: var(--accent); }
+.cli-picture { display: inline-block; width: 2ch; text-align: center; }
+.cli-stage[data-cli-runs] .console-line-cmd, .cli-stage[data-cli-runs] .console-line-section, .cli-stage[data-cli-runs] .cli-prompt,
+.cli-stage[data-cli-runs] .cli-input-mirror[data-word="cmd"] .cli-input-word {
+    background-image: var(--cli-hues);
+    background-position-x: calc(var(--cli-slide, 0ch) - var(--col0, 0ch));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+/* The mirror stands in for the input's own text under the rainbow: the word two columns in, past the prompt. */
+.cli-stage[data-cli-runs] .cli-prompt-row { position: relative; }
+.cli-input-mirror { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; pointer-events: none; white-space: pre; --col0: 2ch; }
+.cli-input-mirror[data-word="secret"] .cli-input-word { color: var(--console-gold); }
+.cli-stage[data-cli-runs] .cli-input { color: transparent; caret-color: var(--text-main); }
+.cli-stage[data-cli-runs] .cli-rule { background: var(--cli-hues); background-position-x: var(--cli-slide, 0ch); }
+body.cli-mode-open #notify-balloon { z-index: 100006; }

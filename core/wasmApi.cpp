@@ -11,11 +11,13 @@
 #include "imageFilter.hpp"
 #include "lineMerge.hpp"
 #include "linesCodec.hpp"
+#include "logoBanner.hpp"
 #include "pageMetrics.hpp"
 #include "pointMath.hpp"
 #include "zoomPan.hpp"
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <vector>
 
 using namespace stencil::core;

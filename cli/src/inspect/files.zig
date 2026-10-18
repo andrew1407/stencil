@@ -40,7 +40,7 @@ pub fn listing(gpa: std.mem.Allocator, client: *server.Client, js: *std.json.Str
     try js.objectField("files");
     try js.beginArray();
     for (args.file_kinds) |kind| {
-        const path = try std.fmt.allocPrint(gpa, "/projects/{s}/files/{s}", .{ id, kind });
+        const path = try gpa.print("/projects/{s}/files/{s}", .{ id, kind });
         defer gpa.free(path);
         const range: std.http.Header = .{ .name = "range", .value = std.fmt.comptimePrint("bytes=0-{d}", .{probe_bytes - 1}) };
         const head = client.requestWith(.GET, path, null, null, range) catch |e| switch (e) {

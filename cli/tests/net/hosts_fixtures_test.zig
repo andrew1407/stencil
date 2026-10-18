@@ -21,7 +21,7 @@ fn viaUrl(a: std.mem.Allocator, h: []const u8) ![]const u8 {
     var inner: std.ArrayList(u8) = .empty;
     for (h) |c| if (c == '%') try inner.appendSlice(a, "%25") else try inner.append(a, c);
     const bare = std.mem.indexOfScalar(u8, h, ':') != null and h[0] != '[';
-    const url = try std.fmt.allocPrint(a, "http://{s}{s}{s}/x", .{ if (bare) "[" else "", inner.items, if (bare) "]" else "" });
+    const url = try a.print("http://{s}{s}{s}/x", .{ if (bare) "[" else "", inner.items, if (bare) "]" else "" });
     return host.hostOf(url).?;
 }
 

@@ -1,0 +1,79 @@
+/* ── The console window (js/ui/console/) ──
+   A window that blocks nothing: whatever the Multiple-windows setting says, its overlay never dims
+   or blurs the page and a press outside it closes nothing — only its box takes the pointer. */
+/* By id: the backdrop's scrim and blur (modalShell.css, animations/overlay/overlays.css) are class
+   rules this one must outrank, open and closing alike. */
+#console-overlay,
+:root[data-modal-backdrop] #console-overlay.modal-open,
+:root[data-modal-backdrop] #console-overlay.modal-closing {
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    pointer-events: none;
+}
+#console-overlay .app-modal { pointer-events: auto; }
+.console-modal {
+    width: 640px;
+    height: min(70vh, 560px);
+    display: flex;
+    flex-direction: column;
+    /* The terminal's own face: monospace throughout, the theme's colours. */
+    font-family: Menlo, Consolas, "DejaVu Sans Mono", monospace;
+    --console-gold: #ffd700;
+}
+.console-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: 10px 14px 12px;
+    /* One field, as a terminal is: the scrollback and the prompt row inside the same box. */
+    background: var(--bg-page, var(--bg-main));
+    border: 1px solid var(--border-main);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.console-out {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: 0;
+    padding: 8px 10px;
+    overflow: auto;
+    font: 13px/1.45 inherit;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--text-main);
+}
+.console-line { display: block; }
+.console-prompt, .console-line-cmd { color: var(--accent); }
+.console-line-error-prefix { color: var(--danger); font-weight: 700; }
+.console-line-section { color: var(--accent); margin-top: 4px; }
+.console-line-secret { color: var(--console-gold); font-weight: 600; }
+.console-prompt-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-top: 1px solid var(--accent);   /* the Zig screen's rule above the prompt */
+    padding: 6px 10px 8px;
+}
+/* The word being typed wears its colour, as the Zig line editor paints it. */
+.console-modal .console-prompt-row .console-input[data-word="cmd"] { color: var(--accent); }
+.console-modal .console-prompt-row .console-input[data-word="secret"] { color: var(--console-gold); }
+/* The prompt is a row of the field, not a form control: nothing the modal's inputs wear applies. */
+.console-modal .console-prompt-row .console-input,
+.console-modal .console-prompt-row .console-input:focus,
+.console-modal .console-prompt-row .console-input:hover {
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    outline: none;
+    background: transparent;
+    color: var(--text-main);
+    font: 13px/1.45 inherit;
+    padding: 0;
+    margin: 0;
+    height: auto;
+    min-height: 0;
+}

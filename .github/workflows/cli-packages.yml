@@ -57,7 +57,7 @@ jobs:
       - name: Set up Zig
         uses: mlugg/setup-zig@v2
         with:
-          version: 0.16.0
+          version: 0.17.0
 
       # ReleaseSmall shrinks the Zig code by about a third; build.zig keeps the core and the
       # codecs at ReleaseFast's -O2, so images process as fast as before.

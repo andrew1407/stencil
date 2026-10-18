@@ -1,6 +1,7 @@
 // ── window.stencil's export and project-file actions ────────────────────────
 // Download/copy/share, the layout accessors, and the .stencil file round trip —
 // every one routed through app.export so console and toolbar share the path.
+import { cliModeGate } from './shell/gate.js';
 // A layout argument may be an OBJECT or a raw JSON string — parse the latter so callers can
 // hand over clipboard text directly. A non-object (or bad JSON) throws rather than no-op.
 const toLayoutObject = (data) => {
@@ -24,7 +25,7 @@ export const createExportActions = ({ app }) => {
     copyImage(variant = 'current') { app.export.copyImageToClipboard(variant); return stencil; }, // alias of copyImageToClipboard
     copyImageToClipboard(variant = 'current') { app.export.copyImageToClipboard(variant); return stencil; },
     shareImage() { app.export.shareImage(); return stencil; },          // Web Share API (mobile/PWA)
-    openIn() { document.getElementById('open-in-btn')?.click(); return stencil; },   // Open-in-another-app modal
+    openIn() { cliModeGate('the Open In window'); document.getElementById('open-in-btn')?.click(); return stencil; },   // Open-in-another-app modal
     downloadLayout() { app.export.downloadJSON(); return stencil; },
     get layout() { return stencil.current?.layout; },
     // Accepts a layout OBJECT or a raw JSON string. Routes through the clipboard-paste

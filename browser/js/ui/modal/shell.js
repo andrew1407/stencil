@@ -15,7 +15,8 @@ import { canvasAnchorRect } from './imageAnchor.js';
 // from above); `stacked` shells open over what is showing instead of replacing it.
 const FOCUS_MS = 30;
 
-export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, escapeClose = true, originEl: originFor = null, stacked = false, focusOnOpen = null } = {}) => {
+// `aside` shells (the console) open beside whatever is up and are never closed by another open.
+export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, escapeClose = true, originEl: originFor = null, stacked = false, focusOnOpen = null, aside = false } = {}) => {
   // The shared class, or a shell with its own ids (settingsModal) falls back to the first child.
   const boxOf = () => overlay.querySelector('.app-modal') || overlay.firstElementChild;
 
@@ -54,7 +55,7 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
              : (from === null ? null : defaultOrigin());
     closeOriginEl = anchorLike(backTo) || typeof backTo === 'function' ? backTo : null;
     stackedNow = stackThisOpen;
-    if (!stackedNow) (multiWindow() ? closeOpenPopovers(api) : closeOpenModal(api));
+    if (!stackedNow && !aside) (multiWindow() ? closeOpenPopovers(api) : closeOpenModal(api));
     finishClose();
     drag.reset();   // a window opens where its flight puts it, never where it was dragged
     resize.reset(); // …and at its own size
@@ -148,6 +149,7 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
                   setTimeout(() => overlay.classList?.remove('backdrop-wait'), motionMs(MODAL_CLOSE_MS));
                 },
                 overlayId: overlay?.id || null,
+                aside,
                 get stacked() { return stackedNow; },
                 takesEscape: () => escapeClose || overlay.classList.contains('modal-popover') };
   modalShells.add(api);
@@ -200,7 +202,7 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
   }
   if (closeBtn) closeBtn.addEventListener('click', close);
   // Side by side, a press outside closes nothing, and a press inside brings the window to the top.
-  overlay.addEventListener('mousedown', e => { if (e.target === overlay && (!multiWindow() || isPopover())) close(); });
+  overlay.addEventListener('mousedown', e => { if (e.target === overlay && !aside && (!multiWindow() || isPopover())) close(); });
   overlay.addEventListener('pointerdown', () => { if (multiWindow() && api.isOpen() && !isPopover()) raiseWindow(api); }, true);
   return api;
 };

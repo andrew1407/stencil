@@ -1,0 +1,239 @@
+{
+  "_doc": "The console's secret skins, one row per Zig `Skin` tag (cli/src/app/skin.zig `Traits`), shared by the CLI's TUI and the browser's and desktop's CLI mode. A row's `word` is the slash command that puts it on (typed again: off); `phrase`/`phraseOff` are said in gold as it goes on/off; `wordmark` replaces `S T E N C I L` beside the logo (`wordmarkAccented`: set in the accent); `mark` draws a P or M in place of the S. Traits: `animated` (moves on its own at `frameMs`), `movesLogo` (the animation moves the logo art), `paintsRuns` (each accent cell in its column's hue, `hues.hueStep` degrees apart; `slides` moves the hues one column a frame), `paintsCells` (every cell's fg + bg are `fg`/`bg`, the title bar `titleFg`/`titleBg`), `replacesLetters` (each accent letter becomes a picture from `pictures`, swapped every `pictures.swapFrames`), `wash` (the selection tint; absent = the theme accent). `gold` is the one colour no skin rewrites. The CLI embeds this file and derives its SGR/OSC bytes; cli/tests/config/skins_drift_test.zig pins its table to it.",
+  "listWord": "eastereggs",
+  "gold": "#ffd700",
+  "frameMs": 80,
+  "skins": {
+    "matrix": {
+      "word": "mranderson",
+      "phrase": "WHY, Mr. Anderson, WHY?",
+      "paintsCells": true,
+      "fg": "#23d18b",
+      "bg": "#000000",
+      "titleFg": "#000000",
+      "titleBg": "#23d18b",
+      "wash": "#23d18b"
+    },
+    "bluescreen": {
+      "word": "theverybluescreen",
+      "wordmark": "T H E  B L U E  S C R E E N  O F  D E A T H",
+      "paintsCells": true,
+      "fg": "#ffffff",
+      "bg": "#0000aa",
+      "titleFg": "#0000aa",
+      "titleBg": "#aaaaaa",
+      "wash": "#aaaaaa",
+      "title": " Stencil ",
+      "body": "A fatal exception 0E has occurred at 0028:57E4C11. The current\ndrawing will not be terminated — nothing is lost.\n\n*  Type /theverybluescreen again to return to Stencil.\n*  Click the logo to restart your colours.\n\nPress any key to continue _\n"
+    },
+    "rainbow": {
+      "word": "sunafterrain",
+      "phrase": "Been saving it for a rainy day!",
+      "wordmarkAccented": true,
+      "paintsRuns": true
+    },
+    "fruit": {
+      "word": "theyareinthetrees",
+      "phrase": "Fruits! Johnny, they're in the trees!",
+      "wordmarkAccented": true,
+      "animated": true,
+      "replacesLetters": true,
+      "wash": "#ff8c00",
+      "markColor": "#ffe135"
+    },
+    "meow": {
+      "word": "meow",
+      "phrase": "Meow)",
+      "phraseOff": "Meow(",
+      "wordmarkAccented": true,
+      "animated": true,
+      "movesLogo": true,
+      "replacesLetters": true,
+      "wash": "#ffaa3c"
+    },
+    "pie": {
+      "word": "pieday",
+      "phrase": "You happen to like aged things.",
+      "wordmark": "S T E N C I L  P I E",
+      "animated": true,
+      "replacesLetters": true,
+      "wash": "#cd8c46",
+      "mark": "P"
+    },
+    "bifrost": {
+      "word": "bifrost",
+      "phrase": "Whosoever activates this secret, if they be worthy, shall possess the power of the Stencil.",
+      "wordmark": "M I D G A R D",
+      "wordmarkAccented": true,
+      "animated": true,
+      "paintsRuns": true,
+      "slides": true,
+      "mark": "M"
+    },
+    "fairylight": {
+      "word": "fairylight",
+      "phrase": "The world ain't fair. You've gotta take what you need when you can get it.",
+      "wordmark": "B A D  S T E N C I L",
+      "wordmarkAccented": true,
+      "animated": true
+    }
+  },
+  "pictures": {
+    "fruits": [
+      "🍅",
+      "🍇",
+      "🍈",
+      "🍉",
+      "🍊",
+      "🍋",
+      "🍋‍🟩",
+      "🍌",
+      "🍍",
+      "🍎",
+      "🍏",
+      "🍐",
+      "🍑",
+      "🍒",
+      "🍓",
+      "🥑",
+      "🥝",
+      "🥧",
+      "🥭",
+      "🫐",
+      "🥥",
+      "🫒"
+    ],
+    "pies": [
+      "🥧",
+      "🥮"
+    ],
+    "cats": [
+      "🐱",
+      "🦁",
+      "🐯"
+    ],
+    "swapFrames": 83
+  },
+  "cat": {
+    "styles": [
+      [
+        [
+          "(=^･ｪ･^=)",
+          9
+        ],
+        [
+          "(=^-ｪ-^=)",
+          9
+        ],
+        [
+          "(=^･･ｪ^=)",
+          9
+        ],
+        [
+          "(=^ｪ･･^=)",
+          9
+        ],
+        [
+          "(=^˙ｪ˙^=)",
+          9
+        ],
+        [
+          "(=^.ｪ.^=)",
+          9
+        ]
+      ],
+      [
+        [
+          "(=^･ω･^=)",
+          9
+        ],
+        [
+          "(=^-ω-^=)",
+          9
+        ],
+        [
+          "(=^･･ω^=)",
+          9
+        ],
+        [
+          "(=^ω･･^=)",
+          9
+        ],
+        [
+          "(=^˙ω˙^=)",
+          9
+        ],
+        [
+          "(=^.ω.^=)",
+          9
+        ]
+      ],
+      [
+        [
+          "^._.^",
+          5
+        ],
+        [
+          "^-_-^",
+          5
+        ],
+        [
+          "^.._^",
+          5
+        ],
+        [
+          "^_..^",
+          5
+        ],
+        [
+          "^˙_˙^",
+          5
+        ],
+        [
+          "^,_,^",
+          5
+        ]
+      ],
+      [
+        [
+          "(=｀ω´=)",
+          8
+        ],
+        [
+          "(=-ω-=)",
+          7
+        ],
+        [
+          "(=｀´ω=)",
+          8
+        ],
+        [
+          "(=ω｀´=)",
+          8
+        ],
+        [
+          "(=˙ω˙=)",
+          7
+        ],
+        [
+          "(=.ω.=)",
+          7
+        ]
+      ]
+    ],
+    "legFrames": 24,
+    "stepFrames": 2
+  },
+  "hues": {
+    "hueStep": 22,
+    "bulbs": [
+      "#ff4646",
+      "#ffc828",
+      "#46e164",
+      "#5096ff",
+      "#ff64d2",
+      "#46e1eb"
+    ],
+    "bulbFrames": 30
+  }
+}

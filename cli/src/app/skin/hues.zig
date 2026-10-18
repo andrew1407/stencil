@@ -21,7 +21,7 @@ pub fn resetForTest() void {
 }
 
 // Degrees of hue per screen column: a full spectrum every ~16 cells.
-const hue_step = 22;
+pub const hue_step = 22;
 
 /// The fg escape a run-painting skin gives the accent cell at screen column `col` (0-based).
 pub fn cellSgr(s: Skin, col: usize, buf: []u8) []const u8 {
@@ -43,10 +43,10 @@ fn hueAt(s: Skin, col: usize) [3]u8 {
 }
 
 // Bulb colours bright enough to read on a dark terminal: red, gold, green, blue, pink, cyan.
-const bulbs = [_][3]u8{ .{ 255, 70, 70 }, .{ 255, 200, 40 }, .{ 70, 225, 100 }, .{ 80, 150, 255 }, .{ 255, 100, 210 }, .{ 70, 225, 235 } };
+pub const bulbs = [_][3]u8{ .{ 255, 70, 70 }, .{ 255, 200, 40 }, .{ 70, 225, 100 }, .{ 80, 150, 255 }, .{ 255, 100, 210 }, .{ 70, 225, 235 } };
 
 // Each bulb stays lit this many frames — the `/theme` recolour wipe that lights it, then a rest.
-const bulb_frames = 30;
+pub const bulb_frames = 30;
 
 /// The fairy lights' next colour, when its turn has come: the console lights it with the same
 /// recolour wipe a `/theme` change runs, so the lights change at exactly that pace.

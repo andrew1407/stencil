@@ -71,9 +71,9 @@ fn any(js: *std.json.Stringify, a: std.mem.Allocator, name: []const u8, v: anyty
         .optional => return if (v) |x| any(js, a, name, x) else js.write(null),
         .@"struct" => |s| {
             try js.beginObject();
-            inline for (s.fields) |f| {
-                try js.objectField(f.name);
-                try any(js, a, f.name, @field(v, f.name));
+            inline for (s.field_names) |field| {
+                try js.objectField(field);
+                try any(js, a, field, @field(v, field));
             }
             return js.endObject();
         },
@@ -88,9 +88,9 @@ fn any(js: *std.json.Stringify, a: std.mem.Allocator, name: []const u8, v: anyty
             try js.write(@tagName(v));
             switch (v) {
                 inline else => |payload| if (@typeInfo(@TypeOf(payload)) == .@"struct") {
-                    inline for (@typeInfo(@TypeOf(payload)).@"struct".fields) |f| {
-                        try js.objectField(comptime if (std.mem.eql(u8, f.name, "lines_json")) "lines" else f.name);
-                        try any(js, a, f.name, @field(payload, f.name));
+                    inline for (@typeInfo(@TypeOf(payload)).@"struct".field_names) |field| {
+                        try js.objectField(comptime if (std.mem.eql(u8, field, "lines_json")) "lines" else field);
+                        try any(js, a, field, @field(payload, field));
                     }
                 },
             }
@@ -134,7 +134,7 @@ test "op-plan oracle: every corpus case's typed result matches tests/pins/opplan
     inline for (.{ "cases.json", "generated/cases.json", "oracle/inputs.json" }) |bundle| {
         for (fx.member(try fx.loadJson(a, w.io(), dir ++ bundle), "cases").?.array.items) |c| {
             const name = fx.memberStr(c, "name").?;
-            const label = fx.memberStr(c, "file") orelse if (std.mem.startsWith(u8, bundle, "generated")) try std.fmt.allocPrint(a, "{s}.json", .{name}) else name;
+            const label = fx.memberStr(c, "file") orelse if (std.mem.startsWith(u8, bundle, "generated")) try a.print("{s}.json", .{name}) else name;
             try out.writer.writeAll(if (cases == 0) "\n" else ",\n");
             var js: std.json.Stringify = .{ .writer = &out.writer };
             try js.write(label);

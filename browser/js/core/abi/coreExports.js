@@ -14,6 +14,7 @@ export const RUNTIME_EXPORTS = Object.freeze([
   'stencil_resizeCropFromCorner', 'stencil_moveCropClamped', 'stencil_scaleCropCentered',
   'stencil_swapCropOrientation', 'stencil_cropChange', 'stencil_rotateCropRectQuarter',
   'stencil_snapCropRect', 'stencil_rotateEditQuarter', 'stencil_mirrorEdit', 'stencil_mergeLinesKeep',
+  'stencil_logoBanner',
   ...scriptExports,
 ]);
 

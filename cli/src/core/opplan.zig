@@ -3,9 +3,7 @@
 //! core's one result document. Every string core hands back is copied before its handle dies.
 const std = @import("std");
 
-const c = @cImport({
-    @cInclude("core/cliApi.h");
-});
+const c = @import("cApi.zig");
 
 /// The canonical registry (common/config/llm/opRegistry.json), embedded whole.
 pub const registry_json = @embedFile("opRegistry.json");
@@ -69,7 +67,7 @@ const testing = std.testing;
 test "opplan bridge: every core surface loads, an unknown one is refused with a reason" {
     for (surfaces) |name| {
         var buf: [16]u8 = undefined;
-        const z = try std.fmt.bufPrintZ(&buf, "{s}", .{name});
+        const z = try std.fmt.bufPrintSentinel(&buf, "{s}", .{name}, 0);
         const s = Schema.open(z, null);
         defer s.close();
         try testing.expectEqualStrings("", s.failure());

@@ -53,4 +53,17 @@
       QSlider#oiFrameScrub::groove:horizontal, QSlider#motionSpeedSlider::groove:horizontal { background: %WC_WINDOW%; border: 1px solid %WC_SHADOW%; border-radius: 0; }
       QSlider#oiFrameScrub::sub-page:horizontal, QSlider#motionSpeedSlider::sub-page:horizontal { background: %WC_SELECT%; border-radius: 0; }
       QSlider#oiFrameScrub::handle:horizontal, QSlider#motionSpeedSlider::handle:horizontal { background: %WC_FACE%; border: 1px solid %WC_DARK%; border-radius: 0; }
-
+      /* The console window: the shell's own command prompt, light grey on black (browser webcore/console). */
+      QFrame#consoleBox {
+        background: #000000; border: 2px solid transparent; border-image: url(%WC_SUNKEN%) 2 2 2 2 stretch; border-radius: 0;
+      }
+      QPlainTextEdit#consoleOutput, QLineEdit#consolePrompt {
+        background: transparent; color: #c0c0c0; border: 0;
+        selection-background-color: %WC_SELECT%; selection-color: %WC_ON_SELECT%;
+      }
+      /* The shell's own pixel face is the chrome's; the terminal keeps its monospace at its size. */
+      QPlainTextEdit#consoleOutput, QLineEdit#consolePrompt, QLabel#consolePromptMark {
+        font-family: Menlo, Consolas, "DejaVu Sans Mono", monospace; font-size: 12px;
+      }
+      QLabel#consolePromptMark { color: #ffffff; }
+      QFrame#consoleRule { background: #c0c0c0; border: 0; }

@@ -40,7 +40,7 @@ pub fn connect(gpa: std.mem.Allocator, io: std.Io, url: []const u8, token_opt: ?
 
     const resolved = try resolveToken(gpa, io, base, invite.token, rawRequest);
     errdefer gpa.free(resolved.token);
-    const auth = try std.fmt.allocPrint(gpa, "Bearer {s}", .{resolved.token});
+    const auth = try gpa.print("Bearer {s}", .{resolved.token});
     errdefer gpa.free(auth);
     const credential = try gpa.dupe(u8, invite.token orelse "");
     errdefer gpa.free(credential);
@@ -69,7 +69,7 @@ pub fn resolveToken(
     transport: Transport,
 ) !Resolved {
     if (token_opt) |t| {
-        const auth = try std.fmt.allocPrint(gpa, "Bearer {s}", .{t});
+        const auth = try gpa.print("Bearer {s}", .{t});
         defer gpa.free(auth);
         if (probeSession(gpa, io, base, auth, transport)) |_| {
             // The server knows it as a live session: an ordinary session token, not an admin credential.
@@ -98,7 +98,7 @@ pub fn resolveToken(
 fn probeSession(gpa: std.mem.Allocator, io: std.Io, base: []const u8, auth: []const u8, transport: Transport) !void {
     const headers = [_]std.http.Header{.{ .name = "authorization", .value = auth }};
     for ([_][]const u8{ "/auth/session", "/projects?limit=1" }) |path| {
-        const url = try std.fmt.allocPrint(gpa, "{s}{s}", .{ base, path });
+        const url = try gpa.print("{s}{s}", .{ base, path });
         defer gpa.free(url);
         const body = transport(gpa, io, url, .GET, null, &headers) catch |e| {
             if (e == Error.NotFound) continue;
@@ -112,7 +112,7 @@ fn probeSession(gpa: std.mem.Allocator, io: std.Io, base: []const u8, auth: []co
 
 /// POST /auth/token, optionally with an admin bearer, returning the response body.
 pub fn issueToken(gpa: std.mem.Allocator, io: std.Io, base: []const u8, auth_opt: ?[]const u8, transport: Transport) ![]u8 {
-    const url = try std.fmt.allocPrint(gpa, "{s}/auth/token", .{base});
+    const url = try gpa.print("{s}/auth/token", .{base});
     defer gpa.free(url);
     var headers: [2]std.http.Header = undefined;
     var n: usize = 0;

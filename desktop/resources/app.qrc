@@ -16,6 +16,9 @@
     <file alias="iconsWebcore.json">../../common/config/iconsWebcore.json</file>
     <file alias="svgArt.json">../../common/config/svgArt.json</file>
     <file alias="layoutFields.json">../../common/config/layoutFields.json</file>
+    <file alias="console/commands.json">../../common/config/console/commands.json</file>
+    <file alias="console/skins.json">../../common/config/console/skins.json</file>
+    <file alias="console/fx.json">../../common/config/console/fx.json</file>
     <file alias="llm/systemPrompt.json">../../common/config/llm/systemPrompt.json</file>
     <file alias="llm/providers.json">../../common/config/llm/providers.json</file>
     <file alias="llm/opRegistry.json">../../common/config/llm/opRegistry.json</file>
@@ -44,6 +47,7 @@
     <file alias="app/lists.qss">qss/app/lists.qss</file>
     <file alias="app/modals.qss">qss/app/modals.qss</file>
     <file alias="app/dialogs.qss">qss/app/dialogs.qss</file>
+    <file alias="app/console.qss">qss/app/console.qss</file>
     <file alias="app/overlays.qss">qss/app/overlays.qss</file>
     <!-- The webcore skin's overlay, appended after the app sheet while the word is on (support/webcore). -->
     <file alias="webcore/chrome.qss">qss/webcore/chrome.qss</file>

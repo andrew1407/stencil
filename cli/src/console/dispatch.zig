@@ -96,6 +96,9 @@ pub fn handle(session: *Session, io: std.Io, line: []const u8) !bool {
         .expire => try handlers.doExpire(session, io, cmd.arg),
         .fetch => try handlers.doFetch(session, io, cmd.arg),
         .sync => handlers.doSync(session, cmd.arg),
+        .browser => try handlers.doBrowser(session, io, cmd.arg),
+        .desktop => try handlers.doDesktop(session, io, cmd.arg),
+        .desktopsync => try handlers.doDesktopSync(session, io, cmd.arg),
         // LLM assistant: /prompt executes the returned op-plan through the same handlers
         // above (and queues its own sync marks); /llm shows/sets the provider config.
         .prompt => try llmPrompt.doPrompt(session, io, cmd.arg),

@@ -59,13 +59,13 @@ pub fn resolveTarget(
     }
 
     if (target.len == 0)
-        return std.fmt.allocPrint(gpa, "{s}{s}{s}.{s}", .{ src.dir, stem_buf.items, SUFFIX, ext });
+        return gpa.print("{s}{s}{s}.{s}", .{ src.dir, stem_buf.items, SUFFIX, ext });
 
     if (target[target.len - 1] == '/' or target[target.len - 1] == '\\')
-        return std.fmt.allocPrint(gpa, "{s}{s}{s}.{s}", .{ target, stem_buf.items, SUFFIX, ext });
+        return gpa.print("{s}{s}{s}.{s}", .{ target, stem_buf.items, SUFFIX, ext });
 
     if (image.formatFromExt(image.extOf(target) orelse "") != null) return gpa.dupe(u8, target);
-    return std.fmt.allocPrint(gpa, "{s}.{s}", .{ target, ext });
+    return gpa.print("{s}.{s}", .{ target, ext });
 }
 
 /// The same guard the one-shot pipeline applies: `..` is always refused, and under

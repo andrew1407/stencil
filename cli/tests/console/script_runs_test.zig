@@ -64,8 +64,12 @@ test "/script: a run past the history cap is still one step, and the edits befor
     try l.init("stencil_script_runs_cap.png");
     defer l.deinit();
     _ = try console.handle(&l.session, l.io(), "/script @filter sepia");
-    const twice = "@filter bw; @filter sepia; ";
-    _ = try console.handle(&l.session, l.io(), "/script " ++ twice ** 40 ++ "@filter bw");
+    const forty = comptime blk: {
+        var s: []const u8 = "";
+        for (0..40) |_| s = s ++ "@filter bw; @filter sepia; ";
+        break :blk s;
+    };
+    _ = try console.handle(&l.session, l.io(), "/script " ++ forty ++ "@filter bw");
     try testing.expectEqual(@as(usize, 3), l.session.stateCount());
     try testing.expectEqualStrings("bw", l.session.state().filter_mode);
     _ = try console.handle(&l.session, l.io(), "/undo"); // the whole run, in one step

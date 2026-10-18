@@ -33,7 +33,7 @@ pub const NameMatcher = struct {
         if (p.len == 0) return .{};
         if (p.len > max_name_pattern) return error.NamePatternTooLong;
         if (has_posix_regex) {
-            const pz = try arena.dupeZ(u8, p);
+            const pz = try arena.dupeSentinel(u8, p, 0);
             const handle = stencil_regex_compile(pz.ptr) orelse return error.BadNamePattern;
             return .{ .active = true, .pattern = p, .handle = handle };
         }
@@ -52,7 +52,7 @@ pub const NameMatcher = struct {
     pub fn matches(self: *NameMatcher, url: []const u8, arena: std.mem.Allocator) bool {
         if (!self.active) return true;
         if (has_posix_regex) {
-            const uz = arena.dupeZ(u8, url) catch return false;
+            const uz = arena.dupeSentinel(u8, url, 0) catch return false;
             return stencil_regex_match(self.handle, uz.ptr) != 0;
         }
         return indexOfPosCI(url, 0, self.pattern) != null;

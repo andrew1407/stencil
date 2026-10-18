@@ -14,7 +14,7 @@ stencil -i clip.mp4 -f 24 frame.png
 
 ## Build
 
-Needs **Zig 0.16**; Zig ships its own clang, so no separate C/C++ toolchain. Video input
+Needs **Zig 0.17**; Zig ships its own clang, so no separate C/C++ toolchain. Video input
 additionally needs `ffmpeg` on `PATH` (optional — everything else works without it).
 
 ```bash
@@ -341,6 +341,9 @@ monochrome.
 | `/disconnect [url]` · `/reconnect [url]` | Close one connection (or the latest) · re-establish one (or all), re-issuing the token and reviving the live feed. |
 | `/fetch <name> [url]` | Load a server project's image to keep editing. Bare lists what there is to fetch. Alias: `pull`. |
 | `/sync [on\|off]` | Live-editing mode for the active fetched project: your edits auto-upload (debounced) and a peer's saves auto-pull over the server's raw-TCP edit channel (skipped for `https://` servers). Local unsynced edits are never clobbered — you get a note to `/save` or `/fetch`. |
+| `/browser [url] [incognito]` | Open this session in the [browser app](../browser/README.md): a server project goes by reference, a local picture inline in the launch link (so it has to fit one; a big one is refused with the way round). The URL is the argument, else `STENCIL_BROWSER_URL`, else the app's default. Alias: `web`. |
+| `/desktop [sync] [incognito]` | Open this session in the [desktop app](../desktop/README.md): a server project by `stencil://` link, else written as `<name>.stencil` (the session's own project file when it has one) and opened through the OS, or through `STENCIL_DESKTOP=<binary>` when set (`incognito` for a local file needs it). `sync` links the file so edits here and there meet in it. Alias: `app`. |
+| `/desktopsync [file.stencil\|n\|off]` | Link a `.stencil` file both apps edit live: bare lists the files the desktop app has open (its state dir, or `STENCIL_STATE_DIR`), a number links one of them, a path links that file, `off` unlinks. Your edits are written at each prompt; a change the desktop wrote arrives as one undo step. Alias: `link`. |
 | `/prompt <text>` | Ask the configured LLM assistant to plan edits ([`llm-contract.md`](../contracts/llm/llm-contract.md)): the working image is attached for vision (≤ 8 MiB), the reply is printed, and the validated op-plan runs through the same session operations as the commands above. Variants render as `variant-<label>.png`. Every `/upload` since the last prompt is an attachment of the turn. Alias: `p`. |
 | `/llm [provider\|url\|model\|key\|server <value>]` | Show (bare, secrets masked) or override the session's LLM config: `ollama` \| `openai-compat` \| `anthropic` \| `stencil-server`. Initial values come from the `STENCIL_LLM_*` env keys. Bare `/llm key` asks for the key with the input hidden; `/llm key forget` drops it. See [Using your own Claude key](#using-your-own-claude-key). |
 | `/chat [on\|off\|clear]` | Chat persistence (default off): save the conversation with the project. |

@@ -83,9 +83,9 @@ namespace stencil::gui {
     formulaSection->setSizePolicy(QSizePolicy::Maximum, formulaSection->sizePolicy().verticalPolicy());
     addWrapped(row, formulaSection);
     addWrappedSeparator(row);
-    // Copy leads, then the two file moves down, then up (browser twin: toolbar.js Data row).
+    // The console, the script, then copy, the two file moves down, then up (browser twin: toolbar.js Data row).
     addWrapped(row, makeToolSection("Data",
-                                   {w.acts.script, w.acts.copyLayout, w.acts.downloadJson, w.acts.uploadJson, w.acts.clearProject}));
+                                   {w.acts.console, w.acts.script, w.acts.copyLayout, w.acts.downloadJson, w.acts.uploadJson, w.acts.clearProject}));
     addWrappedSeparator(row);
     // The browser's last cluster in order; every button drives the existing QAction. acts.accent is
     // the logo's own popover, no toolbar icon.

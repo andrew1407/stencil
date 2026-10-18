@@ -115,7 +115,7 @@ test('every switch is in the Visuals modal and on the console facade', async () 
   const { visualsModalInner } = await import('../../../js/ui/visuals/markup.js');
   const markup = visualsModalInner();
   assert.match(markup, /<div class="vs-section">Motion<\/div>/);
-  for (const id of ['vs-draw-anim', 'vs-multi-window', 'vs-motion-mode', 'vs-motion-speed']) assert.match(markup, new RegExp(`id="${id}"`));
+  for (const id of ['vs-draw-anim', 'vs-multi-window', 'vs-motion-mode', 'vs-motion-speed', 'vs-console-speed']) assert.match(markup, new RegExp(`id="${id}"`));
   assert.doesNotMatch(markup, /vs-modal-backdrop|Dim and blur/, 'Multiple windows alone decides the backdrop');
   // The checkboxes are one table — id ↔ motionPrefs key — read on open, written on change.
   setMotionPrefs({ mode: 'water', drawing: false });
@@ -140,7 +140,7 @@ test('every switch is in the Visuals modal and on the console facade', async () 
   // Reset All restores every one of them along with the colours, from the same table.
   calls.length = 0;
   $('vs-reset').dispatch('click');
-  assert.deepEqual(calls, [['drawing', true], ['multiWindow', false], ['mode', 'particles'], ['speed', 0.37]]);
+  assert.deepEqual(calls, [['drawing', true], ['multiWindow', false], ['mode', 'particles'], ['speed', 0.37], ['consoleSpeed', 0.25]]);
   // The facade's settings namespace goes through the ONE setter.
   const { createSettingsFacade } = await import('../../../js/console/settingsFacade.js');
   const setMotion = [];

@@ -2,32 +2,32 @@
 # echo
 \x01> \x1b[0m\x1b[1;38;2;255;215;0m/sunafterrain\x1b[0m
 @0 6744B 2d9d0e348b73828d
-~wait 13
-@13 41B 3b598af80703216d
+~wait 39
+@39 41B 3b598af80703216d
 \x1b7
 \x1b[17;1H\x1b[1;38;2;255;215;0mBeen\x1b[0m\x1b[K\x1b8
-~wait 13
-@26 45B ce52c2e1f395abe7
+~wait 39
+@78 45B ce52c2e1f395abe7
 \x1b7
 \x1b[17;1H\x1b[1;38;2;255;215;0mBeen sav\x1b[0m\x1b[K\x1b8
-~wait 13
-@39 49B be711492a972a662
+~wait 39
+@117 49B be711492a972a662
 \x1b7
 \x1b[17;1H\x1b[1;38;2;255;215;0mBeen saving \x1b[0m\x1b[K\x1b8
-~wait 13
-@52 53B 091ba90f6899d2bb
+~wait 39
+@156 53B 091ba90f6899d2bb
 \x1b7
 \x1b[17;1H\x1b[1;38;2;255;215;0mBeen saving it f\x1b[0m\x1b[K\x1b8
-~wait 13
-@65 57B 59dea48becd4c603
+~wait 39
+@195 57B 59dea48becd4c603
 \x1b7
 \x1b[17;1H\x1b[1;38;2;255;215;0mBeen saving it for a\x1b[0m\x1b[K\x1b8
-~wait 13
-@78 61B a4fbe6344e76124e
+~wait 39
+@234 61B a4fbe6344e76124e
 \x1b7
 \x1b[17;1H\x1b[1;38;2;255;215;0mBeen saving it for a rai\x1b[0m\x1b[K\x1b8
-~wait 13
-@91 3917B 7a0c32493e303e73
+~wait 39
+@273 3917B 7a0c32493e303e73
 # header on
   \x1b[38;2;124;58;237m ╭──────────────╮\x1b[0m
   \x1b[38;2;124;58;237m╱\x1b[48;2;43;47;58m                \x1b[0m\x1b[38;2;124;58;237m╲\x1b[0m
@@ -47,7 +47,7 @@
 # /sunafterrain
 # echo
 \x01> \x1b[0m\x1b[1;38;2;255;215;0m/sunafterrain\x1b[0m
-@331 2411B 37a8f5636a1a8139
+@513 2411B 37a8f5636a1a8139
 # header off
   \x1b[38;2;124;58;237m ╭──────────────╮\x1b[0m
   \x1b[38;2;124;58;237m╱\x1b[48;2;43;47;58m                \x1b[0m\x1b[38;2;124;58;237m╲\x1b[0m

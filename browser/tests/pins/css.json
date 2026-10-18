@@ -1652,6 +1652,15 @@
    "|#connect-list": {
     "min-height": "170px"
    },
+   "|#console-overlay .app-modal": {
+    "pointer-events": "auto"
+   },
+   "|#console-overlay, :root[data-modal-backdrop] #console-overlay.modal-closing, :root[data-modal-backdrop] #console-overlay.modal-open": {
+    "background": "transparent",
+    "backdrop-filter": "none",
+    "-webkit-backdrop-filter": "none",
+    "pointer-events": "none"
+   },
    "|#controls-body": {
     "display": "grid",
     "grid-template-rows": "1fr",
@@ -3923,6 +3932,211 @@
     "filter": "drop-shadow(0 0 3px rgba(0, 0, 0, 0.55))",
     "animation": "chatZoneNudge 0.7s ease-in-out infinite alternate"
    },
+   "|.cli-banner": {
+    "margin": "0",
+    "font": "inherit",
+    "line-height": "1.15",
+    "white-space": "pre",
+    "cursor": "pointer"
+   },
+   "|.cli-banner-row": {
+    "display": "block"
+   },
+   "|.cli-cell.cli-accent": {
+    "color": "var(--accent)"
+   },
+   "|.cli-cell.cli-accent, .cli-cell.cli-panel": {
+    "background": "var(--cli-panel)"
+   },
+   "|.cli-cell.cli-art, .cli-cell.cli-mark": {
+    "background": "var(--cli-frame)",
+    "display": "inline-block",
+    "width": "1ch",
+    "text-align": "center"
+   },
+   "|.cli-cell.cli-art:empty": {
+    "width": "0"
+   },
+   "|.cli-cell.cli-wide": {
+    "width": "2ch"
+   },
+   "|.cli-header": {
+    "padding": "8px 16px 0"
+   },
+   "|.cli-input-mirror": {
+    "position": "absolute",
+    "top": "0",
+    "bottom": "0",
+    "display": "flex",
+    "align-items": "center",
+    "pointer-events": "none",
+    "white-space": "pre",
+    "--col0": "2ch"
+   },
+   "|.cli-input-mirror[data-word=\"secret\"] .cli-input-word": {
+    "color": "var(--console-gold)"
+   },
+   "|.cli-out": {
+    "margin": "0",
+    "padding": "8px 16px",
+    "overflow": "auto",
+    "font": "inherit",
+    "white-space": "pre-wrap",
+    "word-break": "break-word",
+    "min-height": "0"
+   },
+   "|.cli-out .cli-rain-row": {
+    "color": "var(--cli-fg)"
+   },
+   "|.cli-out .console-line": {
+    "display": "block"
+   },
+   "|.cli-out .console-line-cmd, .cli-prompt": {
+    "color": "var(--accent)"
+   },
+   "|.cli-out .console-line-error-prefix": {
+    "color": "var(--danger)",
+    "font-weight": "700"
+   },
+   "|.cli-out .console-line-secret": {
+    "color": "var(--console-gold)",
+    "font-weight": "600"
+   },
+   "|.cli-out .console-line-section": {
+    "color": "var(--accent)"
+   },
+   "|.cli-out .console-line-title": {
+    "width": "max-content",
+    "background": "var(--cli-title-bg, var(--accent))",
+    "color": "var(--cli-title-fg, var(--on-accent))",
+    "padding": "0 1ch"
+   },
+   "|.cli-out[data-raining] .console-line": {
+    "display": "none"
+   },
+   "|.cli-peek": {
+    "padding": "0 0 6px"
+   },
+   "|.cli-peek-img": {
+    "display": "block",
+    "min-height": "20vh",
+    "max-width": "40vw",
+    "max-height": "40vh",
+    "border": "1px solid var(--border-main)"
+   },
+   "|.cli-peek-img.is-magnified": {
+    "min-height": "40vh",
+    "max-width": "80vw",
+    "max-height": "80vh"
+   },
+   "|.cli-picture": {
+    "display": "inline-block",
+    "width": "2ch",
+    "text-align": "center"
+   },
+   "|.cli-prompt-row": {
+    "display": "flex",
+    "align-items": "center",
+    "gap": "8px",
+    "padding": "6px 16px"
+   },
+   "|.cli-rule": {
+    "height": "1px",
+    "background": "linear-gradient(90deg, var(--cli-new, var(--accent)) var(--rule-reach, 100%), var(--cli-old, var(--accent)) 0)",
+    "margin": "0 16px"
+   },
+   "|.cli-stage": {
+    "position": "fixed",
+    "inset": "0",
+    "z-index": "100004",
+    "display": "grid",
+    "grid-template-rows": "auto 1fr auto auto auto",
+    "background": "var(--cli-bg, var(--bg-container))",
+    "color": "var(--cli-fg, var(--text-main))",
+    "font": "13px/1.3 Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+    "--console-gold": "#ffd700",
+    "--cli-panel": "#2b2f3a",
+    "--cli-frame": "#3a3f4b"
+   },
+   "|.cli-stage .cli-input, .cli-stage .cli-input:focus, .cli-stage .cli-input:hover": {
+    "flex": "1 1 auto",
+    "min-width": "0",
+    "border": "0 !important",
+    "border-radius": "0",
+    "box-shadow": "none !important",
+    "outline": "none",
+    "background": "transparent !important",
+    "color": "inherit",
+    "font": "inherit",
+    "padding": "0",
+    "margin": "0",
+    "height": "auto",
+    "min-height": "0"
+   },
+   "|.cli-stage .cli-input[data-word=\"cmd\"]": {
+    "color": "var(--accent)"
+   },
+   "|.cli-stage .cli-input[data-word=\"secret\"]": {
+    "color": "var(--console-gold)"
+   },
+   "|.cli-stage .cli-prompt[style*=\"--seam\"], .cli-stage .console-line-cmd[style*=\"--seam\"], .cli-stage .console-line-section[style*=\"--seam\"]": {
+    "background": "linear-gradient(90deg, var(--cli-new) var(--seam), var(--cli-old) var(--seam))",
+    "-webkit-background-clip": "text",
+    "background-clip": "text",
+    "color": "transparent"
+   },
+   "|.cli-stage[data-cli-cells]": {
+    "--danger": "var(--cli-fg)",
+    "--project-name-fg": "var(--cli-fg)",
+    "--on-accent": "var(--cli-bg)"
+   },
+   "|.cli-stage[data-cli-cells] .cli-status-name": {
+    "color": "var(--cli-fg)"
+   },
+   "|.cli-stage[data-cli-restyled] .cli-rule": {
+    "background": "var(--accent)"
+   },
+   "|.cli-stage[data-cli-runs] .cli-input": {
+    "color": "transparent",
+    "caret-color": "var(--text-main)"
+   },
+   "|.cli-stage[data-cli-runs] .cli-input-mirror[data-word=\"cmd\"] .cli-input-word, .cli-stage[data-cli-runs] .cli-prompt, .cli-stage[data-cli-runs] .console-line-cmd, .cli-stage[data-cli-runs] .console-line-section": {
+    "background-image": "var(--cli-hues)",
+    "background-position-x": "calc(var(--cli-slide, 0ch) - var(--col0, 0ch))",
+    "-webkit-background-clip": "text",
+    "background-clip": "text",
+    "color": "transparent"
+   },
+   "|.cli-stage[data-cli-runs] .cli-prompt-row": {
+    "position": "relative"
+   },
+   "|.cli-stage[data-cli-runs] .cli-rule": {
+    "background": "var(--cli-hues)",
+    "background-position-x": "var(--cli-slide, 0ch)"
+   },
+   "|.cli-stage[data-cli-skin=\"matrix\"] .cli-cell.cli-mark, .cli-stage[data-cli-skin] .cli-cell.cli-panel": {
+    "background": "transparent"
+   },
+   "|.cli-status": {
+    "padding": "4px 0 6px",
+    "white-space": "pre-wrap"
+   },
+   "|.cli-status-name": {
+    "cursor": "pointer",
+    "color": "var(--name-color, var(--project-name-fg))"
+   },
+   "|.cli-status-name:hover": {
+    "text-decoration": "underline"
+   },
+   "|.cli-wordmark": {
+    "font-weight": "700",
+    "margin-left": "0"
+   },
+   "|.cli-wordmark-title": {
+    "background": "var(--cli-title-bg)",
+    "color": "var(--cli-title-fg)",
+    "padding": "0 1ch"
+   },
    "|.color-drag-chip": {
     "position": "fixed",
     "z-index": "100005",
@@ -4147,6 +4361,82 @@
     "height": "16px",
     "cursor": "pointer",
     "accent-color": "var(--accent)"
+   },
+   "|.console-body": {
+    "display": "flex",
+    "flex-direction": "column",
+    "flex": "1 1 auto",
+    "min-height": "0",
+    "margin": "10px 14px 12px",
+    "background": "var(--bg-page, var(--bg-main))",
+    "border": "1px solid var(--border-main)",
+    "border-radius": "8px",
+    "overflow": "hidden"
+   },
+   "|.console-line": {
+    "display": "block"
+   },
+   "|.console-line-cmd, .console-prompt": {
+    "color": "var(--accent)"
+   },
+   "|.console-line-error-prefix": {
+    "color": "var(--danger)",
+    "font-weight": "700"
+   },
+   "|.console-line-secret": {
+    "color": "var(--console-gold)",
+    "font-weight": "600"
+   },
+   "|.console-line-section": {
+    "color": "var(--accent)",
+    "margin-top": "4px"
+   },
+   "|.console-modal": {
+    "width": "640px",
+    "height": "min(70vh, 560px)",
+    "display": "flex",
+    "flex-direction": "column",
+    "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+    "--console-gold": "#ffd700"
+   },
+   "|.console-modal .console-prompt-row .console-input, .console-modal .console-prompt-row .console-input:focus, .console-modal .console-prompt-row .console-input:hover": {
+    "flex": "1 1 auto",
+    "min-width": "0",
+    "border": "0",
+    "border-radius": "0",
+    "box-shadow": "none",
+    "outline": "none",
+    "background": "transparent",
+    "color": "var(--text-main)",
+    "font": "13px/1.45 inherit",
+    "padding": "0",
+    "margin": "0",
+    "height": "auto",
+    "min-height": "0"
+   },
+   "|.console-modal .console-prompt-row .console-input[data-word=\"cmd\"]": {
+    "color": "var(--accent)"
+   },
+   "|.console-modal .console-prompt-row .console-input[data-word=\"secret\"]": {
+    "color": "var(--console-gold)"
+   },
+   "|.console-out": {
+    "flex": "1 1 auto",
+    "min-height": "0",
+    "margin": "0",
+    "padding": "8px 10px",
+    "overflow": "auto",
+    "font": "13px/1.45 inherit",
+    "white-space": "pre-wrap",
+    "word-break": "break-word",
+    "color": "var(--text-main)"
+   },
+   "|.console-prompt-row": {
+    "display": "flex",
+    "align-items": "center",
+    "gap": "8px",
+    "border-top": "1px solid var(--accent)",
+    "padding": "6px 10px 8px"
    },
    "|.container": {
     "max-width": "none",
@@ -5673,6 +5963,9 @@
     "transform": "translateX(calc(var(--ic-on) * -1.4px))"
    },
    "|.ic-swap .ic-arrow-top": {
+    "transform": "translateX(calc(var(--ic-on) * 1.4px))"
+   },
+   "|.ic-terminal .ic-prompt": {
     "transform": "translateX(calc(var(--ic-on) * 1.4px))"
    },
    "|.ic-trash .ic-lid": {
@@ -8309,6 +8602,17 @@
     "border": "0",
     "box-shadow": "var(--wc-raised)"
    },
+   "|:root[data-skin=\"webcore\"] .cli-stage .cli-input, :root[data-skin=\"webcore\"] .cli-stage .cli-input:focus, :root[data-skin=\"webcore\"] .cli-stage .cli-input:hover": {
+    "font-family": "'Menlo', 'Consolas', 'DejaVu Sans Mono', monospace !important",
+    "font-size": "13px !important",
+    "color": "inherit !important",
+    "background": "transparent !important",
+    "border": "0 !important",
+    "box-shadow": "none !important",
+    "padding": "0 !important",
+    "min-height": "0 !important",
+    "height": "auto !important"
+   },
    "|:root[data-skin=\"webcore\"] .conn-status": {
     "border": "0",
     "box-shadow": "var(--wc-well)",
@@ -8331,6 +8635,47 @@
     "background": "var(--wc-select)",
     "color": "var(--wc-on-select)",
     "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .console-modal .console-body": {
+    "background": "#000",
+    "border": "0",
+    "border-radius": "0",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] .console-modal .console-input::selection, :root[data-skin=\"webcore\"] .console-modal .console-out ::selection": {
+    "background": "var(--wc-select)",
+    "color": "var(--wc-on-select)"
+   },
+   "|:root[data-skin=\"webcore\"] .console-modal .console-input[data-word=\"cmd\"], :root[data-skin=\"webcore\"] .console-modal .console-line-cmd, :root[data-skin=\"webcore\"] .console-modal .console-line-section, :root[data-skin=\"webcore\"] .console-modal .console-prompt": {
+    "color": "var(--wc-focus) !important"
+   },
+   "|:root[data-skin=\"webcore\"] .console-modal .console-input[data-word=\"secret\"], :root[data-skin=\"webcore\"] .console-modal .console-line-secret": {
+    "color": "#ffff80 !important"
+   },
+   "|:root[data-skin=\"webcore\"] .console-modal .console-line-error-prefix": {
+    "color": "#ff8080"
+   },
+   "|:root[data-skin=\"webcore\"] .console-modal .console-out": {
+    "color": "#c0c0c0",
+    "padding": "8px 10px"
+   },
+   "|:root[data-skin=\"webcore\"] .console-modal .console-out, :root[data-skin=\"webcore\"] .console-modal .console-out *, :root[data-skin=\"webcore\"] .console-modal .console-prompt, :root[data-skin=\"webcore\"] .console-modal .console-prompt-row .console-input, :root[data-skin=\"webcore\"] .console-modal .console-prompt-row .console-input:focus, :root[data-skin=\"webcore\"] .console-modal .console-prompt-row .console-input:hover": {
+    "font-family": "'Menlo', 'Consolas', 'DejaVu Sans Mono', monospace !important",
+    "font-size": "12px !important",
+    "line-height": "1.45 !important"
+   },
+   "|:root[data-skin=\"webcore\"] .console-modal .console-prompt-row": {
+    "border-top-color": "#c0c0c0",
+    "padding": "6px 10px 8px"
+   },
+   "|:root[data-skin=\"webcore\"] .console-modal .console-prompt-row .console-input, :root[data-skin=\"webcore\"] .console-modal .console-prompt-row .console-input:focus, :root[data-skin=\"webcore\"] .console-modal .console-prompt-row .console-input:hover": {
+    "color": "#c0c0c0 !important",
+    "background": "transparent !important",
+    "border": "0 !important",
+    "box-shadow": "none !important",
+    "padding": "0 !important",
+    "min-height": "0 !important",
+    "height": "auto !important"
    },
    "|:root[data-skin=\"webcore\"] .container": {
     "box-shadow": "var(--wc-raised)",
@@ -8778,6 +9123,9 @@
     "min-height": "100dvh",
     "display": "flex",
     "flex-direction": "column"
+   },
+   "|body.cli-mode-open #notify-balloon": {
+    "z-index": "100006"
    },
    "|body.controls-collapsed .canvas-viewport": {
     "margin-top": "0"
@@ -9946,6 +10294,66 @@
    "|.script-diag",
    "|.script-diag-error",
    "|.script-diag-warning",
+   "|#console-overlay, :root[data-modal-backdrop] #console-overlay.modal-closing, :root[data-modal-backdrop] #console-overlay.modal-open",
+   "|#console-overlay .app-modal",
+   "|.console-modal",
+   "|.console-body",
+   "|.console-out",
+   "|.console-line",
+   "|.console-line-cmd, .console-prompt",
+   "|.console-line-error-prefix",
+   "|.console-line-section",
+   "|.console-line-secret",
+   "|.console-prompt-row",
+   "|.console-modal .console-prompt-row .console-input[data-word=\"cmd\"]",
+   "|.console-modal .console-prompt-row .console-input[data-word=\"secret\"]",
+   "|.console-modal .console-prompt-row .console-input, .console-modal .console-prompt-row .console-input:focus, .console-modal .console-prompt-row .console-input:hover",
+   "|.cli-stage",
+   "|.cli-header",
+   "|.cli-banner",
+   "|.cli-banner-row",
+   "|.cli-cell.cli-accent, .cli-cell.cli-panel",
+   "|.cli-cell.cli-art, .cli-cell.cli-mark",
+   "|.cli-cell.cli-accent",
+   "|.cli-cell.cli-art, .cli-cell.cli-mark",
+   "|.cli-cell.cli-wide",
+   "|.cli-cell.cli-art:empty",
+   "|.cli-wordmark",
+   "|.cli-wordmark-title",
+   "|.cli-status",
+   "|.cli-status-name",
+   "|.cli-status-name:hover",
+   "|.cli-peek",
+   "|.cli-peek-img",
+   "|.cli-peek-img.is-magnified",
+   "|.cli-rule",
+   "|.cli-out",
+   "|.cli-out .console-line",
+   "|.cli-out .console-line-cmd, .cli-prompt",
+   "|.cli-stage .cli-prompt[style*=\"--seam\"], .cli-stage .console-line-cmd[style*=\"--seam\"], .cli-stage .console-line-section[style*=\"--seam\"]",
+   "|.cli-out .console-line-error-prefix",
+   "|.cli-out .console-line-section",
+   "|.cli-out .console-line-secret",
+   "|.cli-out .console-line-title",
+   "|.cli-out .cli-rain-row",
+   "|.cli-out[data-raining] .console-line",
+   "|.cli-prompt-row",
+   "|.cli-rule",
+   "|.cli-stage .cli-input, .cli-stage .cli-input:focus, .cli-stage .cli-input:hover",
+   "|.cli-stage .cli-input[data-word=\"cmd\"]",
+   "|.cli-stage .cli-input[data-word=\"secret\"]",
+   "|.cli-stage[data-cli-skin=\"matrix\"] .cli-cell.cli-mark, .cli-stage[data-cli-skin] .cli-cell.cli-panel",
+   "|.cli-stage[data-cli-cells]",
+   "|.cli-stage[data-cli-cells] .cli-status-name",
+   "|.cli-stage[data-cli-restyled] .cli-rule",
+   "|.cli-picture",
+   "|.cli-stage[data-cli-runs] .cli-input-mirror[data-word=\"cmd\"] .cli-input-word, .cli-stage[data-cli-runs] .cli-prompt, .cli-stage[data-cli-runs] .console-line-cmd, .cli-stage[data-cli-runs] .console-line-section",
+   "|.cli-stage[data-cli-runs] .cli-prompt-row",
+   "|.cli-input-mirror",
+   "|.cli-input-mirror[data-word=\"secret\"] .cli-input-word",
+   "|.cli-stage[data-cli-runs] .cli-input",
+   "|.cli-stage[data-cli-runs] .cli-rule",
+   "|body.cli-mode-open #notify-balloon",
    "|.oi-tabs",
    "|.oi-tab",
    "|.oi-tab.is-active:hover, .oi-tab:hover",
@@ -10576,6 +10984,7 @@
    "|.ic-upload .ic-arrow",
    "|.ic-file-down .ic-arrow",
    "|.ic-file-up .ic-arrow",
+   "|.ic-terminal .ic-prompt",
    "|.ic-paste .ic-arrow",
    "|.ic-external .ic-arrow",
    "|.ic-crop .ic-crop-bl",
@@ -11219,6 +11628,16 @@
    "|:root[data-skin=\"webcore\"] input[type=\"radio\"]",
    "|:root[data-skin=\"webcore\"] input[type=\"radio\"]:checked",
    "|:root[data-skin=\"webcore\"] input[type=\"range\"]",
+   "|:root[data-skin=\"webcore\"] .console-modal .console-body",
+   "|:root[data-skin=\"webcore\"] .console-modal .console-out, :root[data-skin=\"webcore\"] .console-modal .console-out *, :root[data-skin=\"webcore\"] .console-modal .console-prompt, :root[data-skin=\"webcore\"] .console-modal .console-prompt-row .console-input, :root[data-skin=\"webcore\"] .console-modal .console-prompt-row .console-input:focus, :root[data-skin=\"webcore\"] .console-modal .console-prompt-row .console-input:hover",
+   "|:root[data-skin=\"webcore\"] .console-modal .console-out",
+   "|:root[data-skin=\"webcore\"] .console-modal .console-prompt-row .console-input, :root[data-skin=\"webcore\"] .console-modal .console-prompt-row .console-input:focus, :root[data-skin=\"webcore\"] .console-modal .console-prompt-row .console-input:hover",
+   "|:root[data-skin=\"webcore\"] .console-modal .console-prompt-row",
+   "|:root[data-skin=\"webcore\"] .console-modal .console-input[data-word=\"cmd\"], :root[data-skin=\"webcore\"] .console-modal .console-line-cmd, :root[data-skin=\"webcore\"] .console-modal .console-line-section, :root[data-skin=\"webcore\"] .console-modal .console-prompt",
+   "|:root[data-skin=\"webcore\"] .console-modal .console-input[data-word=\"secret\"], :root[data-skin=\"webcore\"] .console-modal .console-line-secret",
+   "|:root[data-skin=\"webcore\"] .console-modal .console-line-error-prefix",
+   "|:root[data-skin=\"webcore\"] .console-modal .console-input::selection, :root[data-skin=\"webcore\"] .console-modal .console-out ::selection",
+   "|:root[data-skin=\"webcore\"] .cli-stage .cli-input, :root[data-skin=\"webcore\"] .cli-stage .cli-input:focus, :root[data-skin=\"webcore\"] .cli-stage .cli-input:hover",
    "|:root[data-skin=\"webcore\"] *",
    "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar",
    "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-corner, :root[data-skin=\"webcore\"] *::-webkit-scrollbar-track",

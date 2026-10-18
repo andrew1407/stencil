@@ -8,7 +8,7 @@ const layout_mod = @import("../../media/layout.zig");
 const EditState = @import("../session.zig").EditState;
 
 pub fn rasterizeLinesJson(gpa: std.mem.Allocator, img: *image.Rgba8, lines_json: []const u8) void {
-    const wrapped = std.fmt.allocPrint(gpa, "{{\"lines\":{s}}}", .{lines_json}) catch return;
+    const wrapped = gpa.print("{{\"lines\":{s}}}", .{lines_json}) catch return;
     defer gpa.free(wrapped);
     var parsed = layout_mod.parse(gpa, wrapped) catch return;
     defer parsed.deinit();
@@ -37,7 +37,7 @@ pub fn combineLinesJson(gpa: std.mem.Allocator, a: []const u8, b: []const u8) ![
     const bi = innerArray(b);
     if (ai.len == 0) return gpa.dupe(u8, if (bi.len == 0) "[]" else b);
     if (bi.len == 0) return gpa.dupe(u8, a);
-    return std.fmt.allocPrint(gpa, "[{s},{s}]", .{ ai, bi });
+    return gpa.print("[{s},{s}]", .{ ai, bi });
 }
 
 /// The contents between the outermost `[` `]` of a JSON array string, trimmed (empty if none).

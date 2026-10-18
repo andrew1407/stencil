@@ -143,6 +143,17 @@
       "hotkey": "openIn"
     },
     {
+      "key": "console",
+      "title": "Console",
+      "aliases": [
+        "terminal",
+        "cli"
+      ],
+      "overlay": "console-overlay",
+      "opener": "console-btn",
+      "hotkey": "openConsole"
+    },
+    {
       "key": "script",
       "title": "Stencil Script",
       "aliases": [

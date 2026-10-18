@@ -127,9 +127,14 @@ namespace stencil::gui {
     sinceLetter.restart();
     typed += letter;
     const QStringList words = support::typedWords();
-    int longest = 0;
+    int longest = int(hooks.cliWord.size());
     for (const QString& word : words) longest = std::max(longest, int(word.size()));
     if (typed.size() > longest) typed = typed.right(longest);
+    if (!hooks.cliWord.isEmpty() && typed.endsWith(hooks.cliWord)) {
+      typed.clear();
+      if (hooks.cliMode) hooks.cliMode();
+      return true;
+    }
     for (int i = 0; i < words.size(); ++i) {
       if (!typed.endsWith(words.at(i))) continue;
       typed.clear();

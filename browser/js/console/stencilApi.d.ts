@@ -73,6 +73,8 @@ export interface StencilSettings {
   readonly motionModes: MotionMode[];
   /** How fast the interface animates, 0.1–1 (clamped); 0.37, the default, is the tuned pace. */
   motionSpeed: number;
+  /** How fast the consoles reveal new output, 0.01–1 (clamped); 1 shows it at once. */
+  consoleSpeed: number;
   /** Many windows open at once: no backdrop, and a click outside closes none. Off, one window
    *  at a time dims and blurs the page behind it. */
   multiWindow: boolean;
@@ -158,6 +160,8 @@ export interface Stencil extends StencilSettings {
   openAssistantSettingsWindow(): Stencil;
   openShortcutsWindow(): Stencil;
   openVisualsWindow(): Stencil;
+  /** The console window, beside whatever is up: it blocks nothing and closes only from its own Close or /exit. */
+  openConsoleWindow(): Stencil;
   openHelpWindow(): Stencil;
   openImageWindow(): Stencil;
   openCropWindow(): Stencil;

@@ -95,6 +95,25 @@ fn rasterise(comptime W: usize, comptime H: usize, comptime vs: []const Pt) [H][
     return g;
 }
 
+/// Row `row` of the mark `sk` draws, as the bare glyph text `emitBanner` prints for it;
+/// tests/config/logo_mark_drift_test.zig pins every row to core's logoBanner.
+pub fn rowText(comptime compact: bool, sk: skin.Skin, row: usize, buf: []u8) []const u8 {
+    const fw = if (compact) FRAME_W_S else FRAME_W;
+    const fh = if (compact) FRAME_H_S else FRAME_H;
+    const grid = switch (sk) {
+        .pie => rasterise(fw, fh, if (compact) &eggArt.verts_p_small else &eggArt.verts_p),
+        .bifrost => rasterise(fw, fh, if (compact) &eggArt.verts_m_small else &eggArt.verts_m),
+        else => rasterise(fw, fh, if (compact) &verts_small else &verts),
+    };
+    var len: usize = 0;
+    for (grid[row]) |code| {
+        const g = glyph(code);
+        @memcpy(buf[len .. len + g.len], g);
+        len += g.len;
+    }
+    return buf[0..len];
+}
+
 pub fn spaces(n: usize) void {
     var i: usize = 0;
     while (i < n) : (i += 1) print(" ", .{});
