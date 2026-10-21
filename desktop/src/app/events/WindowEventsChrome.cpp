@@ -64,11 +64,13 @@ namespace stencil::gui {
     if (event->type() == QEvent::Leave || event->type() == QEvent::WindowDeactivate ||
         (obj == &w && (event->type() == QEvent::Hide || event->type() == QEvent::Close)))
       w.blocked.set(false);
-    // Fullscreen's edge reveal: the window's QWindow hears every move, tracked widget or not.
+    // Fullscreen's edge reveal: the window's QWindow hears every move, tracked widget or not, and
+    // a dialog up over it hears them instead (the rows fold away under it, browser fullscreen/layer.js).
     const QEvent::Type t = event->type();
     if (w.fs.active && !w.fs.tickQueued && (t == QEvent::MouseMove || t == QEvent::HoverMove || t == QEvent::Enter)) {
       auto* widget = qobject_cast<QWidget*>(obj);
-      if (obj == w.windowHandle() || (widget && widget->window() == &w)) {
+      if (obj == w.windowHandle()
+          || (widget && (widget->window() == &w || widget->window() == QApplication::activeModalWidget()))) {
         w.fs.tickQueued = true;
         QTimer::singleShot(0, &w, [this] {
           w.fs.tickQueued = false;

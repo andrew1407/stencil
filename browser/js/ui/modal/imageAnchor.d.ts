@@ -6,6 +6,9 @@ export interface AnchorRect {
 /** Side length of the small box a canvas/toolbar flight grows out of or pours into. */
 export declare const IMAGE_ANCHOR_PX: number;
 
+/** True while `el` sits in a toolbar that is out of sight: rows folded, or the fullscreen strip hidden. */
+export declare const toolbarAway: (el: unknown) => boolean;
+
 /** A small box on the canvas area's centre, falling back to the window's centre. */
 export declare const canvasAnchorRect: () => AnchorRect;
 

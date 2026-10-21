@@ -7,7 +7,7 @@ import { isTypingTarget } from '../../utils.js';
 import { modalShells, wireEscapeOnce, wireCollapseOnce, closeOpenModal, closeOpenPopovers, raiseWindow } from './registry.js';
 import { motionMs, multiWindow } from '../motion/motionPrefs.js';
 import { createModalFlight, shownRect, MODAL_CLOSE_MS } from './flight.js';
-import { canvasAnchorRect } from './imageAnchor.js';
+import { canvasAnchorRect, toolbarAway } from './imageAnchor.js';
 
 // Open/close/overlay-mousedown/Escape for every app modal. onOpen/onClose run BEFORE the
 // modal-open class toggles. The opener answers the popover gestures (ui/tip/popover.js).
@@ -89,7 +89,7 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     const named = typeof closeOriginEl === 'function' ? closeOriginEl() : closeOriginEl;
     const home = (anchorLike(backTo) ? backTo : null) || named || originEl || defaultOrigin();
     // A named home that is hidden by now (a folded toolbar, a closed list) sends the close up.
-    const back = onScreenRect(rectOf(home)) ? home : ((fromAbove || closeOriginEl) ? null : canvasAnchorRect());
+    const back = onScreenRect(rectOf(home)) ? home : ((fromAbove || closeOriginEl || toolbarAway(home)) ? null : canvasAnchorRect());
     const animate = overlay.classList.contains('modal-open') && !reducedMotion() && setOriginVars(back);
     overlay.classList.remove('modal-open');
     // It flies home at its own level: dropped at once, it would jump over the windows it sat under.

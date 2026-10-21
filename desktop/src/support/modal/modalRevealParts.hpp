@@ -53,8 +53,8 @@ namespace stencil::support {
   constexpr int DIALOG_DUST_IN_MS = gui::DisintegrateOverlay::SURFACE_IN_MS * 3 / 2;
   constexpr int DIALOG_DUST_OUT_MS = gui::DisintegrateOverlay::SURFACE_OUT_MS * 9 / 4;
 
-  // Flight origin/target in GLOBAL coords: the icon, else out of the host window's top edge (the
-  // browser's flight.js: max(48px, 30%) above the viewport); with no host, above the dialog.
+  // Flight origin/target in GLOBAL coords: the icon, else a 2px strip on the host window's top edge (the
+  // dust aims at its centre; browser flight.js clips its above-the-viewport point there); else above the dialog.
   QRect originRect(QWidget* anchor, const QRect& target, const QRect& anchorRect = QRect(),
                    const QWidget* host = nullptr) {
     if (anchor && anchor->isVisible() && anchor->width() > 0 && anchor->height() > 0)
@@ -62,9 +62,9 @@ namespace stencil::support {
     if (anchorRect.isValid() && anchorRect.width() > 0 && anchorRect.height() > 0)
       return anchorRect;
     const QSize small(qMax(target.width() / 4, 40), qMax(target.height() / 4, 32));
-    const int top = host ? host->mapToGlobal(QPoint(0, 0)).y() : target.top();
-    const int centreY = top - qMax(48, int(target.height() * 0.3));
-    return QRect(QPoint(target.center().x() - small.width() / 2, centreY - small.height() / 2), small);
+    const int left = target.center().x() - small.width() / 2;
+    if (host) return QRect(left, host->mapToGlobal(QPoint(0, 0)).y(), small.width(), 2);
+    return QRect(QPoint(left, target.top() - qMax(48, int(target.height() * 0.3)) - small.height() / 2), small);
   }
 
   bool anchorOnScreen(QWidget* anchor, const QRect& anchorRect) {

@@ -3,6 +3,8 @@
 // dialog alive until its dust has landed, and the dialog-level entry both directions go through.
 #include "modalRevealParts.hpp"
 
+#include <QToolBar>
+
 #include <optional>
 
 namespace stencil::support {
@@ -55,6 +57,14 @@ namespace stencil::support {
              });
   }
 
+  // Its tool row out of sight (folded, or fullscreen's bars slid away): the close rises to the top
+  // edge, as an open from a hidden row falls from it (browser modal/imageAnchor.js toolbarAway).
+  bool toolbarAway(QWidget* anchor) {
+    for (QWidget* w = anchor; w; w = w->parentWidget())
+      if (auto* bar = qobject_cast<QToolBar*>(w)) return !bar->isVisible() || bar->height() < 1;
+    return false;
+  }
+
   // Parented to the dialog; fires once — a dialog can be hidden again on its way to
   // destruction, and a second flight would fly an already-landed ghost.
   class CloseFlight : public QObject {
@@ -95,7 +105,8 @@ namespace stencil::support {
       QRect to = outcome.isValid() ? outcome
                                    : originRect(anchor.data(), target, anchorRect, host);
       // An opener gone by close time pours into the canvas; one that fell from above rises back.
-      if (!outcome.isValid() && !fromAbove && !anchorOnScreen(anchor.data(), anchorRect)) {
+      if (!outcome.isValid() && !fromAbove && !anchorOnScreen(anchor.data(), anchorRect)
+          && !toolbarAway(anchor.data())) {
         const QRect home = canvasHomeRect(host);
         if (home.isValid()) to = home;
       }

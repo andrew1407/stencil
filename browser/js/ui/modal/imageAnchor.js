@@ -45,6 +45,15 @@ const settledRect = (el, state) => {
 const byId = (id) => document.getElementById(id);
 // Folded away with the tool rows: no rect to aim at, whatever the swap logic above would measure.
 const foldedAway = (id) => !!byId(id)?.closest?.('#controls-body.hidden');
+// The whole toolbar out of sight (rows folded, fullscreen's strip hidden): a close bound for one
+// of its controls rises to the top edge, as an open from a hidden toolbar falls from it.
+export const toolbarAway = (el) => {
+  if (typeof el?.closest !== 'function') return false;
+  if (el.closest('#controls-body.hidden')) return true;
+  if (!document.body?.classList?.contains('fullscreen-mode') || !el.closest('.controls-wrapper, #fs-controls-panel')) return false;
+  const strip = byId('fs-controls-panel');
+  return !strip?.classList.contains('fs-panel-visible') || strip.classList.contains('surface-leaving');
+};
 const liveRect = (id) => {
   const r = byId(id)?.getBoundingClientRect?.();
   return r && r.width > 0 && r.height > 0 ? r : null;

@@ -62,9 +62,9 @@ class MainWindowGuiTest : public QObject {
     win.parts.view.toggleFullscreen();
   }
 
-  // …and once the rows have folded away under the open window, the close pours into the canvas, never
-  // up past the screen's top edge where the hidden icon sits.
-  void aCloseAfterTheRowsFoldPoursIntoTheCanvas() {
+  // …and once the rows have folded away under the open window, the close rises into the top edge,
+  // as an open with the rows away falls from it — never into the canvas centre (user report).
+  void aCloseAfterTheRowsFoldRisesOffTheTop() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1400, 800);
     win.show();
@@ -112,14 +112,56 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(watcher.captured, qPrintable("no close flight played; the modal seen: " + seen));
     QVERIFY2(win.fs.active, "Escape on the window also left fullscreen");
     QVERIFY2(!icon->isVisible() || icon->height() < 4, "the rows never folded away");
-    QWidget* vp = win.scroll->viewport();
-    const QPoint centre = vp->mapTo(&win, vp->rect().center());
-    QVERIFY2((watcher.origin - centre).manhattanLength() <= 4,
-             qPrintable(QString("fullscreen close pours to %1, the canvas centre is %2")
-                            .arg(QDebug::toString(watcher.origin), QDebug::toString(centre))));
+    QVERIFY2(watcher.origin.y() >= 0 && watcher.origin.y() <= 2,
+             qPrintable(QString("fullscreen close lands at %1, not on the window's top edge")
+                            .arg(QDebug::toString(watcher.origin))));
     settle([&] { return !QApplication::activeModalWidget(); }, 1000);
     QTest::keyClick(&win, Qt::Key_Escape);   // with no window up, Escape is the mode's again
     QVERIFY2(!win.fs.active, "Escape on the editor no longer leaves fullscreen");
+  }
+
+  // A window opened from the revealed rows takes the pointer's moves: on the first one over it the
+  // rows fold away, as the browser's strip does under its modal overlay (user report).
+  void theRowsFoldOnceThePointerMovesOntoAnOpenWindow() {
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(1400, 800);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.parts.view.toggleFullscreen();
+    QTest::qWait(qApp->platformName() == QLatin1String("offscreen") ? 0 : 1500);
+    win.fs.barsShown = true;
+    win.parts.view.animateBarsHeight(win.fs.bars, true);
+    settle([&] { return !win.parts.view.barsAnim; }, 2000);
+    QWidget* icon = win.buttonForAction(win.acts.projects);
+    QVERIFY2(icon && icon->isVisible(), "the Projects icon is not on the revealed rows");
+
+    bool folded = false, done = false;
+    int ticks = 0;
+    QTimer driver;
+    connect(&driver, &QTimer::timeout, &win, [&] {
+      QWidget* modal = QApplication::activeModalWidget();
+      if (!modal) return;
+      if (++ticks == 4) {
+        const QPoint at = modal->rect().center();
+        QCursor::setPos(modal->mapToGlobal(at));
+        QMouseEvent move(QEvent::MouseMove, QPointF(at), QPointF(modal->mapToGlobal(at)),
+                         Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+        QApplication::sendEvent(modal, &move);
+        return;
+      }
+      if (ticks < 40) return;
+      folded = !win.fs.barsShown;
+      done = true;
+      QTest::keyClick(modal, Qt::Key_Escape);
+      driver.stop();
+    });
+    driver.start(20);
+    QTest::mouseClick(icon, Qt::LeftButton);
+    settle([&] { return done; }, 4000);
+    QVERIFY2(done, "the window never opened");
+    QVERIFY2(folded, "the rows stayed up under the open window");
+    settle([&] { return !QApplication::activeModalWidget(); }, 1000);
+    win.parts.view.toggleFullscreen();
   }
 };
 

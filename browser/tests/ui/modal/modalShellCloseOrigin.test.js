@@ -136,3 +136,32 @@ test('a named home takes the close while shown, and sends it up once hidden', (t
   shell.close();
   assert.deepEqual(readVars(box), expectedVars(boxRect, null), 'a hidden home sends the close up');
 });
+
+// Fullscreen: a window opened from the revealed strip, which then hid again, rises back up like
+// one opened with the strip away, never into the canvas centre (user report).
+test('a toolbar control hidden with the fullscreen strip sends the close up', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const boxRect = { left: 400, top: 300, width: 200, height: 150 };
+  const box = createStubElement('div', { getBoundingClientRect: rectOf(boxRect) });
+  const overlay = createStubElement('div', { querySelector: (sel) => (sel === '.app-modal' ? box : null) });
+  const openBtn = createStubElement('button', {
+    getBoundingClientRect: rectOf({ left: 820, top: 12, width: 28, height: 24 }),
+    closest: (sel) => (sel.includes('.controls-wrapper') ? {} : null),
+  });
+  const strip = createStubElement('div');
+  strip.classList.add('fs-panel-visible');
+  const prevGet = globalThis.document.getElementById;
+  globalThis.document.getElementById = (id) => (id === 'fs-controls-panel' ? strip : prevGet?.call(globalThis.document, id));
+  globalThis.document.body.classList.add('fullscreen-mode');
+  t.after(() => {
+    globalThis.document.getElementById = prevGet;
+    globalThis.document.body.classList.remove('fullscreen-mode');
+  });
+
+  const shell = wireModalShell(overlay, openBtn, null);
+  shell.open(openBtn);
+  strip.classList.remove('fs-panel-visible');
+  openBtn.getBoundingClientRect = rectOf({ left: 0, top: 0, width: 0, height: 0 });
+  shell.close();
+  assert.deepEqual(readVars(box), expectedVars(boxRect, null), 'the close rises off the top edge');
+});
