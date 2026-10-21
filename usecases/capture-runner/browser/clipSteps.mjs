@@ -63,8 +63,8 @@ export function makeClipSteps({ config, runner, browser, pages }) {
       await start(page, runner.themeOf('edit-draw'));
       await pages.loadPicture(page, look.image);
       await page.evaluate((thickness) => { window.stencil.thickness = thickness; }, look.thickness);
-      // Off the picture: a pointer resting on it raises the coordinate tip, whose leaving is dust.
-      const park = () => page.mouse.move(...look.parkAt.map((f, i) => f * page.viewportSize()[i ? 'height' : 'width']));
+      // Off the picture: a pointer resting on it raises the coordinate tip over the result.
+      const park = (steps = 1) => page.mouse.move(...look.parkAt.map((f, i) => f * page.viewportSize()[i ? 'height' : 'width']), { steps });
       await park();
       await steady(page, look);
       await mark();
@@ -72,13 +72,15 @@ export function makeClipSteps({ config, runner, browser, pages }) {
       for (const [i, line] of look.lines.entries()) {
         await page.evaluate((color) => { window.stencil.lineColor = color; window.stencil.startDrawing(); }, look.lineColors[i]);
         for (const point of line) {
-          await page.mouse.click(box.x + box.width * point[0], box.y + box.height * point[1]);
-          await park();
+          await page.mouse.move(box.x + box.width * point[0], box.y + box.height * point[1], { steps: look.moveSteps });
+          await page.mouse.down();
+          await page.mouse.up();
           await settle(look.stepMs);
         }
         await page.evaluate(() => window.stencil.stopDrawing());
         await settle(look.stepMs);
       }
+      await park(look.moveSteps);
       await page.evaluate((filter) => window.stencil.apply({ filter }), look.filter);
       await settle(look.holdMs);
     }),

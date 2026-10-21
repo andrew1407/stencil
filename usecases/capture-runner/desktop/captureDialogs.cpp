@@ -1,7 +1,7 @@
 // The dialog shots over a saved project with lines on the canvas, the console beside the editor,
 // the drag-out zones the window paints while a project row is dragged out of the Projects list,
 // and a collaboration server: the Servers dialog connected and its projects in the list.
-#include "captureStrip.hpp"
+#include "captureShared.hpp"
 
 #include "CanvasWidget.hpp"
 #include "ConsoleWindow.hpp"
@@ -161,7 +161,7 @@ void MainWindowGuiTest::dialogShots(MainWindow& win, const ShotSet& shots) {
   }
 
   // The drag-out zones (dialogs/projects/list/ProjectDragZones.hpp) poll QCursor::pos(): the pointer is
-  // parked in "Open here", given the poll's ticks, and drawn into the shot (a grab carries no cursor).
+  // parked in "Open here" and given the poll's ticks, so that zone shows hovered.
   if (shots.has("projects-dropzones")) {
     grabWhen(actionNamed(win, QStringLiteral("Projects…")), [](QWidget*) { return true; }, [&](QWidget* dlg) {
       if (!win.overlays.projectZones) return;
@@ -172,12 +172,6 @@ void MainWindowGuiTest::dialogShots(MainWindow& win, const ShotSet& shots) {
       QCursor::setPos(win.scroll->viewport()->mapToGlobal(QPoint(area.width() / 6, area.height() / 5)));
       pumpFor(120);
       saveDragOver(QStringLiteral("projects-dropzones"), &win, win.overlays.projectZones, dlg);
-      QImage shot(outDir() + "/projects-dropzones.png");
-      shot.setDevicePixelRatio(win.devicePixelRatioF());
-      QPainter p(&shot);
-      drawPointer(p, win.mapFromGlobal(QCursor::pos()));
-      p.end();
-      shot.save(outDir() + "/projects-dropzones.png", "PNG");
       win.overlays.projectZones->end();
     });
   }

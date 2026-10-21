@@ -24,6 +24,9 @@
 
 inline QString outDir() { return qEnvironmentVariable("STENCIL_DOCS_OUT"); }
 inline QString framesDir() { return qEnvironmentVariable("STENCIL_DOCS_FRAMES"); }
+// processEvents never runs deleteLater(), as the live loop does before it paints: a widget already
+// removed (a table's old cell) would still show in the shot.
+inline QPixmap grabLive(QWidget* w) { QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete); return w->grab(); }
 
 inline void save(const QString& name, const QImage& img) {
   const QString path = outDir() + "/" + name + ".png";
@@ -33,7 +36,7 @@ inline void save(const QString& name, const QImage& img) {
 inline void save(const QString& name, QWidget* w) {
   clearToasts(w);
   pumpFor(60);
-  save(name, w->grab().toImage());
+  save(name, grabLive(w).toImage());
 }
 
 // A dialog centred over its dimmed window, then cropped to the dialog and a dimmed margin: the rest is
@@ -41,7 +44,7 @@ inline void save(const QString& name, QWidget* w) {
 inline constexpr int MODAL_MARGIN_PX = 64;
 
 inline void saveOver(const QString& name, QWidget* win, QWidget* dlg) {
-  const QPixmap shot = win->grab();
+  const QPixmap shot = grabLive(win);
   const QPixmap top = dlg->grab();
   // The canvas takes the dialog AND its margin even when they outgrow the window: composed into
   // the window grab alone, a dialog sized off the screen lost its footer row to the crop below.
@@ -69,7 +72,7 @@ inline void saveOver(const QString& name, QWidget* win, QWidget* dlg) {
 // The window dimmed under popups drawn where they are, cropped to them and a margin; with `centreFirst`
 // the first (a dialog) is centred on the window, as saveOver() centres one, the rest kept beside it.
 inline void saveLayers(const QString& name, QWidget* win, const QList<QWidget*>& tops, bool centreFirst) {
-  const QPixmap shot = win->grab();
+  const QPixmap shot = grabLive(win);
   const qreal dpr = shot.devicePixelRatio();
   QPoint shift = -win->geometry().topLeft();
   if (centreFirst && !tops.isEmpty()) {
@@ -100,7 +103,7 @@ inline void saveLayers(const QString& name, QWidget* win, const QList<QWidget*>&
 // The window, an overlay it paints and the dialog, undimmed (a dim would grey the drag out); the overlay
 // is drawn in by hand, as a child of the scroll VIEWPORT stays out of the window's grab().
 inline void saveDragOver(const QString& name, QWidget* win, QWidget* overlay, QWidget* dlg) {
-  QImage base = win->grab().toImage();
+  QImage base = grabLive(win).toImage();
   QPainter p(&base);
   if (overlay) p.drawPixmap(overlay->mapTo(win, QPoint()), overlay->grab());
   const QPixmap top = dlg->grab();
@@ -114,7 +117,7 @@ inline void saveDragOver(const QString& name, QWidget* win, QWidget* overlay, QW
 inline void saveTops(const QString& name, QWidget* win, const QList<QWidget*>& tops) {
   clearToasts(win);
   pumpFor(60);
-  QImage base = win->grab().toImage();
+  QImage base = grabLive(win).toImage();
   QPainter p(&base);
   for (QWidget* top : tops) p.drawPixmap(top->geometry().topLeft() - win->geometry().topLeft(), top->grab());
   p.end();

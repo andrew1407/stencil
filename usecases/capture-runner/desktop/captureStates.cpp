@@ -97,7 +97,7 @@ void MainWindowGuiTest::windowStates(const QString& theme, const ShotSet& shots)
         const QRect logo(win.tools.logoBtn->mapTo(&win, QPoint()), win.tools.logoBtn->size());
         const int pad = MODAL_MARGIN_PX / 2;
         const QRect box = popover()->geometry().united(logo).adjusted(-pad, -pad, pad, pad) & win.rect();
-        const QImage full = win.grab().toImage();
+        const QImage full = grabLive(&win).toImage();
         const qreal dpr = full.devicePixelRatio();
         QImage out = full.copy(QRect(box.topLeft() * dpr, box.size() * dpr));
         out.setDevicePixelRatio(dpr);

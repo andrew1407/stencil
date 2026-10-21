@@ -130,6 +130,7 @@
       "image": "botIcon",
       "filter": "sepia",
       "parkAt": [0.05, 0.45],
+      "moveSteps": 10,
       "lines": [
         [
           [0.2, 0.3],

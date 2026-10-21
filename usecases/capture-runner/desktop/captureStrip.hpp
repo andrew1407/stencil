@@ -64,7 +64,7 @@ class Strip {
  private:
   void grabOne() {
     QCoreApplication::processEvents();
-    QImage shot = win->grab().toImage();
+    QImage shot = grabLive(win).toImage();
     QPainter p(&shot);
     if (QWidget* dlg = QApplication::activeModalWidget(); dlg && dlg->isVisible())
       p.drawPixmap(dlg->geometry().topLeft() - win->geometry().topLeft(), dlg->grab());
@@ -91,7 +91,7 @@ inline void film(const QString& name, QWidget* w, int ms, int everyMs, const QPo
   QDir(dir).removeRecursively();
   QDir().mkpath(dir);
   const auto shoot = [&](int i, int ringFrame) {
-    QImage shot = w->grab().toImage();
+    QImage shot = grabLive(w).toImage();
     if (!press.isNull()) {
       QPainter p(&shot);
       const QPointF tip = w->mapFromGlobal(press);
