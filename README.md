@@ -13,20 +13,29 @@ An image annotation / drawing tool: load an image, draw polylines and rectangles
 it, edit points numerically, convert pixel coordinates to page (cm) coordinates with
 optional `f(x,y)` formula transforms, and save your work.
 
-<table>
-  <tr>
-    <td width="50%" align="center"><a href="usecases/docs/browser/USECASES.md"><img src="usecases/docs/browser/img/edit-draw.gif" alt="two lines clicked in point by point and a sepia filter in the browser editor"></a><br><b>Browser</b> — draw over any picture, no install</td>
-    <td width="50%" align="center"><a href="usecases/docs/desktop/USECASES.md"><img src="usecases/docs/desktop/img/edit-draw.gif" alt="two lines clicked in point by point and a sepia filter in the desktop app"></a><br><b>Desktop</b> — the same editor as a native Qt app</td>
-  </tr>
-  <tr>
-    <td width="50%" align="center"><a href="usecases/docs/vscode-extension/USECASES.md"><img src="usecases/docs/vscode-extension/img/completion-hints.gif" alt="typing a .stc script in VS Code with the suggestions open"></a><br><b>VS Code</b> — <code>.stc</code> scripts with highlighting and completions</td>
-    <td width="50%" align="center"><a href="usecases/docs/vscode-extension/USECASES.md#write-a-stcjs"><img src="usecases/docs/vscode-extension/img/js-hints.gif" alt="a .js marked with // @use stencil, a facade call typed with its hints"></a><br><b>VS Code</b> — the same edit in JavaScript, marked <code>// @use stencil</code></td>
-  </tr>
-  <tr>
-    <td width="50%" align="center"><a href="usecases/docs/cli/USECASES.md#load-a-picture-and-edit-it-step-by-step"><img src="usecases/docs/cli/img/term-session.gif" alt="crop, filter, rotate and undo typed in the CLI console, the result saved"></a><br><b>CLI</b> — crop, filter, rotate and save from the terminal</td>
-    <td width="50%" align="center"><a href="usecases/docs/cli/USECASES.md#change-the-accent"><img src="usecases/docs/cli/img/term-theme.gif" alt="/theme turquoise, then /theme #e3b341"></a><br><b>CLI</b> — an accent of your own: a name, any CSS colour or a <code>#hex</code></td>
-  </tr>
-</table>
+**Browser** — draw over any picture, no install
+
+[![two lines clicked in point by point and a sepia filter in the browser editor](usecases/docs/browser/img/edit-draw.gif)](usecases/docs/browser/USECASES.md)
+
+**Desktop** — the same editor as a native Qt app
+
+[![two lines clicked in point by point and a sepia filter in the desktop app](usecases/docs/desktop/img/edit-draw.gif)](usecases/docs/desktop/USECASES.md)
+
+**VS Code** — `.stc` scripts with highlighting and completions
+
+[![typing a .stc script in VS Code with the suggestions open](usecases/docs/vscode-extension/img/completion-hints.gif)](usecases/docs/vscode-extension/USECASES.md)
+
+**VS Code** — the same edit in JavaScript, marked `// @use stencil`
+
+[![a .js marked with // @use stencil, a facade call typed with its hints](usecases/docs/vscode-extension/img/js-hints.gif)](usecases/docs/vscode-extension/USECASES.md#write-a-stcjs)
+
+**CLI** — crop, filter, rotate and save from the terminal
+
+[![crop, filter, rotate and undo typed in the CLI console, the result saved](usecases/docs/cli/img/term-session.gif)](usecases/docs/cli/USECASES.md#load-a-picture-and-edit-it-step-by-step)
+
+**CLI** — an accent of your own: a name, any CSS colour or a `#hex`
+
+[![/theme turquoise, then /theme #e3b341](usecases/docs/cli/img/term-theme.gif)](usecases/docs/cli/USECASES.md#change-the-accent)
 
 Stencil ships as **one shared logic core with a family of front-ends and services**:
 
