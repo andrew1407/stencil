@@ -198,8 +198,11 @@ classDiagram
   `support/modal/imageAnchor.hpp`, landing by outcome (`FlightAnchors::closeRectFor`). Every modal
   but the compact popover sits over `support/modal/ModalBackdrop`; `motionReduced()` drops the
   flight. A modal is parented to the window it covers, centred on it or placed by a
-  `support::DialogLanding`, dismissed by an outside press (on macOS through a transparent
-  `Qt::Tool` child) and eased in height (`support/easeWindowHeight.hpp`).
+  `support::DialogLanding`, and eased in height (`support/easeWindowHeight.hpp`). It blocks the
+  whole app, except one that plays video (`support::PLAYS_VIDEO_PROPERTY`), which blocks only its
+  window because macOS's application-modal session starves Qt's video output; it is shown before
+  its transient parent is set, or macOS would make it a sheet pinned to the window's top edge. An outside press
+  dismisses it (on macOS, an application-modal one through a transparent `Qt::Tool` child).
 - **A notice.** Every notice reaches, through `Notifications`, the sink `notifyChannel` names:
   `ToastStack` or `SystemNotifier` (a macOS banner for a signed app, elsewhere a tray message). A
   sink that cannot deliver returns false and the toasts show it.

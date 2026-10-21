@@ -36,16 +36,12 @@ const ZONES = Object.freeze({
 });
 
 export function makeDragSteps({ config, runner, pages }) {
-  const { shared, openModal, closeModal } = pages;
+  const { shared, projectsPage, openModal, closeModal } = pages;
 
   const dropZoneStep = (name, zone) => ({
     name,
     run: async (ctx, theme) => {
-      const page = await shared(ctx, theme);
-      await page.evaluate(async (size) => {
-        window.stencil.newEditor();
-        await window.stencil.blank('#000000', { size });
-      }, config.get('canvas.blankSize'));
+      const page = await projectsPage(ctx, theme);
       await openModal(page, 'projects', 'projects-modal-overlay');
       await page.locator('.project-row[data-id]').first().waitFor();
       await page.evaluate(HOLD_DRAG(ZONES[zone]));

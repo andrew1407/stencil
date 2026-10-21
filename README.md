@@ -13,6 +13,21 @@ An image annotation / drawing tool: load an image, draw polylines and rectangles
 it, edit points numerically, convert pixel coordinates to page (cm) coordinates with
 optional `f(x,y)` formula transforms, and save your work.
 
+<table>
+  <tr>
+    <td width="50%" align="center"><a href="usecases/docs/browser/USECASES.md"><img src="usecases/docs/browser/img/edit-draw.gif" alt="two lines clicked in point by point and a sepia filter in the browser editor"></a><br><b>Browser</b> — draw over any picture, no install</td>
+    <td width="50%" align="center"><a href="usecases/docs/desktop/USECASES.md"><img src="usecases/docs/desktop/img/edit-draw.gif" alt="two lines clicked in point by point and a sepia filter in the desktop app"></a><br><b>Desktop</b> — the same editor as a native Qt app</td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><a href="usecases/docs/vscode-extension/USECASES.md"><img src="usecases/docs/vscode-extension/img/completion-hints.gif" alt="typing a .stc script in VS Code with the suggestions open"></a><br><b>VS Code</b> — <code>.stc</code> scripts with highlighting and completions</td>
+    <td width="50%" align="center"><a href="usecases/docs/vscode-extension/USECASES.md#write-a-stcjs"><img src="usecases/docs/vscode-extension/img/js-hints.gif" alt="a .js marked with // @use stencil, a facade call typed with its hints"></a><br><b>VS Code</b> — the same edit in JavaScript, marked <code>// @use stencil</code></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><a href="usecases/docs/cli/USECASES.md#load-a-picture-and-edit-it-step-by-step"><img src="usecases/docs/cli/img/term-session.gif" alt="crop, filter, rotate and undo typed in the CLI console, the result saved"></a><br><b>CLI</b> — crop, filter, rotate and save from the terminal</td>
+    <td width="50%" align="center"><a href="usecases/docs/cli/USECASES.md#change-the-accent"><img src="usecases/docs/cli/img/term-theme.gif" alt="/theme turquoise, then /theme #e3b341"></a><br><b>CLI</b> — an accent of your own: a name, any CSS colour or a <code>#hex</code></td>
+  </tr>
+</table>
+
 Stencil ships as **one shared logic core with a family of front-ends and services**:
 
 | App | Path | Stack | Docs | Use cases |
@@ -21,7 +36,7 @@ Stencil ships as **one shared logic core with a family of front-ends and service
 | **Browser** | [`browser/`](browser/) | Vanilla ES-module JS, no build step (optional single-file bundle) | [browser/README.md](browser/README.md) | [browser](usecases/docs/browser/USECASES.md) |
 | **Desktop** | [`desktop/`](desktop/) | C++17 + Qt 6, CMake build | [desktop/README.md](desktop/README.md) | [desktop](usecases/docs/desktop/USECASES.md) |
 | **CLI** | [`cli/`](cli/) | Zig, wraps the C++ core | [cli/README.md](cli/README.md) | [cli](usecases/docs/cli/USECASES.md) |
-| **Python** | [`pystencil/`](pystencil/) | Stdlib-only Python, drives the C++ core via ctypes | [pystencil/README.md](pystencil/README.md) | — |
+| **Python** | [`pystencil/`](pystencil/) | Stdlib-only Python, drives the C++ core via ctypes | [pystencil/README.md](pystencil/README.md) | [pystencil](usecases/docs/pystencil/USECASES.md) |
 | **MCP server** | [`mcp/`](mcp/) | Rust, exposes the CLI's pipeline as MCP tools | [mcp/README.md](mcp/README.md) | — |
 | **Collaboration server** | [`server/`](server/) | Go, stores/shares projects and announces their changes on a live feed | [server/README.md](server/README.md) | — |
 | **Telegram bot** | [`bot/`](bot/) | .NET (C#), chat-driven editing over the CLI + server REST | [bot/README.md](bot/README.md) | [bot](usecases/docs/bot/USECASES.md) |

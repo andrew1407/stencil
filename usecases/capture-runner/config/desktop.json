@@ -1,33 +1,22 @@
 {
   "theme": {
     "mode": "dark",
-    "steps": {
-      "open-image-dialog": "light",
-      "crop-dialog": "light",
-      "open-video-local": "light",
-      "open-video-url": "light",
-      "crop-video": "light"
-    }
+    "steps": {}
   },
   "pairs": [
     "editor-empty",
-    "lines-selection",
-    "assistant-docked",
-    "settings-dialog",
-    "projects-dialog",
-    "projects-dropzones"
+    "lines-selection"
   ],
   "stills": [
-    "blank-white",
-    "blank-black",
+    "open-image-dialog",
     "open-from-url",
     "context-menu",
     "file-dropzones",
     "layout-dropzone",
+    "assistant-docked",
     "assistant-floating",
-    "open-image-dialog",
-    "crop-dialog",
-    "connect-dialog",
+    "visuals-dialog",
+    "projects-dialog",
     "shortcuts-dialog",
     "script-dialog",
     "assistant-settings-dialog",
@@ -37,17 +26,22 @@
     "links-dialog",
     "open-in-dialog",
     "console-dialog",
-    "cli-mode",
+    "projects-dropzones",
+    "connect-dialog",
+    "projects-server",
+    "crop-dialog",
+    "filter-menu",
+    "compare-split",
+    "export-menu",
+    "page-size",
+    "accent-picker",
     "context-menu-copy",
     "context-menu-script",
     "projects-row-copy",
     "copy-dialog",
     "copy-dialog-server",
     "lines-swatch-picker",
-    "script-link",
-    "accent-picker",
     "open-video-local",
-    "open-video-url",
     "crop-video"
   ],
   "window": {
@@ -65,12 +59,13 @@
   },
   "videoShots": [
     "open-video-local",
-    "open-video-url",
     "crop-video"
   ],
   "gestures": {
     "names": [
-      "drag-icon-dialog",
+      "edit-draw",
+      "draw-shapes",
+      "drag-icon-window",
       "drag-logo-clean",
       "theme-lens",
       "drag-color",
@@ -78,6 +73,10 @@
     ],
     "inFps": 10,
     "fps": 10
+  },
+  "serverProject": {
+    "name": "Floor survey",
+    "description": "Ground floor, as measured on site; the team's copy."
   },
   "mediaPort": 8202
 }

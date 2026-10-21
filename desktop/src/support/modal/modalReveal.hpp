@@ -108,6 +108,9 @@ namespace stencil::support {
   void modalDismissLog(const QString& line);
 
   inline constexpr const char* NO_OUTSIDE_DISMISS_PROPERTY = "stencilNoOutsideDismiss";
+  // A dialog that plays video blocks only its own window: under macOS's application-modal
+  // session Qt's video output delivers no frame.
+  inline constexpr const char* PLAYS_VIDEO_PROPERTY = "stencilPlaysVideo";
 
   // Set while an open window is hidden and re-shown to change its modality (Qt takes a new
   // modality only across a show): no close flight plays and nothing re-centres it.

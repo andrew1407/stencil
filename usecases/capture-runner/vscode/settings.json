@@ -19,6 +19,8 @@
   "workbench.tips.enabled": false,
   "window.menuStyle": "custom",
   "editor.quickSuggestionsDelay": 10,
+  "editor.cursorBlinking": "solid",
+  "files.simpleDialog.enable": true,
   "stencil.cliPath": "",
   "terminal.integrated.shellIntegration.enabled": false
 }

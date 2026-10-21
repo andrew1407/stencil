@@ -1,6 +1,5 @@
 // A throwaway VS Code: the extension from the tree, a fresh user-data-dir with our
-// settings, driven over its Chromium debug port. Shared by vscodeExtension.mjs (the editor)
-// and cliTerminal.mjs (the real terminal the CLI console is photographed in).
+// settings, driven over its Chromium debug port by vscodeExtension.mjs.
 import { spawn, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -32,6 +31,8 @@ export const SHELL = WIN
 
 const SOURCE = path.join(CAPTURE, 'vscode');
 export const SAMPLES = ['example.stc', 'example.stcjs', 'example.pystc', 'example.stencil'];
+// Workspace files no icon shot lists: a plain .js that joins in through its `// @use stencil` line.
+const MARKED_JS = ['example.js'];
 const SAMPLE = SAMPLES[0];
 const LANGUAGE_NAME = 'Stencil script';
 const WORKBENCH = '.monaco-workbench';
@@ -60,7 +61,7 @@ export class VsCodeHost {
     const dir = root(config);
     fs.rmSync(dir, { recursive: true, force: true });
     for (const sub of ['user/User', 'ext', 'ws/out', 'bin']) fs.mkdirSync(path.join(dir, sub), { recursive: true });
-    for (const name of SAMPLES) fs.copyFileSync(path.join(SOURCE, 'sample', name), path.join(WORKSPACE(config), name));
+    for (const name of [...SAMPLES, ...MARKED_JS]) fs.copyFileSync(path.join(SOURCE, 'sample', name), path.join(WORKSPACE(config), name));
     fs.copyFileSync(path.join(REPO, config.shared.urls.localBotIcon), path.join(WORKSPACE(config), 'icon.png'));
     fs.copyFileSync(path.join(REPO, 'cli', 'zig-out', 'bin', CLI_NAME), CLI_BIN(config));
     if (!WIN) fs.chmodSync(CLI_BIN(config), 0o755);
@@ -159,8 +160,14 @@ export class VsCodeHost {
     const input = this.#page.locator('.quick-input-widget input');
     await input.waitFor({ timeout: 10_000 });
     await input.fill(`>${command}`);
-    await this.#page.locator('.quick-input-list .monaco-list-row').first().waitFor({ timeout: 10_000 });
-    await this.#page.keyboard.press('Enter');
+    const rows = this.#page.locator('.quick-input-list .monaco-list-row');
+    await rows.first().waitFor({ timeout: 10_000 });
+    // The palette ranks fuzzily ("Run script" also finds "Run Python script"): the row whose label
+    // IS the command wins, and only without one does Enter take the top match.
+    const label = new RegExp(`^\\s*${command.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`);
+    const exact = rows.filter({ has: this.#page.locator('.label-name', { hasText: label }) });
+    if (await exact.count()) await exact.first().click();
+    else await this.#page.keyboard.press('Enter');
     await this.#page.locator('.quick-input-widget').waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => {});
   }
 

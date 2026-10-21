@@ -34,8 +34,8 @@ namespace stencil::gui {
     // Side by side (support::multiWindow, browser modal/shell.js): `dlg` as a non-modal window beside
     // the others while its caller waits; a second open of its kind closes the one up instead.
     int runSideBySide(QDialog& dlg);
-    // One window at a time: `dlg` application-modal, in the same loop, so a later switch to side by
-    // side can re-show it non-modal (exec's own loop ends on any hide).
+    // One window at a time: `dlg` modal (window-modal when it plays video), in the same loop, so a
+    // later switch to side by side can re-show it non-modal (exec's own loop ends on any hide).
     int runModal(QDialog& dlg);
     // Every open window re-shown under the mode's modality; on, the backdrops fade away.
     void setWindowsSideBySide(bool on);

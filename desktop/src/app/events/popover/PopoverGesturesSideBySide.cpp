@@ -13,6 +13,7 @@
 #include <QShortcut>
 #include <QTimer>
 #include <QToolButton>
+#include <QWindow>
 #include <cstring>
 
 namespace stencil::gui {
@@ -24,6 +25,26 @@ namespace stencil::gui {
     // One window per kind: the dialog class is what an opener's icon stands for.
     bool sameKind(const QDialog& a, const QDialog& b) {
       return std::strcmp(a.metaObject()->className(), b.metaObject()->className()) == 0;
+    }
+
+    Qt::WindowModality blocking(const QDialog& dlg) {
+      return dlg.property(support::PLAYS_VIDEO_PROPERTY).toBool() ? Qt::WindowModal : Qt::ApplicationModal;
+    }
+
+    // macOS opens a window-modal window that has a transient parent as a sheet, pinned to the
+    // parent's top edge where no landing or flight can move it; parented after the show, it is none.
+    void showUnsheeted(QDialog& dlg) {
+#ifdef Q_OS_MACOS
+      if (dlg.windowModality() == Qt::WindowModal) {
+        dlg.winId();
+        QWindow* parent = dlg.windowHandle()->transientParent();
+        dlg.windowHandle()->setTransientParent(nullptr);
+        dlg.show();
+        dlg.windowHandle()->setTransientParent(parent);
+        return;
+      }
+#endif
+      dlg.show();
     }
   }  // namespace
 
@@ -55,7 +76,7 @@ namespace stencil::gui {
   }
 
   int PopoverGestures::runModal(QDialog& dlg) {
-    dlg.setWindowModality(Qt::ApplicationModal);
+    dlg.setWindowModality(blocking(dlg));
     return holdOpen(dlg);
   }
 
@@ -77,7 +98,7 @@ namespace stencil::gui {
     });
     QObject::connect(&dlg, &QObject::destroyed, &loop, &QEventLoop::quit);
     QObject::connect(qApp, &QCoreApplication::aboutToQuit, &loop, &QEventLoop::quit);
-    dlg.show();
+    showUnsheeted(dlg);
     dlg.raise();
     dlg.activateWindow();
     loop.exec();
@@ -89,7 +110,7 @@ namespace stencil::gui {
 
   void PopoverGestures::setWindowsSideBySide(bool on) {
     for (const QPointer<QDialog>& d : w.pop.windows)
-      if (d && d->isVisible()) remodal(d, on ? Qt::NonModal : Qt::ApplicationModal);
+      if (d && d->isVisible()) remodal(d, on ? Qt::NonModal : blocking(*d));
     if (on) support::ModalBackdrop::clearAll();
   }
 
@@ -105,7 +126,7 @@ namespace stencil::gui {
       dlg->setProperty(support::MODAL_CATCHER_ATTACHED_PROPERTY, QVariant());
     }
     dlg->setWindowModality(modality);
-    dlg->show();
+    showUnsheeted(*dlg);
     dlg->setGeometry(at);
     dlg->raise();
     dlg->activateWindow();
@@ -127,7 +148,7 @@ namespace stencil::gui {
     if (keep)
       QTimer::singleShot(support::motionMs(OTHERS_GONE_MS), keep, [this, keep = QPointer<QDialog>(keep)] {
         if (!keep || !keep->isVisible() || support::multiWindow()) return;
-        remodal(keep, Qt::ApplicationModal);   // one window at a time blocks the app again
+        remodal(keep, blocking(*keep));   // one window at a time blocks the app again
         support::ModalBackdrop::behindAll(keep);
       });
   }

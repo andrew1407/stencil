@@ -6,5 +6,5 @@ import type { BrowserPages } from './pageTools.js';
 
 export function makeStillSteps(opts: {
   config: CaptureConfig; runner: ShotRunner; pages: BrowserPages;
-  stub: LlmStub; appUrl: string; browser: Browser;
+  stub: LlmStub; ollama: { url: string }; appUrl: string; browser: Browser;
 }): readonly ShotStep[];

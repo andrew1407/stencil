@@ -17,4 +17,14 @@ export function clipOf(page: Page, ...selectors: string[]): Promise<{ x: number;
 export function still(ctx: VsCtx, name: string, ...selectors: string[]): Promise<unknown>;
 export function stillTerminal(ctx: VsCtx, name: string, ...selectors: string[]): Promise<unknown>;
 export function lineEnd(ctx: VsCtx, text: string): Promise<void>;
+export function setSetting(key: string, value: unknown): Promise<void>;
+export function getSetting(key: string): unknown;
+export function resizeWindow(ctx: VsCtx, size?: { width: number; height: number }): Promise<void>;
+export function noSquiggles(ctx: VsCtx): Promise<void>;
+export function filmWhile(ctx: VsCtx, framesDir: string, everyMs: number, shotOpts: object,
+  drive: () => Promise<void>): Promise<{ fps: number }>;
+export function openNamed(ctx: VsCtx, name: string): Promise<void>;
+export function freshTerminal(ctx: VsCtx): Promise<void>;
+export function printed(ctx: VsCtx, pattern: RegExp): Promise<void>;
+export function cleanRun(ctx: VsCtx, trigger: () => Promise<unknown>, pattern: RegExp, tries?: number): Promise<void>;
 export function terminalText(): string;

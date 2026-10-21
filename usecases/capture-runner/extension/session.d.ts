@@ -1,5 +1,6 @@
-import type { BrowserContext, Page } from 'playwright';
+import type { BrowserContext, Page, Worker } from 'playwright';
 import type { CaptureConfig } from '../lib/captureConfig.js';
+import type { Collab } from '../lib/collab.js';
 import type { ShotRunner } from '../lib/shot/runner.js';
 
 export declare const config: CaptureConfig;
@@ -11,8 +12,10 @@ export declare const freezeMotion: (page: Page) => Promise<void>;
 export declare const llmSettings: (baseUrl: string) => object;
 export declare const app: { url: string; stop(): void };
 export declare const site: { url: string; stop(): void };
+export declare const media: { url(name: string): string; stop(): void };
 export declare const stub: { url: string; queue(plan: unknown): void; close(): Promise<void> };
+export declare const collab: Collab;
 export declare const context: BrowserContext;
-export declare const background: () => Promise<unknown>;
+export declare const background: () => Promise<Worker>;
 export declare const extId: string;
 export declare const host: Page;

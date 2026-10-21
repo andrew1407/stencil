@@ -7,7 +7,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { deadRefs, dropIgnored, extractRefs, isCandidate, makeUniverse, resolves, scan } from './docPaths.mjs';
+import { anchorsOf, deadRefs, dropIgnored, extractRefs, isCandidate, makeUniverse, resolves, scan, slugOf } from './docPaths.mjs';
 
 const u = makeUniverse([
   'browser/js/ui/tip/controlTooltip.js',
@@ -73,6 +73,26 @@ test('links resolve relative to the doc and nowhere else', () => {
   assert.deepEqual(dead('contracts/llm/llm-contract.md',
     '[a](../common/config/llm/opRegistry.json) [b](../../common/config/llm/opRegistry.json) '
     + '[c](#anchor) [d](https://example.com/x)'), ['../common/config/llm/opRegistry.json']);
+});
+
+test('an HTML src or href is a link like any other', () => {
+  assert.deepEqual(dead('README.md', '<a href="contracts/llm/llm-contract.md"><img src="browser/gone.gif" alt="x"></a>'),
+    ['browser/gone.gif']);
+});
+
+test("a heading slug follows GitHub's: lowercase, symbols dropped, spaces to hyphens, repeats numbered", () => {
+  assert.equal(slugOf('Load a picture and edit it step by step'), 'load-a-picture-and-edit-it-step-by-step');
+  assert.equal(slugOf('Write a `.stcjs`'), 'write-a-stcjs');
+  assert.equal(slugOf('Open In… ▸ the [desktop](x.md)'), 'open-in--the-desktop');
+  assert.deepEqual([...anchorsOf('# A\n## A\n```\n# B\n```\n<a id="c"></a>')], ['a', 'a-1', 'c']);
+});
+
+test('a fragment must name an anchor of the doc it points into', () => {
+  const anchors = new Map([['contracts/llm/llm-contract.md', new Set(['scope'])], ['README.md', new Set(['top'])]]);
+  const deadIn = (md) => deadRefs('README.md', md, u, anchors).map((r) => r.token);
+  assert.deepEqual(deadIn('[a](contracts/llm/llm-contract.md#scope) [b](contracts/llm/llm-contract.md#gone) '
+    + '[c](#top) [d](#nowhere) <a href="contracts/llm/llm-contract.md#also-gone">e</a> [f](core/parse/formulaParser.cpp#L3)'),
+  ['contracts/llm/llm-contract.md#gone', '#nowhere', 'contracts/llm/llm-contract.md#also-gone']);
 });
 
 test('build output and the declared non-paths pass', () => {

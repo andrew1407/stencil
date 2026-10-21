@@ -1,7 +1,7 @@
 // MainWindow GUI e2e — switching Multiple windows while a window is open (PopoverGesturesSideBySide.cpp;
 // browser twin ui/modal/registry.js): the open window is re-shown under the new mode's modality and its
 // caller keeps waiting; switched off, the others close and the one kept blocks the app again under its
-// backdrop. Shared ground: MainWindow.gui.hpp.
+// backdrop — only its own window when it plays video. Shared ground: MainWindow.gui.hpp.
 #include "../../../MainWindow.gui.hpp"
 
 class MainWindowGuiTest : public QObject {
@@ -44,6 +44,34 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(modalAtOpen, "one window at a time opens it application-modal");
     QVERIFY2(sideBySide && stillOpen, "switched on, the same window is re-shown non-modal and stays");
     QVERIFY2(modalAgain, "switched off, the window kept blocks the app again");
+    QVERIFY(win.pop.windows.isEmpty());
+  }
+
+  void aVideoWindowBlocksOnlyItsOwnWindow() {
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    setMulti(win, false);
+    bool ownAtOpen = false, ownAgain = false;
+    // Shown parentless on macOS so it is no sheet; the parent it gets back is what it blocks.
+    const auto blocksWin = [&win](QDialog* dlg) {
+      return dlg->windowModality() == Qt::WindowModal && dlg->windowHandle()
+             && dlg->windowHandle()->transientParent() == win.windowHandle();
+    };
+    QTimer::singleShot(200, &win, [&] {
+      QDialog* dlg = openWindow(win);
+      if (!dlg) return;
+      ownAtOpen = blocksWin(dlg) && dlg->parentWidget() == &win;
+      setMulti(win, true);
+      setMulti(win, false);
+      QTest::qWait(700);
+      ownAgain = blocksWin(dlg) && dlg->isVisible();
+      dlg->reject();
+    });
+    win.parts.sourceOpener.openImage();
+    QVERIFY2(ownAtOpen, "Open Image blocks only the window it opened over, its parent restored");
+    QVERIFY2(ownAgain, "back to one window at a time, it still blocks only that window");
     QVERIFY(win.pop.windows.isEmpty());
   }
 };

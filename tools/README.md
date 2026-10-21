@@ -89,7 +89,10 @@ node tools/docPaths.mjs [--check] [doc.md or folder...]
 ```
 
 **Checks:** every tracked `.md` (or only the ones named): each backticked word shaped like a path,
-and each relative link. Fenced code blocks are skipped. Without `--check` it only reports.
+each relative link, and each `src="…"` / `href="…"` of inline HTML. A `#fragment` into a `.md`
+(or within the doc) must name one of its anchors: a heading's GitHub slug (a repeat gets `-1`,
+`-2`, …) or an explicit `id=` / `name=`. Fenced code blocks are skipped. Without `--check` it
+only reports.
 
 **Output:** one line per dead path, `<doc>:<line>  path|link  <token>`, then the summary.
 

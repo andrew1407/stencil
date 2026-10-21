@@ -110,8 +110,15 @@ test('the manifest declares exactly the commands the code registers', () => {
   const declared = contributes.commands.map((c) => c.command).sort();
   assert.deepEqual(declared, Object.values(ids.COMMANDS).sort());
   for (const command of contributes.commands) {
-    assert.match(command.title, /^Stencil: /, `${command.command} is not namespaced in the palette`);
+    assert.equal(command.category, 'Stencil', `${command.command} is not namespaced in the palette`);
+    assert.doesNotMatch(command.title, /^Stencil:/, `${command.command} reads "Stencil: Stencil:" in the palette`);
   }
+});
+
+test('the older hand-off ids stay registered but out of the palette and the title bar', () => {
+  const twins = [ids.COMMANDS.openScriptInWeb, ids.COMMANDS.openInDesktop].sort();
+  assert.deepEqual(contributes.menus.commandPalette.filter((e) => e.when === 'false').map((e) => e.command).sort(), twins);
+  for (const twin of twins) assert.ok(!contributes.menus['editor/title'].some((e) => e.command === twin), twin);
 });
 
 test('the run button and the keybinding point at the run command, scoped to .stc', () => {

@@ -1,6 +1,6 @@
-// The script hand-offs besides a plain run: the web app's Script window (`scriptMode: 'open'`),
-// and the desktop app over a `stencil://` link — open, run, run incognito — with the same
-// refusals and the same warning for a local @source the web hand-off gives.
+// The script hand-offs besides the plain web one: the older Script-window id (`scriptMode:
+// 'open'`) and the desktop app over a `stencil://` link — the modes both receivers parse and
+// ignore, opening the Script window either way — with the web hand-off's refusals and warning.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -8,17 +8,17 @@ import { open, openedPayload, withHost } from './helpers/webHost.js';
 
 const linkParams = (calls) => new URL(String(calls.opened.at(-1))).searchParams;
 
-test('open-script-in-web puts the script in the Script window instead of running it', async () => {
+test('open-script-in-web marks its hand-off scriptMode open', async () => {
   await withHost({}, async ({ calls, vscode, web }) => {
     open(vscode, { text: '@filter sepia\n' });
     await web.openScriptInWeb();
     assert.deepEqual(openedPayload(calls), { script: '@filter sepia\n', scriptMode: 'open' });
     await web.openInWeb();
-    assert.equal(openedPayload(calls).scriptMode, undefined, 'the plain hand-off still runs');
+    assert.equal(openedPayload(calls).scriptMode, undefined, 'the plain hand-off names no mode');
   });
 });
 
-test('the desktop hand-offs open a stencil:// link: open, run and run incognito', async () => {
+test('the desktop hand-offs open a stencil:// link: open, run and incognito modes', async () => {
   await withHost({}, async ({ calls, vscode, web }) => {
     open(vscode, { text: '@source https://cdn.example/i.png:\n  @crop 10%\n' });
     await web.openInDesktop();

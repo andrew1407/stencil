@@ -28,7 +28,7 @@ public sealed partial class EditingService
         return updated;
     }
 
-    // points are image pixels; closed repeats the first point and fills with the pen's fill colour.
+    // points are pixels of the picture as shown (after its crop and turns); closed repeats the first point and fills with the pen's fill colour.
     public Task<UserSession> AddLineAsync(long userId, IReadOnlyList<LayoutPoint> points, bool closed, CancellationToken ct = default) =>
         applyEditAsync(userId, session =>
         {

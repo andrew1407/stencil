@@ -3,6 +3,7 @@
 #include "openImageDialogParts.hpp"
 #include "OpenImageDialog.hpp"
 #include "../../support/modal/modalChrome.hpp"
+#include "../../support/modal/modalReveal.hpp"
 #include "MediaLoader.hpp"
 #include <QCheckBox>
 #include <QHBoxLayout>
@@ -22,6 +23,7 @@ namespace stencil::gui {
                                    const QString& pageSeed)
       : QDialog(parent), pageSeed(pageSeed), canReplace(canReplace) {
     setWindowTitle("Open Image");
+    setProperty(support::PLAYS_VIDEO_PROPERTY, true);
     // The browser's shared modal width; the four-button footer a replaceable project
     // adds paints tighter than the layout's minimum reports, so it gets more room.
     setMinimumWidth(canReplace ? 610 : MODAL_WIDTH);

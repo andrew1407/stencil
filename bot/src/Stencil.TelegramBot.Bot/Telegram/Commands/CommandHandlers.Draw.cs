@@ -1,4 +1,5 @@
 using System.Globalization;
+using Stencil.TelegramBot.Application.Llm.Plan;
 using Stencil.TelegramBot.Domain.Layout;
 using Stencil.TelegramBot.Domain.Sessions;
 using Telegram.Bot;
@@ -30,7 +31,10 @@ public sealed partial class CommandHandlers
         }
         string kind = shape.ToLowerInvariant();
         bool closed = kind is "rect" or "rectangle" or "poly" or "polygon";
-        if (!DrawArguments.TryParsePoints(pointTokens, session.OriginalWidth, session.OriginalHeight, out List<LayoutPoint> points, out string? error))
+        // The frame the stored lines live in, as a script's or a plan's do: the picture after its
+        // crop and turns, so 50% is the middle of what the chat shows.
+        PlanFrameMapper frame = PlanFrameMapper.ForSession(session);
+        if (!DrawArguments.TryParsePoints(pointTokens, frame.Width, frame.Height, out List<LayoutPoint> points, out string? error))
         {
             await _bot.SendMessage(chatId, $"{error}\n\n{Replies.DrawHelp()}", cancellationToken: ct);
             return;

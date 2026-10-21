@@ -39,7 +39,7 @@ export class CaptureConfig {
   get budget() { return this.#shared.budget; }
   get gifLook() { return this.#shared.gif; }
   get vscode() { return this.#shared.vscode; }
-  get serverUrl() { return process.env.STENCIL_DOCS_SERVER_URL || this.#shared.server.url; }
+  get serverUrl() { return process.env.STENCIL_DOCS_SERVER_URL || this.get('server.url'); }
 
   // The app's own value, falling back to the shared tree, then to `fallback`.
   get(dotted, fallback = undefined) {
@@ -62,8 +62,10 @@ export class CaptureConfig {
   // github.com redirect does not).
   url(key) { return this.#shared.urls.raw + this.#shared.urls[key]; }
 
-  // A real assistant, when a collaboration server with an LLM proxy is at hand: the token
-  // from the env, else the scratch file `mint` writes. Absent, the chat shots use the stub.
+  // A real model answers only when asked for: a server may proxy no model at all.
+  realLlm() { return process.env.STENCIL_DOCS_REAL_LLM === '1' && !!this.serverToken(); }
+
+  // A session token for a collaboration server: the env's, else the scratch file a mint wrote.
   serverToken() {
     if (process.env.STENCIL_DOCS_SERVER_TOKEN) return process.env.STENCIL_DOCS_SERVER_TOKEN;
     try {

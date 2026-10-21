@@ -3,26 +3,28 @@
 import path from 'node:path';
 import { scratchDir } from '../lib/paths.mjs';
 import { pairNames } from '../lib/theme/selector.mjs';
-import { film } from '../lib/shot/shots.mjs';
 import { framesToGif } from '../lib/gifTools.mjs';
 import { settle, waitForStable } from '../lib/waits.mjs';
 import {
-  EDITOR, PANEL, PARK, TIMEOUTS, TYPE_DELAY, clipOf, config, lineEnd, runner, still, stillTerminal,
-  terminalText,
+  EDITOR, PANEL, PARK, TIMEOUTS, TYPE_DELAY, clipOf, config, filmWhile, lineEnd, noSquiggles, runner,
+  still, stillTerminal, terminalText,
 } from './view.mjs';
 
 export const STC_STEPS = Object.freeze([
   ...pairNames('highlighting').map((name) => ({ name, run: (ctx) => still(ctx, name, ...EDITOR) })),
+  // A bare `@` on a new line: every directive, each with what it does.
   { name: 'completion', run: async (ctx) => {
     await lineEnd(ctx, '@filter sepia');
     await ctx.page.keyboard.press('Enter');
-    await ctx.page.keyboard.type('@fi', { delay: TYPE_DELAY });
+    await ctx.page.keyboard.type('@', { delay: TYPE_DELAY });
     await ctx.page.locator('.suggest-widget.visible').waitFor({ timeout: 5000 })
       .catch(() => ctx.page.keyboard.press('Control+Space'));
     await ctx.page.locator('.suggest-widget.visible .monaco-list-row').first().waitFor({ timeout: TIMEOUTS.widgetMs });
-    await still(ctx, 'completion', ...EDITOR);
+    await settle(400);
+    await still(ctx, 'completion', ...EDITOR, '.suggest-widget.visible');
     await ctx.page.keyboard.press('Escape');
     await ctx.host.runCommand('File: Revert File');
+    await noSquiggles(ctx);
   } },
   // A synthetic pointer never rests long enough for the editor's hover: ask for it at the caret.
   { name: 'hover', run: async (ctx) => {
@@ -32,18 +34,26 @@ export const STC_STEPS = Object.freeze([
     await waitForStable(ctx.page, () => document.querySelector('.monaco-hover')?.innerText ?? '',
       { idleMs: 400, timeoutMs: TIMEOUTS.widgetMs });
     await still(ctx, 'hover', ...EDITOR);
+    // A focused hover stays up over the lines below it, and a later click would land in it.
+    await ctx.page.keyboard.press('Escape');
+    await ctx.page.locator('.monaco-hover:not(.hidden)').first().waitFor({ state: 'hidden', timeout: TIMEOUTS.widgetMs }).catch(() => {});
     await ctx.page.mouse.move(PARK.x, PARK.y);
   } },
+  // The typed mistake's own marker, not any squiggle: a revert leaves the last one up a moment.
   { name: 'diagnostics', run: async (ctx) => {
+    await noSquiggles(ctx);
     await lineEnd(ctx, '@use px');
     await ctx.page.keyboard.press('Enter');
     await ctx.page.keyboard.type('@filtre sepai', { delay: TYPE_DELAY });
     await ctx.page.locator('.squiggly-error').first().waitFor({ timeout: TIMEOUTS.widgetMs });
     await ctx.page.keyboard.press('Meta+Shift+M');
-    await ctx.page.locator('.markers-panel .monaco-list-row').first().waitFor({ timeout: TIMEOUTS.widgetMs });
-    await still(ctx, 'diagnostics', ...EDITOR, PANEL);
+    await ctx.page.locator('.markers-panel .monaco-list-row', { hasText: '@filtre' }).first()
+      .waitFor({ timeout: TIMEOUTS.widgetMs });
+    await settle(300);
+    await still(ctx, 'diagnostics', ...EDITOR, '.part.panel .composite.title', '.markers-panel .monaco-list-row');
     await ctx.page.keyboard.press('Meta+J');
     await ctx.host.runCommand('File: Revert File');
+    await noSquiggles(ctx);
   } },
   // The run is over when the binary prints what it wrote. The first run also creates the terminal,
   // so clear it and run again for a shot that reads as a user sees it.
@@ -80,6 +90,8 @@ export const STC_STEPS = Object.freeze([
     };
     await lineEnd(ctx, '@filter sepia');
     await ctx.page.keyboard.press('Enter');
+    // The sample's own blank line follows: joined into the new one, the gap stays single.
+    await ctx.page.keyboard.press('Delete');
     // The code alone: from the breadcrumb down (no tab bar), stopping short of the overview
     // ruler, so neither window chrome nor the scrollbar strip reaches the picture.
     const editor = await ctx.page.locator('.part.editor').first().boundingBox();
@@ -87,17 +99,24 @@ export const STC_STEPS = Object.freeze([
     const region = { clip: {
       x: editor.x, y: from.y, width: editor.width - clip.clipTrimRight, height: clip.clipHeight,
     } };
-    const filming = film(ctx.page, frames, clip.ms, clip.everyMs, region);
-    await settle(clip.leadMs);
-    await offer('@');
-    await offer('re');                                        // the list narrows to @rect
-    await ctx.page.keyboard.press('Enter');                   // …and the pick is accepted
-    await ctx.page.keyboard.type(' (10%, 10%) (90%, 90%)', { delay: clip.typeDelayMs });
-    await settle(clip.holdMs);
-    await ctx.page.keyboard.press('Enter');
-    await offer('@filter se');                                // inside a statement: what is legal there
-    await ctx.page.keyboard.press('Escape');
-    const shot = await filming;
+    const shot = await filmWhile(ctx, frames, clip.everyMs, region, async () => {
+      await settle(clip.leadMs);
+      await offer('@');
+      await offer('re');                                      // the list narrows to @rect
+      await ctx.page.keyboard.press('Enter');                 // …and the pick is accepted
+      await ctx.page.keyboard.type(' (10%, 10%) (90%, 90%)', { delay: clip.typeDelayMs });
+      await settle(clip.holdMs);
+      await ctx.page.keyboard.press('Enter');
+      await offer('@filter ');                                // inside a statement: what is legal there
+      await offer('co');
+      await ctx.page.keyboard.press('Enter');
+      await ctx.page.keyboard.press('Enter');
+      await offer('@use line ');                              // colour names, each with its swatch
+      await offer('crim');
+      await ctx.page.keyboard.press('Enter');
+      await ctx.page.keyboard.press('Escape');
+      await settle(clip.holdMs);
+    });
     framesToGif(frames, path.join(runner.out, 'completion-hints.gif'),
       { ...config.gifLook, inFps: shot.fps });
     console.log('  completion-hints.gif');
@@ -109,19 +128,21 @@ export const CHECK_STEPS = Object.freeze([
   { name: 'edit-and-check', run: async (ctx) => {
     const clip = config.get('clips.edit-and-check');
     const frames = scratchDir('vs-frames');
+    await ctx.host.runCommand('View: Close Panel');
+    await ctx.host.openFile('example.stc');
     await lineEnd(ctx, '@use px');
     await ctx.page.keyboard.press('Enter');
-    const filming = film(ctx.page, frames, clip.ms, clip.everyMs,
-      { clip: await clipOf(ctx.page, ...EDITOR) });
-    await ctx.page.keyboard.type('@filtre invert', { delay: clip.typeDelayMs });
-    await ctx.page.locator('.squiggly-error').first().waitFor({ timeout: TIMEOUTS.widgetMs }).catch(() => {});
-    await settle(clip.holdMs);
-    for (let i = 0; i < 'tre invert'.length; i++) await ctx.page.keyboard.press('Backspace');
-    await ctx.page.keyboard.type('ter invert', { delay: clip.typeDelayMs });
-    // The retype raises the suggestion list; the clip holds on the fixed line, not on it.
-    await ctx.page.keyboard.press('Escape');
-    await ctx.page.locator('.squiggly-error').first().waitFor({ state: 'detached', timeout: TIMEOUTS.widgetMs }).catch(() => {});
-    const shot = await filming;
+    const shot = await filmWhile(ctx, frames, clip.everyMs, { clip: await clipOf(ctx.page, ...EDITOR) }, async () => {
+      await ctx.page.keyboard.type('@filtre invert', { delay: clip.typeDelayMs });
+      await ctx.page.locator('.squiggly-error').first().waitFor({ timeout: TIMEOUTS.widgetMs }).catch(() => {});
+      await settle(clip.holdMs);
+      for (let i = 0; i < 'tre invert'.length; i++) await ctx.page.keyboard.press('Backspace');
+      await ctx.page.keyboard.type('ter invert', { delay: clip.typeDelayMs });
+      // The retype raises the suggestion list; the clip holds on the fixed line, not on it.
+      await ctx.page.keyboard.press('Escape');
+      await ctx.page.locator('.squiggly-error').first().waitFor({ state: 'detached', timeout: TIMEOUTS.widgetMs }).catch(() => {});
+      await settle(clip.holdMs);
+    });
     framesToGif(frames, path.join(runner.out, 'edit-and-check.gif'),
       { ...config.gifLook, inFps: shot.fps });
     console.log('  edit-and-check.gif');

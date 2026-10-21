@@ -162,17 +162,19 @@ classDiagram
   so a relative `@source` resolves as on the command line. Every argument goes through
   `quoteArg` under the reported shell's `ShellRules`. With no CLI, or no file behind the
   buffer, the command refuses.
-- **A run in the browser.** Two routes. The hand-off builds the `#stencil=` fragment
+- **The browser.** Two routes. The hand-off builds the `#stencil=` fragment
   `browser/js/core/launch/deepLink.js` validates and hands it to `env.openExternal`; the script
-  rides as a top-level `script` key, local bytes travel in the fragment, which no server sees.
+  rides as a top-level `script` key and opens in the app's Script window, which runs it only on
+  Run, and local bytes travel in the fragment, which no server sees.
   The console route opens the browser through VS Code's built-in JavaScript debugger in a
   throwaway profile and sends DAP `evaluate` requests; the session that answers
   `typeof window.stencil` is the page. A `.stc` is quoted into one `execScript` call as data,
   while a `.stcjs` runs as written — the app's CSP grants no `unsafe-eval`, so that is its only
   route. Answers and failures land in the `Stencil` output channel.
-- **A run on the desktop.** The desktop commands build a `stencil://open?…` link in
-  `lib/desktop/launch.js`, pinned to the shared link grammar, and hand it to `env.openExternal`.
-  The scheme is fixed, so no workspace can route a script elsewhere.
+- **The desktop.** The desktop commands build a `stencil://open?…` link in
+  `lib/desktop/launch.js`, pinned to the shared link grammar, and hand it to `env.openExternal`;
+  the app opens the script in its Script window and runs it only on Run. The scheme is fixed, so
+  no workspace can route a script elsewhere.
 - **Two vocabularies, one shape.** `.stc` words come from `stcVocabulary.json`, facade members
   from `stencilApiVocabulary.json`; both render through the same `markdownFor`. The facade's
   hints answer in a `.stcjs` always and in a `.js` only while it holds `// @use stencil` on a

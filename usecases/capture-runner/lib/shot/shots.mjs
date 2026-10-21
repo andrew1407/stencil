@@ -1,10 +1,26 @@
-// Taking the picture: one still, a recorded clip, and the frame loop for pages whose
-// context cannot record video (a CDP-attached app).
+// Taking the picture: one still, a screencast clip with a drawn pointer, and the frame loop
+// for pages that only take screenshots.
 import fs from 'node:fs';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
-import { SCRATCH } from '../paths.mjs';
-import { webmToGif } from '../gifTools.mjs';
+import { scratchPath } from '../paths.mjs';
+import { castToGif, pairToGif } from '../gifTools.mjs';
+import { startCast } from './cast.mjs';
+import { pointerOnLoad } from './pointer.mjs';
+
+// A CSS-pixel rectangle in the frames' own pixels: a headless screencast may send frames at CSS
+// size whatever the device pixel ratio, so the scale is read off the first frame's PNG header.
+const framePx = (rect, { frames }, size) => {
+  if (!rect || !frames.length) return null;
+  const scale = fs.readFileSync(frames[0].file).readUInt32BE(16) / size.width;
+  return Object.fromEntries(Object.entries(rect).map(([k, v]) => [k, Math.round(v * scale)]));
+};
+
+const filmedPage = async (browser, size, dpr) => {
+  const context = await browser.newContext({ viewport: size, deviceScaleFactor: dpr });
+  await pointerOnLoad(context);
+  return { context, page: await context.newPage() };
+};
 
 // `target` is a page or a locator; stills disable CSS animations.
 export async function shoot(target, dir, name, opts = {}) {
@@ -14,20 +30,35 @@ export async function shoot(target, dir, name, opts = {}) {
   return file;
 }
 
-// The recording starts just before the first `mark()` call, so the page-load lead-in never
-// reaches the GIF.
-export async function recordGif(browser, dir, name, drive, { size = { width: 1280, height: 800 }, ...look } = {}) {
-  const videos = path.join(SCRATCH, 'video', name);
-  fs.rmSync(videos, { recursive: true, force: true });
-  const context = await browser.newContext({ viewport: size, recordVideo: { dir: videos, size } });
-  const startedAt = Date.now();
-  const page = await context.newPage();
-  let start = null;
-  const mark = () => { if (start == null) start = Math.max(0, (Date.now() - startedAt) / 1000 - 0.4); };
+// `drive(page, mark)` sets the page up and acts; awaiting `mark()` starts the camera, so the
+// loading and seeding before it never reach the GIF. `dpr` is the device pixel ratio filmed at;
+// `crop` (CSS px) keeps only the region the clip is about.
+export async function recordGif(browser, dir, name, drive,
+  { size = { width: 1280, height: 800 }, dpr = 2, crop = null, ...look } = {}) {
+  const { context, page } = await filmedPage(browser, size, dpr);
+  let cast = null;
+  const mark = async () => { cast ??= await startCast(page, scratchPath('clips', name)); };
   await drive(page, mark);
-  const video = page.video();
+  const recorded = cast && await cast.stop();
   await context.close();
-  webmToGif(await video.path(), path.join(dir, `${name}.gif`), { ...look, start });
+  if (!recorded) throw new Error(`${name}: the clip never called mark()`);
+  castToGif(recorded, path.join(dir, `${name}.gif`), { ...look, cropPx: framePx(crop, recorded, size) });
+  console.log(`  ${name}.gif`);
+}
+
+// Two pages in two contexts (two people), filmed at once and shown side by side.
+export async function recordPairGif(browser, dir, name, drive,
+  { size = { width: 800, height: 600 }, dpr = 2, crop = null, ...look } = {}) {
+  const sides = [await filmedPage(browser, size, dpr), await filmedPage(browser, size, dpr)];
+  let casts = null;
+  const mark = async () => {
+    casts ??= await Promise.all(sides.map(({ page }, i) => startCast(page, scratchPath('clips', `${name}-${i}`))));
+  };
+  await drive(sides[0].page, sides[1].page, mark);
+  const recorded = casts && await Promise.all(casts.map((cast) => cast.stop()));
+  for (const { context } of sides) await context.close();
+  if (!recorded) throw new Error(`${name}: the clip never called mark()`);
+  pairToGif(recorded[0], recorded[1], path.join(dir, `${name}.gif`), { ...look, gap: 8, cropPx: framePx(crop, recorded[0], size) });
   console.log(`  ${name}.gif`);
 }
 

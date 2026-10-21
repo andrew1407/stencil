@@ -143,34 +143,34 @@
     "commands": [
       {
         "command": "stencil.runScript",
-        "title": "Stencil: Run script",
+        "title": "Run script",
         "category": "Stencil",
         "icon": "$(play)"
       },
       {
         "command": "stencil.runScriptOnImage",
-        "title": "Stencil: Run script on an image…",
+        "title": "Run script on an image…",
         "category": "Stencil"
       },
       {
         "command": "stencil.checkScript",
-        "title": "Stencil: Check script",
+        "title": "Check script",
         "category": "Stencil"
       },
       {
         "command": "stencil.configureColors",
-        "title": "Stencil: Configure highlight colours",
+        "title": "Configure highlight colours",
         "category": "Stencil"
       },
       {
         "command": "stencil.openInWeb",
-        "title": "Stencil: Open in Stencil Web",
+        "title": "Open in Stencil Web",
         "category": "Stencil",
         "icon": "$(globe)"
       },
       {
         "command": "stencil.openInWebIncognito",
-        "title": "Stencil: Open in Stencil Web (incognito)",
+        "title": "Open in Stencil Web (incognito)",
         "category": "Stencil",
         "icon": {
           "light": "icons/incognito-light.svg",
@@ -179,19 +179,19 @@
       },
       {
         "command": "stencil.openScriptInWeb",
-        "title": "Stencil: Open in Stencil Web's Script window",
+        "title": "Open in Stencil Web's Script window",
         "category": "Stencil",
         "icon": "$(window)"
       },
       {
         "command": "stencil.openInDesktop",
-        "title": "Stencil: Open in Stencil Desktop",
+        "title": "Open in Stencil Desktop's Script window",
         "category": "Stencil",
         "icon": "$(device-desktop)"
       },
       {
         "command": "stencil.runInDesktop",
-        "title": "Stencil: Run in Stencil Desktop",
+        "title": "Open in Stencil Desktop",
         "category": "Stencil",
         "icon": {
           "light": "icons/monitor-light.svg",
@@ -200,7 +200,7 @@
       },
       {
         "command": "stencil.runInDesktopIncognito",
-        "title": "Stencil: Run in Stencil Desktop (incognito)",
+        "title": "Open in Stencil Desktop (incognito)",
         "category": "Stencil",
         "icon": {
           "light": "icons/monitor-incognito-light.svg",
@@ -209,33 +209,33 @@
       },
       {
         "command": "stencil.runInWebConsole",
-        "title": "Stencil: Run in Stencil Web Console",
+        "title": "Run in Stencil Web Console",
         "category": "Stencil",
         "icon": "$(play-circle)"
       },
       {
         "command": "stencil.runSelectionInWebConsole",
-        "title": "Stencil: Run selection in Stencil Web Console\u2026",
+        "title": "Run selection in Stencil Web Console\u2026",
         "category": "Stencil"
       },
       {
         "command": "stencil.openImageInWeb",
-        "title": "Stencil: Open an image in Stencil Web\u2026",
+        "title": "Open an image in Stencil Web\u2026",
         "category": "Stencil"
       },
       {
         "command": "stencil.addTypings",
-        "title": "Stencil: Add facade typings to this workspace",
+        "title": "Add facade typings to this workspace",
         "category": "Stencil"
       },
       {
         "command": "stencil.emitScript",
-        "title": "Stencil: Emit script as\u2026",
+        "title": "Emit script as\u2026",
         "category": "Stencil"
       },
       {
         "command": "stencil.runPythonScript",
-        "title": "Stencil: Run Python script",
+        "title": "Run Python script",
         "category": "Stencil",
         "icon": "$(play)"
       }
@@ -349,16 +349,6 @@
           "group": "navigation"
         },
         {
-          "command": "stencil.openScriptInWeb",
-          "when": "resourceLangId == stencil-script",
-          "group": "1_stencil@1"
-        },
-        {
-          "command": "stencil.openInDesktop",
-          "when": "resourceLangId == stencil-script",
-          "group": "1_stencil@2"
-        },
-        {
           "command": "stencil.runInDesktop",
           "when": "resourceLangId == stencil-script",
           "group": "navigation"
@@ -377,6 +367,16 @@
           "command": "stencil.runPythonScript",
           "when": "resourceLangId == stencil-py",
           "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "stencil.openScriptInWeb",
+          "when": "false"
+        },
+        {
+          "command": "stencil.openInDesktop",
+          "when": "false"
         }
       ]
     },

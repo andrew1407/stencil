@@ -169,6 +169,22 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
+  // Two enabled actions on one chord make Qt fire neither (Save to Project once shared Save
+  // Project As…'s Ctrl+Shift+S), so every window action's chord has one owner.
+  void everyChordHasOneOwner() {
+    MainWindow win(nullptr, false);
+    openLoaded(win);
+    QHash<QString, QString> owner;
+    for (QAction* a : win.actions())
+      for (const QKeySequence& seq : a->shortcuts()) {
+        const QString key = seq.toString(QKeySequence::PortableText);
+        if (key.isEmpty()) continue;
+        QVERIFY2(!owner.contains(key) || owner.value(key) == a->text(),
+                 qPrintable(key + ": " + owner.value(key) + " and " + a->text()));
+        owner.insert(key, a->text());
+      }
+    QVERIFY(owner.size() > 10);
+  }
 };
 
 QTEST_MAIN(MainWindowGuiTest)

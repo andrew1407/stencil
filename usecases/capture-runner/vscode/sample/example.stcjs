@@ -1,6 +1,6 @@
 // The browser app's console API, written in the editor: every member of window.stencil is
 // completed after `stencil.` and explained where it stands.
-await stencil.load('https://picsum.photos/id/1015/1200/800');
+await stencil.load('https://raw.githubusercontent.com/andrew1407/stencil/main/bot/assets/icon.png');
 
 stencil.rotateRight();
 stencil.crop({ x1: '8%', x2: '-8%', y1: '8%', y2: '-8%' });
@@ -13,7 +13,7 @@ stencil.apply({
 });
 
 stencil.setLines([
-  { points: [{ x: 120, y: 640 }, { x: 400, y: 240 }, { x: 680, y: 640 }] },
+  { points: [{ x: 80, y: 360 }, { x: 215, y: 110 }, { x: 350, y: 360 }] },
 ], { mode: 'combine' });
 
 await stencil.saveProjectFile();

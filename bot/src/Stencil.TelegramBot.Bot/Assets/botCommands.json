@@ -482,7 +482,7 @@
         ]
       },
       {
-        "heading": "**Drawing / annotation** — coordinates are image pixels, or `x%,y%` of the image:",
+        "heading": "**Drawing / annotation** — coordinates are pixels, or `x%,y%`, of the picture as shown (after its crop and turns):",
         "rows": [
           {
             "verbs": [

@@ -59,6 +59,12 @@ platform the suites run on.
 - **An application-modal dialog's outside press never reaches an event filter** (AppKit drops
   it inside `runModalForWindow`). Dismiss-on-outside-click needs a transparent `Qt::Tool` child
   window below the dialog; the offscreen test does not prove a real click works.
+- **An application-modal dialog starves Qt's video output**: `QMediaPlayer` + `QVideoSink` play
+  to the end with no frame inside its Cocoa session, so a dialog that plays video is window-modal
+  (`support::PLAYS_VIDEO_PROPERTY`). Offscreen never gets a frame either: prove it on screen.
+- **A window-modal window with a transient parent opens as an AppKit sheet**, pinned to the
+  parent's top edge: `move()` and every landing or flight are ignored. Show it parentless and
+  restore the transient parent right after (`showUnsheeted`, `PopoverGesturesSideBySide.cpp`).
 - **Veil a top-level (`setWindowOpacity(0)`) before it maps**, or it flashes before its reveal.
 - **A closed dialog can leave a stale cursor** — `setWindowCursor` skips an unchanged shape; the
   fix re-applies it through a different shape (`support/modal/hoverResync.cpp`).

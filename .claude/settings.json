@@ -3,10 +3,8 @@
     "deny": [
       "Read(**/.env)",
       "Edit(**/.env)",
-      "Write(**/.env)",
       "Read(**/openInConfig.json)",
       "Edit(**/openInConfig.json)",
-      "Write(**/openInConfig.json)",
       "Read(**/*.pem)",
       "Read(**/*.key)",
       "Read(**/*.p12)",

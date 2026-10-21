@@ -25,7 +25,7 @@ void MainWindowGuiTest::dropShots(MainWindow& win, const ShotSet& shots) {
     pumpFor(400);   // a cleared toast fades out; the overlay would show it through its wash
     QMimeData mime;
     mime.setUrls({QUrl::fromLocalFile(QDir::temp().filePath(QString::fromUtf8(d.file)))});
-    QDragEnterEvent enter(QPoint(int(win.width() * d.x), win.height() / 3), Qt::CopyAction, &mime,
+    QDragEnterEvent enter(QPointF(win.width() * d.x, win.height() / 3.0), Qt::CopyAction, &mime,
                           Qt::LeftButton, Qt::NoModifier);
     QApplication::sendEvent(win.windowHandle(), &enter);
     pumpFor(200);

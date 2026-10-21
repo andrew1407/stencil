@@ -1,34 +1,47 @@
 // The shots for the commands this extension puts on the editor itself: the title-bar action icons
 // (package.json editor/title) and the expression box "Run selection in Stencil Web Console" raises.
+import { execFileSync } from 'node:child_process';
+import path from 'node:path';
 import { quantizePng } from '../lib/gifTools.mjs';
+import { scratchDir } from '../lib/paths.mjs';
 import { settle } from '../lib/waits.mjs';
+import { clipOf, resizeWindow } from './view.mjs';
+
+// One title row per file type, in the order the doc names them.
+const TITLE_FILES = Object.freeze(['example.stc', 'example.stcjs', 'example.stencil']);
 
 export function makeActionSteps({ config, runner, still }) {
   const timeouts = config.get('timeouts');
-  const pad = config.get('titleActions.padPx');
 
   return Object.freeze([
-    // package.json editor/title: a .stc script carries Run script, Open in Stencil Web and Run in
-    // Stencil Desktop, each web and desktop one with its incognito twin; a .stcjs file gets only Run
-    // in Stencil Web Console and a .stencil project the two web ones. The shot takes the script.
+    // package.json editor/title: a .stc carries Run script and both web and both desktop hand-offs,
+    // a .stcjs only Run in Stencil Web Console, a .stencil project the two web ones. In a narrowed
+    // window each file's own tab sits near its buttons, and the three real rows are stacked.
     {
       name: 'title-actions',
       run: async (ctx) => {
+        const rows = scratchDir('vs-title-rows');
+        await ctx.host.runCommand('View: Close Primary Side Bar');
+        await resizeWindow(ctx, config.get('narrowWindow'));
+        const files = [];
+        for (const file of TITLE_FILES) {
+          await ctx.host.openFile(file);
+          await ctx.host.runCommand('View: Close Other Editors in Group');
+          await ctx.page.locator('.editor-actions .action-item').first().waitFor({ timeout: timeouts.widgetMs });
+          await settle(600);
+          const row = path.join(rows, `${files.length}.png`);
+          const clip = await clipOf(ctx.page, '.tabs-and-actions-container');
+          clip.height -= config.get('cropPadPx');   // not the breadcrumb row beneath
+          await ctx.page.screenshot({ path: row, clip });
+          files.push(row);
+        }
+        const out = path.join(runner.out, 'title-actions.png');
+        execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', ...files.flatMap((f) => ['-i', f]),
+          '-filter_complex', `${files.map((_, i) => `[${i}:v]`).join('')}vstack=inputs=${files.length}`, out]);
+        quantizePng(out);
+        console.log('  title-actions.png');
+        await resizeWindow(ctx);
         await ctx.host.openFile('example.stc');
-        await ctx.page.locator('.editor-actions .action-item').first()
-          .waitFor({ timeout: timeouts.widgetMs });
-        await settle(600);
-        // The icon row alone: a strip spanning the tab bar would be almost all empty gap.
-        const clip = await ctx.page.evaluate((gutter) => {
-          const row = document.querySelector('.editor-actions').getBoundingClientRect();
-          return {
-            x: Math.round(row.x) - gutter,
-            y: Math.round(row.y) - gutter,
-            width: Math.round(row.width) + gutter * 2,
-            height: Math.round(row.height) + gutter * 2,
-          };
-        }, pad);
-        quantizePng(await runner.shot(ctx.page, 'title-actions', { clip }));
       },
     },
     // With nothing selected the command asks for the expression instead of running one

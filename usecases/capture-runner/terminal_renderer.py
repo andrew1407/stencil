@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
-"""A small terminal emulator that turns an SGR-coloured text stream (the CLI's pinned
-goldens) into an HTML page: cursor placement, erase, SGR with truecolor, OSC skipped.
-Stdlib only. Used by cli_listings.py.
+"""A small terminal emulator that turns an SGR-coloured text stream (the CLI's pinned goldens,
+or a live session's bytes) into an HTML page: cursor placement and save/restore, erase, SGR
+with truecolor, OSC skipped. Stdlib only. Used by cli_listings.py and cli_sessions.py.
 """
 
 from __future__ import annotations
 
 import codecs
 import html
-import sys
 from functools import partial
 
-from terminal_containers import (BASIC_COLORS, CSS, DEFAULT_BG, DEFAULT_COLS, DEFAULT_FG, DEFAULT_TITLE,
+from terminal_containers import (BASIC_COLORS, CSS, DEFAULT_BG, DEFAULT_COLS, DEFAULT_FG, LIGHT_CSS,
                                  WINDOW_DOTS, Cell, CsiCommand, NoneType, Style, color256)
 
 
@@ -36,6 +35,7 @@ class TerminalEmulator:
     self.row = self.col = 0
     self.wrap = True
     self.style = Style()
+    self.__saved = (0, 0, Style())
     self.__decoder = codecs.getincrementaldecoder("utf-8")("replace")
     self.__state, self.__buf = "ground", ""
     self.__csi_handlers = self.__make_csi_handlers()
@@ -52,15 +52,15 @@ class TerminalEmulator:
     for ch in self.__decoder.decode(data):
       self.__states[self.__state](ch)
 
-  def to_html(self, title: str) -> str:
+  def to_html(self, title: str, keep: (list | NoneType) = None, light: bool = False) -> str:
+    """`keep` names the rows to paint, top to bottom (every row by default); `light` the terminal."""
     out = list()
-    rows = self.rows or len(self.grid)
-    for r in range(rows):
+    for r in keep if keep is not None else range(self.rows or len(self.grid)):
       out.append(self.__row_html(r))
       out.append("\n")
     dots = "".join('<i style="background:%s"></i>' % c for c in WINDOW_DOTS)
     return ('<!doctype html><meta charset="utf-8"><style>%s</style><div class="term"><div class="bar">%s<b>%s</b></div>'
-            '<pre>%s</pre></div>' % (CSS, dots, html.escape(title), "".join(out)))
+            '<pre>%s</pre></div>' % (LIGHT_CSS if light else CSS, dots, html.escape(title), "".join(out)))
 
   # ── the character states ─────────────────────────────────────────────────────
   def __on_ground(self, ch: str) -> None:
@@ -69,10 +69,14 @@ class TerminalEmulator:
     elif ch >= " ": self.__put(ch)
 
   def __on_escape(self, ch: str) -> None:
+    self.__state = "ground"
     if ch == "[": self.__state, self.__buf = "csi", ""
     elif ch == "]": self.__state, self.__buf = "osc", ""
     elif ch in "()#%": self.__state = "skip1"
-    else: self.__state = "ground"
+    elif ch == "7": self.__saved = (self.row, self.col, Style(**vars(self.style)))
+    elif ch == "8":
+      self.row, self.col = self.__saved[0], self.__saved[1]
+      vars(self.style).update(vars(self.__saved[2]))
 
   def __on_skip(self, _ch: str) -> None:
     self.__state = "ground"
@@ -210,19 +214,8 @@ class TerminalEmulator:
     if handler: handler(cmd)
 
 
-def render(ansi_path: str, out_html: str, rows: (int | NoneType), cols: int, title: str) -> str:
+def render(ansi_path: str, out_html: str, rows: (int | NoneType), cols: int, title: str, light: bool = False) -> str:
   term = TerminalEmulator(rows, cols)
   with open(ansi_path, "rb") as src: term.feed(src.read())
-  with open(out_html, "w") as dst: dst.write(term.to_html(title))
+  with open(out_html, "w") as dst: dst.write(term.to_html(title, light=light))
   return out_html
-
-
-def main(argv: list[str]) -> None:
-  src, dst = argv[1], argv[2]
-  opts = dict(zip(argv[3::2], argv[4::2]))
-  rows = int(opts["--rows"]) if "--rows" in opts else None
-  render(src, dst, rows, int(opts.get("--cols", str(DEFAULT_COLS))), opts.get("--title", DEFAULT_TITLE))
-
-
-if __name__ == "__main__":
-  main(sys.argv)

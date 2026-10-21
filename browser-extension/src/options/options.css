@@ -39,7 +39,7 @@ code { background:var(--panel-2); padding:1px 5px; border-radius:4px; }
 /* The custom list that replaces those selects (lib/control/customSelect.js) keeps their compact size. */
 .pin-filters .accent-dd { width:auto; }
 .pin-filters .accent-dd-trigger { padding:5px 10px; font-size:12px; }
-.pin-filters select:empty, .pin-filters select[hidden] { display:none; }
+.pin-filters select:empty, .pin-filters select[hidden], .pin-filters .chk[hidden] { display:none; }
 /* width:auto beats the form-field `input { width:100% }` above — as a full-width field
    the search box claimed a whole row to itself and pushed the rest of the filters onto
    two more. It sizes to the typing room below instead. */
@@ -88,9 +88,9 @@ code { background:var(--panel-2); padding:1px 5px; border-radius:4px; }
 .conn-filters[hidden] { display:none; }
 .conn-filters .chk { font-size:11px; padding:2px 7px; letter-spacing:.2px; }
 .conn-filters .chk > input[type="radio"] { position:absolute; opacity:0; width:0; height:0; margin:0; }
-/* Golden cue for a pin that is also stored on a connected server. */
+/* Golden cue for a pin that is also stored on a connected server: on the row only — the
+   thumbnail keeps its neutral border, as the popup's and the editor's project rows do. */
 .pin-row.shared { outline:2px solid #f5c518; outline-offset:-2px; }
-.pin-row.shared .pin-thumb { border-color:#f5c518; }
 .pin-badge-server { display:inline-flex; align-items:center; gap:4px; color:#f5c518; font-weight:600; }
 .pin-badge-server .ic { vertical-align:-0.16em; }
 .pin-sub { display:flex; align-items:center; gap:8px; margin-top:3px; font-size:11px; color:var(--muted); }

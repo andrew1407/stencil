@@ -14,8 +14,8 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 
-# Order matters: the two terminal runners photograph the same VS Code debug port, and the
-# desktop and extension runners each want the machine's screen to themselves.
+# Order matters: the extension, desktop and VS Code runners each want the machine's screen to
+# themselves, so they run one after another, after the headless ones.
 RUNNERS = (
     "browser.mjs",
     "cli_listings.py",

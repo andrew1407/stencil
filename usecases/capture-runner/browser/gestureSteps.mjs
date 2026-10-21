@@ -54,7 +54,7 @@ export function makeGestureSteps({ config, runner, browser, pages }) {
     run: () => recordGif(browser, runner.out, name, async (page, mark) => {
       const look = { ...clips[name], theme: runner.themeOf(name) };
       await setup(page, look);
-      mark();
+      await mark();
       await drive(page, look);
       await rest(page);
       await settle(look.holdMs);

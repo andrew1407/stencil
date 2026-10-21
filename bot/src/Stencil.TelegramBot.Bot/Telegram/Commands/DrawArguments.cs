@@ -4,7 +4,8 @@ using Stencil.TelegramBot.Bot.Telegram.Messaging;
 
 namespace Stencil.TelegramBot.Bot.Telegram.Commands;
 
-// A point token is x,y in image pixels, or x%,y% as a percentage of the working image's size.
+// A point token is x,y in pixels of the picture as shown, or x%,y% as a share of its width and
+// height (the caller passes the shown frame's size).
 public static class DrawArguments
 {
     public static bool TryParsePoints(

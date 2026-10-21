@@ -41,7 +41,7 @@ for (const [theme, ink] of INKS) {
   });
 }
 
-test('the desktop runs sit in the title bar on those icons', () => {
+test('the desktop hand-offs sit in the title bar on those icons', () => {
   const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
   const icon = (id) => manifest.contributes.commands.find((c) => c.command === id).icon;
   assert.deepEqual(icon('stencil.runInDesktop'), { light: 'icons/monitor-light.svg', dark: 'icons/monitor-dark.svg' });

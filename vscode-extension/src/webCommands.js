@@ -42,7 +42,7 @@ const inlineImages = () =>
 
 const pickFile = async () => {
   const picked = await vscode.window.showOpenDialog({
-    canSelectMany: false, openLabel: 'Run script on', title: 'Stencil: image to run the script on',
+    canSelectMany: false, openLabel: 'Take along', title: 'Stencil: image to take along with the script',
   });
   return picked && picked.length ? picked[0].fsPath : '';
 };
@@ -85,7 +85,8 @@ const handOff = async (incognito, scriptMode) => {
   if (payload === TOO_BIG_IMAGE) return vscode.window.showErrorMessage(IMAGE_TOO_BIG);
   // The app's own throwaway session: it keeps no project, so nothing the run makes survives.
   if (incognito) payload.incognito = true;
-  // 'open' puts it in the Script window instead of running it; absent, it runs.
+  // The app opens a handed-over script in its Script window whatever `scriptMode` names; the
+  // field stays in the fragment the app parses.
   if (scriptMode && payload.script !== undefined) payload.scriptMode = scriptMode;
   const launch = buildLaunchUrl(url, payload);
   if (isTooBig(launch)) return vscode.window.showErrorMessage(TOO_BIG);
@@ -93,11 +94,13 @@ const handOff = async (incognito, scriptMode) => {
 };
 
 // Two buttons, one hand-off: a menu click passes the resource, so neither takes an argument.
+// openScriptInWeb is the same hand-off under its older command id.
 const openInWeb = () => handOff(false);
 const openInWebIncognito = () => handOff(true);
 const openScriptInWeb = () => handOff(false, 'open');
 
-// The desktop asks before it runs a script that came by link, and reads URLs only while it does.
+// The desktop opens a linked script in its Script window and runs it only on Run; a linked
+// script may then read web images only. openInDesktop is the same hand-off under its older id.
 const desktopHandOff = async (mode, incognito = false) => {
   const document = activeDocument();
   if (!document || document.languageId !== LANGUAGE_ID) return vscode.window.showErrorMessage(OPEN_A_SCRIPT);

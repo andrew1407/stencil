@@ -23,15 +23,17 @@ SCRATCH = os.path.join(os.environ.get("STENCIL_CAPTURE_SCRATCH", os.path.join(HE
 
 @dataclass
 class Golden:
-  """One SGR-coloured pin, rendered as it prints: config/cli.json `goldens` entry."""
+  """One SGR-coloured pin, rendered as it prints: config/cli.json `goldens` entry. A `pair` is
+  rendered twice, in a dark and a light terminal, for a listing whose colours need both."""
   name: str
   pin: str
   cols: int
   title: str
+  pair: bool = False
 
   @staticmethod
   def of(name: str, spec: dict) -> Golden:
-    return Golden(name, spec["pin"], spec["cols"], spec["title"])
+    return Golden(name, spec["pin"], spec["cols"], spec["title"], spec.get("pair", False))
 
   @property
   def source(self) -> str:
@@ -48,9 +50,11 @@ def render_goldens(goldens: tuple[Golden, ...]) -> tuple[str, ...]:
   os.makedirs(SCRATCH)
   written = list()
   for golden in goldens:
-    written.append(render(golden.source, os.path.join(SCRATCH, golden.name + ".html"),
-                          None, golden.cols, golden.title))
-    print("  %s.html" % golden.name)
+    for name, light in ((golden.name + "-dark", False), (golden.name + "-light", True)) if golden.pair \
+        else ((golden.name, False),):
+      written.append(render(golden.source, os.path.join(SCRATCH, name + ".html"), None, golden.cols,
+                            golden.title, light))
+      print("  %s.html" % name)
   return tuple(written)
 
 

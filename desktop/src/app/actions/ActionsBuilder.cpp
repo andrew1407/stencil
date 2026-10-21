@@ -116,7 +116,9 @@ namespace stencil::gui {
       w.parts.dockChrome.setChatShown(on, /*animate=*/true);
     });
     w.acts.newProject = newAction("New Project", "Ctrl+Shift+N");
-    w.acts.saveProject = newAction("Save to Project", "Ctrl+Shift+S");
+    // No chord: Ctrl+Shift+S is the shared table's Save Project As… (.stencil), and two enabled
+    // owners of one chord fire neither.
+    w.acts.saveProject = newAction("Save to Project", "");
     // Browser's #clear-storage danger button; hidden for server projects (refreshActions).
     w.acts.clearProject = newAction("Clear Project", w.keys.value("clearProject", "Ctrl+Alt+R"));
     w.setActionTip(w.acts.clearProject, "Remove current project");

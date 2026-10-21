@@ -17,7 +17,7 @@ const TIPS = Object.freeze({
   color: "Line color\nDouble-click: the toolbar's line color",
   area: "Line color — an area shows its fill inside\nDouble-click: the toolbar's line color",
   thickness: `Line thickness\nDouble-click to edit (${thickMin}–${thickMax} px)`,
-  pointColor: "Point color\nDouble-click: the line's own color",
+  pointColor: "Point color\nDouble-click: the toolbar's point color",
   pointSize: `Point size\nDouble-click to edit (${pointMin}–${pointMax} px)`,
   name: 'Line name\nDouble-click to rename',
 });

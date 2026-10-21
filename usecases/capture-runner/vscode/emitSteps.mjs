@@ -1,10 +1,13 @@
 // The shots of the files this extension gives: the explorer's per-type icons, the emit pick of
-// target languages, and an emitted .pystc running on its own interpreter.
-import { SAMPLES } from '../lib/vscodeHost.mjs';
+// target languages, the emitted .pystc beside its script, and that file running on Python.
+import fs from 'node:fs';
+import path from 'node:path';
+import { SAMPLES, WORKSPACE } from '../lib/vscodeHost.mjs';
 import { quantizePng } from '../lib/gifTools.mjs';
-import { settle, waitForStable } from '../lib/waits.mjs';
+import { settle } from '../lib/waits.mjs';
 import {
-  EDITOR, FILE_ROW, LABEL_GUTTER, PALETTE, PANEL, TIMEOUTS, runner, still, stillTerminal, terminalText,
+  EDITOR, FILE_ROW, LABEL_GUTTER, PALETTE, PANEL, TIMEOUTS, cleanRun, config, openNamed, printed, runner, still,
+  stillTerminal,
 } from './view.mjs';
 
 export const EMIT_STEPS = Object.freeze([
@@ -46,15 +49,30 @@ export const EMIT_STEPS = Object.freeze([
     await still(ctx, 'emit-targets', PALETTE);
     await ctx.page.keyboard.press('Escape');
   } },
-  // The emitted file running on its own interpreter: the .pystc's own Run button, and what
-  // it printed in the terminal.
+  // The pick made: the workspace's sample .pystc goes first, so the file on screen is the one the
+  // CLI just wrote beside the script.
+  { name: 'emitted-file', run: async (ctx) => {
+    fs.rmSync(path.join(WORKSPACE(config), 'example.pystc'), { force: true });
+    await openNamed(ctx, 'example.stc');
+    await cleanRun(ctx, async () => {
+      await ctx.host.runCommand('Stencil: Emit script as');
+      await ctx.page.locator(`${PALETTE} .monaco-list-row`).first().waitFor({ timeout: TIMEOUTS.widgetMs });
+      await ctx.page.keyboard.press('Enter');
+    }, /wrote \S*example\.pystc|error:/);
+    await openNamed(ctx, 'example.pystc');
+    await stillTerminal(ctx, 'emitted-file', ...EDITOR, PANEL);
+  } },
+  // That emitted file on its own interpreter. It writes its pictures without a word, so once the
+  // prompt is back the shot lists what it wrote.
   { name: 'python-run', run: async (ctx) => {
-    await ctx.host.openFile('example.pystc');
-    await ctx.host.runCommand('Stencil: Run Python script');
-    await ctx.page.locator('.terminal-wrapper').first().waitFor({ timeout: TIMEOUTS.terminalMs });
-    await ctx.page.waitForFunction(() => /wrote |Error|error/.test(
-      document.querySelector('.terminal-wrapper.active .xterm-rows')?.innerText ?? ''), null, { timeout: 60_000 });
-    await waitForStable(ctx.page, terminalText, { idleMs: 500, timeoutMs: 20_000 });
+    fs.rmSync(path.join(WORKSPACE(config), 'out'), { recursive: true, force: true });
+    fs.mkdirSync(path.join(WORKSPACE(config), 'out'));
+    await openNamed(ctx, 'example.pystc');
+    await cleanRun(ctx, () => ctx.host.runCommand('Stencil: Run Python script'), /example\.pystc\s*\n\$\s*$|Error|error:/);
+    await ctx.page.locator('.terminal-wrapper.active .xterm').first().click();
+    await ctx.page.keyboard.type('ls out');
+    await ctx.page.keyboard.press('Enter');
+    await printed(ctx, /icon-stencil/);
     await stillTerminal(ctx, 'python-run', ...EDITOR, PANEL);
     await ctx.page.keyboard.press('Meta+J');
   } },

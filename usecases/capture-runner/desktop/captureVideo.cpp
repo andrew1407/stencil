@@ -3,6 +3,7 @@
 
 #include "OpenImageDialog.hpp"
 #include <QCheckBox>
+#include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QSlider>
@@ -29,7 +30,8 @@ void MainWindowGuiTest::grabVideoDialog(MainWindow& win, const QString& name,
     load(dlg);
     // Offscreen has no GPU decoder on every host, so a clip that never arrives is a skip.
     if (!waitUntil([dlg] { return !dlg->previewedImage().isNull() && dlg->isVideo(); }, 20000)) {
-      std::printf("  %s SKIPPED (the clip did not decode)\n", qPrintable(name));
+      std::printf("  %s SKIPPED (the clip did not decode: %s)\n", qPrintable(name),
+                  qPrintable(dlg->previewHint ? dlg->previewHint->text() : QString()));
       done = true;
       dlg->reject();
       return;

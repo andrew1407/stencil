@@ -3,6 +3,7 @@
 #include "LinksDialog.hpp"
 #include "iconSet.hpp"
 #include "../../../support/modal/modalChrome.hpp"
+#include "../../../support/modal/modalReveal.hpp"
 #include <QPalette>
 #include <QCheckBox>
 #include <QFormLayout>
@@ -29,6 +30,7 @@ namespace stencil::gui {
                            const QString& units, QWidget* parent)
       : QDialog(parent), pageSeed(pageSeed) {
     setWindowTitle("Image links");
+    setProperty(support::PLAYS_VIDEO_PROPERTY, true);
     setMinimumWidth(MODAL_WIDTH);
     const QColor txt = palette().color(QPalette::WindowText);
     // Theme muted tone for hint/secondary text (browser --text-muted).

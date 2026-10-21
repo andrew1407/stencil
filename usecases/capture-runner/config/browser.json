@@ -1,18 +1,56 @@
 {
   "theme": {
     "mode": "dark",
-    "steps": {
-      "open-image-modal": "light",
-      "crop-modal": "light",
-      "open-video-local": "light",
-      "open-video-url": "light",
-      "crop-video": "light"
-    }
+    "steps": {}
+  },
+  "server": {
+    "url": "http://127.0.0.1:8094",
+    "localDbPort": 55434
   },
   "pairs": [
     "editor-empty",
-    "lines-selection",
-    "launch-page"
+    "lines-selection"
+  ],
+  "dpr": 2,
+  "pictureSize": {
+    "width": 512,
+    "height": 512
+  },
+  "pictureLines": [
+    {
+      "points": [
+        {
+          "x": 96,
+          "y": 436
+        },
+        {
+          "x": 256,
+          "y": 480
+        },
+        {
+          "x": 420,
+          "y": 436
+        }
+      ],
+      "color": "#e11d48",
+      "thickness": 6,
+      "style": "solid"
+    },
+    {
+      "points": [
+        {
+          "x": 420,
+          "y": 70
+        },
+        {
+          "x": 470,
+          "y": 250
+        }
+      ],
+      "color": "#22d3ee",
+      "thickness": 5,
+      "style": "dashed"
+    }
   ],
   "viewports": {
     "app": {
@@ -25,11 +63,6 @@
     }
   },
   "modals": [
-    {
-      "name": "connect-modal",
-      "key": "servers",
-      "overlay": "connect-modal-overlay"
-    },
     {
       "name": "open-image-modal",
       "key": "open-image",
@@ -52,7 +85,8 @@
       "overlay": "crop-modal-overlay",
       "trigger": "#crop-image",
       "ready": "#crop-image-el",
-      "image": "botIcon"
+      "image": "botIcon",
+      "trimmed": true
     },
     {
       "name": "links-modal",
@@ -81,21 +115,41 @@
       "stepMs": 400,
       "holdMs": 700,
       "points": [
+        [0.2, 0.25],
+        [0.55, 0.6],
+        [0.8, 0.3]
+      ],
+      "lineColor": "#e11d48",
+      "thickness": 4,
+      "parkAt": [0.04, 0.5]
+    },
+    "edit-draw": {
+      "leadMs": 600,
+      "stepMs": 400,
+      "holdMs": 1400,
+      "image": "botIcon",
+      "filter": "sepia",
+      "parkAt": [0.05, 0.45],
+      "lines": [
         [
-          0.2,
-          0.25
+          [0.2, 0.3],
+          [0.5, 0.15],
+          [0.8, 0.3]
         ],
         [
-          0.55,
-          0.6
-        ],
-        [
-          0.8,
-          0.3
+          [0.25, 0.8],
+          [0.75, 0.8]
         ]
       ],
-      "fps": 8,
-      "width": 900
+      "size": {
+        "width": 1280,
+        "height": 860
+      },
+      "lineColors": [
+        "#e11d48",
+        "#22d3ee"
+      ],
+      "thickness": 5
     },
     "assistant-turn": {
       "leadMs": 600,
@@ -106,20 +160,14 @@
       "leadMs": 600,
       "typeDelayMs": 18,
       "ranMs": 900,
-      "holdMs": 1600,
-      "fps": 8,
-      "width": 900
+      "holdMs": 1600
     },
     "fullscreen-strip": {
       "leadMs": 600,
       "edgeY": 2,
-      "parkAt": [
-        0.1,
-        0.5
-      ],
+      "parkAt": [0.1, 0.5],
       "holdMs": 1400,
-      "fps": 10,
-      "width": 900
+      "moveSteps": 12
     },
     "touch-pan": {
       "size": {
@@ -131,14 +179,8 @@
       "zoom": 3,
       "settleMs": 700,
       "glide": [
-        [
-          -140,
-          -70
-        ],
-        [
-          110,
-          50
-        ]
+        [-140, -70],
+        [110, 50]
       ],
       "steps": 14,
       "holdMs": 900
@@ -149,12 +191,7 @@
       "pauseMs": 500,
       "leadMs": 600,
       "holdMs": 1200,
-      "fps": 10,
-      "width": 900,
-      "dropAt": [
-        0.42,
-        0.62
-      ]
+      "dropAt": [0.42, 0.62]
     },
     "drag-icon-zoom": {
       "steps": 24,
@@ -162,21 +199,10 @@
       "pauseMs": 500,
       "leadMs": 600,
       "holdMs": 1200,
-      "fps": 10,
-      "width": 900,
       "glide": [
-        [
-          0,
-          150
-        ],
-        [
-          -60,
-          300
-        ],
-        [
-          -40,
-          130
-        ]
+        [0, 150],
+        [-60, 300],
+        [-40, 130]
       ]
     },
     "drag-icon-canvas": {
@@ -185,12 +211,7 @@
       "pauseMs": 500,
       "leadMs": 600,
       "holdMs": 1200,
-      "fps": 10,
-      "width": 900,
-      "dropAt": [
-        0.35,
-        0.7
-      ]
+      "dropAt": [0.35, 0.7]
     },
     "drag-logo-clean": {
       "steps": 14,
@@ -198,23 +219,12 @@
       "pauseMs": 500,
       "leadMs": 600,
       "holdMs": 1200,
-      "fps": 10,
-      "width": 900,
       "image": "botIcon",
       "filter": "sepia",
       "path": [
-        [
-          0.3,
-          0.7
-        ],
-        [
-          0.5,
-          0.3
-        ],
-        [
-          0.33,
-          0.72
-        ]
+        [0.3, 0.7],
+        [0.5, 0.3],
+        [0.33, 0.72]
       ]
     },
     "theme-lens": {
@@ -223,25 +233,11 @@
       "pauseMs": 500,
       "leadMs": 600,
       "holdMs": 1200,
-      "fps": 10,
-      "width": 900,
       "path": [
-        [
-          0.55,
-          0.25
-        ],
-        [
-          0.3,
-          0.65
-        ],
-        [
-          0.75,
-          0.7
-        ],
-        [
-          0.6,
-          0.2
-        ]
+        [0.55, 0.25],
+        [0.3, 0.65],
+        [0.75, 0.7],
+        [0.6, 0.2]
       ]
     },
     "drag-color": {
@@ -250,8 +246,60 @@
       "pauseMs": 500,
       "leadMs": 600,
       "holdMs": 1200,
-      "fps": 10,
-      "width": 900
+      "crop": {
+        "x": 560,
+        "y": 110,
+        "width": 720,
+        "height": 520
+      }
+    },
+    "draw-shapes": {
+      "leadMs": 500,
+      "stepMs": 350,
+      "holdMs": 1200,
+      "page": "#f1f5f9",
+      "lineColor": "#e11d48",
+      "rect": [
+        [0.12, 0.2],
+        [0.45, 0.75]
+      ],
+      "dragSteps": 16,
+      "area": [
+        [0.58, 0.22],
+        [0.88, 0.3],
+        [0.82, 0.78],
+        [0.6, 0.7]
+      ],
+      "fills": [
+        ["#2563eb", 90],
+        ["#f59e0b", 110]
+      ]
+    },
+    "coedit": {
+      "size": {
+        "width": 1000,
+        "height": 700
+      },
+      "width": 1100,
+      "leadMs": 500,
+      "stepMs": 300,
+      "holdMs": 1400,
+      "line": [
+        [0.25, 0.3],
+        [0.5, 0.18],
+        [0.75, 0.32]
+      ],
+      "rect": [
+        [0.3, 0.55],
+        [0.7, 0.85]
+      ],
+      "dragSteps": 12,
+      "crop": {
+        "x": 10,
+        "y": 14,
+        "width": 560,
+        "height": 676
+      }
     }
   },
   "handoff": {
@@ -261,6 +309,7 @@
     }
   },
   "timeouts": {
+    "previewMs": 700,
     "stubReplyMs": 20000,
     "realReplyMs": 120000,
     "loadMs": 15000

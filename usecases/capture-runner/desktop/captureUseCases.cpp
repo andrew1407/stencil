@@ -1,9 +1,9 @@
-// Entry point of the desktop use-case capture: a private state dir seeded with settings and
-// three projects, then the shots this pass was asked for (STENCIL_DOCS_THEME +
-// STENCIL_DOCS_SHOTS). Built by desktop/cmake/StencilTests.cmake behind
-// STENCIL_DOCS_CAPTURE=ON; run through usecases/capture-runner/desktop.mjs, which reads
-// config/desktop.json, sets the env once per theme and assembles the GIF.
-#include "captureShared.hpp"
+// Entry point of the desktop use-case capture: a private state dir seeded with settings and two
+// projects, then the shots this pass was asked for (STENCIL_DOCS_THEME + STENCIL_DOCS_SHOTS).
+// Built by desktop/cmake/tests/gui.cmake behind STENCIL_DOCS_CAPTURE=ON; run through
+// usecases/capture-runner/desktop.mjs, which reads config/desktop.json, sets the env once per
+// theme and assembles the GIFs.
+#include "captureStrip.hpp"
 
 #include "fileStore.hpp"
 #include "connectionStore.hpp"
@@ -12,6 +12,7 @@
 #include <QDateTime>
 #include <QDir>
 #include <QImage>
+#include <QSettings>
 #include <QStyleFactory>
 #include <QTemporaryDir>
 #include <cstdio>
@@ -25,35 +26,65 @@ namespace {
     s.accentColor = QStringLiteral("violet");
     s.autosave = false;
     s.nativeMenuBar = false;                             // drawn in-window, so the grab shows it
+    // A provider set up the way a reader would set one; the chat shots answer through the canned
+    // plan behind the real client (captureAssistant.cpp).
     s.llmProvider = QStringLiteral("ollama");
-    s.llmBaseUrl = QStringLiteral("http://127.0.0.1:1");  // the status dot stays off
-    // A collaboration server with an LLM proxy: the chat then talks to the real model.
+    s.llmBaseUrl = QStringLiteral("http://localhost:11434");
+    s.llmModel = QStringLiteral("llama3.2-vision");
+    // A collaboration server is saved, and dialled at start only when its LLM proxy answers the chat;
+    // otherwise serverShots connects last, so the local shots list local projects only.
     const QString server = qEnvironmentVariable("STENCIL_DOCS_SERVER_URL");
     const QString token = qEnvironmentVariable("STENCIL_DOCS_SERVER_TOKEN");
-    if (!server.isEmpty() && !token.isEmpty()) {
+    const bool saved = !server.isEmpty() && !token.isEmpty();
+    const bool real = saved && qEnvironmentVariable("STENCIL_DOCS_REAL_LLM") == QLatin1String("1");
+    stencil::net::connectionStore::saveServers(
+        saved ? QVector<stencil::net::SavedServer>{{server, token, QStringLiteral("session")}}
+              : QVector<stencil::net::SavedServer>{});
+    stencil::net::connectionStore::setAutoConnect(real);
+    if (real) {
       s.llmProvider = QStringLiteral("stencil-server");
       s.llmServerUrl = server;
-      stencil::net::connectionStore::saveServers({{server, token, QStringLiteral("session")}});
     }
     return s;
   }
 
-  // Three saved projects with real images, so the Projects dialog has rows and thumbnails.
+  // The browser's ochre-on-cream wash, painted pixel by pixel (Qt has no filter for it).
+  QImage sepia(QImage img) {
+    img = img.convertToFormat(QImage::Format_ARGB32);
+    for (int y = 0; y < img.height(); ++y) {
+      auto* row = reinterpret_cast<QRgb*>(img.scanLine(y));
+      for (int x = 0; x < img.width(); ++x) {
+        const int r = qRed(row[x]), g = qGreen(row[x]), b = qBlue(row[x]);
+        row[x] = qRgba(qMin(255, int(r * .393 + g * .769 + b * .189)), qMin(255, int(r * .349 + g * .686 + b * .168)),
+                       qMin(255, int(r * .272 + g * .534 + b * .131)), qAlpha(row[x]));
+      }
+    }
+    return img;
+  }
+
+  // Two older projects with real pictures, named as the browser walkthrough names its own; the
+  // third, "Kitchen plan", is the one the dialog shots open (captureDialogs.cpp).
   void seedProjects(const QString& stateDir) {
+    QImage survey(960, 640, QImage::Format_RGB32);
+    survey.fill(QColor("#dde3ea"));
+    const QImage icon(envOr("STENCIL_DOCS_ICON_FILE", ""));
+    const struct { const char* id; const char* name; QImage img; stencil::core::Lines lines; } rows[] = {
+      {"p1", "Poster draft", icon.isNull() ? scene() : sepia(icon), {}},
+      {"p2", "Floor survey", survey,
+       {line({{160, 120}, {800, 120}, {800, 520}, {160, 520}, {160, 120}}, "#2563eb", 6, "solid")}},
+    };
     std::vector<Project> projects;
-    const struct { const char* id; const char* name; QColor fill; } rows[] = {
-      {"p1", "kitchen plan", Qt::white}, {"p2", "night sketch", Qt::black}, {"p3", "poster draft", QColor("#fde68a")}};
-    long long when = QDateTime::currentMSecsSinceEpoch();
+    long long when = QDateTime::currentMSecsSinceEpoch() - 3'600'000;
     for (const auto& r : rows) {
-      QImage img(960, 640, QImage::Format_RGB32);
-      img.fill(r.fill);
       const QString path = QDir(stateDir).filePath(QString::fromLatin1(r.id) + ".png");
-      img.save(path, "PNG");
+      r.img.save(path, "PNG");
       Project p;
       p.meta.id = r.id;
       p.meta.name = r.name;
       p.meta.createdAt = p.meta.updatedAt = when;
+      p.meta.expiresAt = when + 7LL * 24 * 3'600'000;   // a week, the app's default period
       p.imagePath = path;
+      p.lines = r.lines;
       projects.push_back(p);
       when -= 3'600'000;
     }
@@ -73,6 +104,11 @@ int main(int argc, char** argv) {
   QDir().mkpath(framesDir());
 
   QApplication app(argc, argv);
+  // Preferences as INI files in the state dir: the saved servers and switches go with it.
+  QSettings::setDefaultFormat(QSettings::IniFormat);
+  QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, state.path());
+  QCoreApplication::setOrganizationName(QStringLiteral("StencilDocsCapture"));
+  QCoreApplication::setApplicationName(QStringLiteral("stencilDocsCapture"));
   QApplication::setStyle(QStyleFactory::create("Fusion"));
   qApp->setQuitOnLastWindowClosed(false);
 

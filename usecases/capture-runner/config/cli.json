@@ -11,23 +11,25 @@
     },
     "console-help": {
       "pin": "help.color.txt",
-      "cols": 100,
-      "title": "stencil --console  \u203a  /help"
+      "cols": 152,
+      "title": "stencil --console  ›  /help",
+      "scaleFactor": 1.5
     },
     "themes": {
       "pin": "themes.color.txt",
       "cols": 100,
-      "title": "stencil --console  \u203a  /theme"
+      "title": "stencil --console  ›  /theme",
+      "pair": true
     },
     "formats": {
       "pin": "formats.color.txt",
       "cols": 100,
-      "title": "stencil --console  \u203a  /format"
+      "title": "stencil --console  ›  /format"
     },
     "projects": {
       "pin": "projects-multi.color.txt",
       "cols": 100,
-      "title": "stencil --console  \u203a  /projects"
+      "title": "stencil --console  ›  /projects"
     }
   },
   "page": {
@@ -35,27 +37,402 @@
     "height": 1000,
     "scaleFactor": 2
   },
-  "terminal": {
-    "logoCell": {
-      "row": 2,
-      "col": 6
+  "sessions": {
+    "root": "/tmp/stencil-term/cli",
+    "title": "stencil",
+    "rows": 26,
+    "cols": 100,
+    "typeDelayMs": 30,
+    "quietMs": 700,
+    "gif": {
+      "width": 1000
     },
-    "idleMs": 700,
-    "maxWaitMs": 20000
-  },
-  "clips": {
-    "term-theme-cycle": {
-      "ms": 3600,
-      "everyMs": 100,
-      "gapMs": 1600
+    "bin": {
+      "stencil": "cli/zig-out/bin/stencil"
     },
-    "term-reveal": {
-      "ms": 3600,
-      "everyMs": 100
-    }
-  },
-  "timeouts": {
-    "uploadMs": 20000,
-    "promptMs": 150000
+    "files": {
+      "icon.png": "bot/assets/icon.png",
+      "photos/banner.jpg": "bot/assets/description.jpg",
+      "photos/logo.png": "bot/assets/icon.png",
+      "photos/badge.png": "browser-extension/icons/icon-128.png"
+    },
+    "texts": {
+      "frame-all.stc": [
+        "# Frame every picture in photos/ and warm it up.",
+        "@source photos/:",
+        "    @crop 6%",
+        "    @filter sepia",
+        "    @use line #c81e1e 4px dashed",
+        "    @rect (10%, 10%) (90%, 90%)",
+        "    @save out/"
+      ],
+      "marks.json": [
+        "{\"lines\": [{\"points\": [{\"x\": 146, \"y\": 120}, {\"x\": 365, \"y\": 120}, {\"x\": 365, \"y\": 391}, {\"x\": 146, \"y\": 391}, {\"x\": 146, \"y\": 120}], \"color\": \"#dc2626\", \"thickness\": 6, \"style\": \"dashed\"}, {\"points\": [{\"x\": 70, \"y\": 470}, {\"x\": 256, \"y\": 430}, {\"x\": 442, \"y\": 470}], \"color\": \"#2563eb\", \"thickness\": 6}]}"
+      ]
+    },
+    "video": "clip.mp4",
+    "serverNames": [
+      "Roof survey"
+    ],
+    "scenes": [
+      {
+        "name": "oneshot",
+        "steps": [
+          {
+            "line": "stencil -i icon.png -c \"x1=10% x2=90% y1=10% y2=90%\" -r 1 --filter sepia out/icon-framed.png",
+            "until": "\\n\\$$"
+          },
+          {
+            "line": "stencil -i missing.png out/x.png",
+            "until": "\\n\\$$"
+          },
+          {
+            "shot": "oneshot",
+            "fit": "rows",
+            "keep": [
+              "out/icon-framed.png",
+              "oneshot-result"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "batch",
+        "steps": [
+          {
+            "line": "cat frame-all.stc",
+            "until": "\\n\\$$"
+          },
+          {
+            "line": "stencil --script frame-all.stc",
+            "until": "\\n\\$$"
+          },
+          {
+            "shot": "batch",
+            "fit": "rows"
+          }
+        ]
+      },
+      {
+        "name": "layout",
+        "steps": [
+          {
+            "line": "stencil -i icon.png -l marks.json out/icon-marked.png",
+            "until": "\\n\\$$"
+          },
+          {
+            "shot": "layout",
+            "fit": "rows",
+            "keep": [
+              "out/icon-marked.png",
+              "layout-result"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "video",
+        "steps": [
+          {
+            "line": "stencil --probe -i clip.mp4",
+            "until": "\\n\\$$"
+          },
+          {
+            "line": "stencil -i clip.mp4 -f 30 out/frame-30.png",
+            "until": "\\n\\$$"
+          },
+          {
+            "shot": "video",
+            "fit": "rows"
+          }
+        ]
+      },
+      {
+        "name": "server",
+        "server": true,
+        "env": {
+          "STENCIL_SERVER_TOKEN": "{token}"
+        },
+        "steps": [
+          {
+            "line": "stencil -i icon.png --filter sepia --remote {server} --remote-name \"Roof survey\" out/roof.png",
+            "until": "created server project"
+          },
+          {
+            "line": "stencil --server {server} -i \"Roof survey\" -r 1 --remote-update out/roof.png",
+            "until": "\\n\\$$"
+          },
+          {
+            "shot": "server",
+            "fit": "rows"
+          }
+        ],
+        "cols": 112
+      },
+      {
+        "name": "term-idle",
+        "rows": 32,
+        "cols": 104,
+        "steps": [
+          {
+            "line": "stencil --console-full-screen out/console.png",
+            "until": "Console mode",
+            "timeout": 20
+          },
+          {
+            "shot": "term-idle",
+            "fit": "band"
+          }
+        ]
+      },
+      {
+        "name": "term-session",
+        "rows": 32,
+        "cols": 104,
+        "steps": [
+          {
+            "line": "stencil --console-full-screen out/console.png",
+            "until": "Console mode",
+            "timeout": 20
+          },
+          {
+            "clip": "term-session"
+          },
+          {
+            "line": "/upload {iconUrl}",
+            "until": "\\(Y/n\\)"
+          },
+          {
+            "keys": "y",
+            "until": "image:\\s+http",
+            "timeout": 40
+          },
+          {
+            "line": "/status"
+          },
+          {
+            "line": "/crop x1=10% x2=90% y1=10% y2=90%"
+          },
+          {
+            "line": "/filter sepia"
+          },
+          {
+            "line": "/rotate 1"
+          },
+          {
+            "line": "/undo"
+          },
+          {
+            "line": "/save out/edited.png",
+            "until": "edited\\.png"
+          },
+          {
+            "cut": true
+          },
+          {
+            "shot": "term-session",
+            "fit": "band"
+          }
+        ]
+      },
+      {
+        "name": "term-blank",
+        "rows": 32,
+        "cols": 104,
+        "steps": [
+          {
+            "line": "stencil --console-full-screen out/console.png",
+            "until": "Console mode",
+            "timeout": 20
+          },
+          {
+            "clip": "term-blank"
+          },
+          {
+            "line": "/blank a5 black"
+          },
+          {
+            "line": "/script @use line #c81e1e 4px dashed ; @rect (10%, 10%) (90%, 90%) ; @filter sepia"
+          },
+          {
+            "line": "/undo"
+          },
+          {
+            "cut": true
+          }
+        ]
+      },
+      {
+        "name": "term-prompt",
+        "rows": 32,
+        "cols": 120,
+        "plans": [
+          "sepiaOutline"
+        ],
+        "env": {
+          "STENCIL_LLM_PROVIDER": "openai-compat",
+          "STENCIL_LLM_BASE_URL": "{stub}/v1",
+          "STENCIL_LLM_MODEL": "stub"
+        },
+        "steps": [
+          {
+            "line": "stencil --console-full-screen out/console.png",
+            "until": "Console mode",
+            "timeout": 20
+          },
+          {
+            "line": "/upload icon.png",
+            "until": "\\(Y/n\\)"
+          },
+          {
+            "keys": "y",
+            "until": "image:\\s+icon\\.png"
+          },
+          {
+            "line": "/prompt {prompt}",
+            "until": "Framed the S",
+            "timeout": 60
+          },
+          {
+            "shot": "term-prompt",
+            "fit": "band"
+          }
+        ]
+      },
+      {
+        "name": "term-theme-cycle",
+        "rows": 32,
+        "cols": 104,
+        "steps": [
+          {
+            "line": "stencil --console-full-screen out/console.png",
+            "until": "Console mode",
+            "timeout": 20
+          },
+          {
+            "line": "/upload icon.png",
+            "until": "\\(Y/n\\)"
+          },
+          {
+            "keys": "y",
+            "until": "image:\\s+icon\\.png"
+          },
+          {
+            "line": "/crop x1=10% x2=90% y1=10% y2=90%"
+          },
+          {
+            "line": "/filter sepia"
+          },
+          {
+            "clip": "term-theme-cycle"
+          },
+          {
+            "click": [
+              4,
+              8
+            ],
+            "pauseMs": 1600
+          },
+          {
+            "click": [
+              4,
+              8
+            ],
+            "pauseMs": 1600
+          },
+          {
+            "cut": true
+          }
+        ]
+      },
+      {
+        "name": "term-theme",
+        "rows": 32,
+        "cols": 104,
+        "steps": [
+          {
+            "line": "stencil --console-full-screen out/console.png",
+            "until": "Console mode",
+            "timeout": 20
+          },
+          {
+            "line": "/upload icon.png",
+            "until": "\\(Y/n\\)"
+          },
+          {
+            "keys": "y",
+            "until": "image:\\s+icon\\.png"
+          },
+          {
+            "clip": "term-theme"
+          },
+          {
+            "line": "/theme turquoise",
+            "pauseMs": 1500
+          },
+          {
+            "line": "/theme #e3b341",
+            "pauseMs": 1500
+          },
+          {
+            "cut": true
+          }
+        ]
+      },
+      {
+        "name": "term-reveal",
+        "rows": 32,
+        "cols": 104,
+        "steps": [
+          {
+            "line": "stencil --console-full-screen out/console.png",
+            "until": "Console mode",
+            "timeout": 20
+          },
+          {
+            "line": "/reveal-speed 0.08"
+          },
+          {
+            "clip": "term-reveal"
+          },
+          {
+            "line": "/format"
+          },
+          {
+            "cut": true
+          }
+        ]
+      },
+      {
+        "name": "term-handoff",
+        "rows": 32,
+        "cols": 104,
+        "steps": [
+          {
+            "line": "stencil --console-full-screen out/console.png",
+            "until": "Console mode",
+            "timeout": 20
+          },
+          {
+            "line": "/upload icon.png",
+            "until": "\\(Y/n\\)"
+          },
+          {
+            "keys": "y",
+            "until": "image:\\s+icon\\.png"
+          },
+          {
+            "line": "/browser"
+          },
+          {
+            "line": "/desktop"
+          },
+          {
+            "shot": "term-handoff",
+            "fit": "band"
+          }
+        ]
+      }
+    ]
   }
 }

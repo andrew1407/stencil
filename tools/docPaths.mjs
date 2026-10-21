@@ -1,6 +1,7 @@
 // ── docPaths: does every path a doc names still exist? ────
-// Reads the backticked paths and relative links of every tracked (or would-be-tracked) .md and
-// resolves each against the repo root, the doc's folder, its surface root and that root's js/ + src/.
+// Reads the backticked paths, relative links and HTML src/href of every tracked (or would-be-tracked)
+// .md, resolves each against the repo root, the doc's folder, its surface root and that root's
+// js/ + src/, and holds every #fragment into a .md to that doc's heading slugs and ids.
 //   node tools/docPaths.mjs [--check] [doc.md or folder...]   (--check exits 1 on a dead path)
 import { execFile } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
@@ -38,10 +39,34 @@ export const extractRefs = (md) => {
     const line = i + 1;
     for (const m of text.matchAll(/(?<!`)`([^`\n]+)`(?!`)/g))
       for (const word of m[1].trim().split(/\s+/)) refs.push({ token: word, line, kind: 'code' });
-    for (const m of text.replace(/`[^`\n]*`/g, '').matchAll(/\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g))
-      refs.push({ token: m[1], line, kind: 'link' });
+    const prose = text.replace(/`[^`\n]*`/g, '');
+    for (const m of prose.matchAll(/\]\(([^)\s]+)(?:\s+"[^"]*")?\)|<[a-z]+\s[^>]*?\b(?:src|href)="([^"]+)"/gi))
+      refs.push({ token: m[1] || m[2], line, kind: 'link' });
   });
   return refs;
+};
+
+// GitHub's heading slug: lowercase, punctuation and symbols dropped, each space a hyphen.
+export const slugOf = (heading) => heading.trim().toLowerCase().replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+  .replace(/<[^>]+>/g, '').replace(/[^\p{L}\p{N}\p{M}\s_-]/gu, '').replace(/\s/g, '-');
+
+// Every anchor a doc offers: its headings' slugs (a repeat gets -1, -2, …) and explicit id= / name=.
+export const anchorsOf = (md) => {
+  const out = new Set();
+  let fence = null;
+  for (const text of md.split('\n')) {
+    const open = /^\s*(`{3,}|~{3,})/.exec(text);
+    if (open) { fence = !fence ? open[1][0] : (open[1][0] === fence ? null : fence); continue; }
+    if (fence) continue;
+    const h = /^#{1,6}\s+(.*?)\s*#*\s*$/.exec(text);
+    if (h) {
+      let slug = slugOf(h[1]);
+      for (let n = 1, base = slug; out.has(slug); n++) slug = `${base}-${n}`;
+      out.add(slug);
+    }
+    for (const m of text.matchAll(/\b(?:id|name)="([^"]+)"/g)) out.add(m[1]);
+  }
+  return out;
 };
 
 // ── the file universe ───────────────────────────────────────────
@@ -150,9 +175,22 @@ const ignoredByGit = (root, paths) => (!paths.length ? Promise.resolve(new Set()
   child.stdin.end(paths.join('\n'));
 }));
 
-export const deadRefs = (doc, md, u) => extractRefs(md).filter(({ token, kind }) => {
+// A `#fragment` into a Markdown doc must name one of its anchors (`anchors`: doc → anchorsOf).
+const anchorDead = (token, doc, anchors) => {
+  const hash = token.indexOf('#');
+  if (!anchors || hash < 0) return false;
+  const file = token.slice(0, hash).replace(/\?.*$/, '');
+  const target = file ? join(path.posix.dirname(doc) === '.' ? '' : path.posix.dirname(doc), decodeURI(file)) : doc;
+  const offered = target && target.endsWith('.md') ? anchors.get(target) : null;
+  return Boolean(offered) && !offered.has(decodeURIComponent(token.slice(hash + 1)));
+};
+
+export const deadRefs = (doc, md, u, anchors = null) => extractRefs(md).filter(({ token, kind }) => {
   if ((ALLOW[doc] || []).includes(token)) return false;
-  if (kind === 'link') return !/^([a-z][\w+.-]*:|#)/i.test(token) && !linkResolves(token, doc, u);
+  if (kind === 'link') {
+    if (/^[a-z][\w+.-]*:/i.test(token)) return false;
+    return (!token.startsWith('#') && !linkResolves(token, doc, u)) || anchorDead(token, doc, anchors);
+  }
   return isCandidate(token, doc, u) && !resolves(token, doc, u) && !BUILD_OUTPUT.test(token);
 });
 
@@ -164,7 +202,11 @@ export const scan = async (root, only = []) => {
   const u = makeUniverse(files);
   const docs = only.length ? only.flatMap((o) => (u.dirSet.has(o.replace(/\/$/, '')) ? listUnder(files, o) : [o]))
     : files.filter((f) => f.endsWith('.md'));
-  const dead = await mapLimit(docs, async (doc) => deadRefs(doc, await readText(root, doc), u).map((ref) => ({ doc, ...ref })));
+  const allMd = files.filter((f) => f.endsWith('.md'));
+  const texts = new Map(await mapLimit(allMd, async (doc) => [doc, await readText(root, doc)]));
+  const anchors = new Map([...texts].map(([doc, md]) => [doc, anchorsOf(md)]));
+  const dead = await mapLimit(docs, async (doc) => deadRefs(doc, texts.get(doc) ?? await readText(root, doc), u, anchors)
+    .map((ref) => ({ doc, ...ref })));
   return dropIgnored(root, dead.flat());
 };
 

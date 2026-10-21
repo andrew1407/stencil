@@ -7,12 +7,17 @@
     "width": 1280,
     "height": 940
   },
+  "names": {
+    "project": "Kitchen plan",
+    "description": "The north wall, before the paint"
+  },
   "waits": {
     "loginPollMs": 5000,
     "loginMaxMs": 1200000,
     "replyMs": 40000,
     "promptMs": 150000,
     "settleMs": 1500,
-    "menuMs": 20000
+    "menuMs": 20000,
+    "maxShotHeight": 2400
   }
 }

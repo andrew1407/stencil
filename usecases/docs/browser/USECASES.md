@@ -1,9 +1,10 @@
 # Browser app — use cases
 
 What the editor looks like and what you do with it, one scenario at a time. Build, run and
-configure it from [`browser/README.md`](../../../browser/README.md).
+configure it from [`browser/README.md`](../../../browser/README.md). Keyboard shortcuts are
+written with Ctrl; on a Mac they use ⌘ instead.
 
-## Open the editor
+## Open the app
 
 Serve the app (`cd browser && npm run serve`) and open <http://localhost:8080>. You get the
 toolbar, an empty canvas with a **Blank image** card, and the points table. The theme
@@ -13,27 +14,24 @@ follows your OS; the moon/sun button (`Ctrl+D`) flips it.
 |---|---|
 | ![the editor, light](img/editor-empty-light.png) | ![the editor, dark](img/editor-empty-dark.png) |
 
-## Start from a blank page
+## Start from a blank page, a file or a link
 
-1. Click **Blank image** on the empty canvas (or the Open Image button, `Ctrl+O`).
-2. Pick **Blank**, choose a fill (White, Black, or any colour) and a size, then **Create blank**.
-3. Press **Start** (`Alt+A`, or press `~` twice) and click on the canvas to place points; the same key **stops**.
+**Open Image** (`Ctrl+O`, or the **Blank image** card) has three tabs: **Local file**,
+**URL link** and **Blank**. **Blank** takes a fill — **White**, **Black** or any colour — and a
+size, then **Create blank**.
 
-![create a blank page and draw](img/create-blank.gif)
+![a white page created, then three points clicked in](img/create-blank.gif)
 
-| White page | Black page |
-|---|---|
-| ![white blank](img/blank-white.png) | ![black blank](img/blank-black.png) |
+Under **URL link**, paste an `http(s)` address and press **Preview**. **Crop** trims the picture
+to the page's shape before it opens, **Incognito** opens it without ever saving it, and **Open
+here** or **Open in new tab** finishes. Here, a picture straight from the repository:
 
-## Open an image from a link
+![the Open Image window previewing a picture from a link](img/open-image-modal.png)
 
-Open Image (`Ctrl+O`) takes a local file, a URL, or a blank page. Paste an `http(s)`
-address under **URL link** and open it; here the app's own logo, fetched straight from the
-repository:
+![the picture open in the editor](img/open-from-url.png)
 
-![the open-image window, previewing the logo's URL](img/open-image-modal.png)
-
-![an image opened from a URL](img/open-from-url.png)
+With a picture already open, the window also offers **Replace image**: the new picture takes the
+old one's place, and **Keep existing annotations** keeps the lines drawn on it.
 
 ## Drop a file on the page
 
@@ -44,7 +42,8 @@ The half under the pointer lights up.
 ![an image or project dragged over the save / incognito halves](img/file-dropzones.png)
 
 A `.json` layout opens no image, so it gets one zone that draws the layout over the open
-picture. A `.stc` script runs from either half.
+picture. A `.stc` script runs from either half — or, while the Script window is open, lands in
+it instead.
 
 ![a .json layout dragged over the page](img/layout-dropzone.png)
 
@@ -63,15 +62,27 @@ canvas is the one framed here. The Album / Portrait button flips the orientation
 
 ![cropping a video frame before opening it](img/crop-video.png)
 
-## Draw, select and edit points
+## Draw lines and shapes
 
-Lines are polylines or rectangles. Selecting a line in the **Lines** tab raises the
-selection bar, where colour, thickness, point size and style change for that line only. The
-**Points** tab lists every vertex in pixels and in page units (cm or in), editable in place.
+Press **Start** (`Alt+A`, or press `~` twice) and click on the picture to place points; the
+same key stops, and the next run of clicks makes a new line.
+
+![two lines clicked in point by point, then the sepia filter](img/edit-draw.gif)
+
+The **Line** button beside **Start** switches to **Rect**: drag across the picture to sweep a
+rectangle. Back on **Line**, clicking a line's first point again closes it into an area. A
+selected rectangle or area gets **Fill** in the selected-line bar — a colour and its opacity,
+0 to 255 — and **Unchain**, which opens it back into a line.
+
+![a rectangle swept and filled, then a second area closed by clicking its first point again](img/draw-shapes.gif)
+
+Selecting a line in the **Lines** tab raises the selection bar, where colour, thickness, point
+size and style change for that line only. The **Points** tab lists the selected line's points in
+pixels and in page units (cm or in), editable in place.
 
 | Light | Dark |
 |---|---|
-| ![a selected line and its points](img/lines-selection-light.png) | ![the same, dark](img/lines-selection-dark.png) |
+| ![a selected line and the Lines tab](img/lines-selection-light.png) | ![the same, dark](img/lines-selection-dark.png) |
 
 The **Lines** tab names each line — `Line 1`, `Line 2`… until you double-click the name and type
 your own — and its eye hides the line from the canvas, dimming its row, and shows it again.
@@ -83,13 +94,13 @@ tint and the blank page's fill to theirs, and the selection bar's colour to the 
 
 Each row also carries the line's thickness, its points' colour and their size. Double-click a
 number to type a new one — Enter keeps it, Escape leaves it as it was — and click the round swatch
-to pick the points' colour; double-click it to give the points the line's own colour again. None
-of these changes which line is selected.
+to pick the points' colour; double-click it to reset them to the toolbar's point colour. None of
+these changes which line is selected.
 
 Drag one colour swatch onto another to copy its colour across — the toolbar's line or point
 colour onto a row in the **Lines** tab, the selection bar's onto the toolbar's, and so on. While you
-drag, a chip of the colour rides beside the pointer and every swatch that can take it glows; the one
-you let go on changes, through the same path a pick would.
+drag, a swatch of the colour rides beside the pointer and every swatch that can take it glows; the
+one you let go on changes, through the same path a pick would.
 
 ![the toolbar's line colour dragged onto a line's swatch](img/drag-color.gif)
 
@@ -98,17 +109,60 @@ around it — a quick tap still selects, and a press held still starts a line.
 
 ![one finger panning a zoomed picture on a phone](img/touch-pan.gif)
 
+## Filter, crop, flip and rotate
+
+The filter list in the **Edit** section holds **B&W**, **Sepia**, **Invert**, **Contour** and
+**Tint**; resting on a row previews it before you pick it, and `Alt+B` steps through them.
+
+![the filter list, previewing Sepia](img/filter-menu.png)
+
+**Crop** (`Ctrl+Shift+X`) opens a crop box locked to the page's shape: **Portrait** flips it to
+album, **Apply Crop** keeps it. The window opens sized around the picture, as large as the screen
+allows, and resizing it fits the picture to its new room. Flip (`Alt+Shift+F`) mirrors the
+picture left to right and the two rotate buttons turn it by quarter turns. The lines follow a
+flip and a turn, the zoom and the spot you were looking at stay put, and undo (`Ctrl+Z`) and redo
+(`Ctrl+Shift+Z`) cover all of it.
+
+![the crop window](img/crop-modal.png)
+
+## Compare before and after
+
+**Compare** in the **View** section shows the picture as it was: **Original**, or a split —
+**Split ↔** or **Split ↕** — with a divider you drag. `Alt+O` steps through them; hold
+`Alt+Shift+O` to see the original until you let go.
+
+![a split compare: the original on the left, sepia on the right](img/compare-split.png)
+
+## Zoom, pan and page size
+
+The **Zoom** section fits the picture to the window (`Alt+0`), steps out and in (`Alt+↓`,
+`Alt+↑`) and takes a percentage. Ctrl+wheel zooms toward the pointer (Shift for bigger steps,
+Control on a Mac), Shift+drag zooms to a rectangle, and Alt+drag on an empty spot, a
+middle-button drag or the arrow keys move around.
+
+**Page** sets the page the picture is measured against — an ISO A, B or C size, or **Custom** in
+cm — and the units, cm or in, the **Points** tab shows. The crop box and a blank page take the
+page's shape. **𝑓(x,y)** turns on formulas that transform those page coordinates.
+
+![the page sizes](img/page-size.png)
+
 ## The canvas menu
 
-Right-click the canvas (or `Shift+F10`) for everything the toolbar has, plus filters,
-transforms, a script flyout and the assistant, without leaving the picture.
+Right-click the picture (or `Shift+F10`) for drawing, view, style and filter controls, copying
+and downloading the image and its layout, **Make a Copy**, and the **Assistant** and **Stencil
+Script**, which open right beside the menu. **Transformation** holds the 𝑓(x,y) formulas.
 
-![the canvas context menu](img/context-menu.png)
+![the canvas menu](img/context-menu.png)
 
-**Make a Copy** in the same menu copies the open project: the picture alone, the picture with its
-lines and layout, or the whole project with its colour, keywords, description and chat.
+**Make a Copy** copies the open project: the picture alone, the picture with its lines and
+layout, or the whole project with its colour, keywords, description and chat.
 
-![the Make a Copy submenu](img/copy-ctx-menu.png)
+![the Make a Copy submenu](img/context-menu-copy.png)
+
+**Stencil Script** opens a script editor beside the menu, for a recipe run without leaving the
+picture.
+
+![the script editor beside the canvas menu](img/context-menu-script.png)
 
 ## Drag a toolbar icon
 
@@ -138,25 +192,27 @@ Drag the logo in the header over the picture and it previews its clean view: no 
 no points, no compare split. Move off and the picture comes back as it was; let go over it and the
 clean view is applied, with the filter, **Points**, **Lines** and **Compare** controls following.
 
-The logo resets other things too. Let go over a control and it goes back to its default: a colour
-turns yellow, **Thickness** returns to 2, the filter to none, the page to A3, a formula field
-empties and **𝑓(x,y)** switches off. Let go over a line — on the picture, on its row in the
-**Lines** tab or on the selected-line bar — and that line takes the style the toolbar is set to.
-Whatever the logo would change glows while it is over it.
+The logo resets other things too. Let go over a control and it goes back to its default: the line
+colour turns yellow, the point colour takes the line's, the tint goes back to violet, **Thickness**
+to 2, the filter to none, the page to A3, a formula field empties and **𝑓(x,y)** switches off.
+Let go over a line — on the picture, on its row in the **Lines** tab or on the selected-line bar —
+and that line takes the style the toolbar is set to. Whatever the logo would change glows while it
+is over it.
 
 ![the logo dragged over a sepia picture with lines](img/drag-logo-clean.gif)
 
 ## Change the look
 
-**Visuals & Settings** (`Alt+V`) holds the accent colour, light/dark/system appearance,
-the interface motion style (Dust, Water, Fire, Sliding, None), how fast it plays (**Animation
-speed**, 0.1 to 1) and the drawing defaults. Double-click a
-row's title to put that setting back to its default.
-Clicking the logo cycles the accent; right-click it for the full list.
+**Visuals & Settings** (`Alt+V`) holds the accent colour, light/dark/system appearance, the
+interface motion (Dust, Water, Fire, Sliding, None), how fast it plays (**Animation speed**, 0.1
+to 1), how fast the console types (**Console text speed**), notifications and the drawing
+defaults. Double-click a row's title to put that setting back to its default.
 
-| Visuals & Settings | Accent picker |
+Clicking the logo cycles the accent; right-click it for the whole list.
+
+| Visuals & Settings | The logo's accent list |
 |---|---|
-| ![the visuals window](img/visuals-modal.png) | ![the accent list](img/accent-picker.png) |
+| ![the visuals window](img/visuals-modal.png) | ![the accent list beside the logo](img/accent-picker.png) |
 
 With **Multiple windows** on, windows like Projects or Visuals open side by side and stay open:
 nothing behind them dims, and a click outside closes none of them.
@@ -178,87 +234,107 @@ the pointer touches the top edge, and leaves again when the pointer moves away.
 
 ![the toolbar sliding in at the top edge in fullscreen, and leaving again](img/fullscreen-strip.gif)
 
-## Crop, flip, rotate, filter
-
-**Crop** (`Ctrl+Shift+X`) opens a page-locked crop box; the Edit section flips the picture
-left to right (`Alt+Shift+F`), rotates it by quarter turns and applies Black & White, Sepia,
-Invert, Contour or a tint. The lines follow a flip and a turn, the zoom and the spot you were
-looking at stay put, and undo and redo cover all of it.
-
-The crop window opens sized around the picture, as large as the screen allows, and resizing the
-window fits the picture to its new room.
-
-![the crop window](img/crop-modal.png)
-
 ## Ask the assistant
 
 Open the chat with the sparkle button (`Alt+G`), describe the edit, and the model answers
-with a plan that runs through the same operations as the toolbar. Variants come back as
-cards you can open or save. The panel docks on any edge or floats.
+with a plan that runs through the same operations as the toolbar. Other takes come back as
+cards you can download or open. The panel docks on any edge or floats.
 
-![an assistant turn](img/assistant-turn.gif)
-
-The stills below are a real turn through a collaboration server's proxy: the model saw the
-picture, framed the S and applied the sepia itself.
+![a turn: the S framed with a dashed red rectangle, the picture warmed with sepia, two more takes as cards](img/assistant-turn.gif)
 
 | Docked | Floating |
 |---|---|
 | ![the docked chat](img/assistant-docked.png) | ![the floating chat](img/assistant-floating.png) |
 
-Point it at a model in **Assistant settings** (`Alt+Shift+G`): a local Ollama, any
-OpenAI-style server, or a Stencil collaboration server that proxies its own key.
+Point it at a model in **Assistant settings** (`Alt+Shift+G`): **Ollama**, an **OpenAI API**
+server such as LM Studio or vLLM, the **Anthropic API (Claude)** with your own key — kept for this
+tab only — or a **Stencil server** that proxies its own key. **Save chats with projects** keeps the
+conversation with the project.
 
-![assistant settings](img/assistant-settings-modal.png)
+![assistant settings pointed at a local Ollama](img/assistant-settings-modal.png)
 
 ## Run a script
 
-The script window (`Alt+Shift+S`) takes a `.stc` recipe, colours it as you type, names any
-error by line, and runs it with `Ctrl+Enter`. Drop a `.stc` file on the page to do the same.
+The script window (`Alt+Shift+S`) takes a `.stc` recipe and colours it as you type; **Run**
+(`Ctrl+Enter`) runs it and names any error by its line. Drop a `.stc` file on the page to run it
+at once.
 
-![typing a script, running it, and the page it leaves behind](img/script-run.gif)
+![typing a script, running it, and the picture it leaves behind](img/script-run.gif)
 
 ![the script window](img/script-modal.png)
 
-A script can also arrive from somewhere else — the VS Code extension hands one over in the
-page's URL fragment. It lands in the Script window, highlighted and ready to edit; nothing
-runs until **Run** is pressed.
+A script can also arrive by a link — the VS Code extension hands one over in the page's URL
+fragment. It opens in the Script window, highlighted and ready to edit; nothing runs until you
+press **Run**.
 
-![a script handed over from VS Code](img/script-handoff.png)
+![a script that arrived by a link, waiting in the Script window](img/script-link.png)
 
-## Projects and servers
+## Save and export
 
-Every editor auto-saves into a local project; **Projects** (`Ctrl+Shift+P`) lists, renames,
-duplicates and expires them, the one you opened most recently first (or by name, by last edit,
-or in your own order); a project kept forever says **never expires**. **Servers** (`Ctrl+Shift+K`) connects to a collaboration
-server, after which projects can be shared by link and edited live with others; a dropped
-connection reconnects by itself.
+**Download** (`Ctrl+Shift+D`) saves the picture and **Copy** (`Ctrl+C`) puts it on the
+clipboard. Right-click either for the choices: **Current** (with the filter, lines and points),
+**Original** (with neither), **Filter Only** (no lines or points) and, while a split compare is
+up, **With Compare**.
 
-| Projects | Servers |
-|---|---|
-| ![the projects window](img/projects-modal.png) | ![the servers window](img/connect-modal.png) |
+![the download choices](img/export-menu.png)
+
+**Save Project** (`Ctrl+Shift+S`) writes the picture, its lines and its settings to one
+`.stencil` file — Shift+click leaves the theme out — and **Open Project** (`Ctrl+Shift+F`) reads
+one back. Once a project is tied to a file, the refresh button beside them keeps the two in step,
+saving each edit and picking up changes made to the file. The **Data** section copies, downloads
+and uploads the layout as JSON, and `Ctrl+V` pastes a picture or a layout.
+
+## Projects
+
+Every editor auto-saves into a local project. **Projects** (`Ctrl+Shift+P`) lists them, the one
+you opened most recently first (or by name, by last edit, or in your own order), and searches
+their names and keywords. A project you leave unopened expires after 7 days unless you give it
+longer; one kept forever says **never expires**.
+
+![the projects window](img/projects-modal.png)
+
+A row's **⋯** menu opens, renames, colours, describes and expires it, and has **Make a copy ›**
+beside **Open in another app**; the toolbar's Image section has the same list behind its copy
+button. Pick **Image only**, **Image and layout** or **Whole project**, and a short question
+names the copy — `Kitchen plan-copy`, then `Kitchen plan-copy(1)`, and so on. **Just copy** adds it
+to the list and leaves everything else as it was, **Open** switches to it, and **Open in new tab**
+opens it beside this one. Tick **Open in incognito** to open a copy that is never saved; for a
+project that lives on a server, **Make a local copy** chooses between a copy in this browser and
+one on that server.
+
+| The row menu | The toolbar | The question |
+|---|---|---|
+| ![a project row's Make a copy submenu](img/projects-row-copy.png) | ![the toolbar's copy list](img/copy-toolbar-menu.png) | ![the copy question](img/copy-modal.png) |
 
 Drag a row **out of the list** and the window behind it turns into three drop targets: **Open
 here** on the left, **Open in a new tab** on the right, and **Remove** across the bottom. The one
 under the pointer lights up, the row rides along under the cursor, and the drop decides the
 action — dropping back on the list reorders instead. A **⋯** beside the window's title opens that
-row's menu, and releasing over an item runs it; the window's **✕** closes the project when it is
-the one open in this tab, as **Close Current Project** (`Alt+Shift+W`) does.
+row's menu, and releasing over an item runs it. Drop the row of the project open in this tab on
+the window's **Close** button to close that project here, as **Close Current Project**
+(`Alt+Shift+W`) does.
 
 ![a project row dragged out over the drop zones](img/projects-dropzones.png)
 
-### Make a copy
+## Work together on a server
 
-A row's **⋯** menu has **Make a copy ›**, beside **Open in another app**; the toolbar's Image
-section has the same list behind its copy button. Pick **Image only**, **Image and layout** or
-**Whole project**, and a short question names the copy — `photo-copy`, then `photo-copy(1)`, and
-so on. **Just copy** adds it to the list and leaves everything else as it was, **Open** switches to
-it, and **Open in new tab** opens it beside this one. Tick **Open in incognito** to open a copy
-that is never saved; for a project that lives on a server, **Make a local copy** chooses between a
-copy in this browser and one on that server.
+**Servers** (`Ctrl+Shift+K`) connects to a Stencil collaboration server with its URL and a
+token. **Auto-connect on open** and **Sync changes to server** are on by default, and a dropped
+connection reconnects by itself. Connected with the server's admin token, a row also offers an
+invite link: it mints a fresh token and copies a link that connects someone else.
 
-| The row menu | The toolbar | The question |
-|---|---|---|
-| ![a project row's Make a copy submenu](img/copy-row-menu.png) | ![the toolbar's copy list](img/copy-toolbar-menu.png) | ![the copy question](img/copy-project-modal.png) |
+![the Servers window with a connection](img/connect-modal.png)
+
+A project moves to the server from its row's **⋯** menu (**Move to server** or **Copy to
+server**), or starts there through **Save to** in the Open Image window. Server projects wear a
+gold outline in **Projects**, and anyone connected can open them.
+
+![Projects with a server project among the local ones](img/projects-server.png)
+
+Everyone who has a server project open edits the same picture, and each person's changes appear
+on the others' screens by themselves.
+
+![two people on one server project: a line drawn on the left appears on the right, a rectangle on the right appears on the left](img/coedit.gif)
 
 ## Describe the project
 
@@ -269,39 +345,31 @@ the Projects search matches) and the image's source and resource links.
 |---|---|---|
 | ![description](img/description-modal.png) | ![keywords](img/keywords-modal.png) | ![image links](img/links-modal.png) |
 
-## Hand a project to the desktop app
+## Hand a project to another app
 
-**Open In…** (`Ctrl+Shift+E`) sends the current project to the desktop app or the Telegram
-bot. A link shared from a chat lands on the bounce page first, which forwards to the
-`stencil://` scheme the desktop app registers.
+**Open In…** (`Ctrl+Shift+E`) sends the current project to the desktop app — and, when a
+Telegram bot is configured and the project lives on a server, to the bot. A link shared from a
+chat lands on the bounce page first, which forwards to the `stencil://` scheme the desktop app
+registers.
 
 ![the Open In window](img/open-in-modal.png)
 
-| Light | Dark |
-|---|---|
-| ![the launch page](img/launch-page-light.png) | ![the launch page, dark](img/launch-page-dark.png) |
+![the launch page](img/launch-page.png)
 
 ## Type commands in the console
 
 The console icon in the Data section (`Alt+Shift+T`) opens a console window beside the editor. It
 blocks nothing: type `/help` for the commands, `/crop x1=10% x2=90%`, `/rotate 1`, `/filter bw`,
-`/theme dark`, `/connect <url>` or `/desktop`, and the answer types in at the **Console text speed**
-from Visuals ▸ Motion. A bare `/upload` opens the file picker.
+`/theme dark`, `/connect <url>` or `/desktop`, and the answer types in at the **Console text
+speed**. A bare `/upload` opens the file picker.
 
-![the console window beside the editor, after /help](img/console-window.png)
-
-Type `cliclicli` outside a field, or drop the logo on the console icon, and the whole page becomes
-the CLI's terminal on the app's theme: the logo (click it to cycle the accent, which wipes over like
-the terminal's), the picture's name and size under it (click the name to see what you are editing,
-double-click for the original, Alt+hover to peek), and the same commands and secrets. `/clioff` or a
-long press on the logo brings the page back, every edit kept.
-
-![CLI mode over the page, after /status and /help](img/cli-mode.png)
+![the console window beside the editor, after /help](img/console-modal.png)
 
 ## Shortcuts and help
 
-Every action is rebindable in **Keyboard Shortcuts** (`Alt+K`); **Help** (`Alt+H`) lists the
-mouse and keyboard gestures.
+Every action is rebindable in **Keyboard Shortcuts** (`Alt+K`); a few fixed keys are not, such as
+pressing `~` twice, holding `Alt+Shift+O` and the arrow keys. **Help** (`Alt+H`) opens
+**Controls & Shortcuts Info**, which lists the mouse and keyboard gestures.
 
 | Shortcuts | Help |
 |---|---|

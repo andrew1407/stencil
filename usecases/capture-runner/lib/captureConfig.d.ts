@@ -27,6 +27,7 @@ export declare class CaptureConfig {
   prompt(key: string): string;
   stubPlan(key: string): any;
   url(key: string): string;
+  realLlm(): boolean;
   serverToken(): string | null;
 }
 

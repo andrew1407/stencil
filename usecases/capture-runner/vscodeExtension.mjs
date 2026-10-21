@@ -6,17 +6,20 @@ import { VsCodeHost } from './lib/vscodeHost.mjs';
 import { makeActionSteps } from './vscode/actionSteps.mjs';
 import { PARK, config, runner, still } from './vscode/view.mjs';
 import { CHECK_STEPS, STC_STEPS } from './vscode/stcSteps.mjs';
+import { CLI_STEPS } from './vscode/cliSteps.mjs';
 import { EMIT_STEPS } from './vscode/emitSteps.mjs';
-import { API_STEPS, PALETTE_STEPS } from './vscode/apiSteps.mjs';
-import { HANDOFF_STEPS } from './vscode/handoffSteps.mjs';
+import { API_STEPS, HINT_STEPS, PALETTE_STEPS } from './vscode/apiSteps.mjs';
+import { CONSOLE_STEPS } from './vscode/consoleSteps.mjs';
 
 const STEPS = Object.freeze([
   ...STC_STEPS,
+  ...PALETTE_STEPS,
+  ...CLI_STEPS,
   ...EMIT_STEPS,
   ...API_STEPS,
   ...makeActionSteps({ config, runner, still }),
-  ...PALETTE_STEPS,
-  ...HANDOFF_STEPS,
+  ...HINT_STEPS,
+  ...CONSOLE_STEPS,
   ...CHECK_STEPS,
 ]);
 

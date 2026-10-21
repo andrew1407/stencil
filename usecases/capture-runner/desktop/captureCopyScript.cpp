@@ -1,6 +1,6 @@
-// The "Make a copy" and script hand-off shots: the canvas menu's copy and script flyouts, the
-// projects row menu's copy flyout, the copy confirmation for a local and a server project, the
-// Lines tab's swatch picker, the settings' VS Code path and the confirm a linked script asks.
+// The "Make a copy" and script flyout shots: the canvas menu's copy and script flyouts, the
+// projects row menu's copy flyout, the copy confirmation for a local and a server project, and
+// the Lines tab's swatch picker.
 #include "captureShared.hpp"
 
 #include "CanvasWidget.hpp"
@@ -9,7 +9,6 @@
 #include "copyProjectMenu.hpp"
 #include "../../../desktop/src/model/ScriptBuffer.hpp"
 
-#include <QElapsedTimer>
 #include <QListWidget>
 #include <QMenu>
 #include <QScrollArea>
@@ -82,15 +81,6 @@ namespace {
     pumpFor(100);
   }
 
-  // Every modal the step leaves behind (a declined confirm opens the Script window), closed.
-  void closeModalsFor(int ms) {
-    QElapsedTimer t;
-    t.start();
-    while (t.elapsed() < ms) {
-      if (QWidget* open = QApplication::activeModalWidget()) open->close();
-      pumpFor(50);
-    }
-  }
 }  // namespace
 
 void MainWindowGuiTest::copyScriptShots(MainWindow& win, const ShotSet& shots) {
@@ -151,28 +141,5 @@ void MainWindowGuiTest::copyScriptShots(MainWindow& win, const ShotSet& shots) {
     waitUntil([&] { return done; }, 8500);
     if (auto* tabs = win.selPanel->findChild<QTabBar*>(QStringLiteral("selectionTabBar"))) tabs->setCurrentIndex(0);
     pumpFor(200);
-  }
-
-  // The question a script arriving by a stencil:// link asks before it runs. It exec()s from a
-  // queued call, so a timer polls for it from inside that loop, then closes what declining opens.
-  if (shots.has("script-link")) {
-    bool grabbed = false;
-    QTimer poll;
-    poll.setInterval(50);
-    QObject::connect(&poll, &QTimer::timeout, [&] {
-      QWidget* dlg = QApplication::activeModalWidget();
-      if (!dlg || !dlg->isVisible()) return;
-      if (grabbed) { dlg->close(); return; }
-      grabbed = true;
-      pumpFor(400);
-      saveOver("script-link", &win, dlg);
-      if (auto* d = qobject_cast<QDialog*>(dlg)) d->reject(); else dlg->close();
-    });
-    poll.start();
-    win.parts.scriptHost.adoptLinkedScript(SCRIPT, std::nullopt);
-    waitUntil([&] { return grabbed; }, 6000);
-    pumpFor(1500);
-    poll.stop();
-    closeModalsFor(500);
   }
 }

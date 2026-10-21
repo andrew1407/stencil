@@ -8896,6 +8896,9 @@
     "cursor": "pointer",
     "white-space": "nowrap"
    },
+   "|.pin-filters .chk[hidden], .pin-filters select:empty, .pin-filters select[hidden]": {
+    "display": "none"
+   },
    "|.pin-filters input[type=\"search\"]": {
     "width": "auto",
     "padding": "5px 10px",
@@ -8910,9 +8913,6 @@
     "width": "auto",
     "padding": "5px 10px",
     "font-size": "12px"
-   },
-   "|.pin-filters select:empty, .pin-filters select[hidden]": {
-    "display": "none"
    },
    "|.pin-head": {
     "display": "flex",
@@ -9005,9 +9005,6 @@
    "|.pin-row.shared": {
     "outline": "2px solid #f5c518",
     "outline-offset": "-2px"
-   },
-   "|.pin-row.shared .pin-thumb": {
-    "border-color": "#f5c518"
    },
    "|.pin-row:hover": {
     "border-color": "color-mix(in srgb, var(--accent) 45%, var(--line))"
@@ -10391,7 +10388,7 @@
    "|.pin-filters select",
    "|.pin-filters .accent-dd",
    "|.pin-filters .accent-dd-trigger",
-   "|.pin-filters select:empty, .pin-filters select[hidden]",
+   "|.pin-filters .chk[hidden], .pin-filters select:empty, .pin-filters select[hidden]",
    "|.pin-filters input[type=\"search\"]",
    "|.pin-keywords",
    "|.pin-kw",
@@ -10422,7 +10419,6 @@
    "|.conn-filters .chk",
    "|.conn-filters .chk > input[type=\"radio\"]",
    "|.pin-row.shared",
-   "|.pin-row.shared .pin-thumb",
    "|.pin-badge-server",
    "|.pin-badge-server .ic",
    "|.pin-sub",

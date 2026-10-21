@@ -15,13 +15,14 @@ BASIC_COLORS = ("#1c1f26", "#e06c75", "#98c379", "#e5c07b", "#61afef", "#c678dd"
                 "#5c6370", "#ff7b86", "#b5e890", "#ffd58a", "#82c4ff", "#dd9cf5", "#7fd6e0", "#ffffff")
 WINDOW_DOTS = ("#ff5f57", "#febc2e", "#28c840")
 DEFAULT_COLS = 120
-DEFAULT_TITLE = "stencil"
 CSS = ("body{margin:0;background:transparent}"
        ".term{display:inline-block;background:%s;border-radius:10px;padding:10px 14px 14px;"
        "box-shadow:0 12px 40px rgba(0,0,0,.45);font:14px/1.3 'JetBrains Mono',Menlo,'SF Mono',monospace}"
        ".bar{display:flex;gap:7px;align-items:center;margin:0 0 8px}.bar i{width:11px;height:11px;border-radius:50%%;display:inline-block}"
        ".bar b{margin-left:8px;color:#6d7385;font-weight:400;font-size:12px}"
        "pre{margin:0;color:%s;white-space:pre}pre span{white-space:pre}" % (DEFAULT_BG, DEFAULT_FG))
+# The same page in a light terminal: what a listing printed in colour looks like on a pale background.
+LIGHT_CSS = CSS.replace(DEFAULT_BG, "#f6f8fa").replace(DEFAULT_FG, "#1f2328")
 
 
 @dataclass

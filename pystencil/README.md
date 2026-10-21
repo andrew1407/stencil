@@ -6,7 +6,8 @@ Zig [CLI](../cli/README.md)'s editing capabilities, driving the **same C++ `core
 build layout JSON, and connect to a Stencil [collaboration server](../server/README.md) to
 fetch, edit, and publish projects. For the project overview see the
 [repository README](../README.md); for how the package is built,
-[`ARCHITECTURE.md`](ARCHITECTURE.md).
+[`ARCHITECTURE.md`](ARCHITECTURE.md); for what the console and the `Editor` look like,
+[`usecases/docs/pystencil/USECASES.md`](../usecases/docs/pystencil/USECASES.md).
 
 ```python
 from pystencil import Editor

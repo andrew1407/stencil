@@ -1,14 +1,13 @@
 {
   "theme": {
     "mode": "dark",
-    "steps": {
-      "crop-page": "light",
-      "side-panel": "light"
-    }
+    "steps": {}
   },
   "pairs": [
     "popup-list"
   ],
+  "dpr": 2,
+  "mediaPort": 8203,
   "viewports": {
     "popup": {
       "width": 400,
@@ -27,8 +26,12 @@
       "height": 900
     },
     "crop": {
-      "width": 960,
-      "height": 640
+      "width": 1100,
+      "height": 800
+    },
+    "cropModal": {
+      "width": 1280,
+      "height": 960
     }
   },
   "timeouts": {
@@ -38,6 +41,22 @@
     "editorMs": 30000
   },
   "minRows": 3,
+  "rows": {
+    "image": "description.jpg",
+    "clip": "extension-clip.mp4",
+    "serverPin": "icon-128.png",
+    "localPin": "stc.svg"
+  },
+  "assistant": {
+    "reply": "I count 13: seven picture plates, the clip and its poster, the logo in the header, the hero background behind the title and two icons the page declares for itself. The largest is that background, hero.svg at 1600×400; among the plates it is the 512×512 icon.png. Want me to open it in the editor?",
+    "options": {
+      "provider": "ollama",
+      "baseUrl": "http://localhost:11434",
+      "model": "llama3.2-vision",
+      "apiKey": "",
+      "serverUrl": ""
+    }
+  },
   "dropZones": {
     "accent": "#7c3aed"
   }

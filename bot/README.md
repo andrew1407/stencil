@@ -70,6 +70,7 @@ Real environment variables always win over `.env`; the real `bot/.env` is gitign
 | Variable | Default | Purpose |
 |---|---|---|
 | `TELEGRAM_BOT_TOKEN` | — (**required**) | Bot token from @BotFather |
+| `STENCIL_BOT_NAME` | — | The bot's @username, for tools that open its chat by name (the docs capture); the bot itself never reads it |
 | `STENCIL_BOT_ALLOWED_USERS` | empty (**required**) | Comma-separated Telegram user ids allowed to use the bot — see [the allowlist](#the-bot-is-opt-in-per-user). Empty = the bot is off for everyone |
 | `STENCIL_CLI` | auto-discovered | Path to the `stencil` CLI binary |
 | `REDIS_URL` | — (in-memory) | Redis for per-user session state: `redis://[user:password@]host[:port][/db]` (`rediss://` for TLS) or StackExchange's `host:port[,option=value]` |
@@ -165,7 +166,7 @@ results back as one album; the last photo's result becomes the working image.
 | `/image` · `/json` | Download the rendered result · download the layout JSON |
 | `/status` | Show the working image, pending edits, pen and active project |
 
-**Drawing / annotation** — coordinates are image pixels, or `x%,y%` of the image:
+**Drawing / annotation** — coordinates are pixels, or `x%,y%`, of the picture as shown (after its crop and turns):
 
 | Command | Effect |
 |---|---|

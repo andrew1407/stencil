@@ -15,4 +15,9 @@ export interface ShotRunner<C = any> {
   finish(): void;
 }
 
-export function makeShotRunner<C = any>(opts: { config: CaptureConfig; out: string }): ShotRunner<C>;
+export function makeShotRunner<C = any>(opts: {
+  config: CaptureConfig;
+  out: string;
+  beforeShot?: (target: Page | Locator) => Promise<void>;
+  quantize?: boolean;
+}): ShotRunner<C>;

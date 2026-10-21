@@ -1,6 +1,6 @@
 // Shared bits of the desktop use-case capture (usecases/capture-runner/desktop): where shots go,
-// grab-to-file, the frame loop behind the theme-swap clip, and a modal composite that
-// paints an exec()'d dialog over its window the way the screen shows it.
+// grab-to-file, and the composites that paint a dialog, a popup or another window over the
+// main one the way the screen shows it.
 #pragma once
 
 #include "MainWindow.hpp"
@@ -36,9 +36,8 @@ inline void save(const QString& name, QWidget* w) {
   save(name, w->grab().toImage());
 }
 
-// A dialog over its window: the window dimmed, the dialog centred on it, then CROPPED back to the
-// dialog and a dimmed margin. The rest of the window is toolbar the shot is not about, and at full
-// size a small dialog reads as a speck.
+// A dialog centred over its dimmed window, then cropped to the dialog and a dimmed margin: the rest is
+// toolbar the shot is not about, and at full size a small dialog reads as a speck.
 inline constexpr int MODAL_MARGIN_PX = 64;
 
 inline void saveOver(const QString& name, QWidget* win, QWidget* dlg) {
@@ -67,9 +66,8 @@ inline void saveOver(const QString& name, QWidget* win, QWidget* dlg) {
   save(name, out);
 }
 
-// The window dimmed under popups drawn where they really are, cropped to them and a margin. With
-// `centreFirst`, the first layer (a dialog) is centred on the window and the rest keep their
-// places relative to it, as saveOver() centres a dialog.
+// The window dimmed under popups drawn where they are, cropped to them and a margin; with `centreFirst`
+// the first (a dialog) is centred on the window, as saveOver() centres one, the rest kept beside it.
 inline void saveLayers(const QString& name, QWidget* win, const QList<QWidget*>& tops, bool centreFirst) {
   const QPixmap shot = win->grab();
   const qreal dpr = shot.devicePixelRatio();
@@ -99,15 +97,26 @@ inline void saveLayers(const QString& name, QWidget* win, const QList<QWidget*>&
   save(name, out);
 }
 
-// The window, an overlay it is painting, then the dialog: for a drag shot the modal dim of
-// saveOver() would grey out the very thing being shown, and the overlay is drawn in explicitly
-// because a child of the scroll VIEWPORT does not come through the top-level widget's grab().
+// The window, an overlay it paints and the dialog, undimmed (a dim would grey the drag out); the overlay
+// is drawn in by hand, as a child of the scroll VIEWPORT stays out of the window's grab().
 inline void saveDragOver(const QString& name, QWidget* win, QWidget* overlay, QWidget* dlg) {
   QImage base = win->grab().toImage();
   QPainter p(&base);
   if (overlay) p.drawPixmap(overlay->mapTo(win, QPoint()), overlay->grab());
   const QPixmap top = dlg->grab();
   p.drawPixmap((win->width() - dlg->width()) / 2, (win->height() - dlg->height()) / 2, top);
+  p.end();
+  save(name, base);
+}
+
+// Windows that block nothing (a floating dock, the console) drawn where they sit over the main
+// one, which stays undimmed: a modal dim would say the opposite of what the shot shows.
+inline void saveTops(const QString& name, QWidget* win, const QList<QWidget*>& tops) {
+  clearToasts(win);
+  pumpFor(60);
+  QImage base = win->grab().toImage();
+  QPainter p(&base);
+  for (QWidget* top : tops) p.drawPixmap(top->geometry().topLeft() - win->geometry().topLeft(), top->grab());
   p.end();
   save(name, base);
 }
@@ -134,22 +143,6 @@ inline void grabModal(stencil::gui::MainWindow& win, QAction* act, const QString
   pumpFor(200);
 }
 
-// PNG frames every `everyMs` for `ms`, for the GIF the Node driver assembles.
-inline void film(const QString& name, QWidget* w, int ms, int everyMs) {
-  const QString dir = framesDir() + "/" + name;
-  QDir().mkpath(dir);
-  QElapsedTimer t;
-  t.start();
-  for (int i = 1; t.elapsed() < ms; ++i) {
-    w->grab().save(QStringLiteral("%1/frame-%2.png").arg(dir).arg(i, 4, 10, QLatin1Char('0')), "PNG");
-    // A grab can outlast a frame: the animation's timers still need the loop every time.
-    QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
-    const qint64 due = qint64(i) * everyMs;
-    while (t.elapsed() < due) QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
-  }
-  std::printf("  %s/ (frames)\n", qPrintable(name));
-}
-
 // The URLs, prompts and canned plan come from config/shared.json through desktop.mjs; the
 // literal is the same value, for a run started by hand.
 inline QString envOr(const char* key, const char* fallback) {
@@ -157,8 +150,8 @@ inline QString envOr(const char* key, const char* fallback) {
   return value.isEmpty() ? QString::fromUtf8(fallback) : value;
 }
 
-inline QString faviconUrl() {
-  return envOr("STENCIL_DOCS_FAVICON_URL", "https://raw.githubusercontent.com/andrew1407/stencil/main/common/icons/favicon.svg");
+inline QString iconUrl() {
+  return envOr("STENCIL_DOCS_ICON_URL", "https://raw.githubusercontent.com/andrew1407/stencil/main/bot/assets/icon.png");
 }
 inline QString suffixed(const QString& name, const QString& theme) { return name + "-" + theme; }
 
@@ -206,21 +199,28 @@ class MainWindowGuiTest {
   static void windowStates(const QString& theme, const ShotSet& shots);
   static void themeClip();
   // windowStates' later shots by feature, each in its turn over the one window.
-  static void assistantShots(stencil::gui::MainWindow& win, const QString& theme, const ShotSet& shots);
-  static void dialogShots(stencil::gui::MainWindow& win, const QString& theme, const ShotSet& shots);
+  static void assistantShots(stencil::gui::MainWindow& win, const ShotSet& shots);
+  static void dialogShots(stencil::gui::MainWindow& win, const ShotSet& shots);
   static void videoShots(stencil::gui::MainWindow& win, const ShotSet& shots);
   // The file-drop overlay mid-drag: the save/incognito split, and the one layout zone.
   static void dropShots(stencil::gui::MainWindow& win, const ShotSet& shots);
-  // The Make a copy flyouts and dialog, the swatch picker and the linked-script confirm.
+  // The Make a copy flyouts and dialog, and the swatch picker.
   static void copyScriptShots(stencil::gui::MainWindow& win, const ShotSet& shots);
-  // The Open Image dialog on its URL tab, the repository's logo typed in and previewed.
-  static void openImageUrlShot(stencil::gui::MainWindow& win, const QString& name);
-  // The chrome drags as frame strips: icon to dialog, mark to clean view, theme lens, colour chip.
+  // A collaboration server: the Servers dialog connected, and its projects in the Projects list.
+  static void serverShots(stencil::gui::MainWindow& win, const ShotSet& shots);
+  // The toolbar's lists and views: filters, page sizes, the export options, the compare split.
+  static void toolbarShots(stencil::gui::MainWindow& win, const ShotSet& shots);
+  // The Open Image dialog on its URL tab with Stencil's icon previewed, then the icon opened whole.
+  static void openImageUrlShot(stencil::gui::MainWindow& win, const ShotSet& shots);
+  // The chrome drags as frame strips: icon to window, mark to clean view, theme lens, colour swatch.
   static void gestureShots(stencil::gui::MainWindow& win, const ShotSet& shots);
+  // The standard edits as frame strips: lines clicked in, then a filter; a rectangle and an area.
+  static void editingShots(stencil::gui::MainWindow& win, const ShotSet& shots);
   // Fit the image to the window, then clear the toasts the load left.
   static void fit(stencil::gui::MainWindow& win);
-  // `load` puts a clip on a tab the way that tab's own control does; `crop` also ticks the
-  // quick-crop box, so the rect lands over the player.
+  // The open project becomes `name` (made on first use) holding `picture`: an opened picture, no blank.
+  static void useProject(stencil::gui::MainWindow& win, const char* id, const char* name, const QImage& picture);
+  // `load` fills a tab as that tab's own control does; `crop` also ticks the quick-crop box.
   static void grabVideoDialog(stencil::gui::MainWindow& win, const QString& name,
                               const std::function<void(stencil::gui::OpenImageDialog*)>& load,
                               bool crop);

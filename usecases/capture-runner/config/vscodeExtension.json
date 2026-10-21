@@ -1,23 +1,18 @@
 {
   "theme": {
     "mode": "dark",
-    "steps": {
-      "hover": "light",
-      "api-hover": "light"
-    }
+    "steps": {}
   },
   "pairs": [
     "highlighting"
   ],
   "clips": {
     "edit-and-check": {
-      "ms": 5200,
       "everyMs": 100,
       "typeDelayMs": 70,
       "holdMs": 1400
     },
     "completion-hints": {
-      "ms": 8200,
       "everyMs": 100,
       "typeDelayMs": 90,
       "leadMs": 400,
@@ -26,8 +21,16 @@
       "clipFrom": ".monaco-breadcrumbs",
       "clipTrimRight": 20
     },
+    "js-hints": {
+      "everyMs": 100,
+      "typeDelayMs": 70,
+      "leadMs": 900,
+      "holdMs": 700,
+      "clipHeight": 420,
+      "clipFrom": ".monaco-breadcrumbs",
+      "clipTrimRight": 20
+    },
     "api-hints": {
-      "ms": 8200,
       "everyMs": 100,
       "typeDelayMs": 70,
       "leadMs": 400,
@@ -52,9 +55,19 @@
   "titleActions": {
     "padPx": 10
   },
-  "handoff": {
-    "file": "roof-survey-20260930-101530.stc",
-    "settleMs": 600
+  "samples": {
+    "unsourced": "roof-survey.stc",
+    "picture": "icon.png"
+  },
+  "narrowWindow": {
+    "width": 640,
+    "height": 900
+  },
+  "settingsMs": 1500,
+  "console": {
+    "appPort": 8198,
+    "replyMs": 60000,
+    "expression": "stencil.rotateRight().apply({ filter: 'sepia' }).imageSize"
   },
   "cropPadPx": 6
 }

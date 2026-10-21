@@ -5,7 +5,7 @@
 import { createEditorState } from '../../core/editorState.js';
 import { DEFAULT_PERIOD } from '../../core/project/meta/projectPeriods.js';
 import { defaultSettings as llmDefaults } from '../../llm/settings.js';
-import { DEFAULT_DRAWING_ANIMATIONS, DEFAULT_MOTION_MODE, DEFAULT_MOTION_SPEED,
+import { DEFAULT_CONSOLE_SPEED, DEFAULT_DRAWING_ANIMATIONS, DEFAULT_MOTION_MODE, DEFAULT_MOTION_SPEED,
   DEFAULT_MULTI_WINDOW } from '../motion/motionPrefs.js';
 import { DEFAULT_SORT_MODE } from '../projects/window/projectSort.js';
 import { SILENCE_MS_DEFAULT } from '../../llm/voice/settings.js';
@@ -30,6 +30,7 @@ const DEFAULTS = Object.freeze({
   'vs-draw-anim': () => DEFAULT_DRAWING_ANIMATIONS,
   'vs-notify-channel': () => DEFAULT_NOTIFY_CHANNEL, 'vs-multi-window': () => DEFAULT_MULTI_WINDOW,
   'vs-motion-speed-value': () => DEFAULT_MOTION_SPEED.toFixed(2), 'vs-motion-speed': () => DEFAULT_MOTION_SPEED,
+  'vs-console-speed-value': () => DEFAULT_CONSOLE_SPEED.toFixed(2), 'vs-console-speed': () => DEFAULT_CONSOLE_SPEED,
   'vs-thickness': editor('thickness'), 'vs-point': editor('pointSize'),
   'vs-hold-delay': () => constants.HOLD_DRAW.delayMs, 'vs-voice-silence': () => SILENCE_MS_DEFAULT,
   'chat-provider': () => llmDefaults().provider, 'chat-save-chats': () => llmDefaults().saveChats,

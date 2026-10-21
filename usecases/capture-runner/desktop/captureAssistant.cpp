@@ -1,5 +1,6 @@
-// The assistant shots: the real model when the state dir carries a server (see main), else a
-// canned plan through the real client — either way the canvas really changes.
+// The assistant shots over Stencil's icon: the real model behind a server's proxy when the run
+// asks for one (see main), else the canned plan through the real client — either way the canvas
+// really changes. Docked on the left, then floating over the window.
 #include "captureShared.hpp"
 
 #include "CanvasWidget.hpp"
@@ -13,10 +14,10 @@
 using namespace stencil::gui;
 
 namespace {
-  const QString ICON_URL = envOr("STENCIL_DOCS_ICON_URL",
-      "https://raw.githubusercontent.com/andrew1407/stencil/main/bot/assets/icon.png");
+  // The picture the plan is written for (512x512; bot/assets/icon.png), opened whole.
+  const QString ICON_FILE = envOr("STENCIL_DOCS_ICON_FILE", "");
   const QString PROMPT = envOr("STENCIL_DOCS_PROMPT",
-      "Warm it up with sepia, outline the centre and show me two more takes");
+      "Frame the S with a dashed red rectangle, warm the picture up with sepia and show me two more takes");
   const QString REAL_PROMPT = envOr("STENCIL_DOCS_REAL_PROMPT",
       "Frame the S with a dashed red rectangle and warm the picture up with sepia");
 
@@ -52,49 +53,47 @@ namespace {
   }
 }  // namespace
 
-void MainWindowGuiTest::assistantShots(MainWindow& win, const QString& theme, const ShotSet& shots) {
+void MainWindowGuiTest::assistantShots(MainWindow& win, const ShotSet& shots) {
   static CannedTransport canned;
+  if (!shots.hasAny({QStringLiteral("assistant-docked"), QStringLiteral("assistant-floating")})) return;
   auto* canvas = win.findChild<CanvasWidget*>();
-  // The assistant: the real model when the state dir carries a server (see main), else a
-  // canned plan through the real client — either way the canvas really changes.
-  const QString assistantDocked = suffixed("assistant-docked", theme);
-  if (shots.hasAny({assistantDocked, QStringLiteral("assistant-floating")})) {
-    const bool real = win.settings.llmProvider == QLatin1String("stencil-server");
-    if (real) {
-      win.parts.sourceOpener.openSourceHere(ICON_URL, 0, false);
-      waitUntil([canvas] { return canvas->hasImage() && canvas->getImage().width() == 512; }, 15000);
-      fit(win);
-    } else {
-      win.settings.llmProvider = "ollama";
-      win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&canned);
-    }
-    ChatDock* chat = win.chatDock;
-    win.addDockWidget(Qt::LeftDockWidgetArea, chat, Qt::Horizontal);   // the edge the app opens it on
-    chat->setFloating(false);
-    win.acts.chat->setChecked(true);
-    waitUntil([chat] { return chat->isVisible(); });
-    auto* input = chat->findChild<QPlainTextEdit*>("chatInput");
-    if (input) {
-      input->setPlainText(real ? REAL_PROMPT : PROMPT);
-      QTest::keyClick(input, Qt::Key_Return);
-      if (!waitUntil([chat] { return replied(chat); }, real ? 150000 : 10000)) {
-        std::printf("  assistant: no reply —");
-        for (QLabel* l : chat->findChildren<QLabel*>())
-          if (!l->property("chatNote").toString().isEmpty()) std::printf(" [%s]", qPrintable(l->property("chatNote").toString()));
-        std::printf("\n");
-      }
-      pumpFor(400);
-      fit(win);
-      if (shots.has(assistantDocked)) save(assistantDocked, &win);
-      if (shots.has("assistant-floating")) {
-        chat->setFloating(true);
-        chat->resize(420, 560);
-        pumpFor(200);
-        save("assistant-floating", &win);
-        chat->setFloating(false);
-      }
-    }
-    win.acts.chat->setChecked(false);
-    pumpFor(100);
+  const QImage icon(ICON_FILE);
+  if (icon.isNull()) { std::printf("  assistant SKIPPED (STENCIL_DOCS_ICON_FILE unset)\n"); return; }
+  // Opened as a fresh window opens it: this path keeps the blank tag the earlier page left.
+  win.docSource.blankColor.clear();
+  win.parts.sourceOpener.openPreviewedImageHere(icon, ICON_FILE, QString(), false, false, false, QString());
+  waitUntil([canvas] { return canvas->hasImage() && canvas->getImage().width() == 512; }, 8000);
+  fit(win);
+  const bool real = win.settings.llmProvider == QLatin1String("stencil-server");
+  if (!real) win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&canned);
+  ChatDock* chat = win.chatDock;
+  win.addDockWidget(Qt::LeftDockWidgetArea, chat, Qt::Horizontal);   // the edge the app opens it on
+  chat->setFloating(false);
+  win.acts.chat->setChecked(true);
+  waitUntil([chat] { return chat->isVisible(); });
+  auto* input = chat->findChild<QPlainTextEdit*>("chatInput");
+  if (!input) return;
+  input->setPlainText(real ? REAL_PROMPT : PROMPT);
+  QTest::keyClick(input, Qt::Key_Return);
+  if (!waitUntil([chat] { return replied(chat); }, real ? 150000 : 10000)) {
+    std::printf("  assistant: no reply —");
+    for (QLabel* l : chat->findChildren<QLabel*>())
+      if (!l->property("chatNote").toString().isEmpty()) std::printf(" [%s]", qPrintable(l->property("chatNote").toString()));
+    std::printf("\n");
   }
+  pumpFor(400);
+  fit(win);
+  if (shots.has("assistant-docked")) save("assistant-docked", &win);
+  // Floating: its own window, over the right of the picture, as a user would leave it.
+  if (shots.has("assistant-floating")) {
+    chat->setFloating(true);
+    chat->resize(400, 600);
+    chat->move(win.geometry().topLeft() + QPoint(win.width() - 400 - 40, 150));
+    pumpFor(300);
+    fit(win);
+    saveTops("assistant-floating", &win, {chat});
+    chat->setFloating(false);
+  }
+  win.acts.chat->setChecked(false);
+  pumpFor(100);
 }

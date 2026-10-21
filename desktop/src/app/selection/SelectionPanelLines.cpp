@@ -27,7 +27,7 @@ namespace stencil::gui {
     const QString LINE_TIP = QStringLiteral("Line color\nDouble-click: the toolbar's line color");
     const QString AREA_TIP = QStringLiteral("Line color — an area shows its fill inside\n"
                                             "Double-click: the toolbar's line color");
-    const QString POINT_TIP = QStringLiteral("Point color\nDouble-click: the line's own color");
+    const QString POINT_TIP = QStringLiteral("Point color\nDouble-click: the toolbar's point color");
     const QString LINE_HEAD = QStringLiteral("Line — its own color and thickness");
     const QString POINT_HEAD = QStringLiteral("Point — its points' color and size");
     const QString NAME_HEAD = QStringLiteral("Line name — double-click a row's to rename it");

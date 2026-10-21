@@ -1,7 +1,8 @@
 # Stencil for VS Code
 
 Writing a `.stc`: the suggestions offer what is legal where the caret is, each with what it
-means, and the file is checked by the real engine as you type.
+means, and the file is checked as you type by the browser app's own parser, and on save by the
+engine that runs it.
 
 ![completing a .stc as you type](https://raw.githubusercontent.com/andrew1407/stencil/main/usecases/docs/vscode-extension/img/completion-hints.gif)
 
@@ -28,8 +29,8 @@ explains their vocabulary, underlines their errors as you type, and runs them th
 Zig [CLI](https://github.com/andrew1407/stencil/tree/main/cli).
 
 It carries no language rules of its own: the parser it reads a buffer with is a copy of the
-browser app's, and a saved file is checked by the same compiled engine that runs it, so the
-editor and a run cannot disagree.
+browser app's, and — with the CLI found and `stencil.checkOnSave` on — a saved file is checked
+by the same compiled engine that runs it, so the editor and a run cannot disagree.
 
 - **Repository** — <https://github.com/andrew1407/stencil>
 - **What it looks like** —
@@ -74,7 +75,8 @@ editor and a run cannot disagree.
   its own; the words with code in front of them are not the marker, and say so when hovered.
 - **`.pystc`** is the Python flavour: what `stencil --script-emit shots.pystc` writes, a file
   that drives pystencil's `Editor` and runs headlessly. It carries the Stencil icon and its
-  own ▶, which runs it on the interpreter `stencil.pythonPath` names rather than on the CLI.
+  own ▶, which runs it on Python rather than on the CLI: the interpreter `stencil.pythonPath`
+  names, else `STENCIL_PYTHON`, else `python3` or `python` on the PATH.
   A plain `.py` joins in the same way a `.js` does, by saying `# @use stencil` on a comment
   line of its own.
 - **Typings** — run **Stencil: Add facade typings to this workspace** and the editor's own
@@ -184,8 +186,10 @@ prompt.
 
 ## In the browser
 
-The same script can run in the [browser app](https://andrew1407.github.io/stencil/), against a
-real picture, without leaving the editor. Two ways, because they answer different questions.
+The same script can go to the [browser app](https://andrew1407.github.io/stencil/), against a
+real picture. Two ways, because they answer different questions: a hand-off opens it in the
+app's Script window, ready to run there, and the console runs it in the page without leaving the
+editor.
 
 Every browser command sits in the palette under **Stencil:**, beside the ones that spawn the
 CLI:
@@ -193,23 +197,20 @@ CLI:
 ![the palette, filtered to Stencil](https://raw.githubusercontent.com/andrew1407/stencil/main/usecases/docs/vscode-extension/img/web-commands.png)
 
 **Open in Stencil Web** hands the file to your own browser. The script — or a `.stencil`
-project — rides in the URL *fragment*, which no server ever sees, and the app runs it on
-arrival and keeps the source in its script window, for when you open it. A script that names
-no `@source` acts on whatever is open, so it asks for a picture to take along. A `@source`
-that names a local path cannot work there: the app has no filesystem, and says so itself, on
-the line it happened.
+project — rides in the URL *fragment*, which no server ever sees. A script lands in the app's
+Script window, highlighted and ready to edit; nothing runs until you press **Run** there. A
+`.stencil` project opens as its picture and layout. A script that names no `@source` acts on
+whatever is open, so it asks for a picture to take along. A `@source` that names a local path
+cannot work there: the app has no filesystem, and says so itself, on the line it happened.
 
-**Open in Stencil Web (incognito)** is the same hand-off into the app's incognito session:
-it runs the script and keeps no project afterwards.
+**Open in Stencil Web (incognito)** is the same hand-off into the app's incognito session,
+which keeps no project afterwards.
 
-**Open in Stencil Web's Script window** makes the same hand-off but runs nothing: the app opens
-its Script window with your script in it, ready to edit and run there.
-
-**Open in Stencil Desktop**, **Run in Stencil Desktop** and its **(incognito)** twin hand the
-script to the desktop app over a `stencil://` link — the two runs are the monitor buttons in a
-`.stc` editor's title bar, beside the web ones, and the opens sit in its **…** menu — with the picture it asks for when the script
-names no `@source`. The desktop always asks before it runs a script that came by link, and while
-it runs one, a `@source` may name a web image only — never a local path.
+**Open in Stencil Desktop** and its **(incognito)** twin — the monitor buttons in a `.stc`
+editor's title bar, beside the web ones — hand the script to the desktop app over a
+`stencil://` link, with the picture it asks for when the script names no `@source`. It opens in
+the desktop's Script window and runs only when you press **Run**; a script that came by link
+may then open web images only, never a file on your disk.
 
 **Run in Stencil Web Console** opens the app under VS Code's built-in JavaScript debugger and
 evaluates in the page, so it can run the whole file, just the selection, or one expression you
@@ -234,18 +235,16 @@ Running a script through the CLI needs it on the machine: `cd cli && zig build` 
 | Stencil: Emit script as… | — | `stencil --script <file> --script-emit <file>.pystc\|.py\|.stcjs\|.js` |
 | Stencil: Run Python script | — | `<python> <file.pystc>` |
 | Stencil: Configure highlight colours | — | opens the colour setting — see [Colours](#colours) |
-| Stencil: Open in Stencil Web | — | the browser, on `#stencil=<the script>` |
+| Stencil: Open in Stencil Web | — | the browser, on `#stencil=<the script>` — it opens in the Script window |
 | Stencil: Open in Stencil Web (incognito) | — | the same, into a session the app keeps nothing from |
-| Stencil: Open in Stencil Web's Script window | — | the browser, on `#stencil=` with `scriptMode: "open"` — nothing runs |
-| Stencil: Open in Stencil Desktop | — | the desktop app, on `stencil://open?script=…&scriptMode=open` |
-| Stencil: Run in Stencil Desktop | — | the same with `scriptMode=run` — it opens in the Script window; press Run there |
-| Stencil: Run in Stencil Desktop (incognito) | — | the same, into a session the desktop keeps nothing from |
+| Stencil: Open in Stencil Desktop | — | the desktop app, on `stencil://open?script=…` — it opens in the Script window |
+| Stencil: Open in Stencil Desktop (incognito) | — | the same, into a session the desktop keeps nothing from |
 | Stencil: Run in Stencil Web Console | `Ctrl+Alt+W` / `⌘⌥W` | `stencil.execScript(…)` in the page, or the `.stcjs` itself |
 | Stencil: Run selection in Stencil Web Console… | — | the selection, else an expression you type |
 | Stencil: Open an image in Stencil Web… | — | `stencil.load(<url or the file's bytes>)` |
 | Stencil: Add facade typings to this workspace | — | writes `stencil.d.ts` (+ a `jsconfig.json` if needed) |
 
-A `.stc` carries a ▶, a 🌐 and its incognito twin, and the two 🖥 Run in Stencil Desktop buttons
+A `.stc` carries a ▶, a 🌐 and its incognito twin, and the two 🖥 Open in Stencil Desktop buttons
 (plain and incognito) in the editor title bar, a `.stcjs` the
 console-run button — the only route it has — and a `.pystc` its own ▶. **Emit script as…**
 asks which of the four suffixes to write and puts the file beside the script under its own

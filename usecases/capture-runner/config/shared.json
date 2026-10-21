@@ -7,7 +7,8 @@
   },
   "server": {
     "url": "http://127.0.0.1:8090",
-    "tokenFile": "session.token"
+    "tokenFile": "session.token",
+    "localDbPort": 55432
   },
   "budget": {
     "pngMaxBytes": 512000,
@@ -17,7 +18,9 @@
     "fps": 10,
     "width": 1000,
     "colors": 256,
-    "scale": "lanczos"
+    "scale": "lanczos",
+    "firstMs": 500,
+    "lastMs": 1800
   },
   "theme": {
     "modes": [
@@ -32,7 +35,7 @@
   },
   "prompts": {
     "real": "Frame the S with a dashed red rectangle and warm the picture up with sepia",
-    "stub": "Warm it up with sepia, outline the centre and show me two more takes",
+    "stub": "Frame the S with a dashed red rectangle, warm the picture up with sepia and show me two more takes",
     "extension": "What pictures are on this page, and which one is the largest?",
     "botChat": "Make it black and white and put a red rectangle around the arrow"
   },
@@ -88,7 +91,7 @@
   "stub": {
     "sepiaOutline": {
       "version": 1,
-      "reply": "Applied a sepia tint and framed the centre with a dashed outline. Two variants: one rotated a quarter turn, one in black and white.",
+      "reply": "Framed the S with a dashed red rectangle and warmed the picture with sepia. Two more takes: one turned a quarter right, one in black and white.",
       "actions": [
         {
           "op": "filter",
@@ -100,28 +103,28 @@
             {
               "points": [
                 {
-                  "x": 96,
-                  "y": 64
+                  "x": 146,
+                  "y": 120
                 },
                 {
-                  "x": 864,
-                  "y": 64
+                  "x": 365,
+                  "y": 120
                 },
                 {
-                  "x": 864,
-                  "y": 576
+                  "x": 365,
+                  "y": 391
                 },
                 {
-                  "x": 96,
-                  "y": 576
+                  "x": 146,
+                  "y": 391
                 },
                 {
-                  "x": 96,
-                  "y": 64
+                  "x": 146,
+                  "y": 120
                 }
               ],
-              "color": "#1e63c8",
-              "thickness": 3,
+              "color": "#dc2626",
+              "thickness": 4,
               "pointSize": 4,
               "style": "dashed",
               "locked": false,
@@ -150,8 +153,7 @@
           ]
         }
       ]
-    },
-    "pageSurvey": "This page has eight pictures plus the CSS hero banner. The largest is Plate 2, a 640×360 JPEG; the rest are icons and SVG marks. Say the word and I will open Plate 2 in the editor."
+    }
   },
   "vscode": {
     "binaries": {
@@ -196,5 +198,10 @@
     }
   },
   "sitePort": 8199,
-  "mediaPort": 8201
+  "mediaPort": 8201,
+  "ollama": {
+    "port": 11434,
+    "version": "0.12.6",
+    "model": "llama3.2-vision"
+  }
 }
