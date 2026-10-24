@@ -152,7 +152,7 @@ class _ServerCommands:
     for conn in conns:
       if conn is None: continue
       for proj in conn.list_projects():
-        if isinstance(proj, dict) and proj.get("name") == name:
+        if isinstance(proj, dict) and (proj.get("name") == name or proj.get("id") == name):
           data = conn.get_file(proj["id"], "original")
           self._editor.load(bytes(data), name=name)
           self._image_replaced()

@@ -129,6 +129,19 @@ docker run --rm -p 8080:80 stencil-browser   # -> http://localhost:8080
   `js/config/openInConfig.json` (gitignored) and set `telegramBotUsername`.
   `launch.html` is a standalone bounce page that forwards a `#stencil-desktop=<url>` fragment
   to the `stencil://` scheme, for channels that don't linkify custom schemes.
+- **Launch links** — the app's own URL can carry what to open and how, as `?key=value` pairs
+  (or the same pairs after `#`, which never reach a server):
+  `?source=https://…/clip.mp4&frame=3&layout=https://…/clip.json` opens a picture or a video
+  frame with a layout, `?blank=%23336699&width=890&height=243&name=Sketch&desc=First%20draft&expire=2%20weeks`
+  a named blank page, `?project=localhost:8080/projects/Sketch` or `?project=Sketch` a server or
+  saved project, `?incognito` an unsaved editor. `?theme=auto&main-color=yellow` sets the look,
+  and any console setting works as a key — `?line-color=red&thickness=3&page-size=a4`.
+  `connect=<server>` connects first (a server no saved connection knows asks before connecting),
+  `llm-provider=ollama&llm-model=llava` sets the assistant, `chat=open&chat-dock=left` the chat
+  panel. A credential (`token`, `llm-api-key`) is honoured only after `#`; in the query it is
+  dropped with a notice. The pairs are consumed once and stripped from the address bar; the same
+  link pastes into the console as `/open <link>`, and the desktop app and the CLI read it too
+  (`contracts/launch/launch-uri.md`).
 
 ### Scripts (`.stc`)
 

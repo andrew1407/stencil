@@ -9,6 +9,7 @@ import type { ConnectionManager } from '../net/connectionManager.js';
 import type { Snapshot } from './historyStack.js';
 import type { Gesture } from './pointer/gesture.js';
 import type { AppCollaborators } from './remote/collaborators.js';
+import type { LaunchQuery } from './launch/query.js';
 import type {
   Line, CompareMode, ImageFilter, DrawModeKind, Unit, PointHit, SegmentHit, DragPoint, DragSegment,
   DragLine, RectAnchor, LaunchPayload, OpenImageOptions, ConfirmOptions, ChooseOptions, AskAltOptions,
@@ -127,6 +128,8 @@ export declare class DrawingApp {
   pendingRemoteAddress: string | null;
   pendingOpenProjectId: string | null;
   pendingLaunchScript: string;
+  /** The URL's launch query until console/launchQuery.js consumes it. */
+  launchQuery: LaunchQuery | null;
   hasExternalLaunch: boolean;
   openInConfig: { desktopScheme: string; telegramBotUsername: string };
 

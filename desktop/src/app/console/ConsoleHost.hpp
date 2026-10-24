@@ -91,6 +91,8 @@ namespace stencil::gui {
     void browser(bool incognito, support::ConsoleDone done);
 
    private:
+    // A launch link at /open: true when `ref` was one (opened, or refused for naming nothing this app opens).
+    bool openLaunchLink(const QString& ref, const support::ConsoleDone& done);
     void buildWindow();
     void buildStage();
     void coverChrome(bool on);

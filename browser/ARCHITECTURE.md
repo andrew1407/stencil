@@ -148,6 +148,7 @@ classDiagram
 | `ScriptBuffer` | The one `.stc` the page is editing (`ui/script/buffer.js`): the text plus every view of it | Module state for the session; never persisted | `wireScriptEditor` (`ui/script/editor.js`) |
 | `ChatController` | The client-side conversation: replayed history, queued `Attachment`s, the send loop (`llm/chat/controller.js`); its transcript is the `ChatRow` log in `llm/chat/session.js` | One memoized per app via `sharedChatController` | `OpPlan`, `Stencil`, `LlmClient` |
 | `HeldSessionKey` | The user's own Anthropic key and when it lapses (`llm/sessionKey.js`, llm-providers §5) | This tab's `sessionStorage`, until the tab closes, `sessionKey.ttlMinutes` lapses or Forget | Joined to one request by `withSessionKey`; never persisted elsewhere |
+| `LaunchQuery` | What the page URL's `?key=value` pairs, or the same pairs after `#`, ask for: the picture, the connections, the look, the assistant, the project fields and the warnings (`core/launch/query.js`, `contracts/launch/launch-uri.md`) | Parsed by the `DrawingApp` constructor as `app.launchQuery`, consumed once by `console/launchQuery.js`; a `/open <link>` makes a transient one | Applied through `Stencil`; the corpus is `common/fixtures/deepLink/launchQuery.json` |
 
 ## Patterns
 
@@ -162,7 +163,7 @@ classDiagram
 | Repository | `ProjectsStore` over a `StorageBackend` (`projectsBackend.js`, IndexedDB); `net/connectionStore.js`; `llm/chat/store.js` | Callers see a synchronous `localStorage`-shaped contract; another tab's write reaches this tab through `refresh(id)` |
 | Layered canvas | `core/draw/stageLayers.js` behind `Renderer`: `#canvas` the picture, `#canvas-overlay` the lines and handles | The picture repaints only when its source or size changes, the overlay every frame; an export or result repaints through `core/draw/restingPaint.js` |
 | Chain of Responsibility | Any URL: scheme → `timeoutSignal()` (`net/fetchGuard.js`). Every `ServerConnection` request: `normalizeUrl` → `isInsecureRemote` → `timeoutSignal()` → `isAuthStatus` / `isExpiredSession` → `readJsonCapped` | The one browser fetch guard: a `file:` URL never reaches `fetch`, nothing leaves without a deadline, a refused credential lands in `expired` |
-| Adapter | `llm/adapters/` (the `ChatCapabilities` bag), `core/launch/extensionBridge.js`, `core/launch/deepLink.js` | Each translates an outside request into the core functions the toolbar calls |
+| Adapter | `llm/adapters/` (the `ChatCapabilities` bag), `core/launch/extensionBridge.js`, `core/launch/deepLink.js`, `core/launch/query.js` with `console/launchQuery.js` | Each translates an outside request into the core functions the toolbar calls |
 | State machine | `HoldDrawController` (`core/draw/holdDraw.js`): idle → armed → drawing → idle, or armed → aborted | The host injects time and coordinates; wasm-backed via `coreHandles.js` |
 | State | `DrawingApp.gesture` (`core/pointer/gesture.js`), one drag kind or none | The `is*` drag flags are accessors over it, so two can never both be set |
 | Interpreter | `FormulaEngine` (`core/parse/formulaEngine.js`), recursive descent over `core/parse/formulaContext.js` | Ports `core/parse/formulaParser.cpp`; never `eval` |
@@ -257,6 +258,17 @@ classDiagram
   builds the outbound `stencil://` and Telegram `?start=` links; `applyExternalLaunch`
   (`core/launch/controller.js`) loads the fragment and strips it. A `.stc` in a launch opens in
   the Script window and never runs (`core/launch/desktopLink.js` carries it on `stencil://`).
+- **The launch query.** `core/launch/query.js` reads the `?key=value` pairs of the page URL and
+  the same pairs in a `#` fragment into one `LaunchQuery` (`contracts/launch/launch-uri.md`; the
+  vocabulary is `common/config/launchQuery.json`, the corpus
+  `common/fixtures/deepLink/launchQuery.json`) in the `DrawingApp` constructor, before any
+  component wires, so a picture or incognito launch keeps the projects chooser closed and a
+  picture wins over `?open=`. `console/launchQuery.js` applies it after the fragment hand-off, as a
+  typed console line would — every setting, connection, picture, layout and project field through
+  `window.stencil`, the theme mode and an unknown server's confirm through the app's own
+  collaborator — strips the pairs at once, and turns each problem into one notice. A credential
+  (`token`, `llm-api-key`) is honoured from the fragment only. The console's `/open <link>` applies
+  the same query without touching the URL.
 - **A logo show.** Every trigger reaches `activateShow` (`ui/logo/stageTrigger.js`), which runs
   the stage (`ui/logo/stage.js`) resolved from `config/logoStage.json`; the webcore show toggles
   the session overrides (`ui/webcore/toggle.js`).

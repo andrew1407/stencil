@@ -8,17 +8,20 @@ from ..._ffi.types import NoneType
 from ... import _net
 from ...llm import MAX_UPLOAD_ATTACHMENTS, Chat
 from ...sitesource import scan_page
+from ..launch.link import open_link
 from ..registry import command
 
 
 class _SourceCommands:
   """/upload, /source-upload and the attachment registry they feed."""
   @command("upload", "open", "load", usage="/upload <path|url>",
-      help="load an image or a .stencil project (aliases: open, load)")
+      help="load an image, a .stencil project or a launch link (aliases: open, load)")
   def _cmd_upload(self, arg: str) -> None:
     if not arg:
       self._err("/upload needs a path or URL")
       return
+    # A launch link (the browser app's URL or a stencil:// link) opens through its own grammar.
+    if open_link(self, arg): return
     if arg.lower().endswith(".stencil"):
       # A whole .stencil loads image + layout + metadata at once. A saved `chat` block restores
       # the conversation only while /chat is on (contract §12).

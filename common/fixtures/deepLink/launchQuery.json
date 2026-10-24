@@ -1,0 +1,165 @@
+[
+  { "name": "settings-and-look",
+    "search": "?theme=auto&main-color=yellow&incognito=true&line-color=red&thickness=3&show-points=false",
+    "expect": { "incognito": true, "theme": "system", "opensSession": true,
+      "settings": { "lineColor": "red", "thickness": 3, "showPoints": false, "mainTheme": "yellow" } } },
+
+  { "name": "blank-with-project-fields",
+    "search": "?blank=red&width=890&height=243&name=Sketch&desc=First%20draft&keywords=a,b&color=%23ff0000&expire=2%20weeks",
+    "expect": { "picture": { "kind": "blank", "color": "red", "width": 890, "height": 243 }, "name": "Sketch", "opensSession": true,
+      "project": { "description": "First draft", "keywords": "a,b", "color": "#ff0000", "expire": "2 weeks" } } },
+
+  { "name": "source-video-frame-and-layout-url",
+    "search": "?source=https://cdn.example/clip.mp4&frame=12&layout=https://cdn.example/clip.layout.json",
+    "expect": { "picture": { "kind": "source", "url": "https://cdn.example/clip.mp4", "frame": 12 },
+      "layout": { "url": "https://cdn.example/clip.layout.json" }, "opensSession": true } },
+
+  { "name": "src-alias-no-frame",
+    "search": "?src=https://cdn.example/cat.png",
+    "expect": { "picture": { "kind": "source", "url": "https://cdn.example/cat.png", "frame": null }, "opensSession": true } },
+
+  { "name": "data-url-source-passes",
+    "search": "?source=data:image/png;base64,AAAA",
+    "expect": { "picture": { "kind": "source", "url": "data:image/png;base64,AAAA", "frame": null }, "opensSession": true } },
+
+  { "name": "frame-must-be-a-number",
+    "search": "?src=https://cdn.example/v.mp4&frame=abc",
+    "expect": { "picture": { "kind": "source", "url": "https://cdn.example/v.mp4", "frame": null }, "opensSession": true } },
+
+  { "name": "server-wins-over-source",
+    "search": "?server=localhost:8090&id=p_1&version=7&src=https://x.example/y.png&incognito=1",
+    "expect": { "picture": { "kind": "server", "url": "localhost:8090", "id": "p_1", "version": 7 }, "incognito": true, "opensSession": true } },
+
+  { "name": "server-without-id-falls-to-source",
+    "search": "?server=localhost:8090&src=https://x.example/y.png",
+    "expect": { "picture": { "kind": "source", "url": "https://x.example/y.png", "frame": null }, "opensSession": true } },
+
+  { "name": "version-defaults-to-zero",
+    "search": "?server=h&id=p&version=seven",
+    "expect": { "picture": { "kind": "server", "url": "h", "id": "p", "version": 0 }, "opensSession": true } },
+
+  { "name": "project-locator-names-its-server",
+    "search": "?project=localhost:8080/projects/project1sfjnkname",
+    "expect": { "picture": { "kind": "project", "server": "localhost:8080", "ref": "project1sfjnkname" }, "opensSession": true } },
+
+  { "name": "project-locator-with-scheme-and-trailing-slash",
+    "search": "?project=https://srv.example/projects/p_1a2b/",
+    "expect": { "picture": { "kind": "project", "server": "https://srv.example", "ref": "p_1a2b" }, "opensSession": true } },
+
+  { "name": "project-bare-ref-is-the-launch-server-s-or-local",
+    "search": "?connect=https://srv.example&project=Sketch",
+    "expect": { "picture": { "kind": "project", "server": null, "ref": "Sketch" },
+      "connect": [ { "url": "https://srv.example", "token": "" } ], "opensSession": true } },
+
+  { "name": "project-takes-a-missing-server-from-server-key",
+    "search": "?server=h&project=p1",
+    "expect": { "picture": { "kind": "project", "server": "h", "ref": "p1" }, "opensSession": true } },
+
+  { "name": "server-id-wins-over-project",
+    "search": "?server=h&id=p&project=other",
+    "expect": { "picture": { "kind": "server", "url": "h", "id": "p", "version": 0 }, "opensSession": true } },
+
+  { "name": "project-wins-over-source",
+    "search": "?project=p1&src=https://x.example/y.png",
+    "expect": { "picture": { "kind": "project", "server": null, "ref": "p1" }, "opensSession": true } },
+
+  { "name": "project-locator-without-a-ref-warns",
+    "search": "?project=https://srv.example/projects/",
+    "expect": { "warnings": [ { "code": "bad-value", "key": "project" } ] } },
+
+  { "name": "source-on-the-connection-server-is-a-full-url",
+    "search": "?connect=https://localhost:8090&source=https://localhost:8090/source/clip.mp4&frame=0",
+    "expect": { "picture": { "kind": "source", "url": "https://localhost:8090/source/clip.mp4", "frame": 0 },
+      "connect": [ { "url": "https://localhost:8090", "token": "" } ], "opensSession": true } },
+
+  { "name": "layout-raw-inline",
+    "search": "?blank=white&layout-raw=%7B%22lines%22%3A%5B%5D%7D",
+    "expect": { "picture": { "kind": "blank", "color": "white", "width": null, "height": null },
+      "layout": { "data": { "lines": [] } }, "opensSession": true } },
+
+  { "name": "layout-key-takes-inline-json",
+    "search": "?blank=white&layout=%7B%22lines%22%3A%5B%5D%7D",
+    "expect": { "picture": { "kind": "blank", "color": "white", "width": null, "height": null },
+      "layout": { "data": { "lines": [] } }, "opensSession": true } },
+
+  { "name": "layout-raw-wins-over-layout",
+    "search": "?blank=white&layout=https://a.example/l.json&layout-raw=%7B%22a%22%3A1%7D",
+    "expect": { "picture": { "kind": "blank", "color": "white", "width": null, "height": null },
+      "layout": { "data": { "a": 1 } }, "opensSession": true } },
+
+  { "name": "bad-layout-json-warns",
+    "search": "?blank=white&layout-raw=%7Bnope",
+    "expect": { "picture": { "kind": "blank", "color": "white", "width": null, "height": null },
+      "warnings": [ { "code": "bad-json", "key": "layout-raw" } ], "opensSession": true } },
+
+  { "name": "layout-array-is-not-an-object",
+    "search": "?blank=white&layout-raw=%5B1%5D",
+    "expect": { "picture": { "kind": "blank", "color": "white", "width": null, "height": null },
+      "warnings": [ { "code": "bad-json", "key": "layout-raw" } ], "opensSession": true } },
+
+  { "name": "secrets-refused-in-query",
+    "search": "?connect=https://srv.example&token=abc&llm-provider=anthropic&llm-api-key=sk-1",
+    "expect": { "connect": [ { "url": "https://srv.example", "token": "" } ], "llm": { "provider": "anthropic" },
+      "warnings": [ { "code": "secret-in-query", "key": "token" }, { "code": "secret-in-query", "key": "llm-api-key" } ] } },
+
+  { "name": "secrets-taken-from-fragment",
+    "hash": "#connect=https://srv.example&token=abc&llm-provider=anthropic&llm-api-key=sk-1",
+    "expect": { "connect": [ { "url": "https://srv.example", "token": "abc" } ],
+      "llm": { "provider": "anthropic", "apiKey": "sk-1" }, "fromHash": true } },
+
+  { "name": "query-and-fragment-merge",
+    "search": "?theme=dark", "hash": "#connect=https://srv.example&token=t",
+    "expect": { "theme": "dark", "connect": [ { "url": "https://srv.example", "token": "t" } ], "fromHash": true } },
+
+  { "name": "connect-repeats-with-positional-tokens",
+    "hash": "#connect=https://a.example&connect=https://b.example&token=ta",
+    "expect": { "connect": [ { "url": "https://a.example", "token": "ta" }, { "url": "https://b.example", "token": "" } ], "fromHash": true } },
+
+  { "name": "stencil-fragment-is-not-a-query", "hash": "#stencil=%7B%7D", "expect": null },
+
+  { "name": "desktop-bounce-fragment-is-not-a-query", "hash": "#stencil-desktop=stencil%3A%2F%2Fopen", "expect": null },
+
+  { "name": "bare-open-id-is-not-a-query", "search": "?open=p_1", "expect": null },
+
+  { "name": "open-beside-a-query-is-left-to-the-deep-link",
+    "search": "?open=p_1&theme=light",
+    "expect": { "theme": "light" } },
+
+  { "name": "empty", "search": "", "hash": "", "expect": null },
+
+  { "name": "assistant-and-chat",
+    "search": "?llm-provider=ollama&llm-model=llava&llm-url=http://localhost:11434&llm-server=https://srv.example&chat=open&chat-dock=right",
+    "expect": { "llm": { "provider": "ollama", "model": "llava", "baseUrl": "http://localhost:11434", "serverUrl": "https://srv.example" },
+      "chat": { "open": true, "dock": "right" } } },
+
+  { "name": "unknown-keys-become-setting-candidates",
+    "search": "?utm_source=tg&pageSize=a4&multi-window=on",
+    "expect": { "settings": { "utmSource": "tg", "pageSize": "a4", "multiWindow": true } } },
+
+  { "name": "bad-theme-and-dock-warn",
+    "search": "?theme=purple&chat-dock=middle",
+    "expect": { "warnings": [ { "code": "bad-value", "key": "theme" }, { "code": "bad-value", "key": "chat-dock" } ] } },
+
+  { "name": "script-rides-along",
+    "search": "?script=%40filter%20sepia%0A&script-mode=run&incognito",
+    "expect": { "script": "@filter sepia\n", "incognito": true, "opensSession": true } },
+
+  { "name": "bare-chat-flag-opens", "search": "?chat", "expect": { "chat": { "open": true, "dock": null } } },
+
+  { "name": "source-must-be-a-web-url",
+    "search": "?source=file:///etc/passwd",
+    "expect": { "warnings": [ { "code": "bad-value", "key": "source" } ] } },
+
+  { "name": "blank-size-must-be-positive",
+    "search": "?blank=%23336699&width=-5&height=abc",
+    "expect": { "picture": { "kind": "blank", "color": "#336699", "width": null, "height": null }, "opensSession": true } },
+
+  { "name": "spellings-fold-to-one-key-first-wins",
+    "search": "?mainColor=sky&Main_Color=pink&INCOGNITO=yes&theme=dark&theme=light",
+    "expect": { "settings": { "mainTheme": "sky" }, "incognito": true, "theme": "dark", "opensSession": true } },
+
+  { "name": "expiry-alias-expires",
+    "search": "?blank=white&expires=never",
+    "expect": { "picture": { "kind": "blank", "color": "white", "width": null, "height": null },
+      "project": { "description": null, "keywords": null, "color": null, "expire": "never" }, "opensSession": true } }
+]

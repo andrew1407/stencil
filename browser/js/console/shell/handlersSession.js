@@ -3,6 +3,8 @@
 import { getSyncToServer, setSyncToServer } from '../../net/connectionStore.js';
 import { openInLaunchPayloadResolved } from '../../core/launch/payload.js';
 import { desktopLaunchUrl, inlineVerdict } from '../../core/launch/desktopLink.js';
+import { parseLaunchUrl } from '../../core/launch/query.js';
+import { applyLaunchQuery } from '../launchQuery.js';
 import { loadOpenInConfig } from '../../config/openInConfig.js';
 import { openExternalUrl } from '../../utils.js';
 import { accentHex } from '../../core/settings/accents.js';
@@ -44,7 +46,9 @@ export const sessionHandlers = ({ app, stencil }) => ({
     return projectsRows(arg ? [] : app.storage.store.list(), remote, { activeId: app.activeProjectId });
   },
   async open(arg, host) {
-    if (!arg) throw new Error("open takes a project name or id, or a picture URL");
+    if (!arg) throw new Error("open takes a project name or id, a picture URL, or a launch link");
+    const link = parseLaunchUrl(arg);
+    if (link) { await applyLaunchQuery({ app, stencil, query: link }); host.statusChanged?.(); return 'opened the launch link'; }
     if (/^https?:\/\//i.test(arg)) { await stencil.load(arg); return `loaded ${arg}`; }
     const local = localProject(app, arg);
     if (local) { app.projectTransfer.switchToProject(local.id); host.statusChanged?.(); return `opened ${local.name}`; }

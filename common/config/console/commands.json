@@ -32,7 +32,7 @@
       "name": "open",
       "aliases": [],
       "arg": "<name|id|url>",
-      "help": "open a saved project by name or id, or a picture by URL; the desktop app takes a local image, layout or .stencil path too",
+      "help": "open a saved project by name or id, a picture by URL or a launch link; the desktop app takes a local image, layout or .stencil path too",
       "section": "Image",
       "surfaces": [
         "browser",

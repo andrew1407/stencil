@@ -76,6 +76,13 @@ stencil_headless_test(stencil_deeplinkfixtures_headless
   DEFS ${STENCIL_FIXTURE_WALKER_DEFS}
   LIBS stencil_core Qt6::Network)
 
+# The shared launch-URI vectors through the real parser (app/open/launchUri.cpp) and the desktop's subset.
+stencil_headless_test(stencil_launchurifixtures_headless
+  SOURCES tests/app/open/launchUriFixtures.headless.cpp src/app/open/launchUri.cpp src/app/open/launchUriJson.cpp src/app/open/launchOptions.cpp
+    src/io/deepLink.cpp ${STENCIL_SERVERCLIENT_SOURCES} resources/app.qrc
+  DEFS ${STENCIL_FIXTURE_WALKER_DEFS}
+  LIBS stencil_core Qt6::Network)
+
 # The plan executor (src/llm/plan/executor) against a canvas target seeded with the PNG fixture.
 stencil_headless_test(stencil_llmexecutor_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}

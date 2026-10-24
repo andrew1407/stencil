@@ -14,6 +14,7 @@ const project_cli = @import("project/cli.zig");
 const llm = @import("llm.zig");
 const logo = @import("app/logo.zig");
 const report = @import("app/report.zig");
+const messages = @import("app/messages.zig");
 const child = @import("safety/child.zig");
 const terminal = @import("console/screen/terminal.zig");
 
@@ -46,6 +47,11 @@ pub fn main(init: std.process.Init) !void {
     var opts = args.parse(cli_args) catch {
         logo.banner();
         logo.usage();
+        std.process.exit(2);
+    };
+    // A launch URI given as the input stands for the flags it carries (contracts/launch/).
+    _ = args.expandLaunchUri(arena, &opts) catch {
+        logo.err(messages.launch_source_clash, .{});
         std.process.exit(2);
     };
     opts.env_tokens = .{

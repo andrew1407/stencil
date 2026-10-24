@@ -14,6 +14,7 @@ from .._severity import emit_error
 from ..editor import Editor
 from ..sitesource import download_media, scan_page
 from .blank import BlankSpec
+from .launch.link import expand_args
 
 def _resolve_output(out: str) -> tuple[str, str]:
   """Return (path, fmt): fill in a ``.png`` extension when one is missing/unknown."""
@@ -29,7 +30,7 @@ def _build_parser() -> argparse.ArgumentParser:
     description="Headless image editing over the shared Stencil core "
     "(Python port of the Zig CLI).",
   )
-  p.add_argument("-i", "--input", help="image source: a file path or http(s):// URL")
+  p.add_argument("-i", "--input", help="image source: a file path, an http(s):// URL or a launch link")
   # --blank takes 0..3 trailing tokens ([format] [w h] [color]); we disentangle them
   # (and any greedily-swallowed output path) in _consume_blank.
   p.add_argument(
@@ -113,6 +114,8 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def _run_pipeline(args: argparse.Namespace, err: TextIO) -> int:
   """Execute the one-shot pipeline; returns a process exit code."""
+  # A launch URI given as the input stands for the flags it carries (contracts/launch/).
+  expand_args(args)
   editor = Editor()
 
   # 1) Source — --blank and --input are mutually exclusive (mirror the Zig parser).

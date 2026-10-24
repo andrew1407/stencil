@@ -38,6 +38,10 @@ export declare const applyExternalLaunch: (app: DrawingApp) => Promise<void>;
 export declare const importExternalImage: (app: DrawingApp, launch: NormalizedLaunch, opts?: { mode?: ImportMode }) => Promise<void>;
 /** Switches to an existing project for this image; true when it switched. */
 export declare const resumeBySource: (app: DrawingApp, source: string | null, name: string | null | undefined) => boolean;
+/** What the confirm says a link does to an unknown origin. */
+export interface ConnectIntent { does: string; title: string; }
+/** Connects as the connect modal would, asking first for an origin no saved row names; the normalized url, or null when declined or failed. */
+export declare const ensureLaunchConnection: (app: DrawingApp, rawUrl: string, opts?: { token?: string; intent?: ConnectIntent }) => Promise<string | null>;
 /** Connects (asking first for an unknown origin) and opens the project, incognito or linked. */
-export declare const applyServerLaunch: (app: DrawingApp, launch: NormalizedLaunch) => Promise<void>;
+export declare const applyServerLaunch: (app: DrawingApp, launch: Pick<NormalizedLaunch, 'server' | 'incognito'>) => Promise<void>;
 export declare const setExternalPage: (app: DrawingApp, page: LaunchPage) => void;

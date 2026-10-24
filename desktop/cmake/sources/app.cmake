@@ -12,7 +12,8 @@ set(STENCIL_CONSOLE_SOURCES
   src/app/console/ConsoleHost.cpp
   src/app/console/ConsoleHostCli.cpp
   src/app/console/ConsoleHostFlows.cpp
-  src/app/console/ConsoleHostOpen.cpp)
+  src/app/console/ConsoleHostOpen.cpp
+  src/app/console/ConsoleHostLaunch.cpp)
 
 # CLI mode (app/cli): the banner maths and the skins are pure over the qrc tables and travel into
 # their headless suite without the stage.
@@ -182,6 +183,7 @@ set(STENCIL_GUI_SOURCES
   src/app/project/ProjectTransferController.cpp
   src/app/project/ProjectTransferImport.cpp
   src/app/open/launchOptions.cpp
+  src/app/open/launchUri.cpp src/app/open/launchUriJson.cpp
   src/io/deepLink.cpp
   src/app/selection/SelectionPanel.cpp
   src/app/selection/SelectionPanelRows.cpp

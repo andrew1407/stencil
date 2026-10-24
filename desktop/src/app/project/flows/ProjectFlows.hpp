@@ -56,6 +56,15 @@ namespace stencil::gui {
     void openServerProject(const QString& serverUrl, const QString& id, bool silent = false,
                            bool link = true, qint64 version = 0);
     void openServerLaunch(const QString& serverUrl, const QString& id, bool incognito, qint64 version = 0);
+    // What the confirm says a link does to an origin no saved row names; `message` carries %1 for the url.
+    struct ConnectIntent { QString title, message; };
+    static ConnectIntent connectIntent();
+    static ConnectIntent openProjectIntent();
+    // A launch URI's `connect=`: the link's token, else the saved one, else a minted session; an
+    // origin no saved row names asks first. `then` runs with the normalized url once connected.
+    void connectLaunch(const QString& serverUrl, const QString& token,
+                       std::function<void(const QString& url)> then = nullptr,
+                       const ConnectIntent& intent = connectIntent());
     // Browser openInModal.js, for the current session.
     void openInAnotherApp();
     void openInAnotherAppFor(const QString& id, const QString& serverUrl, const QRect& closeRect);

@@ -208,7 +208,11 @@ REPL commands mirror the CLI console: `/upload`, `/source-upload` (alias `/scrap
 `/save`, `/layout`, `/script`, `/script-run`, `/connect`, `/connections`, `/fetch`,
 `/prompt` (alias `/p`), `/llm` and `/chat on|off|clear`. A bare command that needs
 arguments lists its options. `/layout [path]` has the same path semantics as
-`Editor.save_layout` and the Zig CLI.
+`Editor.save_layout` and the Zig CLI. `/upload` (and `--input`) also take a launch link — the
+browser app's URL with `?source=…&frame=…`, `?blank=…&width=…&height=…` or
+`?project=<origin>/projects/<ref>` pairs, or a `stencil://open?…` link — read as the commands it
+stands for; the console connects its `connect=` servers first, sets its `llm-*` keys, and says what
+it has no command for (`contracts/launch/launch-uri.md`).
 
 ## Scripts (`.stc`)
 

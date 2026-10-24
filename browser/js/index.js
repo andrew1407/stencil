@@ -19,6 +19,7 @@ import { installCssSpeed } from './ui/motion/surface/cssSpeed.js';
 import EVENTS from '../../common/config/events.json' with { type: 'json' };
 import { publishReady } from './eventBus/appBus.js';
 import { applyExternalLaunch } from './core/launch/controller.js';
+import { applyLaunchQuery } from './console/launchQuery.js';
 import { flushPendingWrites, installUnloadFlush } from './ui/shell/unloadFlush.js';
 // Application entrypoint, loaded LAST (importing layout registers every custom element): DOM → app
 // → wire order, then `stencil:ready`. Failed wasm leaves consumers on their JS fallback.
@@ -75,7 +76,9 @@ window.onload = async () => {
   hotkeys.updateHotkeyTitles();
   initTooltips();
   watchControlLabels();
-  applyExternalLaunch(app).then(() => openLaunchScript(app, stencil));
+  applyExternalLaunch(app)
+    .then(() => applyLaunchQuery({ app, stencil }))
+    .then(() => openLaunchScript(app, stencil));
   app.applyProjectDeepLink();
   registerServiceWorker();
 };

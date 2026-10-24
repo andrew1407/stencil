@@ -78,7 +78,7 @@ stencil_headless_test(stencil_projecttransfer_headless
 # the bot) and the browser-fragment builder's percent-encoding.
 stencil_headless_test(stencil_deeplink_headless
   SOURCES tests/io/deepLink.headless.cpp src/io/deepLink.cpp src/app/open/launchOptions.cpp
-    ${STENCIL_SERVERCLIENT_SOURCES} resources/app.qrc
+    src/app/open/launchUri.cpp src/app/open/launchUriJson.cpp ${STENCIL_SERVERCLIENT_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Network)
 
 # The live push feed (net/liveFeed) against a mock QTcpServer speaking the NDJSON events.

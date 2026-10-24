@@ -106,6 +106,10 @@ Stated in full in `ARCHITECTURE.md` §1–§2; `.claude/rules/core-changes.md` l
   - **`stc/`** — the `.stc` script language: lexis, directives, units, templates, undo, the
     error catalogue and the per-surface execution table. Parsed and lowered in `core/script/`,
     proved by the corpus in `common/fixtures/script/cases.txt`.
+  - **`launch/`** — the launch URI: the `?key=value` pairs the browser app's URL, a `stencil://`
+    link and the CLI's input take, with the per-surface support table. The words are
+    `common/config/launchQuery.json`, the corpus `common/fixtures/deepLink/launchQuery.json`, and
+    each surface parses it natively (`browser/js/core/launch/query.js` is the reference).
 - **`.claude/rules/`** — auto-loaded agent rules: `security.md`, `no-dependencies.md` and
   `architecture.md` always; the path-scoped `core-changes.md` (`core/`), `desktop-qt.md`
   (`desktop/`), `tests.md` (every test tree) and `docs.md` (the surface docs) with their files.

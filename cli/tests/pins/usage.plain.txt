@@ -2,7 +2,8 @@ Usage
   stencil [options] <output>
 
 Source (choose one)
-  -i, --input <path|url>     Image or video file/URL to load
+  -i, --input <path|url>     Image or video file/URL to load, or a launch link
+                             (?source=…&frame=…, ?blank=…, ?project=…) read as its flags
       --blank [fmt] [w h] [color]
                              Create a blank page: a page format (a0..c10, e.g. b5)
                              OR explicit dims, default A4; color name/#hex (white)

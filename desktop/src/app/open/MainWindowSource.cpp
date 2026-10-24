@@ -3,6 +3,7 @@
 #include "Notifications.hpp"
 #include "../../support/rowWork.hpp"
 #include "launchOptions.hpp"
+#include "webScheme.hpp"
 
 #include <QFileInfo>
 #include <QImage>
@@ -58,9 +59,12 @@ namespace stencil::gui {
       acts.incognito->setChecked(true);  // drives incognito via its toggled slot
 
     if (opts.hasTheme) {
-      settings.themeMode = (opts.theme == "dark") ? "dark" : "light";
+      settings.themeMode = (opts.theme == "dark" || opts.theme == "system") ? opts.theme : "light";
       applySettings(settings, /*persist=*/true);
     }
+    // A launch URI's connections come first, queued so each handshake runs on the event loop.
+    for (const launchUri::Connect& c : opts.connect)
+      QTimer::singleShot(0, this, [this, c] { parts.projects.connectLaunch(c.url, c.token); });
 
     // Taken before any load starts, so a linked script can tell when that picture has landed.
     const qint64 pictureBefore = canvas->getOriginalImage().cacheKey();
@@ -89,6 +93,8 @@ namespace stencil::gui {
                 ? QuickCropOpts{QuickCropOpts::Mode::PAGE, opts.cropAlbum, opts.cropPage,
                                 {opts.cropX, opts.cropY, opts.cropW, opts.cropH}}
                 : QuickCropOpts::none();
+      // A picture named by URL keeps that URL as the project's source; a local path has none.
+      if (net::fetchGuard::isWebScheme(opts.src)) docSource.pendingProvSource = opts.src;
       parts.sourceOpener.openImageSource(opts.src, opts.frame, opts.srcFallbacks);
     } else if (!opts.file.isEmpty()) {
       docSource.pendingLaunchLayout = opts.layout;

@@ -12,7 +12,7 @@ const page_mod = @import("../media/page.zig");
 
 const MAX_FILE = 256 << 20; // 256 MiB read cap for inputs
 const BLANK_MIN = 1;
-const BLANK_MAX = 8192;
+const BLANK_MAX = args.BLANK_MAX_PX;
 
 pub fn loadSource(gpa: std.mem.Allocator, io: std.Io, input: []const u8, frame: u32) ![]u8 {
     // Only http(s) URLs and local paths are accepted: reject any other scheme up front so an `.mp4`-looking
@@ -31,6 +31,8 @@ pub fn loadSource(gpa: std.mem.Allocator, io: std.Io, input: []const u8, frame: 
 
 /// A text document (a layout's JSON) from a file path or an http(s) URL, as raw bytes. Prints on failure.
 pub fn loadText(gpa: std.mem.Allocator, io: std.Io, src: []const u8) ![]u8 {
+    // Inline JSON (a launch URI's layout-raw) is the text itself; no path starts with `{`.
+    if (src.len > 0 and src[0] == '{') return gpa.dupe(u8, src);
     if (net.isUrl(src)) return net.fetch(gpa, io, src, false) catch |e| return mapMediaError(e);
     return readLocal(gpa, io, src);
 }

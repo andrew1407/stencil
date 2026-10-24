@@ -30,7 +30,7 @@ Filters — '/filter <mode>' to apply:
 Commands  (a leading '/' is optional)
 
 §Image
-/upload <path|url>	load an image or video frame (bare: the clipboard's picture)
+/upload <path|url>	load an image, video frame or launch link (bare: the clipboard's picture)
 /source-upload <url> [i] [fmt] [name=]	scrape a page and load its i-th image (alias /scrape)
 /paste	load an image from the clipboard (Ctrl-V pastes onto the line instead)
 /unpaste [n]	take back an image added this turn (bare = the last; Ctrl-Z)

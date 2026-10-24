@@ -26,6 +26,18 @@ Vectors may carry an optional informational `divergences` map
 never asserted — walkers ignore it (none recorded for this family so far; surface-specific
 pinned values would live in each surface's local override file).
 
+`launchQuery.json` — `{ name, search?, hash?, expect }`: the launch URI
+(`contracts/launch/launch-uri.md`), the `?key=value` pairs of the browser app's URL and the same
+pairs in its fragment. `expect` is `null` when the parts carry nothing of the grammar, else the
+fields of the parsed query that differ from the EMPTY query (`picture`, `name`, `layout` null;
+`incognito` false; `script` ''; `theme` null; `settings`, `llm` `{}`; `chat` `{open:false, dock:null}`;
+`connect`, `warnings` `[]`; `project` all null; `fromHash`, `opensSession` false) — a nested object
+is given whole. Walked by `browser/tests/core/launch/queryFixtures.test.js` (the reference,
+`js/core/launch/query.js`), `cli/tests/params/launch_uri_fixtures_test.zig`,
+`desktop/tests/app/open/launchUriFixtures.headless.cpp` and
+`pystencil/tests/fixtures/test_fixture_launchuri.py`; the vocabulary every parser reads is
+`common/config/launchQuery.json`.
+
 `telegramStart.json` — `{ name, serverUrl, projectId, expectPayload }`: the t.me
 `?start=` codec (`"1" + base64url("host[:port]|id")`, 64-char cap → `null` on overflow).
 These are the SAME golden vectors duplicated in the three suites' tests; decoding

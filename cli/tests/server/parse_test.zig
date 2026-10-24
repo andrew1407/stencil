@@ -4,7 +4,7 @@ const std = @import("std");
 const Error = @import("../../src/server/errors.zig").Error;
 const parse = @import("../../src/server/parse.zig");
 const findIdByName = parse.findIdByName;
-const findProjectByName = parse.findProjectByName;
+const findProjectByRef = parse.findProjectByRef;
 const freeProjectList = parse.freeProjectList;
 const parseErrorMessage = parse.parseErrorMessage;
 const parseProjectId = parse.parseProjectId;
@@ -35,15 +35,15 @@ test "parseErrorMessage reads the server's error body, null for other shapes" {
     try testing.expect(parseErrorMessage(a, "{\"code\":\"x\"}") == null); // no message field
 }
 
-test "findProjectByName captures id + version; parseProjectVersion reads a single project" {
+test "findProjectByRef captures id + version; parseProjectVersion reads a single project" {
     const a = testing.allocator;
     const list =
         "{\"projects\":[{\"id\":\"p_1_a\",\"name\":\"Alpha\",\"version\":4},{\"id\":\"p_2_b\",\"name\":\"Beta\",\"version\":9}]}";
-    const ref = (try findProjectByName(a, list, "beta")).?;
+    const ref = (try findProjectByRef(a, list, "beta")).?;
     defer a.free(ref.id);
     try testing.expectEqualStrings("p_2_b", ref.id);
     try testing.expectEqual(@as(i64, 9), ref.version);
-    try testing.expect((try findProjectByName(a, list, "missing")) == null);
+    try testing.expect((try findProjectByRef(a, list, "missing")) == null);
 
     const v = try parseProjectVersion(a, "{\"project\":{\"id\":\"p_2_b\",\"name\":\"Beta\",\"version\":9}}");
     try testing.expectEqual(@as(i64, 9), v);

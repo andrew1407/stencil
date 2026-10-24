@@ -4,7 +4,7 @@ description: Headless image editing over the shared Stencil core (Python port of
 -h --help [metavar= default='==SUPPRESS==']
   show this help message and exit
 -i --input [metavar= default=None]
-  image source: a file path or http(s):// URL
+  image source: a file path, an http(s):// URL or a launch link
 --blank [metavar=TOKEN default=None]
   create a blank page: [format] [w h] [color] (default A4 @ 96dpi, white)
 -f --frame [metavar= default=0]

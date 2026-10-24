@@ -1,5 +1,5 @@
 commands:
-  /upload <path|url>     load an image or a .stencil project (aliases: open, load)
+  /upload <path|url>     load an image, a .stencil project or a launch link (aliases: open, load)
   /source-upload <url> [index=0] [format=all] [name=] [minW=-1] [maxW=-1] [minH=-1] [maxH=-1]
                          scrape a page, load one filtered image (alias: scrape)
   /blank [f] [w h] [color]  create a blank page, f = a page format (alias: new)

@@ -87,7 +87,7 @@ size) work as in the browser app, with the same keyboard shortcuts.
 **Data ▸ Console…** (`Alt+Shift+T`, the first button of the Data section) opens a console
 window beside the editor: it blocks nothing, resizes from its corner, follows the theme and
 takes the CLI's slash commands over the open project — `/crop x1=10% x2=90%`, `/rotate 1`,
-`/filter bw`, `/theme dark|light|auto`, `/color red`, `/connect <url>`, `/open <project|path|url>`,
+`/filter bw`, `/theme dark|light|auto`, `/color red`, `/connect <url>`, `/open <project|path|url|link>`,
 `/upload <path|url>` (bare, it opens the Open Image window), `/save [path]`, `/browser` to hand the
 project to the browser app, and more; `/help` lists them and the leading `/` is optional. Tab
 completes, Up/Down recall history, `/exit` closes it.
@@ -166,6 +166,7 @@ settings with the key field focused).
 | `--projects` | Open the Projects window at launch. |
 | `<file>` | A bare image / video / layout-JSON / `.stencil` path — what an OS file association passes. |
 | `stencil://…` | A deep link (the argv form a Linux scheme handler passes). |
+| `https://<browser app>/?…` | A launch link, read as its flags: `source=`/`frame=`/`layout=`, `project=<origin>/projects/<ref>` (a bare ref is a saved project by name), `server=`/`id=`, `incognito`, `script=`, `theme=`, and `connect=` servers to dial first — a token after `#` only (`contracts/launch/launch-uri.md`). |
 | `--help` | Show the full option list. |
 
 ```bash

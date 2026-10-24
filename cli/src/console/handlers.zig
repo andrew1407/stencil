@@ -89,6 +89,7 @@ test {
     _ = browser;
     _ = desktop;
     _ = @import("handlers/apps/env.zig");
+    _ = @import("handlers/apps/inbound.zig");
     _ = @import("handlers/apps/launch.zig");
     _ = @import("handlers/apps/registry.zig");
     _ = script;

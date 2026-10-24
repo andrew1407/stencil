@@ -13,7 +13,7 @@ import tempfile
 from pathlib import Path
 
 FILES = ("llm/providers.json", "llm/systemPrompt.json", "llm/opRegistry.json",
-         "net/blockedRanges.json")
+         "net/blockedRanges.json", "launchQuery.json")
 LOCK_NAME = ".sync.lock"
 
 

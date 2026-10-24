@@ -67,7 +67,7 @@ namespace stencil::gui {
       done(ConsoleOutput::plain(ctx.host.localProjectsRows(true)));
     });
     t.insert(QStringLiteral("open"), [](ConsoleContext& ctx, const QString& arg, support::ConsoleDone done) {
-      if (arg.isEmpty()) return done(ConsoleOutput::error(QStringLiteral("open takes a project name or id, a file path or a picture URL")));
+      if (arg.isEmpty()) return done(ConsoleOutput::error(QStringLiteral("open takes a project name or id, a file path, a picture URL or a launch link")));
       ctx.host.open(arg.trimmed(), std::move(done));
     });
     t.insert(QStringLiteral("open-window"), [](ConsoleContext& ctx, const QString& arg, support::ConsoleDone done) {

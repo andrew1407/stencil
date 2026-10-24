@@ -52,7 +52,7 @@ guard, and the other `_`-prefixed helpers sit with `_native` at the bottom.
 | `pystencil/llm/` (+ `plan/`) | config · wire · client · chat; under `plan/` the core-result mapping, the registry and execution | core validates every plan; execution calls `Editor` methods, never pixels; a provider's shapes are one `wire.py` row |
 | `pystencil/server/` | `ServerConnection` + `ConnectionManager` (urllib REST) | speaks `server/internal/protocol`; REST only, changes are polled |
 | `pystencil/sitesource/` | scraping: format · scan · filter · download · net | prints the shared stderr grammar (`cli/CONTRACT.md` §3) |
-| `pystencil/cli/` | `python -m pystencil`: one-shot, script run and plan, the console, `commands/` | the console follows `cli/CONTRACT.md` |
+| `pystencil/cli/` | `python -m pystencil`: one-shot, script run and plan, the console, `commands/`; `launch/uri.py` reads a launch link and `launch/link.py` applies it through the console's own commands or expands it into the one-shot flags | the console follows `cli/CONTRACT.md`; the link grammar is `contracts/launch/launch-uri.md`, its words the package's copy of `common/config/launchQuery.json` |
 | `tests/` | one suite per subject, mirrored by folder; the opt-in `bench/` | hermetic — no server, no network |
 
 ## Entities

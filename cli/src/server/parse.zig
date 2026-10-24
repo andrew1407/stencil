@@ -36,15 +36,15 @@ pub fn findIdByName(gpa: std.mem.Allocator, body: []const u8, name: []const u8) 
 /// console's last-writer-wins guard so it knows which incoming events are newer. Caller owns `id`.
 pub const ProjectRef = struct { id: []u8, version: i64 };
 
-/// Like findIdByName, but also captures the project's monotonic edit version.
-pub fn findProjectByName(gpa: std.mem.Allocator, body: []const u8, name: []const u8) !?ProjectRef {
+/// Like findIdByName, but by name (case-insensitive) or id, and capturing the project's monotonic edit version.
+pub fn findProjectByRef(gpa: std.mem.Allocator, body: []const u8, ref: []const u8) !?ProjectRef {
     const T = struct {
         projects: []const struct { id: []const u8, name: []const u8, version: i64 = 0 },
     };
     var p = std.json.parseFromSlice(T, gpa, body, .{ .ignore_unknown_fields = true }) catch return Error.BadResponse;
     defer p.deinit();
     for (p.value.projects) |proj| {
-        if (std.ascii.eqlIgnoreCase(proj.name, name))
+        if (std.ascii.eqlIgnoreCase(proj.name, ref) or std.mem.eql(u8, proj.id, ref))
             return ProjectRef{ .id = try gpa.dupe(u8, proj.id), .version = proj.version };
     }
     return null;

@@ -7,6 +7,7 @@
     <file alias="hotkeysConfig.json">../../common/config/hotkeysConfig.json</file>
     <file alias="infoConfig.json">../../common/config/infoConfig.json</file>
     <file alias="constants.json">../../common/config/constants.json</file>
+    <file alias="launchQuery.json">../../common/config/launchQuery.json</file>
     <file alias="accents.json">../../common/config/accents.json</file>
     <file alias="icons.json">../../common/config/icons.json</file>
     <file alias="iconMotion.json">../../common/config/iconMotion.json</file>

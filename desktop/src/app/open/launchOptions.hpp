@@ -1,6 +1,9 @@
 #pragma once
 #include <QString>
 #include <QStringList>
+#include <vector>
+
+#include "launchUri.hpp"
 
 class QCoreApplication;
 class QUrl;
@@ -10,9 +13,13 @@ class QUrl;
 namespace stencil::gui {
 
   struct LaunchOptions {
-    // --theme dark|light; hasTheme gates it so an absent flag leaves the persisted preference untouched.
+    // --theme dark|light (a launch URI may also say system); hasTheme gates it so an absent flag leaves the persisted preference untouched.
     bool hasTheme = false;
-    QString theme;  // "dark" | "light"
+    QString theme;  // "dark" | "light" | "system"
+
+    // Servers a launch URI connects before anything opens, each with the token paired to it
+    // ("" = the saved one, else a minted session).
+    std::vector<launchUri::Connect> connect;
 
     // --project <name> (case-insensitive); wins over --src.
     QString project;
@@ -63,9 +70,15 @@ namespace stencil::gui {
     bool empty() const {
       return !hasTheme && project.isEmpty() && src.isEmpty() && layout.isEmpty() &&
              !projects && !incognito && file.isEmpty() && serverUrl.isEmpty() &&
-             serverProjectId.isEmpty() && layoutJson.isEmpty() && script.isEmpty() && !scriptDropped;
+             serverProjectId.isEmpty() && layoutJson.isEmpty() && script.isEmpty() && !scriptDropped &&
+             connect.empty();
     }
   };
+
+  // The desktop's subset of a launch URI (launchUri.hpp) onto the options: the server reference or
+  // project locator, the source and frame, the layout, incognito, the script, the theme and the
+  // connections. A blank, the name, the editor settings and the assistant keys have no flag here.
+  void adoptLaunchUri(LaunchOptions& o, const launchUri::LaunchUri& link);
 
   // LAUNCH.scriptMaxChars (common/config/constants.json through the qrc): the longest script a link carries.
   int launchScriptMaxChars();

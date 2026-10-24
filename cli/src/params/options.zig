@@ -4,6 +4,9 @@
 //! re-deriving the mutual exclusions.
 const std = @import("std");
 
+/// The longest side `--blank` accepts, px.
+pub const BLANK_MAX_PX: u32 = 8192;
+
 pub const Blank = struct {
     page: ?[]const u8 = null, // named page format ("A4".."C10", canonical); null = default
     width: ?u32 = null,

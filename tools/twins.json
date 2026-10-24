@@ -78,6 +78,12 @@
       "to": "pystencil/pystencil/_data/blockedRanges.json",
       "test": "pystencil/tests/test_canonical_drift.py",
       "by": "pystencil/build.py"
+    },
+    {
+      "from": "common/config/launchQuery.json",
+      "to": "pystencil/pystencil/_data/launchQuery.json",
+      "test": "pystencil/tests/test_canonical_drift.py",
+      "by": "pystencil/build.py"
     }
   ],
   "picks": [

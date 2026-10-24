@@ -16,7 +16,7 @@ const ProjectInfo = parse.ProjectInfo;
 const parseToken = parse.parseToken;
 const parseProjectId = parse.parseProjectId;
 const findIdByName = parse.findIdByName;
-const findProjectByName = parse.findProjectByName;
+const findProjectByRef = parse.findProjectByRef;
 const parseProjectVersion = parse.parseProjectVersion;
 const parseProjectList = parse.parseProjectList;
 const jsonBody = payload_mod.body;
@@ -137,11 +137,11 @@ pub const Client = struct {
         return findIdByName(self.gpa, body, name);
     }
 
-    /// Resolve a project name to its id + current version (for the LWW pull guard).
+    /// Resolve a project name or id to its id + current version (for the LWW pull guard).
     pub fn findProjectRef(self: *Client, name: []const u8) !?ProjectRef {
         const body = try self.listProjects();
         defer self.gpa.free(body);
-        return findProjectByName(self.gpa, body, name);
+        return findProjectByRef(self.gpa, body, name);
     }
 
     /// List the server's projects as owned ProjectInfo records (free with freeProjectList).

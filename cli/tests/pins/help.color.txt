@@ -1,7 +1,7 @@
 Commands  (a leading '/' is optional)
 
 [38;2;124;58;237mImage[0m
-  [38;2;124;58;237m/upload <path|url>[0m      load an image or video frame (bare: the clipboard's picture)
+  [38;2;124;58;237m/upload <path|url>[0m      load an image, video frame or launch link (bare: the clipboard's picture)
   [38;2;124;58;237m/source-upload <url> [i] [fmt] [name=][0m scrape a page and load its i-th image (alias /scrape)
   [38;2;124;58;237m/paste[0m                  load an image from the clipboard (Ctrl-V pastes onto the line instead)
   [38;2;124;58;237m/unpaste [n][0m            take back an image added this turn (bare = the last; Ctrl-Z)

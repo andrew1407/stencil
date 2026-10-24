@@ -8,9 +8,43 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QUrl>
-#include <QUrlQuery>
+#include <algorithm>
 
 namespace stencil::gui {
+
+  namespace {
+    // An http(s) positional is a launch URI when it carries something to act on; else a file to open.
+    LaunchOptions fromWebLink(const QString& spec) {
+      LaunchOptions o;
+      if (!net::fetchGuard::isWebScheme(spec)) return o;
+      const auto link = launchUri::parse(QUrl(spec));
+      if (link && link->actionable()) adoptLaunchUri(o, *link);
+      return o;
+    }
+
+    // Each picture kind onto the flag it stands for; a blank has none here.
+    struct PictureAdopter {
+      LaunchOptions& o;
+      const launchUri::LaunchUri& link;
+      void operator()(const launchUri::ServerPicture& p) const {
+        o.serverUrl = p.url;
+        o.serverProjectId = p.id;
+        o.serverVersion = p.version > 0 ? qint64(p.version) : 0;
+      }
+      void operator()(const launchUri::ProjectPicture& p) const {
+        // A bare ref with no server anywhere in the link is a saved local project by name.
+        if (p.server) o.serverUrl = *p.server;
+        else if (!link.connect.empty()) o.serverUrl = link.connect.front().url;
+        if (o.serverUrl.isEmpty()) o.project = p.ref;
+        else o.serverProjectId = p.ref;
+      }
+      void operator()(const launchUri::SourcePicture& p) const {
+        o.src = p.url;
+        o.frame = (p.frame && *p.frame > 0) ? int(*p.frame) : 0;
+      }
+      void operator()(const launchUri::BlankPicture&) const {}
+    };
+  }  // namespace
 
   LaunchOptions parseLaunchOptions(const QCoreApplication& app) {
     QCommandLineParser parser;
@@ -36,8 +70,8 @@ namespace stencil::gui {
         "projects", "Open the Projects window at launch.");
     parser.addOptions({themeOpt, projectOpt, srcOpt, frameOpt, incognitoOpt,
                        layoutOpt, projectsOpt});
-    // A bare file path ("Open With"), opened via the drag-and-drop path.
-    parser.addPositionalArgument("file", "Image, video, or layout JSON to open.",
+    // A bare file path ("Open With"), a stencil:// link, or the browser app's launch URL.
+    parser.addPositionalArgument("file", "Image, video, layout JSON or launch link to open.",
                                  "[file]");
 
     // process() honours --help/--version and exits on a malformed command line.
@@ -68,6 +102,8 @@ namespace stencil::gui {
       // A stencil:// deep link (Linux scheme handlers pass the URL as argv %u); other flags still apply.
       if (p.startsWith(QLatin1String("stencil:"), Qt::CaseInsensitive)) {
         adoptLinkOptions(o, parseStencilUrl(QUrl(p)));
+      } else if (const LaunchOptions web = fromWebLink(p); !web.empty()) {
+        adoptLinkOptions(o, web);
       } else {
         o.file = p;
       }
@@ -79,46 +115,49 @@ namespace stencil::gui {
     o.serverUrl = link.serverUrl;
     o.serverProjectId = link.serverProjectId;
     o.serverVersion = link.serverVersion;
+    if (!link.project.isEmpty()) o.project = link.project;
     if (!link.src.isEmpty()) o.src = link.src;
+    if (!link.layout.isEmpty()) o.layout = link.layout;
     if (!link.layoutJson.isEmpty()) o.layoutJson = link.layoutJson;
     if (link.frame > 0) o.frame = link.frame;
     o.incognito = o.incognito || link.incognito;
+    if (link.hasTheme) {
+      o.hasTheme = true;
+      o.theme = link.theme;
+    }
+    o.connect = link.connect;
     o.script = link.script;
     o.scriptDropped = link.scriptDropped;
+  }
+
+  void adoptLaunchUri(LaunchOptions& o, const launchUri::LaunchUri& link) {
+    if (link.picture) std::visit(PictureAdopter{o, link}, *link.picture);
+    if (link.layout) {
+      if (link.layout->data) {
+        // Bounded: parsed as JSON downstream, so the same cap as the browser hand-off payload.
+        const QString json = QString::fromUtf8(QJsonDocument(*link.layout->data).toJson(QJsonDocument::Compact));
+        if (json.size() <= deepLink::browserLaunchPayloadMax()) o.layoutJson = json;
+      } else {
+        o.layout = link.layout->url;
+      }
+    }
+    o.incognito = o.incognito || link.incognito;
+    if (std::any_of(link.warnings.begin(), link.warnings.end(),
+                    [](const launchUri::Warning& w) { return w.key == QLatin1String("script"); }))
+      o.scriptDropped = true;
+    if (!link.script.isEmpty()) o.script = link.script;
+    if (link.theme) {
+      o.hasTheme = true;
+      o.theme = *link.theme;
+    }
+    o.connect = link.connect;
   }
 
   LaunchOptions parseStencilUrl(const QUrl& url) {
     LaunchOptions o;
     if (url.scheme().compare(QLatin1String("stencil"), Qt::CaseInsensitive) != 0)
       return o;
-    const QUrlQuery q(url);
-    const QString server = q.queryItemValue("server", QUrl::FullyDecoded).trimmed();
-    const QString id = q.queryItemValue("id", QUrl::FullyDecoded).trimmed();
-    if (!server.isEmpty() && !id.isEmpty()) {
-      // A server reference wins over inline content (the server copy is canonical).
-      o.serverUrl = server;
-      o.serverProjectId = id;
-      bool vok = false;
-      const qint64 v = q.queryItemValue("version").toLongLong(&vok);
-      o.serverVersion = (vok && v > 0) ? v : 0;
-    } else {
-      o.src = q.queryItemValue("src", QUrl::FullyDecoded).trimmed();
-      // Deep links are remotely clickable: only web/data image sources may ride them, never LOCAL files.
-      if (!o.src.isEmpty() && !net::fetchGuard::isWebScheme(o.src)
-          && !o.src.startsWith(QLatin1String("data:"), Qt::CaseInsensitive)) {
-        o.src.clear();
-      }
-      // Bounded: parsed as JSON downstream, so the same cap as the browser hand-off payload.
-      const QString layout = q.queryItemValue("layout", QUrl::FullyDecoded).trimmed();
-      if (layout.size() <= deepLink::browserLaunchPayloadMax()) o.layoutJson = layout;
-      bool ok = false;
-      const int n = q.queryItemValue("frame").toInt(&ok);
-      o.frame = (ok && n > 0) ? n : 0;
-    }
-    o.incognito = q.queryItemValue("incognito") == QLatin1String("1");
-    const QString script = q.queryItemValue("script", QUrl::FullyDecoded);
-    if (script.size() > launchScriptMaxChars()) o.scriptDropped = true;
-    else if (!script.isEmpty()) o.script = script;
+    if (const auto link = launchUri::parse(url)) adoptLaunchUri(o, *link);
     return o;
   }
 

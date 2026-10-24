@@ -75,7 +75,7 @@ browser-extension/    # the Chrome MV3 extension
 vscode-extension/     # the VS Code .stc/.stcjs/.pystc extension
 bot/                  # the .NET Telegram bot
 e2e/                  # the Playwright smoke harness
-contracts/            # the normative contracts: llm/, stc/
+contracts/            # the normative contracts: llm/, stc/, launch/
 ```
 
 ---

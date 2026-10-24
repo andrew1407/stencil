@@ -16,6 +16,7 @@ import { wireControls } from '../ui/bindings/index.js';
 import { createEditorState } from './editorState.js';
 import { DEFAULT_ACCENT, isAccent } from './settings/accents.js';
 import { readOpenProjectId, buildExternalLaunchUrl } from './launch/deepLink.js';
+import { parseLaunchQuery } from './launch/query.js';
 import * as launch from './launch/controller.js';
 import { wireExtensionBridge } from './launch/extensionBridge.js';
 import { leaveThenRemove } from '../ui/motion.js';
@@ -80,11 +81,12 @@ export class DrawingApp {
 // whether to offer a chooser after readiness.
     this.storage.restore();
     this.storage.newTemporary();
-// "?open=<id>" is read before any component wires, so the chooser stays closed;
-// applyProjectDeepLink() loads it once everything is wired.
-    this.pendingOpenProjectId = readOpenProjectId(location.search);
+// The launch query and "?open=<id>" are read before any component wires, so the chooser stays
+// closed; a query that names a picture wins over the project id. Applied once everything is wired.
+    this.launchQuery = parseLaunchQuery(location.search, location.hash);
+    this.pendingOpenProjectId = this.launchQuery?.picture ? null : readOpenProjectId(location.search);
 // Likewise a `#stencil=` hand-off keeps the chooser closed; read before applyExternalLaunch() strips it.
-    this.hasExternalLaunch = (location.hash || '').startsWith('#stencil=');
+    this.hasExternalLaunch = (location.hash || '').startsWith('#stencil=') || !!this.launchQuery?.opensSession;
 // A .stc handed over with it; applyExternalLaunch fills this, index.js opens it in the Script
 // window once the image lands — a link never runs a script.
     this.pendingLaunchScript = '';

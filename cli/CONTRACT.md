@@ -38,7 +38,8 @@ output lines change, update **this file, the shared fixtures, and both adapters 
 
 Produced by `parse()` in **`cli/src/params/parse.zig`** (re-exported as `args.parse`). The grammar is small and
 **order-independent** (flags may appear in any order); a bare token that isn't a flag or a
-flag's value is the positional **output** path (last one wins). There is **no `--`
+flag's value is the positional **output** path (last one wins) — unless it is a launch URI
+(`params/uriExpand.zig` `looksLikeLaunchUri`), which stands in for `-i`. There is **no `--`
 end-of-options terminator** — a bare `--` is rejected as an unknown flag — so an output path
 that begins with `-` would misparse as a flag; adapters reject dash-leading outputs up front.
 
@@ -46,7 +47,7 @@ that begins with `-` would misparse as a flag; adapters reject dash-leading outp
 
 | Flag (aliases) | Arg shape | Meaning |
 |---|---|---|
-| `-i`, `--input` | `<path\|url>` value | Image/video source: local path or `http(s)://` URL. With `--server`, this is instead the **name of a project** to fetch. Mutually exclusive with `--blank` (→ `DuplicateSource`). |
+| `-i`, `--input` | `<path\|url>` value | Image/video source: local path or `http(s)://` URL. With `--server`, this is instead the **name or id of a project** to fetch. Mutually exclusive with `--blank` (→ `DuplicateSource`). A **launch URI** (`contracts/launch/launch-uri.md`: the browser app's URL with `?source=…&frame=…&layout=…`, `?blank=…&width=…&height=…`, `?project=<origin>/projects/<ref>` or `?server=…&id=…`, or a `stencil://open?…` link) given here or as a bare positional stands for the flags it carries — `source` is `-i`, `frame` `-f`, `blank` with its size `--blank`, `layout` `-l`, `server`+`id`/`project` `--server -i`, a paired `token` `--token`, `name` `--remote-name`; its other keys have no one-shot flag and are ignored. A picture URL carrying grammar-looking parameters but no picture is fetched as itself. |
 | `--blank` | `[format] [w h] [color]` (optional trailing tokens) | Create a blank page. Optional leading ISO page-format name (`a0`…`a10`, `b0`…`b10`, `c0`…`c10`, case-insensitive), **or** an explicit integer `w h` pair (mutually exclusive with a format; giving both errors), then an optional color name / `#hex`. Omit all ⇒ A4 @ 96 dpi, white. Mutually exclusive with `-i`. |
 | `-f`, `--frame` | `<u32>` value | Video frame index to grab (default 0). |
 | `-c`, `--crop` | `"<spec>"` value | Crop spec, e.g. `"x1=10% x2=90% y1=10% y2=90%"`. Each given edge must land inside the image (`[0, width]` / `[0, height]`): one outside it fails the run like a bad token (`error: could not parse crop spec …`, exit 1), and a spec that keeps nothing says so (`error: crop spec … leaves nothing of the …`). |
@@ -89,7 +90,7 @@ that begins with `-` would misparse as a flag; adapters reject dash-leading outp
 | `--prompt` | `<text>` value | One assistant turn over the `-i` / `--blank` input with the provider the `STENCIL_LLM_*` environment names (see [LLM provider](#llm-provider)): the reply is printed, the validated plan runs, and `<output>` is written with the usual `wrote` line. Exits 1, writing nothing, when the model gives no usable answer (no key, an HTTP error, a truncated, refused or off-shape reply, an invalid plan). POSIX only, as the console is: a Windows build refuses it (`error: --prompt is not available on Windows …`, exit 1). No adapter emits it. |
 | `--console`, `--repl` | switch | Interactive console mode (out of scope for this contract). |
 | `-h`, `--help` | switch | Show help. |
-| `<output>` | positional | Result path (last positional wins) — or, in scrape mode, the **destination directory** (created if missing; default `.`). A missing/unknown extension is auto-filled from the input format. A path whose last component is empty, `.` or `..` names no file and is refused: `error: the output '{path}' names a directory, not a file — give the result a file name`, exit 1. |
+| `<output>` | positional | Result path (last positional wins; a launch URI positional is the input instead, see `-i`) — or, in scrape mode, the **destination directory** (created if missing; default `.`). A missing/unknown extension is auto-filled from the input format. A path whose last component is empty, `.` or `..` names no file and is refused: `error: the output '{path}' names a directory, not a file — give the result a file name`, exit 1. |
 
 ### Server credentials
 
@@ -130,6 +131,9 @@ The CLI enforces some of these in `args.zig`; the rest surface at pipeline time
 falls back to A4/white with no error), the adapters validate them **before** building argv:
 
 - `-i` / `--input` and `--blank` are mutually exclusive (`DuplicateSource` in `args.zig`).
+- A launch URI that names a picture is a source of its own: beside `--blank` or
+  `--source-site` it prints `error: a launch link names a source of its own — it does not ride
+  with --blank or --source-site`, exit 2 (`main.zig`, through `params/uriExpand.zig`).
 - `--blank` page-format **and** explicit `w h` are mutually exclusive (`args.zig` prints
   `error: --blank takes a page format OR explicit dims, not both`). A lone `w` without `h`
   is invalid (`error: --blank takes a width and a height, got only '{w}'`), and so is a

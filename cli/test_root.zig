@@ -58,6 +58,8 @@ test {
     _ = @import("tests/config/skins_drift_test.zig");
     _ = @import("tests/config/console_fx_drift_test.zig");
     _ = @import("tests/config/logo_mark_drift_test.zig");
+    _ = @import("tests/config/launch_query_drift_test.zig");
+    _ = @import("tests/params/launch_uri_fixtures_test.zig");
     _ = @import("tests/console/commands_test.zig");
     _ = @import("tests/console/commands_args_test.zig");
     _ = @import("tests/llm/config_test.zig");

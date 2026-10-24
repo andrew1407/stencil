@@ -60,7 +60,7 @@ stencil_headless_test(stencil_logostagecloud_headless
 # Drift guards for the assets the desktop reads instead of embedding: theme tokens, the app QSS
 # token map, mediaTypes.json and the prompt canon's context suffixes.
 stencil_headless_test(stencil_canonassets_headless
-  SOURCES tests/support/theme/canonAssets.headless.cpp src/app/open/launchOptions.cpp ${STENCIL_FILESTORE_SOURCES}
+  SOURCES tests/support/theme/canonAssets.headless.cpp src/app/open/launchOptions.cpp src/app/open/launchUri.cpp src/app/open/launchUriJson.cpp ${STENCIL_FILESTORE_SOURCES}
     src/io/deferredWrite.cpp src/io/mediaTypes.cpp ${STENCIL_OPREGISTRY_SOURCES} ${STENCIL_OPSCHEMA_SOURCES}
     ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Svg)

@@ -66,9 +66,12 @@ pub fn doLayout(session: *Session, io: std.Io, arg: []const u8) !void {
 
 /// `/save <file>.stencil` — bundle the ORIGINAL image + layout + metadata; prints a `/layout`-style line outside the mcp/bot `wrote`-line contract.
 pub fn saveProject(session: *Session, io: std.Io, path: []const u8) !void {
+    // A picture loaded by URL keeps that URL as the project's source, as the GUI editors do.
+    const label = session.label orelse "project";
     project.saveInto(session, io, path, .{
-        .name = commands.projectBaseName(session.label orelse "project"),
+        .name = commands.projectBaseName(label),
         .color = session.remote_color orelse "",
+        .source = if (net.isUrl(label)) label else "",
     }) catch {}; // message already printed; the console keeps running
 }
 

@@ -112,6 +112,7 @@ fn wireNative(b: *std.Build, mod: *std.Build.Module, stb: *std.Build.Dependency)
     mod.addAnonymousImport("skins.json", .{ .root_source_file = b.path("../common/config/console/skins.json") });
     mod.addAnonymousImport("fx.json", .{ .root_source_file = b.path("../common/config/console/fx.json") });
     mod.addAnonymousImport("motion.json", .{ .root_source_file = b.path("../common/config/motion.json") });
+    mod.addAnonymousImport("launchQuery.json", .{ .root_source_file = b.path("../common/config/launchQuery.json") });
     // stb's DECODER (untrusted input) keeps UBSan on; regex_shim owns the POSIX regex_t for
     // the --source-name filter (Zig can't embed the opaque translated regex_t by value).
     mod.addCSourceFiles(.{

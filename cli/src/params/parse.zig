@@ -11,6 +11,7 @@ const scrape = @import("scrape.zig");
 const inspect = @import("inspect.zig");
 const plan = @import("plan.zig");
 const thumbnail = @import("thumbnail.zig");
+const uriExpand = @import("uriExpand.zig");
 const Error = options.Error;
 const LayoutFrame = options.LayoutFrame;
 const Options = options.Options;
@@ -96,8 +97,8 @@ pub fn parse(argv: []const [:0]const u8) Error!Options {
             logo.err("unknown flag '{s}'\n", .{arg});
             return Error.UnknownFlag;
         } else {
-            // A positional argument is the output path (last one wins).
-            opts.output = arg;
+            // A launch URI stands for its flags (uriExpand.zig); any other positional is the output path (last one wins).
+            if (uriExpand.looksLikeLaunchUri(arg)) opts.input = arg else opts.output = arg;
         }
     }
     if (opts.script_emit != null and opts.script == null) {

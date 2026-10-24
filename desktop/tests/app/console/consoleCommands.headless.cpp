@@ -81,6 +81,13 @@ int main(int argc, char** argv) {
     check(got.lines.size() == 1 && got.lines.first().text == "(no server connections)", "connections with none");
     runConsoleLine(window, QStringLiteral("/connect"), take);
     check(got.lines.first().kind == ConsoleKind::ERROR, "connect needs a URL");
+    runConsoleLine(window, QStringLiteral("/open https://app.example/?blank=red&name=Sketch"), take);
+    check(got.lines.first().kind == ConsoleKind::ERROR && got.lines.first().text.contains("nothing this app opens"),
+          "a launch link naming only what the desktop has no flag for is refused");
+    runConsoleLine(window, QStringLiteral("/open https://app.example/?incognito&token=t"), take);
+    check(got.lines.size() == 1 && got.lines.first().kind != ConsoleKind::ERROR &&
+              got.lines.first().text == "opened the launch link; \"token\" is ignored in the ?query — put it in the #fragment",
+          "a launch link opens as argv would and says what the ?query dropped");
     runConsoleLine(window, QStringLiteral("/llm"), take);
     check(got.lines.size() == 3 && got.lines.first().text.startsWith("provider: "), "/llm bare reports the provider, url and model");
     runConsoleLine(window, QStringLiteral("/llm nope x"), take);

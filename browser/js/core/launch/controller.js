@@ -143,30 +143,39 @@ export const resumeBySource = (app, source, name) => {
   return false;
 };
 
-// Connect the way the connect modal would (live connection, else saved token, else
-// POST /auth/token), then open — an unlinked incognito copy when the launch asked for it.
-export const applyServerLaunch = async (app, launch) => {
+const OPEN_PROJECT_INTENT = { does: 'opens a shared project on', title: 'Open shared project' };
+
+// Connect the way the connect modal would (live connection, else the link's token, else the
+// saved one, else POST /auth/token). The normalized url, or null once the user declined or the
+// connect failed and was told.
+export const ensureLaunchConnection = async (app, rawUrl, { token = '', intent = OPEN_PROJECT_INTENT } = {}) => {
   let url;
-  try { url = normalizeUrl(launch.server.url); } catch { throw new Error('bad server URL'); }
-  if (!app.connections.has(url)) {
-    const saved = loadSavedServers().find(s => {
-      try { return normalizeUrl(s.url) === url; } catch { return false; }
-    });
+  try { url = normalizeUrl(rawUrl); } catch { throw new Error('bad server URL'); }
+  if (app.connections.has(url)) return url;
+  const saved = loadSavedServers().find(s => {
+    try { return normalizeUrl(s.url) === url; } catch { return false; }
+  });
 // A link can name ANY server: never silently persist a connection to an unknown origin.
-    if (!saved && !(await app.confirm(
-      `This link opens a shared project on ${url}. Connect to that server?`,
-      { title: 'Open shared project', confirmLabel: 'Connect', confirmIcon: 'link' }))) {
-      return;
-    }
-    try {
-      await app.connections.connect({ url, token: (saved && saved.token) || '' });
-    } catch (err) {
-// The normal connect error path: toast, then the connect modal for a token / URL fix.
-      notify(`Could not connect to ${url} — ${err.message}`, 'fail');
-      document.getElementById('connect-btn')?.click();
-      return;
-    }
+  if (!saved && !(await app.confirm(
+    `This link ${intent.does} ${url}. Connect to that server?`,
+    { title: intent.title, confirmLabel: 'Connect', confirmIcon: 'link' }))) {
+    return null;
   }
+  try {
+    await app.connections.connect({ url, token: token || (saved && saved.token) || '' });
+  } catch (err) {
+// The normal connect error path: toast, then the connect modal for a token / URL fix.
+    notify(`Could not connect to ${url} — ${err.message}`, 'fail');
+    document.getElementById('connect-btn')?.click();
+    return null;
+  }
+  return url;
+};
+
+// Connect, then open — an unlinked incognito copy when the launch asked for it.
+export const applyServerLaunch = async (app, launch) => {
+  const url = await ensureLaunchConnection(app, launch.server.url);
+  if (!url) return;
   if (launch.incognito) {
     await app.projectTransfer.copyServerProjectToIncognito({ serverUrl: url, id: launch.server.id }, {});
   } else {

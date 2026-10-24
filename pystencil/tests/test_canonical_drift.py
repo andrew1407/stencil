@@ -18,6 +18,7 @@ from pathlib import Path
 from tests import _PKG_ROOT
 
 from pystencil import layout
+from pystencil.cli.launch.uri import SCRIPT_MAX_CHARS
 from pystencil.editor import _A4_FALLBACK
 
 # Canonical config root, __file__-relative: pystencil/tests → repo root → common/config.
@@ -203,6 +204,20 @@ class BlockedRangesAssetDriftTests(unittest.TestCase):
   def test_data_copy_is_byte_identical_to_canonical(self):
     """pystencil/_data/blockedRanges.json == browser's canonical table, byte-for-byte."""
     self.assertEqual(_DATA_RANGES.read_bytes(), _CANON_RANGES.read_bytes())
+
+
+_DATA_LAUNCH = _PKG_ROOT / "pystencil" / "_data" / "launchQuery.json"
+_CANON_LAUNCH = _CONSTANTS.parent / "launchQuery.json"
+
+
+class LaunchQueryDriftTests(unittest.TestCase):
+  def test_data_copy_is_byte_identical_to_canonical(self):
+    """pystencil/_data/launchQuery.json == common/config/launchQuery.json, byte-for-byte."""
+    self.assertEqual(_DATA_LAUNCH.read_bytes(), _CANON_LAUNCH.read_bytes())
+
+  def test_script_cap_matches_constants(self):
+    with open(_CONSTANTS, encoding="utf-8") as fh:
+      self.assertEqual(SCRIPT_MAX_CHARS, json.load(fh)["LAUNCH"]["scriptMaxChars"])
 
 
 if __name__ == "__main__":

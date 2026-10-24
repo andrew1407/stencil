@@ -16,14 +16,15 @@ export const PNG_DATA_URL =
 
 // `motion` seeds ui/motion/motionPrefs.js before first paint (prePaintTheme.js stamps <html
 // data-motion>), so 'none' means no entrance ever starts; motion specs must not pass it.
-export async function gotoApp(page, { hash = '', motion = '' } = {}) {
+// `search` is a launch query (`?key=value`, contracts/launch/launch-uri.md).
+export async function gotoApp(page, { search = '', hash = '', motion = '' } = {}) {
   await page.addInitScript((m) => {
     try {
       localStorage.clear();
       if (m) localStorage.setItem('drawingApp_motion', JSON.stringify({ mode: m }));
     } catch { /* blocked */ }
   }, motion);
-  await page.goto(APP_URL + hash);
+  await page.goto(APP_URL + search + hash);
   await page.waitForFunction(() => !!(/** @type {StencilWindow} */ (window).stencil), null, { timeout: 15_000 });
   return page;
 }

@@ -166,3 +166,15 @@ pub const filelink_gone = "the linked file {s} is gone — unlinked\n";
 pub const filelink_conflict = "{s} changed on disk while you edited; your edits are written over it\n";
 pub const filelink_reloaded = "↺ took the desktop's change from {s}\n";
 pub const filelink_reload_failed = "could not read {s} ({s})\n";
+
+// A launch link (contracts/launch/launch-uri.md): as the one-shot input (main.zig), or pasted at
+// /open (console/handlers/apps/inbound.zig).
+pub const launch_source_clash = "a launch link names a source of its own — it does not ride with --blank or --source-site\n";
+pub const launch_secret_in_query = "launch link: \"{s}\" is ignored in the ?query — put it in the #fragment\n";
+pub const launch_bad_value = "launch link: \"{s}\" has an unusable value\n";
+pub const launch_bad_json = "launch link: \"{s}\" is not a JSON object\n";
+pub const launch_left_out = "launch link: {s} is not something this console sets — left out\n";
+pub const launch_nothing = "launch link: nothing this console can open — it names no picture, server, layout or connection\n";
+pub const launch_server_needs_connection = "launch link: not connected to {s} — the picture was left out\n";
+pub const launch_project_needs_server = "launch link: project '{s}' names no server, and this console keeps no local projects — left out\n";
+pub const launch_needs_server_project = "launch link: {s} need a fetched server project — left out\n";

@@ -10,7 +10,14 @@ for what the console looks like, [`usecases/docs/cli/USECASES.md`](../usecases/d
 stencil -i photo.jpg -c "x1=10% x2=90% y1=10% y2=90%" -r 1 out.png
 stencil --blank 800 600 red --layout notes.json --filter sepia out
 stencil -i clip.mp4 -f 24 frame.png
+# a launch link stands for its flags: here -i https://x/clip.mp4 -f 24 -l https://x/clip.json
+stencil "https://app.example/?source=https://x/clip.mp4&frame=24&layout=https://x/clip.json" frame.png
 ```
+
+A launch link — the browser app's URL with `?source=…`, `?blank=…`, `?project=<origin>/projects/<ref>`
+or `?server=…&id=…` pairs, or a `stencil://open?…` link — is read as the flags it carries, on the
+command line and at the console's `/open`; the console also takes its `connect=`, `llm-*` and
+server-project fields (`contracts/launch/launch-uri.md`).
 
 ## Build
 

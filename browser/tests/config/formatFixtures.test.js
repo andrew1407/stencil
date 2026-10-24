@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { buildLayoutPayload, sanitizeLines } from '../../js/core/layout.js';
 import { parseProjectFile, MAX_PROJECT_FILE_CHARS } from '../../js/core/project/file.js';
 import { normalizeLaunchPayload, encodeTelegramStartPayload, LAUNCH_DATA_URL_MAX } from '../../js/core/launch/deepLink.js';
+import { parseLaunchQuery, emptyLaunchQuery } from '../../js/core/launch/query.js';
 
 const COMMON = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../..', 'common');
 const CONFIG_DIR = path.join(COMMON, 'config');
@@ -110,6 +111,12 @@ for (const { vector: v, file } of loadFamily('deepLink')) {
       // telegramStart.json: the 3-surface t.me ?start= codec golden vectors.
       assert.strictEqual(encodeTelegramStartPayload(v.serverUrl, v.projectId), v.expectPayload);
       if (v.expectPayload != null) assert.match(v.expectPayload, /^1[A-Za-z0-9_-]+$/, 'telegram-safe charset');
+      return;
+    }
+    if (file === 'launchQuery.json') {
+      // The launch URI's parts; `expect` is the fields that differ from the empty query, or null.
+      const got = parseLaunchQuery(v.search ?? '', v.hash ?? '');
+      assert.deepStrictEqual(got, v.expect === null ? null : { ...emptyLaunchQuery(), ...v.expect });
       return;
     }
     const res = normalizeLaunchPayload(expand(v.payload));

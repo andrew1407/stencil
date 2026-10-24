@@ -21,7 +21,8 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   -i INPUT, --input INPUT
-                        image source: a file path or http(s):// URL
+                        image source: a file path, an http(s):// URL or a
+                        launch link
   --blank [TOKEN ...]   create a blank page: [format] [w h] [color] (default
                         A4 @ 96dpi, white)
   -f FRAME, --frame FRAME

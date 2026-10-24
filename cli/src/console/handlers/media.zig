@@ -13,6 +13,7 @@ const msg = @import("../../app/messages.zig");
 const ui = @import("../ui.zig");
 const Session = @import("../session.zig").Session;
 const attachments = @import("../attachments.zig");
+const inbound = @import("apps/inbound.zig");
 
 pub fn doUpload(session: *Session, io: std.Io, arg: []const u8) !void {
     if (arg.len == 0) {
@@ -22,6 +23,8 @@ pub fn doUpload(session: *Session, io: std.Io, arg: []const u8) !void {
         logo.err(msg.upload_needs_path, .{});
         return;
     }
+    // A launch link (the browser app's URL or a stencil:// link) opens through its own grammar.
+    if (inbound.isLaunchUri(arg) and try inbound.open(session, io, arg)) return;
     // A whole .stencil project loads its image + layout (crop/rotation/filter/lines) at once.
     if (project.isStencilPath(arg)) return openProject(session, io, arg);
     const src = pipeline.acquireInput(session.gpa, io, arg, 0) catch return; // message already printed

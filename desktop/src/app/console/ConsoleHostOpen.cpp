@@ -72,6 +72,7 @@ namespace stencil::gui {
   }
 
   void ConsoleHost::open(const QString& ref, support::ConsoleDone done) {
+    if (openLaunchLink(ref, done)) return;   // ConsoleHostLaunch.cpp
     if (isWebUrl(ref) || QFileInfo::exists(support::expandHomePath(ref))) return upload(ref, std::move(done));
     const QString id = localProjectId(ref);
     if (!id.isEmpty()) {

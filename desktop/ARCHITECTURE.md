@@ -194,6 +194,16 @@ classDiagram
   `ScriptHost::adoptLinkedScript` fills the Script window once the linked picture lands, marking
   the buffer as the link's; a Run of it opens web images only, until the user changes the text. A
   link never runs a script.
+- **A launch link.** `app/open/launchUri.cpp` reads a `stencil://open?…` link or the browser app's
+  URL (`?key=value` pairs, and the same pairs after `#`) into one `LaunchUri`, with the words of
+  `common/config/launchQuery.json` through the qrc and the corpus
+  `common/fixtures/deepLink/launchQuery.json` (`contracts/launch/launch-uri.md`);
+  `adoptLaunchUri` (`launchOptions.cpp`) takes the desktop's subset onto `LaunchOptions` — the server
+  reference or project locator, the source and frame, the layout, incognito, the script, the theme
+  mode and the `connect=` servers — and `parseStencilUrl` is that read. A credential is honoured
+  from the fragment only. `applyLaunchOptions` dials each connection first
+  (`ProjectFlows::connectLaunch`, asking before an origin no saved row names), then opens; the
+  console's `/open <link>` adopts the same subset and applies it the same way.
 - **A modal.** Every open-image dialog flies from and back to anchors in
   `support/modal/imageAnchor.hpp`, landing by outcome (`FlightAnchors::closeRectFor`). Every modal
   but the compact popover sits over `support/modal/ModalBackdrop`; `motionReduced()` drops the
