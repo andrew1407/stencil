@@ -98,7 +98,10 @@ fn reload(session: *Session, io: std.Io, l: *FileLink) !void {
     if (same) {
         var st = session_mod.EditState{};
         session_mod.parseLayoutInto(session.gpa, proj.layout_json, &st) catch {};
-        try session.pushState(st);
+        session.pushState(st) catch |e| { // it owns `st` only once appended
+            st.deinit(session.gpa);
+            return e;
+        };
         session.adoptLayoutMeta(proj.layout_json);
         try session.rebuild();
     } else {

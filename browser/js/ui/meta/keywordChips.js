@@ -1,7 +1,9 @@
-import { FILTER_ENTERING_CLASS, disintegrate, flipFrom, leaveThenRemove,
-         motionMs, motionReduced, speckPainter,
-         CHIP_MOTE_PX, CHIP_DUST_MS, CHIP_DUST_DRIFT, CHIP_ENTER_MS, CHIP_ENTER_DELAY_MS,
-         chipGrid } from '../motion.js';
+import { motionMs, motionReduced } from '../motion/motionPrefs.js';
+import { flipFrom } from '../motion/flip.js';
+import { FILTER_ENTERING_CLASS, leaveThenRemove } from '../motion/enterLeave.js';
+import { CHIP_MOTE_PX, CHIP_DUST_MS, CHIP_DUST_DRIFT, CHIP_ENTER_MS, CHIP_ENTER_DELAY_MS, chipGrid } from '../motion/surface/tiles.js';
+import { disintegrate } from '../motion/disintegrate.js';
+import { speckPainter } from '../motion/surface/painters.js';
 import { icon } from '../icons.js';
 
 // One keyword list, edited as chips. The list is the value; the input above it only

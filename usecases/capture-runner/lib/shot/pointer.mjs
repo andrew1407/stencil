@@ -22,12 +22,18 @@ const install = () => {
   const tip = document.createElement('div');
   tip.style.cssText = 'position:absolute;left:-17px;top:-17px;width:34px;height:34px;border-radius:50%;'
     + 'background:rgba(255,255,255,.38);border:2px solid rgba(255,255,255,.92);box-shadow:0 0 0 1px rgba(0,0,0,.35);display:none';
-  host.append(arrow, tip);
+  // A drag's image rides under the arrow, its grab point on the hotspot, as the OS draws it.
+  const carried = document.createElement('img');
+  carried.style.cssText = 'position:absolute;display:none;pointer-events:none';
+  host.append(carried, arrow, tip);
   const root = () => document.body || document.documentElement;
-  const mount = () => { if (!host.isConnected) root().append(host); };
+  // Kept the body's last child, so an overlay mounted after it never covers the pointer.
+  const mount = () => { if (host !== root().lastElementChild) root().append(host); };
   if (document.body) mount(); else addEventListener('DOMContentLoaded', mount, { once: true });
 
+  let pinned = false;
   const place = (x, y, touch = false) => {
+    if (pinned) return;
     mount();
     arrow.style.display = touch ? 'none' : '';
     tip.style.display = touch ? 'block' : 'none';
@@ -44,7 +50,18 @@ const install = () => {
       { duration: 420, easing: 'ease-out' }).onfinish = () => r.remove();
   };
   // A clip that starts on a touch screen hides the arrow a setup click left behind.
-  window.__docsPointer = { hide: () => { host.style.display = 'none'; } };
+  window.__docsPointer = {
+    hide: () => { pinned = false; host.style.display = 'none'; },
+    // A still's pointer: held at (x, y) until hide(), whatever moves the page sees meanwhile.
+    pin: (x, y) => { pinned = false; place(x, y); pinned = true; },
+    // `src` (null drops it) is drawn `width` CSS px wide, grabbed at (dx, dy) of its own box.
+    carry: (src, dx = 0, dy = 0, width = 0) => {
+      carried.style.display = src ? 'block' : 'none';
+      if (!src) return;
+      carried.src = src;
+      Object.assign(carried.style, { left: `${-dx}px`, top: `${-dy}px`, width: `${width}px` });
+    },
+  };
   const on = (type, fn) => addEventListener(type, fn, { capture: true, passive: true });
   on('mousemove', (e) => place(e.clientX, e.clientY));
   on('pointermove', (e) => place(e.clientX, e.clientY, e.pointerType === 'touch'));

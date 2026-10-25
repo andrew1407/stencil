@@ -16,9 +16,9 @@ class MainWindowGuiTest : public QObject {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    win.adoptCanvasAsLocalProject();
-    QVERIFY(!win.activeProjectId.isEmpty());
-    const QString projectId = win.activeProjectId;
+    win.projectHost.adoptCanvasAsLocalProject();
+    QVERIFY(!win.projectHost.activeProjectId.isEmpty());
+    const QString projectId = win.projectHost.activeProjectId;
 
     // Zoom in past the viewport so the canvas grows a scrollable range: otherwise the scrollbars have
     // nowhere to move and the pan half of this test proves nothing.
@@ -28,7 +28,7 @@ class MainWindowGuiTest : public QObject {
     QTest::qWait(600);   // past the 400ms debounce
 
     {
-      Project* pr = win.findProject(projectId.toStdString());
+      Project* pr = win.projectHost.findProject(projectId.toStdString());
       QVERIFY(pr);
       QCOMPARE(pr->zoomScale, 5.0);
       QCOMPARE(pr->scrollLeft, 30);
@@ -46,7 +46,7 @@ class MainWindowGuiTest : public QObject {
     // the save just verified), simulating an editor sitting elsewhere as this project reopens.
     canvas->setScale(1.0);
     bool landed = false;
-    QVERIFY(win.loadProjectIntoCanvas(projectId, /*animate=*/false, [&landed](bool ok) { landed = ok; }));
+    QVERIFY(win.projectHost.loadProjectIntoCanvas(projectId, /*animate=*/false, [&landed](bool ok) { landed = ok; }));
     QTRY_VERIFY_WITH_TIMEOUT(landed, 5000);   // the picture decodes off the GUI thread
     QCOMPARE(canvas->getScale(), 5.0);
     // The scroll half restores a turn after the picture lands (QTimer::singleShot(0, …)).
@@ -76,7 +76,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(clear->isEnabled(), "Clear Project is dead with an image loaded");
     // …and dead once there is nothing left to clear (an empty canvas, no project).
     win.canvas->clearImage();
-    win.activeProjectId.clear();
+    win.projectHost.activeProjectId.clear();
     win.refreshActions();
     QVERIFY2(!clear->isEnabled(), "Clear Project stays live on an empty editor");
     // The ACTION's glyph is the ordinary menu tone, never danger red: menus paint icons muted (browser
@@ -109,15 +109,15 @@ class MainWindowGuiTest : public QObject {
     QImage img(24, 24, QImage::Format_RGB32);
     img.fill(Qt::darkMagenta);
     win.loadImageWithLayout(img, QJsonObject());
-    win.createLocalProject(QStringLiteral("session-bind"), /*announce=*/false);
-    QVERIFY(!win.activeProjectId.isEmpty());
+    win.projectHost.createLocalProject(QStringLiteral("session-bind"), /*announce=*/false);
+    QVERIFY(!win.projectHost.activeProjectId.isEmpty());
     win.saveSessionNow();
     const auto sess = stencil::gui::fileStore::loadSession();
     QVERIFY(sess.has_value());
-    QCOMPARE(sess->activeProjectId, win.activeProjectId);
+    QCOMPARE(sess->activeProjectId, win.projectHost.activeProjectId);
     // …and the restore path re-binds it (project still exists in the list).
     MainWindow win2(nullptr, true);
-    QTRY_COMPARE_WITH_TIMEOUT(win2.activeProjectId, win.activeProjectId, 5000);   // bound as it lands
+    QTRY_COMPARE_WITH_TIMEOUT(win2.projectHost.activeProjectId, win.projectHost.activeProjectId, 5000);   // bound as it lands
   }
 
   // Deliberate NON-round-trip: the image filter/tint and the compare split view must NOT carry into a

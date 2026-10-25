@@ -3,9 +3,9 @@
 // (chatListing.js) rides as a system-prompt suffix, history replays under the §7 image
 // rule, and executed plans (executors.js) surface as chat cards. Every chrome/DOM
 // capability is INJECTED, so `node --test` drives the controller with stubs.
-import { LLM_SYSTEM_PROMPT, FORBIDDEN_OPS, parseOpPlan, continuationOnly } from './op/plan.js';
+import { LLM_SYSTEM_PROMPT, FORBIDDEN_OPS, parseOpPlan, continuationOnly } from './plan/plan.js';
 import { attachmentNote, buildListing, buildTabsListing } from './chatListing.js';
-import { createOpExecutors } from './op/executors.js';
+import { createOpExecutors } from './plan/executors.js';
 
 export const HISTORY_LIMIT = 32;
 // Contract §7 image downscale bound — the same long edge every rasterise path uses.

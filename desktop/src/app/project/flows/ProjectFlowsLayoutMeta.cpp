@@ -25,7 +25,7 @@ namespace stencil::gui {
       revealControls(w.units.customGroup, w.settings.pageSize == "custom");
       if (w.units.customW && w.units.customH) {
         QSignalBlocker bw(w.units.customW), bh(w.units.customH);
-        const double f = w.unitFormat().factor;
+        const double f = w.unitFactor();
         w.units.customW->setValue(w.settings.customPageWidth * f);
         w.units.customH->setValue(w.settings.customPageHeight * f);
       }

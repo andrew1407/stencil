@@ -1,7 +1,7 @@
 #include "MainWindow.hpp"
 #include "../../../support/rowWork.hpp"
 #include "ProjectTitleController.hpp"
-#include "mainWindowHelpers.hpp"
+#include "fileBytes.hpp"
 #include "IncognitoOverlay.hpp"
 #include "ProjectFlows.hpp"
 #include "CanvasWidget.hpp"
@@ -20,8 +20,8 @@ namespace stencil::gui {
       w.notify->error("Open an image first");
       return;
     }
-    if (w.incognito) {
-      w.incognito = false;
+    if (host.incognito) {
+      host.incognito = false;
       w.overlays.incognito->setActive(false);
       w.acts.incognito->blockSignals(true);
       w.acts.incognito->setChecked(false);
@@ -29,7 +29,7 @@ namespace stencil::gui {
     }
     QString name = w.canvas->imageBaseName();
     if (name.isEmpty()) name = QStringLiteral("Untitled");
-    QPointer<MainWindow> self(&w);
+    QPointer<QWidget> self(w.window);
     // Creation failure notifies and never fires onLinked, so nothing is pushed.
     createServerProject(serverUrl, name, [this, self]() {
       if (!self) return;
@@ -54,9 +54,9 @@ namespace stencil::gui {
     const bool hasImage = w.canvas->hasImage();
     const int width = hasImage ? w.canvas->imageWidth() : 0;
     const int height = hasImage ? w.canvas->imageHeight() : 0;
-    QPointer<MainWindow> self(&w);
+    QPointer<QWidget> self(w.window);
     c->createProjectAsync(
-        name, w.docSource.currentSource, w.docSource.currentResource, hasImage, width, height,
+        name, host.docSource.currentSource, host.docSource.currentResource, hasImage, width, height,
         [this, self, c, serverUrl, name, hasImage, width, height, onLinked](bool ok, QString id,
                                                                    qint64 version) {
           if (!self) return;
@@ -67,7 +67,7 @@ namespace stencil::gui {
           // A fresh server project has no custom colour; `onLinked` fires only on success.
           auto link = [this, self, serverUrl, id, name, onLinked](qint64 v) {
             if (!self) return;
-            w.activeProjectId.clear();
+            host.activeProjectId.clear();
             w.remote.session->getLink().bind(serverUrl, id, name, QString(), v);
             w.refreshActions();
             w.notify->success(QString("Created \"%1\" on %2").arg(name, serverUrl));
@@ -79,9 +79,9 @@ namespace stencil::gui {
           }
           // The image is shared, not copied: the full-size PNG encode runs on the pool.
           const QImage img = w.canvas->getImage();
-          support::runOnPool<QByteArray>(&w, [img] { return pngBytes(img); },
+          support::runOnPool<QByteArray>(w.window, [img] { return pngBytes(img); },
               [this, self, serverUrl, id, width, height, version, link](QByteArray bytes) {
-            stencil::net::ServerClient* c = w.remote.connections ? w.remote.connections->find(serverUrl) : nullptr;
+            stencil::net::ServerClient* c = w.remote.conns() ? w.remote.conns()->find(serverUrl) : nullptr;
             if (!c) {
               w.notify->error("Created, but image upload failed — not connected");
               link(version);

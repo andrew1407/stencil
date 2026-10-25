@@ -28,7 +28,7 @@ class MainWindowGuiTest : public QObject {
     QString err;
     if (!stencil::test::connectNow(*win->ensureConnections(), mock.url(), QString(), err)) return {};
     win->remoteSync->setResultTiming(50, 600000);
-    win->parts.projects.openServerProject(mock.url(), QStringLiteral("p1"));
+    win->projectHost.flows.openServerProject(mock.url(), QStringLiteral("p1"));
     return win;
   }
 
@@ -90,7 +90,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(win);
     QTRY_VERIFY(win->canvas->hasImage());
     QTRY_VERIFY(peer && peer->state() == QAbstractSocket::ConnectedState);
-    win->remote.connections->disconnectFrom(mock.url());
+    win->remote.conns()->disconnectFrom(mock.url());
     QTRY_VERIFY(!peer || peer->state() != QAbstractSocket::ConnectedState);
     const int before = dials;
     QTest::qWait(3500);   // past LiveFeed's 3 s redial

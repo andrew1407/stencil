@@ -13,7 +13,7 @@ import {
 } from '../../js/core/project/store/projectsStore.js';
 import { createMemoryStorage } from '../helpers/memoryStorage.js';
 
-const MODULE_BUILT = existsSync(fileURLToPath(new URL('../../js/wasm/stencilCore.js', import.meta.url)));
+const MODULE_BUILT = ['stencilCore.js', 'stencilCore.wasm'].every((f) => existsSync(fileURLToPath(new URL(`../../js/wasm/${f}`, import.meta.url))));
 const wtest = MODULE_BUILT ? test : test.skip;
 
 // The JS reference: the store's own predicates, over a storage it never has to touch.
@@ -23,7 +23,7 @@ const NOW = 1757000000000;   // 2025-09, well past 2^32 — epoch ms must cross 
 before(async () => {
   if (!MODULE_BUILT) return;
   const ok = await core.init();
-  assert.strictEqual(ok, true, 'wasm core must load in Node (SINGLE_FILE ES module)');
+  assert.strictEqual(ok, true, 'wasm core must load in Node (ES glue + .wasm)');
 });
 
 wtest('projects: every preset (and every unknown spelling) agrees on its duration', () => {

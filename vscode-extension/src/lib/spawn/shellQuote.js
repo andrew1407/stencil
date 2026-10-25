@@ -13,7 +13,8 @@ const SAFE_PS = /^[A-Za-z0-9_+=:./-]+$/;
 
 /* `lead` is what PowerShell needs before a quoted command word, which it would otherwise
  * print as a string. A " cannot be escaped inside a cmd.exe quoted string and is illegal in a
- * Windows path, so it is dropped rather than left to split the argument. */
+ * Windows path, so it is dropped; a % is closed out of the quotes as ^%, which breaks the
+ * %NAME% match, and the program's argv parser joins the quoted runs back into one argument. */
 const SHELLS = Object.freeze({
   posix: Object.freeze({
     safe: SAFE_POSIX, cd: 'cd', lead: '',
@@ -30,7 +31,7 @@ const SHELLS = Object.freeze({
   }),
   cmd: Object.freeze({
     safe: SAFE_CMD, cd: 'cd /d', lead: '',
-    quote: (text) => `"${text.split('"').join('')}"`,
+    quote: (text) => text.split('"').join('').split('%').map((run) => `"${run}"`).join('^%'),
   }),
 });
 

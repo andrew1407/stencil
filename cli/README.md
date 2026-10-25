@@ -113,6 +113,7 @@ stencil [options] <output>
 | `--merge-lines <file\|->` | Join a peer's and a local line list as an editor's save-conflict retry does, and print the merged lines as JSON on stdout. The input is `{"peer":[…],"local":[…],"seen":[…]}` (`seen` optional); `-` reads it from stdin. |
 | `--no-clobber` | Refuse to overwrite an existing output — checked on the name it would really get, extension filled in. |
 | `--confine-output` | Refuse an output path that leaves the working directory (absolute, `~`-prefixed, or out through a symbolic link; `..` traversal is always refused). Off by default; the mcp and bot adapters pass it when forwarding model-chosen paths. |
+| `--strict-fetch` | Refuse loopback on every fetch of the run, not only on URLs read out of fetched content (also `STENCIL_FETCH_STRICT=1`). Off by default; the mcp and bot adapters set it, since their URLs are not the user's own. |
 | `-h, --help` | Show help |
 | `<output>` | Result path. A missing/unknown extension is filled in from the input format (`png`, `jpg`, `bmp`, `tga`). |
 

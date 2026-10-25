@@ -13,6 +13,7 @@ pub const Mock = struct {
     status: []const u8,
     reply: []const u8,
     thread: std.Thread = undefined,
+    stopping: std.atomic.Value(bool) = .init(false),
     hits: usize = 0,
     head: std.ArrayList(u8) = .empty, // the request line and headers, as sent
     body: std.ArrayList(u8) = .empty,
@@ -35,10 +36,12 @@ pub const Mock = struct {
 
     /// Stop serving; what was recorded stays readable until `deinit`.
     pub fn stop(self: *Mock) void {
-        // Only shutdown wakes a thread blocked in accept on Linux; close alone leaves it asleep.
-        (std.Io.net.Stream{ .socket = self.listener.socket }).shutdown(self.io, .both) catch {};
-        self.listener.deinit(self.io);
+        self.stopping.store(true, .release);
+        // One loopback dial wakes the accept on every OS: Windows refuses shutdown on a listener.
+        const wake = std.Io.net.IpAddress.parse("127.0.0.1", self.port) catch unreachable;
+        if (wake.connect(self.io, .{ .mode = .stream })) |s| s.close(self.io) else |_| {}
         self.thread.join();
+        self.listener.deinit(self.io);
     }
 
     pub fn deinit(self: *Mock) void {
@@ -68,6 +71,7 @@ pub const Mock = struct {
     fn serve(self: *Mock) void {
         while (true) {
             const stream = self.listener.accept(self.io) catch return;
+            if (self.stopping.load(.acquire)) return stream.close(self.io);
             self.answer(stream) catch {};
             stream.close(self.io);
         }

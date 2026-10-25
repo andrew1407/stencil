@@ -2,7 +2,7 @@
 
 
 use stencil_mcp::args::build_argv;
-use stencil_mcp::opplan::to_edit_requests;
+use stencil_mcp::plan::to_edit_requests;
 
 use crate::common::plan_of;
 #[test]

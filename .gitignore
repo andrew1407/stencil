@@ -45,7 +45,7 @@ e2e/blob-report/
 *.tmp
 
 # C++ / CMake build output (desktop/ app). build-wasm/ is the Emscripten output
-# dir; the SINGLE_FILE module copied from it (browser/js/wasm/stencilCore.js) is a
+# dir; the module copied from it (browser/js/wasm/stencilCore.{js,wasm}) is a
 # generated artifact too — built in CI (and on demand locally, see desktop/WASM.md),
 # not committed.
 build/
@@ -104,6 +104,7 @@ browser/.desktop-check.png
 # (see core/WASM.md). Built in CI for the parity check; build locally to exercise
 # the wasm path. The JS reference/fallback path runs without it.
 browser/js/wasm/stencilCore.js
+browser/js/wasm/stencilCore.wasm
 
 # Zig CLI (cli/) build output and the on-demand package cache (stb etc.), neither
 # committed. zig-out/ is `zig build` output; .zig-cache/ and zig-pkg/ are local caches.
@@ -136,6 +137,7 @@ pystencil/pystencil/_data/
 # Written by `go generate ./...` from common/config (go:embed cannot leave the server module).
 server/internal/config/assets/providers.json
 server/internal/httpapi/assets/systemPrompt.json
+server/internal/httpapi/assets/mediaTypes.json
 pystencil/stb/cache/
 __pycache__/
 *.py[cod]

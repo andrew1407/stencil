@@ -5,7 +5,7 @@
 
 using namespace stencil::core;
 
-// Mirrors browser/tests/ui/chat/geometry.test.js.
+// Mirrors browser/tests/utils/geometry.test.js.
 
 TEST_CASE("zero-length segment returns distance to the point") {
   Point a{5, 5};

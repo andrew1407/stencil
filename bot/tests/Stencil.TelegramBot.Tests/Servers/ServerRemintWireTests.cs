@@ -94,4 +94,32 @@ public sealed class ServerRemintWireTests
 
         Assert.Equal(1, requests);
     }
+
+    [Fact]
+    public async Task Should_Dispose_The_Refused_Reply_When_The_Remint_Itself_Fails()
+    {
+        TrackedContent refused = new();
+        CannedHttpMessageHandler handler = new((req, _) => req.RequestUri!.AbsolutePath == "/auth/token"
+            ? throw new HttpRequestException("connection reset")
+            : new HttpResponseMessage(HttpStatusCode.Unauthorized) { Content = refused });
+        HttpStencilServerClient client = new(new HttpClient(handler), "http://h:8090", "stale", credential: "cred");
+
+        ServerException ex = await Assert.ThrowsAsync<ServerException>(() => client.ListProjectsAsync());
+
+        Assert.Equal("unreachable", ex.Code);
+        Assert.True(refused.Disposed); // an undisposed header-read reply would pin its pooled connection
+    }
+
+    private sealed class TrackedContent : ByteArrayContent
+    {
+        public TrackedContent() : base([]) { }
+
+        public bool Disposed { get; private set; }
+
+        protected override void Dispose(bool disposing)
+        {
+            Disposed = true;
+            base.Dispose(disposing);
+        }
+    }
 }

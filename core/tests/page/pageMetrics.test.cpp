@@ -1,7 +1,43 @@
 #include "doctest.h"
+#include "jsonReader.hpp"
 #include "pageMetrics.hpp"
 
+#include <filesystem>
+#include <fstream>
+#include <sstream>
+
 using namespace stencil::core;
+
+namespace {
+  // common/config/constants.json, found by walking up to the repo root.
+  std::string constantsJson() {
+    std::filesystem::path dir = std::filesystem::current_path();
+    for (int i = 0; i < 16 && !std::filesystem::exists(dir / "CLAUDE.md") && dir.has_parent_path(); ++i)
+      dir = dir.parent_path();
+    std::ifstream in(dir / "common" / "config" / "constants.json", std::ios::binary);
+    std::stringstream buf;
+    buf << in.rdbuf();
+    return buf.str();
+  }
+}  // namespace
+
+TEST_CASE("the native page table is constants.json PAGE_SIZES, both ways") {
+  const json::ReadResult r = json::readJson(constantsJson());
+  REQUIRE(r.status == json::ReadStatus::OK);
+  const json::Value* sizes = r.value.get("PAGE_SIZES");
+  REQUIRE((sizes && sizes->isObject()));
+  std::string names;
+  for (std::size_t i = 0; i < sizes->keys.size(); ++i) {
+    const std::string& name = sizes->keys[i];
+    const json::Value& wh = sizes->items[i];
+    names += (names.empty() ? "" : " ") + name;
+    REQUIRE((wh.get("width") && wh.get("height")));
+    CHECK_MESSAGE(namedPageSize(name).width == doctest::Approx(wh.get("width")->number), name);
+    CHECK_MESSAGE(namedPageSize(name).height == doctest::Approx(wh.get("height")->number), name);
+  }
+  CHECK(sizes->keys.size() >= 33);
+  CHECK(pageFormatNames() == names);
+}
 
 TEST_CASE("named page sizes match the constants table") {
   CHECK(namedPageSize("A4").width == doctest::Approx(21.0));

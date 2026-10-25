@@ -9,7 +9,7 @@
 #include <QResizeEvent>
 #include <QTimer>
 
-#include "guiHelpers.hpp"
+#include "colorSwatch.hpp"
 #include "../../support/motionPrefs.hpp"
 #include "../../support/console/consolePace.hpp"
 #include "modalChrome.hpp"

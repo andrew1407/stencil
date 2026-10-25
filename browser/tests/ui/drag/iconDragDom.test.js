@@ -1,7 +1,7 @@
 // A control's drag on the page (js/ui/drag/iconDrag.js wireIconDrag): every tooltip is held off from
 // its start to its end, Escape included; the click its release makes is swallowed, and so is the
 // dblclick it makes after a click just before the drag; a plain press holds nothing and keeps its click;
-// work deferred past a drag runs after its drop.
+// work deferred past a drag runs after its drop; a source removed mid-drag cancels and drops nothing.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { installDom, createStubElement } from '../../helpers/dom.js';
@@ -122,4 +122,28 @@ test('afterIconDrag runs at once with no drag, and after the drop of a live one'
   win.dispatch('pointerup', pointer(320, 310));
   await tick();
   assert.deepEqual(ran, ['idle', 'after 1 drop']);
+});
+
+test('a source removed mid-drag cancels: nothing stays listening and a later release drops nothing', async () => {
+  const count = (type) => win.listeners[type]?.length ?? 0;
+  const baseline = ['pointermove', 'pointerup', 'pointercancel', 'lostpointercapture', 'keydown'].map(count);
+  const ran = [];
+  for (const word of ['lostpointercapture', 'pointermove']) {
+    const drops = [];
+    let cancels = 0;
+    const el = createStubElement('button', { getBoundingClientRect: () => ICON, setPointerCapture() {} });
+    wireIconDrag(el, { ghost: false, drop: () => drops.push(1), cancel: () => { cancels += 1; } });
+    el.dispatch('pointerdown', pointer(110, 20));
+    win.dispatch('pointermove', pointer(300, 300));
+    afterIconDrag(() => ran.push(word));
+    el.isConnected = false;   // as a rebuilt row drops its controls
+    win.dispatch(word, pointer(310, 300));
+    assert.equal(cancels, 1, `${word} after the removal cancels the drag`);
+    assert.equal(tipsHeld(), false);
+    assert.deepEqual(['pointermove', 'pointerup', 'pointercancel', 'lostpointercapture', 'keydown'].map(count), baseline);
+    win.dispatch('pointerup', pointer(320, 310));
+    assert.deepEqual(drops, [], 'the next release anywhere drops nothing');
+    await tick();
+  }
+  assert.deepEqual(ran, ['lostpointercapture', 'pointermove'], 'work waiting on the drag runs');
 });

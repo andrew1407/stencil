@@ -1,6 +1,6 @@
 // DrawingApp's own editing behaviour that needs no DOM: the hit-test defaults, selection and
-// drag starts, the undo history, and the small session answers. Installed onto the app's
-// prototype as they are (delegates.js installMethods); `this` is the app.
+// drag starts, the undo history, and the small session answers. DrawingApp's base class, so
+// `this` is the app.
 import { notify, compareEditedShows } from '../../utils.js';
 import * as hitTest from '../draw/hitTest.js';
 import { shownMarks, lineAt } from '../pointer/markHits.js';
@@ -13,7 +13,7 @@ import { CHANGE, changed } from './changes.js';
 
 const { HIT } = constants;
 
-export class EditingMethods {
+export class EditingBase {
 // Desktop needs a configured URL scheme; Telegram needs a bot username AND a server
 // project (a 64-char t.me start payload can't carry image bytes).
   openInDesktopAvailable() { return !!this.openInConfig?.desktopScheme; }

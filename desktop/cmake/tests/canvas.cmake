@@ -62,6 +62,14 @@ stencil_headless_test(stencil_cleanpreview_headless
     ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
+# A large picture's filter rebuilt on the pool (canvas/paint/CanvasFilter.cpp); a small one inline.
+stencil_headless_test(stencil_asyncfilter_headless
+  SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    ${STENCIL_DISINTEGRATE_SOURCES}
+    tests/canvas/paint/asyncFilter.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
+    ${STENCIL_THEME_SOURCES} resources/app.qrc
+  LIBS stencil_core Qt6::Widgets)
+
 # The dash table in px at every line width (canvas/draw/strokeDash.hpp over constants.json).
 stencil_headless_test(stencil_strokedash_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}

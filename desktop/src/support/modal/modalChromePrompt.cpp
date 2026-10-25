@@ -3,6 +3,7 @@
 
 #include <QComboBox>
 #include <QDialog>
+#include <QFileDialog>
 #include <QHBoxLayout>
 #include <QKeySequence>
 #include <QLabel>
@@ -137,6 +138,23 @@ namespace stencil::gui {
     armFlight(dlg, spec.flight);
     if (dlg.exec() != QDialog::Accepted || select->count() == 0) return std::nullopt;
     return select->currentData().toString();
+  }
+
+  QString showSaveDialog(QWidget* parent, const QString& title,
+                         const QString& suggested, const QString& filter) {
+    QFileDialog dlg(parent, title, suggested, filter);
+    dlg.setAcceptMode(QFileDialog::AcceptSave);
+    dlg.setFileMode(QFileDialog::AnyFile);
+    if (dlg.exec() != QDialog::Accepted || dlg.selectedFiles().isEmpty()) return QString();
+    return dlg.selectedFiles().first();
+  }
+
+  bool confirmYesNo(QWidget* parent, const QString& title, const QString& text) {
+    // The browser's styled confirm (modalChrome confirmModal), never a native QMessageBox.
+    ConfirmSpec spec;
+    spec.title = title;
+    spec.message = text;
+    return confirmModal(parent, spec);
   }
 }  // namespace stencil::gui
 

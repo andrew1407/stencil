@@ -49,11 +49,11 @@ const MANIFEST = [
   ['cappedBody', '../../browser/js/net/cappedBody.js', '../src/lib/connection/cappedBody.js'],
   // The registry-driven validation engine: pure, registry-in/verdict-out, so the copy
   // is the whole file.
-  ['opSchema', '../../browser/js/llm/plan/opSchema.js', '../src/llm/op/schema.js'],
+  ['opSchema', '../../browser/js/llm/plan/opSchema.js', '../src/llm/plan/schema.js'],
   // Its closure-free base: predicates, the SchemaError, message paths, the native rules.
-  ['opSchemaBase', '../../browser/js/llm/plan/opSchemaBase.js', '../src/llm/op/opSchemaBase.js'],
+  ['opSchemaBase', '../../browser/js/llm/plan/opSchemaBase.js', '../src/llm/plan/opSchemaBase.js'],
   // The §1 JSON caps over a parsed plan (E_JSON_LIMIT): pure, so the copy is the whole file.
-  ['planCaps', '../../browser/js/llm/plan/planCaps.js', '../src/llm/op/planCaps.js'],
+  ['planCaps', '../../browser/js/llm/plan/planCaps.js', '../src/llm/plan/planCaps.js'],
   // The un-persisted "Swap message sides" preference: pure module state, so the copy is
   // the whole file.
   ['chatLayoutPrefs', '../../browser/js/ui/chat/layoutPrefs.js', '../src/lib/chat/layoutPrefs.js'],
@@ -82,7 +82,7 @@ const MANIFEST = [
   ['logoPointerDts', '../../browser/js/ui/logo/pointer.d.ts', '../src/lib/logo/pointer.d.ts'],
   ['toastGlowDts', '../../browser/js/ui/dust/toastGlow.d.ts', '../src/lib/logo/toastGlow.d.ts'],
   ['altPeekDts', '../../browser/js/ui/tip/altPeek.d.ts', '../src/lib/tip/altPeek.d.ts'],
-  ['planCapsDts', '../../browser/js/llm/plan/planCaps.d.ts', '../src/llm/op/planCaps.d.ts'],
+  ['planCapsDts', '../../browser/js/llm/plan/planCaps.d.ts', '../src/llm/plan/planCaps.d.ts'],
   ['escapeHtmlDts', '../../browser/js/ui/escapeHtml.d.ts', '../src/lib/escapeHtml.d.ts'],
   ['dustCloudDts', '../../browser/js/ui/dust/cloud.d.ts', '../src/lib/dust/cloud.d.ts'],
   ['comboMatchDts', '../../browser/js/ui/control/comboMatch.d.ts', '../src/lib/control/comboMatch.d.ts'],
@@ -90,7 +90,7 @@ const MANIFEST = [
   ['tipKeysDts', '../../browser/js/ui/tip/keys.d.ts', '../src/lib/tip/keys.d.ts'],
   ['tipHoldDts', '../../browser/js/ui/tip/tipHold.d.ts', '../src/lib/tip/tipHold.d.ts'],
   ['llmHttpDts', '../../browser/js/llm/http.d.ts', '../src/llm/http.d.ts'],
-  ['opSchemaBaseDts', '../../browser/js/llm/plan/opSchemaBase.d.ts', '../src/llm/op/opSchemaBase.d.ts'],
+  ['opSchemaBaseDts', '../../browser/js/llm/plan/opSchemaBase.d.ts', '../src/llm/plan/opSchemaBase.d.ts'],
 ];
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');

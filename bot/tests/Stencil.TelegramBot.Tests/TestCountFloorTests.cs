@@ -7,7 +7,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class TestCountFloorTests
 {
     // A floor, not a pin: raise it when the suite grows a lot. Additions never trip it.
-    private const int _testCaseFloor = 2080;
+    private const int _testCaseFloor = 2280;
 
     [Fact]
     public void Should_Run_At_Least_The_Floor_Of_Test_Cases()

@@ -11,8 +11,9 @@ import { installDom, stubDoc, stubEl, stubWin } from '../../helpers/domStub.js';
 // The shell reaches for its own parts by selector, so each stub remembers what it made.
 const el = (tag) => {
   const found = {};
+  const posted = [];
   const node = stubEl(tag, {
-    contentWindow: { id: tag },
+    contentWindow: { id: tag, posted, postMessage: (data, origin) => posted.push({ data, origin }) },
     querySelector: (sel) => (found[sel] ||= el(sel)),
   });
   node.attachShadow = () => node;
@@ -21,6 +22,7 @@ const el = (tag) => {
 
 const mount = () => {
   const created = [];
+  const sent = [];
   const win = stubWin();
   const restore = installDom({
     document: stubDoc({
@@ -29,14 +31,14 @@ const mount = () => {
       documentElement: el('html'),
     }),
     window: win,
-    chrome: { storage: { onChanged: { addListener() {}, removeListener() {} } }, runtime: { sendMessage() {} } },
+    chrome: { storage: { onChanged: { addListener() {}, removeListener() {} } }, runtime: { sendMessage: (m) => sent.push(m) } },
   });
   mountStencilModal('https://editor.example/#stencil=x', 'Stencil', 3000, {});
   const host = created.find((n) => n.id === 'stencil-ext-modal');
   const wrap = created.find((n) => n.innerHTML.includes('<iframe'));
   const frame = wrap.querySelector('iframe');
-  const post = (data, source) => win.fire('message', { data, source });
-  return { host, wrap, frame, post, restore, loading: host.querySelector('.loading') };
+  const post = (data, source, origin = 'https://editor.example') => win.fire('message', { data, source, origin });
+  return { host, wrap, frame, post, restore, sent, loading: host.querySelector('.loading') };
 };
 
 // NEGATIVE: the host page forging the envelope changes nothing.
@@ -62,5 +64,32 @@ test('the modal iframe itself is obeyed', (t) => {
     m.post({ source: 'stencil-modal', type: 'close' }, m.frame.contentWindow);
     t.mock.timers.tick(500);
     assert.equal(m.host.removed, true, 'a real close must tear the modal down');
+  } finally { m.restore(); }
+});
+
+// The host page reads a frame's src back through Resource Timing, so the payload never rides it.
+test('the frame loads with no payload, which goes to the editor\'s origin once it is ready', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const m = mount();
+  try {
+    assert.equal(m.frame.src, 'https://editor.example/#stencil-await');
+    m.post({ source: 'stencil-modal', type: 'ready' }, globalThis.window);
+    assert.deepEqual(m.frame.contentWindow.posted, [], 'a forged ready is handed nothing');
+    m.post({ source: 'stencil-modal', type: 'ready' }, m.frame.contentWindow);
+    assert.deepEqual(m.frame.contentWindow.posted, [
+      { data: { source: 'stencil-extension', type: 'handoff', hash: '#stencil=x' }, origin: 'https://editor.example' },
+    ]);
+  } finally { m.restore(); }
+});
+
+test('an editor that answers from another origin gets nothing: the payload opens in a full tab', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const m = mount();
+  try {
+    m.post({ source: 'stencil-modal', type: 'ready' }, m.frame.contentWindow, 'https://elsewhere.example');
+    assert.deepEqual(m.frame.contentWindow.posted, []);
+    assert.deepEqual(m.sent, [{ type: 'stencil-open-tab', url: 'https://editor.example/#stencil=x' }]);
+    t.mock.timers.tick(500);
+    assert.equal(m.host.removed, true);
   } finally { m.restore(); }
 });

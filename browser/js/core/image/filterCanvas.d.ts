@@ -10,12 +10,23 @@ export interface FilterInput {
   rgb: { r: number; g: number; b: number };
 }
 
+/** A worker job for that pass: the picture itself, which the worker reads, when the pass reads it plain. */
+export interface FilterImageJob {
+  recipe: FilterRecipe;
+  image: CanvasImageSource & { width: number; height: number };
+  rgb: { r: number; g: number; b: number };
+}
+
 /** 'contour' and 'custom': the filters whose copy needs an RGBA pass, not a CSS filter. */
 export declare const isPixelFilter: (filter: string) => boolean;
 
 /** Null for a CSS filter or none. */
 export declare const readFilterInput: (image: CanvasImageSource & { width: number; height: number },
   filter: string, color: string | null) => FilterInput | null;
+
+/** The picture when the pass reads it plain, else the pixels read here; null for a CSS filter or none. */
+export declare const filterJob: (image: CanvasImageSource & { width: number; height: number },
+  filter: string, color: string | null) => FilterImageJob | FilterInput | null;
 
 /** The CSS colour `filter` (tinted `tint`) paints a solid `hex` fill in; `hex` for none or when unreadable. */
 export declare const filteredFill: (hex: string, filter: string, tint: string | null) => string;
@@ -28,4 +39,6 @@ export declare class ImageFilterCanvas {
             filter: string, color: string | null): FilterLayer | null;
   /** Caches a copy the image worker painted for exactly this key. */
   adopt(image: CanvasImageSource, filter: string, color: string | null, layer: FilterLayer): void;
+  /** True while `layer` is the cached copy. */
+  holds(layer: FilterLayer): boolean;
 }

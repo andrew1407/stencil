@@ -38,10 +38,13 @@ export const contourCanvas = (makeCanvas, imageData, contour) => {
 };
 
 // The co-edit result: the base, then the resting lines through the one loop the export paints with.
+// `fit` ({ maxEdge, halve }) then scales it the way paintScaled scales any source: the thumbnail.
 export const paintResult = (makeCanvas, base, job) => {
   const out = makeCanvas(job.width, job.height);
   const ctx = out.getContext('2d');
   ctx.drawImage(base, 0, 0);
   paintRestingLines(restingPainter(ctx, job), job.lines, job);
-  return out;
+  if (!job.fit) return out;
+  const { maxEdge, halve = false } = job.fit;
+  return paintScaled(makeCanvas, out, job.width, job.height, { ...fitSize(job.width, job.height, maxEdge), halve });
 };

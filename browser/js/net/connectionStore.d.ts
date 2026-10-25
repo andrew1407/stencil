@@ -13,6 +13,8 @@ export interface SavedServer {
 
 export declare const loadSavedServers: () => SavedServer[];
 export declare const saveServers: (list: readonly SavedServer[] | null | undefined) => void;
+/** The live set, then each saved server neither live nor disconnected by the user. */
+export declare const mergeSaved: (live: readonly SavedServer[], saved: readonly SavedServer[], forgotten?: Iterable<string>) => SavedServer[];
 /** Defaults ON: restore the saved server set on open. */
 export declare const getAutoConnect: () => boolean;
 export declare const setAutoConnect: (on: boolean) => void;

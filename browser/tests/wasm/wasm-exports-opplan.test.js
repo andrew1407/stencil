@@ -4,30 +4,22 @@
 // its siblings; the export lists' half is tests/core/abi/opplanOutOfWasm.test.js.
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { opplanWasmExports, diagCodes, coreGroups } from '../helpers/opplanAbi.js';
 
 const ARTIFACT = new URL('../../js/wasm/stencilCore.js', import.meta.url);
-const MODULE_BUILT = existsSync(fileURLToPath(ARTIFACT));
+const BINARY = new URL('../../js/wasm/stencilCore.wasm', import.meta.url);
+const MODULE_BUILT = existsSync(fileURLToPath(ARTIFACT)) && existsSync(fileURLToPath(BINARY));
 const wtest = MODULE_BUILT ? test : test.skip;
 
 let mod = null;
 let binary = null;
-// The artifact embeds its wasm (SINGLE_FILE); the bytes are read as the module instantiates them.
 before(async () => {
   if (!MODULE_BUILT) return;
-  const instantiate = WebAssembly.instantiate;
-  WebAssembly.instantiate = (source, imports) => {
-    if (ArrayBuffer.isView(source) || source instanceof ArrayBuffer) binary = Buffer.from(source);
-    return instantiate.call(WebAssembly, source, imports);
-  };
-  try {
-    const { default: createStencilCore } = await import(ARTIFACT.href);
-    mod = await createStencilCore();
-  } finally {
-    WebAssembly.instantiate = instantiate;
-  }
+  binary = readFileSync(BINARY);
+  const { default: createStencilCore } = await import(ARTIFACT.href);
+  mod = await createStencilCore();
 });
 
 wtest('the Module offers no op-plan or JSON function', () => {
@@ -38,7 +30,6 @@ wtest('the Module offers no op-plan or JSON function', () => {
 });
 
 wtest('the binary holds none of the codes only the op-plan walker writes', () => {
-  assert.ok(binary, 'the embedded wasm was not instantiated from bytes, so this spec cannot read it');
   const elsewhere = diagCodes(coreGroups().filter((group) => group !== 'opplan' && group !== 'json'));
   const walkerOnly = [...diagCodes(['opplan'])].filter((code) => !elsewhere.has(code));
   const scriptCodes = [...diagCodes(['script'])];

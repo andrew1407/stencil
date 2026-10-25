@@ -22,10 +22,13 @@ namespace stencil::net {
     bool subscribe(const QString& base, const QString& token);
     void unsubscribe();
     const QString& getBase() const { return base; }
+    // Connected with its hello sent and no error, drop or unsubscribe since (the server says nothing more).
+    bool isLive() const { return live; }
 
    signals:
     // `deleted` marks a delete event rather than an edit.
     void projectUpdated(const QString& id, qint64 version, bool deleted);
+    void liveChanged(bool live);
 
    private slots:
     void onConnected();
@@ -34,10 +37,12 @@ namespace stencil::net {
 
    private:
     void dial();
+    void setLive(bool on);
     // False for a hostile stream: a line, or a partial one, past the frame limit.
     bool parseFrames();
 
     QTcpSocket* sock = nullptr;
+    bool live = false;
     QTimer* retry = nullptr;
     QString base;
     QString host;

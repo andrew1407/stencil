@@ -3,6 +3,7 @@
 #include "IdleCard.hpp"
 #include "gesture.hpp"
 #include "holdGlue.hpp"
+#include "lineBounds.hpp"
 #include "liveMarks.hpp"
 #include "pointerTuning.hpp"
 #include "strokeGrowth.hpp"
@@ -19,7 +20,6 @@
 namespace stencil::gui {
 
   namespace chain = core::chain;
-
   class CanvasWidget : public QWidget, public CanvasScene {
     Q_OBJECT
    public:
@@ -126,14 +126,13 @@ namespace stencil::gui {
     // Trackpad pinch: a continuous factor about the cursor.
     void zoomByFactorAt(double factor, const QPoint& posInWidget);
     void zoomToRect(const QRectF& imageRect);       // image-space rect
-
    public slots:
     void startDrawingMode();
     void stopDrawingMode();
-
    protected:
-    void sceneChanged() override { update(); }
+    void sceneChanged() override { bounds.clear(); update(); }
     void paintEvent(QPaintEvent* event) override;
+    void refreshFilter();   // a picture of FILTER_ASYNC_MIN_PIXELS or more rebuilds on the pool
     void mousePressEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
@@ -150,10 +149,12 @@ namespace stencil::gui {
     void mutateSelectedLine(const std::function<void(core::Line&)>& set, bool commit = true, int idx = -1);
     // The step undo and redo take: the scene restored, the view refitted when it changed.
     void takeHistoryStep(const std::optional<core::EditorMemento>& step);
-    // Widget-space bounds of one line (-1 = in-progress), padded for stroke, rings and flights.
-    // strokeFxRect(): lines with a vertex in flight; dragRect(): the ones an Alt-drag moves.
+    // Widget-space bounds of one line (-1 = in-progress), padded for stroke, rings and flights; paintRect() the
+    // same from LineBounds. strokeFxRect(): lines in flight; dragRect(): an Alt-drag's; hoverDirty(): rings.
     QRect lineRect(int lineIdx) const;
+    QRect paintRect(int lineIdx) const;
     QRect strokeFxRect() const;
+    QRect hoverDirty(int wasHover, int wasOver) const;
     QRect dragRect() const;
     LiveMarks liveMarks() const;
     void flyInPoint(int lineIdx, const core::Line& line, int ptIdx, const QPointF* from = nullptr,
@@ -212,8 +213,7 @@ namespace stencil::gui {
     std::vector<int> selectedLines;
     int selectedPoint = -1;
     // Continuation: clicks extend the committed line at continueInsertIdx; -1 = not continuing.
-    int continueLineIdx = -1;
-    int continueInsertIdx = -1;
+    int continueLineIdx = -1, continueInsertIdx = -1;
     HoverMarks hover;
     CanvasGesture gesture;
     HoldGlue hold;
@@ -222,6 +222,7 @@ namespace stencil::gui {
     QTimer editCommitTimer;
     // Every route that adds a point hands it to strokeFx; fxTimer repaints while any is moving.
     stroke::Fx strokeFx;
+    mutable LineBounds bounds;
     QTimer fxTimer;
     QElapsedTimer fxClock;
   };

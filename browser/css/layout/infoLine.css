@@ -26,7 +26,7 @@ input[type="number"] {
     width: 80px;
 }
 input[type="color"] {
-    /* A 32x16 swatch in a 46x26 box, the desktop's well (guiHelpers setColorSwatch) on all three surfaces. */
+    /* A 32x16 swatch in a 46x26 box, the desktop's well (support/colorSwatch.cpp setColorSwatch) on all three surfaces. */
     width: 46px;
     height: 26px;
     cursor: pointer;

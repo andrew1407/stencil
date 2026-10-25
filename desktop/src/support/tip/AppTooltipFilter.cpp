@@ -3,7 +3,11 @@
 namespace stencil::gui {
 
   AppTooltip* AppTooltipFilter::getTip() {
-    if (!tip) tip = new AppTooltip(nullptr);
+    if (!tip) {
+      tip = new AppTooltip(nullptr);
+      // Parentless, like Qt's own tip, so nothing else frees it: the event loop's end does.
+      connect(qApp, &QCoreApplication::aboutToQuit, tip.data(), &QObject::deleteLater);
+    }
     return tip;
   }
 

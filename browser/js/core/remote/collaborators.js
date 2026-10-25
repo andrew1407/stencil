@@ -1,4 +1,4 @@
-// Every DrawingApp collaborator, constructed in dependency order. The two view-layer ones are
+// Every DrawingApp collaborator, constructed in dependency order. The view-layer ones are
 // injected, so this wiring stays DOM-free; each takes the app and knows none of the others.
 import { HistoryStack } from '../historyStack.js';
 import { FormulaEngine } from '../parse/formulaEngine.js';
@@ -12,8 +12,6 @@ import { SettingsController } from '../settings/controller.js';
 import { ImageModel } from '../image/model.js';
 import { RemoteSyncController } from './syncController.js';
 import { ProjectTransferController } from '../project/transferController.js';
-import { InputController } from '../pointer/inputController.js';
-import { PointerController } from '../pointer/controller.js';
 import { StencilSync } from './stencilSync.js';
 import { publish, EVENTS } from '../../eventBus/appBus.js';
 import { Emitter } from '../emitter.js';
@@ -40,7 +38,7 @@ const transferHost = (app) => ({
   liveProject: () => liveProjectSnapshot(app),
 });
 
-export const wireCollaborators = (app, { CoordTable, AccentController, onProjectsChanged }) => {
+export const wireCollaborators = (app, { CoordTable, AccentController, InputController, PointerController, onProjectsChanged }) => {
 // What an edit changed, for the control areas (app/changes.js); first, so every collaborator can signal.
   app.changes = new Emitter();
   app.history = new HistoryStack();

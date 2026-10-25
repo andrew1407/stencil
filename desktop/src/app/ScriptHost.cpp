@@ -3,7 +3,7 @@
 #include "ScriptHost.hpp"
 #include "ChatSessionController.hpp"
 #include "ScriptDialog.hpp"
-#include "mainWindowHelpers.hpp"   // closeOpenPopupMenus()
+#include "popupGuards.hpp"
 #include "ScriptMenuPanel.hpp"
 #include "Notifications.hpp"
 #include "scriptFile.hpp"

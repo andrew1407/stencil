@@ -78,7 +78,7 @@ func TestCreateInlineOriginalAgainstSessionQuota(t *testing.T) {
 		rec := do(t, api, http.MethodPost, "/projects", tok, []byte(body))
 		return rec.Code, rec.Body.Bytes()
 	}
-	if code, body := create([]byte("12345")); code != http.StatusCreated || !strings.Contains(string(body), `"originalPath"`) {
+	if code, body := create([]byte("12345")); code != http.StatusCreated || !strings.Contains(string(body), `"originalHash"`) {
 		t.Fatalf("under the cap: %d %s", code, body)
 	}
 	code, body := create([]byte("12345"))

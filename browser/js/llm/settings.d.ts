@@ -23,6 +23,10 @@ export interface LlmSettings {
 export declare const PROVIDERS: LlmProvider[];
 /** Provider → pre-filled default base URL ('' for stencil-server). */
 export declare const PROVIDER_BASE_URLS: Record<string, string>;
+/** What a settings form shows for `provider` (providers.json `settings`); `none` or an unknown one shows nothing. */
+export declare const settingsRows: (provider: string) => {
+  key: 'session' | 'stored' | null; endpoint: 'base' | 'server' | null; endpointNote: boolean;
+};
 export declare const URL_KEYS: string[];
 export declare const isHttpUrl: (v: unknown) => boolean;
 /** THE provider-switch rule: swap the provider, pre-filling its default base URL unless overridden. */

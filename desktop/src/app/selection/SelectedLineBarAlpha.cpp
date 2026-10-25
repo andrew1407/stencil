@@ -3,7 +3,7 @@
 // alpha byte, typed (browser panel/selectionPanel.js .alpha-input, writeColorPair).
 #include "SelectedLineBar.hpp"
 #include "cssColor.hpp"
-#include "../../support/guiHelpers.hpp"
+#include "colorSwatch.hpp"
 #include "../../support/control/dblReset.hpp"
 #include "colorDrag.hpp"
 #include "../../support/control/numericInput.hpp"

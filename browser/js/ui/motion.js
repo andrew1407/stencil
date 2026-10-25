@@ -1,5 +1,6 @@
 // Shared UI motion helpers: pure decoration, CSS owns the keyframes (css/animations/). The
-// sections live one per file under motion/; this is the single import point.
+// sections live one per file under motion/, and app modules import the one they use; this is the
+// import point of the widgets the extension ports (one spelling on both sides) and of the tests.
 // `motionReduced()` is "nothing may move", `dustEnabled()` is "and it may be particles".
 export { dustEnabled, motionMs, motionReduced } from './motion/motionPrefs.js';
 export * from './motion/reveal.js';

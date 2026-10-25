@@ -145,7 +145,7 @@ class LayerBoundaryTest(unittest.TestCase):
     self.assertEqual(unranked, {"extra"})
 
 
-CTYPES_MODULES = {"_native.py", "core.py", "_raster/ops.py", "_script.py"}
+CTYPES_MODULES = {"_native.py", "core.py", "_raster/ops.py", "_raster/bands.py", "_script.py"}
 
 
 def _imports(tree, name):

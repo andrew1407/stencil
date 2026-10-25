@@ -1,0 +1,4 @@
+# The Rust the server is built and tested with, so a new stable release never changes a CI run.
+[toolchain]
+channel = "1.99.1"
+profile = "minimal"

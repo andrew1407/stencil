@@ -37,7 +37,7 @@ namespace {
       "llm/plan/opPlan.hpp",
       "app/MainWindow.hpp",             "app/open/MainWindowBlank.cpp",
       "app/view/EditorViewFullscreen.cpp",
-      "app/mainWindowHelpers.hpp",
+      "app/view/naturalPage.hpp",
       "app/view/MainWindowZoom.cpp",         "app/project/ProjectTransferController.hpp",
       "canvas/draw/CanvasDrawClick.cpp",     "canvas/paint/CanvasTransform.cpp",
       "dialogs/crop/CropDialog.hpp",         "dialogs/meta/ExpirationDialog.cpp",
@@ -46,13 +46,7 @@ namespace {
       "dialogs/projects/row/projectsRowChrome.hpp",  "io/fileStore.cpp",
       "io/fileStore.hpp",
       "llm/plan/executor/planExecutorParts.hpp",           "llm/plan/executor/planExecutor.hpp",
-      "support/theme/cssColor.hpp",           "support/guiHelpers.cpp",
-  };
-
-  // One app/ header a sibling still reaches for: the shared name-chip metrics (NAME_CHIP_BOX /
-  // NAME_CHIP_GLYPH) that the projects list draws its rows with. They belong in support/.
-  const char* APP_INCLUDE_ALLOWANCE[] = {
-      "dialogs/projects/ProjectsDialog.cpp:mainWindowHelpers.hpp",
+      "support/theme/cssColor.hpp",           "support/pageSizeCombo.cpp",
   };
 
   // Recursive: a group's headers now sit in feature folders under it, and the group still owns them.
@@ -103,9 +97,8 @@ int main(int argc, char** argv) {
             coreHeaders.contains(QStringLiteral("ProjectsStore.hpp")),
         "the core header index is populated");
 
-  QSet<QString> coreAllowed, appAllowed;
+  QSet<QString> coreAllowed;
   for (const char* p : CORE_INCLUDE_ALLOWANCE) coreAllowed.insert(QString::fromLatin1(p));
-  for (const char* p : APP_INCLUDE_ALLOWANCE) appAllowed.insert(QString::fromLatin1(p));
 
   // A quoted include, whether written bare ("x.hpp") or with a group prefix ("../app/x.hpp").
   static const QRegularExpression INCLUDE(QStringLiteral("^\\s*#\\s*include\\s+\"([^\"]+)\""));
@@ -113,8 +106,8 @@ int main(int argc, char** argv) {
   // Any include, quoted or angled; a quoted one is the same header under every path spelling.
   static const QRegularExpression ANY_INCLUDE(QStringLiteral("^\\s*#\\s*include\\s+([<\"])([^>\"]+)[>\"]"));
   static const QRegularExpression CONDITIONAL(QStringLiteral("^\\s*#\\s*(if|ifdef|ifndef|endif)\\b"));
-  QStringList intoApp, intoCanvas, intoCore, staleCore, staleApp, twice, passedOn, consoleLeaf;
-  QSet<QString> sawCore, sawApp;
+  QStringList intoApp, intoCanvas, intoCore, staleCore, twice, passedOn, consoleLeaf;
+  QSet<QString> sawCore;
   int scanned = 0;
   QDirIterator it(src.absolutePath(),
                   {QStringLiteral("*.cpp"), QStringLiteral("*.hpp"), QStringLiteral("*.mm")},
@@ -162,11 +155,7 @@ int main(int argc, char** argv) {
       if (rel.startsWith(QStringLiteral("dialogs/console/")) && !from.isEmpty() && from != group && from != QStringLiteral("support"))
         consoleLeaf << (rel + " → " + dir + "/" + inc);
       if (from.isEmpty() || from == group) continue;
-      if (from == QStringLiteral("app")) {
-        const QString key = rel + ":" + inc;
-        sawApp.insert(key);
-        if (!appAllowed.contains(key)) intoApp << (rel + " → app/" + inc);
-      }
+      if (from == QStringLiteral("app")) intoApp << (rel + " → app/" + inc);
       if (from == QStringLiteral("canvas") && group == QStringLiteral("dialogs"))
         intoCanvas << (rel + " → canvas/" + inc);
     }
@@ -202,12 +191,8 @@ int main(int argc, char** argv) {
   // violation is gone and the list should have shrunk with it.
   for (const QString& a : coreAllowed)
     if (!sawCore.contains(a)) staleCore << a;
-  for (const QString& a : appAllowed)
-    if (!sawApp.contains(a)) staleApp << a;
   for (const QString& v : staleCore) std::printf("  stale core allowance: %s\n", qPrintable(v));
-  for (const QString& v : staleApp) std::printf("  stale app allowance: %s\n", qPrintable(v));
   check(staleCore.isEmpty(), "every core-include allowance is still needed");
-  check(staleApp.isEmpty(), "every app-include allowance is still needed");
 
   std::printf(failures ? "\nFAILED (%d)\n" : "\nOK\n", failures);
   return failures ? 1 : 0;

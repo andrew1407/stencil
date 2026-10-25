@@ -37,7 +37,7 @@ export interface EditorState {
   draggingPoint: { lineIdx: number; ptIdx: number; point?: Point } | null;
   dragJustEnded: boolean;
   draggingSegment: { lineIdx: number; ptIdx1: number; ptIdx2: number; startX: number; startY: number;
-    origPt1: Point; origPt2: Point; origPoints: Point[] } | null;
+    origPt1: Point; origPt2: Point; origPoints: Point[]; shifted: boolean } | null;
   draggingLine: { lineIdx: number; startX: number; startY: number; origPoints: Point[];
     multiOrig?: { li: number; pts: Point[] }[] | null } | null;
   zoomRectStart: DualPoint | null;

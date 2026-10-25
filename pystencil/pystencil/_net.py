@@ -109,6 +109,37 @@ def _literal(host: str):
     return None
 
 
+def _server_target_refused(base: str) -> str:
+  """Why a collaboration server at ``base`` is refused, "" when it is not: a literal host the
+  table's ``serverTarget`` policy blocks with private admitted — link-local, metadata, unspecified,
+  multicast, reserved. A user may name a LAN or local server; a link may not aim the bearer at
+  the cloud metadata address."""
+  host = urllib.parse.urlsplit(base).hostname or ""
+  ip = _literal(host)
+  if ip is not None and _address_blocked(ip, "serverTarget", allowPrivate=True):
+    return "refusing a link-local, metadata or reserved server address: %s" % host
+  return ""
+
+
+def _server_name_refused(base: str) -> str:
+  """:func:`_server_target_refused` for a host NAME: refused when ANY address it resolves to is,
+  as cli/src/net/pin.zig judges it. The dial resolves again, so rebinding stays a residual TOCTOU."""
+  host = urllib.parse.urlsplit(base).hostname or ""
+  if not host or _literal(host) is not None: return ""
+  try:
+    infos = socket.getaddrinfo(host, None)
+  except OSError:
+    return ""  # the request surfaces the connection error
+  for info in infos:
+    try:
+      ip = ipaddress.ip_address(info[4][0].split("%")[0])
+    except ValueError:
+      continue
+    if _address_blocked(ip, "serverTarget", allowPrivate=True):
+      return "refusing server %s — it resolves to a link-local, metadata or reserved address" % host
+  return ""
+
+
 def _is_blocked_ip(ip, strict: bool) -> bool:
   """True when the table's ``fetch`` policy or stdlib ``is_global`` refuses ``ip``, an IPv6
   form judged by the IPv4 it carries; loopback only when ``strict``."""

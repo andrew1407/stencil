@@ -3,7 +3,7 @@
 
 
 use serde_json::json;
-use stencil_mcp::opplan::{to_edit_requests, Action, Dir, FilterMode, OpPlanError, Variant};
+use stencil_mcp::plan::{to_edit_requests, Action, Dir, FilterMode, OpPlanError, Variant};
 
 use crate::common::{plan_of, try_plan};
 

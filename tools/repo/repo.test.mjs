@@ -2,12 +2,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { blobsAt, listFiles, mapLimit, readAll } from './io.mjs';
-import { MAX_WORKERS, testWorkers } from './testRun.mjs';
+import { MAX_WORKERS, floorFor, floorVerdict, tapTotal, testWorkers } from './testRun.mjs';
 
 test('the runner takes half the cores, at least one and at most the cap, unless told otherwise', () => {
   assert.deepEqual([1, 2, 4, 8, 12, 16, 64].map((c) => testWorkers(c, undefined)), [1, 1, 2, 4, 6, 6, 6]);
@@ -26,6 +26,43 @@ test('the runner hands back node --test\'s exit code', () => {
     assert.equal(spawnSync(process.execPath, [runner, 'ok.test.mjs'], { cwd: dir, env }).status, 0);
     writeFileSync(path.join(dir, 'bad.test.mjs'), "import { test } from 'node:test'; test('bad', () => { throw new Error('x'); });\n");
     assert.equal(spawnSync(process.execPath, [runner, 'bad.test.mjs'], { cwd: dir, env }).status, 1);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a bare run answers to package.json stencil.testFloor; a scoped run, or no key, to none', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'testFloor-'));
+  try {
+    assert.equal(floorFor(dir, []), null);
+    writeFileSync(path.join(dir, 'package.json'), '{"stencil":{"testFloor":40}}');
+    assert.equal(floorFor(dir, []), 40);
+    assert.equal(floorFor(dir, ['tests/one.test.js']), null);
+    writeFileSync(path.join(dir, 'package.json'), '{"stencil":{"testFloor":"40"}}');
+    assert.equal(floorFor(dir, []), null);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+  assert.equal(tapTotal('TAP version 13\n# tests 12\n# pass 12\n'), 12);
+  assert.equal(tapTotal('no summary'), null);
+  assert.equal(floorVerdict('pkg', 12, 12), null);
+  assert.equal(floorVerdict('pkg', 11, 12), 'pkg suite collapsed to 11 tests, floor is 12');
+  assert.match(floorVerdict('pkg', null, 12), /no test total/);
+});
+
+test('a bare run that falls below its floor fails naming both numbers', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'testRunFloor-'));
+  try {
+    const runner = fileURLToPath(new URL('./testRun.mjs', import.meta.url));
+    const { NODE_TEST_CONTEXT, ...env } = process.env;
+    mkdirSync(path.join(dir, 'tests'));
+    writeFileSync(path.join(dir, 'tests', 'ok.test.mjs'), "import { test } from 'node:test'; test('a', () => {}); test('b', () => {});\n");
+    writeFileSync(path.join(dir, 'package.json'), '{"stencil":{"testFloor":2}}');
+    assert.equal(spawnSync(process.execPath, [runner], { cwd: dir, env }).status, 0);
+    writeFileSync(path.join(dir, 'package.json'), '{"stencil":{"testFloor":3}}');
+    const low = spawnSync(process.execPath, [runner], { cwd: dir, env, encoding: 'utf8' });
+    assert.equal(low.status, 1);
+    assert.match(low.stderr, /collapsed to 2 tests, floor is 3/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

@@ -1,6 +1,6 @@
 #include "SelectionPanel.hpp"
 #include "linesTableParts.hpp"
-#include "guiHelpers.hpp"
+#include "iconInline.hpp"
 #include "iconSet.hpp"
 #include "../../support/theme/themeTokens.hpp"
 #include <QKeyEvent>
@@ -48,11 +48,13 @@ namespace stencil::gui {
 
   void SelectionPanel::setCollapseChevronVisible(bool on) { if (collapseBtn) collapseBtn->setVisible(on); }
 
-  QWidget* SelectionPanel::lineSwatchCell(int index) const {
+  QWidget* SelectionPanel::lineSwatchCell(int index) {
+    ensureLineRowWidgets(index);   // a picker anchors on a row a long list has not shown yet
     return index >= 0 && index < lines->rowCount() ? lines->cellWidget(index, LCOL_COLOR) : nullptr;
   }
 
-  QWidget* SelectionPanel::pointSwatchCell(int index) const {
+  QWidget* SelectionPanel::pointSwatchCell(int index) {
+    ensureLineRowWidgets(index);
     return index >= 0 && index < lines->rowCount() ? lines->cellWidget(index, LCOL_POINT) : nullptr;
   }
 

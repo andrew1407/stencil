@@ -30,6 +30,19 @@ test('drawPoint strokes the ring its fill asks for', () => {
   }
 });
 
+test('a hex fill is judged as written; any other form as the canvas normalised it', () => {
+  const { ctx } = recordingCtx({ width: 10, height: 10 });
+  let reads = 0;
+  let held = '';
+  Object.defineProperty(ctx, 'fillStyle', { get: () => { reads++; return held; }, set: (v) => { held = v === 'navy' ? '#000080' : v; } });
+  drawPoint({ ctx, app: {} }, { x: 5, y: 5 }, '#FFF', 3);
+  assert.equal(ctx.strokeStyle, '#000');
+  assert.equal(reads, 0);
+  drawPoint({ ctx, app: {} }, { x: 5, y: 5 }, 'navy', 3);
+  assert.equal(ctx.strokeStyle, '#fff');
+  assert.equal(reads, 1);
+});
+
 // A real canvas throws IndexSizeError on a negative arc radius; the stand-in records it instead.
 test('drawPoint never hands the canvas a negative radius, whatever the line carries', () => {
   const { ctx, calls } = recordingCtx();

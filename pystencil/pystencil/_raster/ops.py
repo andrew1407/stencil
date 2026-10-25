@@ -7,10 +7,13 @@ fill / filter / contour / rasterize), each marshalled through :mod:`pystencil._f
 from __future__ import annotations
 
 import ctypes
+from array import array
+from itertools import chain
 
 from .._ffi.types import NoneType
 from .._ffi.bindings import _dblp
 from .._ffi.marshal import _buf_view, _bytes_arg, _check_dims, _check_pixels, _encode
+from . import bands
 
 Rect = tuple[int, int, int, int]
 
@@ -90,17 +93,7 @@ class RasterOps:
     if rw < 0 or rh < 0:
       raise ValueError(f"crop_image_rgba: crop size must be non-negative, got {rw}x{rh}")
     _check_dims(src, src_w, src_h, "crop_image_rgba source")
-    dst = bytearray(rw * rh * 4)
-    self._lib.stencil_cli_cropImageRGBA(
-      _bytes_arg(src),
-      ctypes.c_int(src_w),
-      ctypes.c_int(src_h),
-      ctypes.c_int(rx),
-      ctypes.c_int(ry),
-      ctypes.c_int(rw),
-      ctypes.c_int(rh),
-      _buf_view(dst),
-    )
+    bands.crop(self._lib, src, src_w, src_h, rx, ry, rw, rh, dst := bytearray(rw * rh * 4))
     return dst
 
   def normalize_quarters(self, q: int) -> int:
@@ -126,20 +119,13 @@ class RasterOps:
     """Rotate src (w x h) by `q` quarter-turns clockwise into a fresh bytearray."""
     _check_dims(src, w, h, "rotate_image_rgba source")
     ow, oh = self.rotated_dims(w, h, q)
-    dst = bytearray(ow * oh * 4)
-    self._lib.stencil_cli_rotateImageRGBA(
-      _bytes_arg(src),
-      ctypes.c_int(w),
-      ctypes.c_int(h),
-      ctypes.c_int(q),
-      _buf_view(dst),
-    )
+    bands.rotate(self._lib, src, w, h, q, ow, oh, dst := bytearray(ow * oh * 4))
     return dst
 
   def mirror_image_rgba(self, src: (bytes | bytearray), w: int, h: int) -> bytearray:
     """Mirror src (w x h) left-right into a fresh bytearray."""
     _check_dims(src, w, h, "mirror_image_rgba source")
-    self._lib.stencil_cli_mirrorImageRows(_bytes_arg(src), w, h, _buf_view(dst := bytearray(w * h * 4)), 0, h)
+    bands.mirror(self._lib, src, w, h, dst := bytearray(w * h * 4))
     return dst
 
   def fill_rgba(
@@ -167,24 +153,13 @@ class RasterOps:
     """Apply "none"|"bw"|"sepia"|"invert"|<duotone> in place to a pixel_count RGBA8
     buffer. "contour" is a no-op here (it needs dimensions) — use apply_contour."""
     _check_pixels(data, pixel_count, "apply_filter")
-    self._lib.stencil_cli_applyFilter(
-      _encode(mode),
-      _buf_view(data),
-      ctypes.c_int(pixel_count),
-      ctypes.c_int(tint[0]),
-      ctypes.c_int(tint[1]),
-      ctypes.c_int(tint[2]),
-    )
+    bands.filter_pixels(self._lib, mode, data, pixel_count, tint)
 
   def apply_contour(self, data: bytearray, width: int, height: int) -> None:
     """Sobel edge detection ("contour") in place on a width x height RGBA8 buffer:
     dark edges on a white page, alpha preserved. Degenerate dims are a no-op."""
     _check_dims(data, width, height, "apply_contour")
-    self._lib.stencil_cli_applyContour(
-      _buf_view(data),
-      ctypes.c_int(width),
-      ctypes.c_int(height),
-    )
+    if width > 0 and height > 0: bands.contour(self._lib, data, width, height)
 
   # ── rasterise a layout line ───────────────────────────────────────────────
   def rasterize_line(
@@ -208,11 +183,10 @@ class RasterOps:
     """
     _check_dims(buf, w, h, "rasterize_line")
     n = len(points)
-    # Flatten to the 2*n contiguous doubles the ABI expects (x0,y0,x1,y1,...).
-    flat = (ctypes.c_double * (2 * n))()
-    for i, (px, py) in enumerate(points):
-      flat[2 * i] = float(px)
-      flat[2 * i + 1] = float(py)
+    # The 2*n contiguous doubles the ABI expects (x0,y0,x1,y1,...), built in C by array().
+    xy = array("d", chain.from_iterable(points))
+    if len(xy) != 2 * n: raise ValueError("rasterize_line: every point is an (x, y) pair")
+    flat = (ctypes.c_double * (2 * n)).from_buffer(xy) if n else (ctypes.c_double * 0)()
     self._lib.stencil_cli_rasterizeLine(
       _buf_view(buf),
       ctypes.c_int(w),

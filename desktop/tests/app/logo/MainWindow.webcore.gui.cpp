@@ -99,7 +99,7 @@ class MainWindowGuiTest : public QObject {
     for (const auto& l : win.canvas->getLines()) { QVERIFY(l.locked); fills.insert(l.fillColor); }
     QCOMPARE(fills.size(), 7);
     QVERIFY(win.canvas->canUndo());
-    const auto* pr = win.findProject(win.activeProjectId.toStdString());
+    const auto* pr = win.projectHost.findProject(win.projectHost.activeProjectId.toStdString());
     QVERIFY(pr);
     QCOMPARE(QString::fromStdString(pr->meta.name), QString("webcore"));
 
@@ -119,15 +119,15 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(shown(win));
     win.parts.theme.toggleWebcore();
     // A webcore project an earlier case left behind is reopened, and its picture decodes off-thread.
-    QTRY_VERIFY_WITH_TIMEOUT(!win.activeProjectId.isEmpty(), 5000);
-    const QString first = win.activeProjectId;
+    QTRY_VERIFY_WITH_TIMEOUT(!win.projectHost.activeProjectId.isEmpty(), 5000);
+    const QString first = win.projectHost.activeProjectId;
     win.parts.theme.toggleWebcore();
-    win.parts.projects.resetToBlankEditor();
+    win.projectHost.flows.resetToBlankEditor();
     QVERIFY(!win.canvas->hasImage());
-    const size_t count = win.projectList.size();
+    const size_t count = win.projectHost.projectList.size();
     win.parts.theme.toggleWebcore();
-    QTRY_COMPARE_WITH_TIMEOUT(win.activeProjectId, first, 5000);
-    QCOMPARE(win.projectList.size(), count);
+    QTRY_COMPARE_WITH_TIMEOUT(win.projectHost.activeProjectId, first, 5000);
+    QCOMPARE(win.projectHost.projectList.size(), count);
     QCOMPARE(int(win.canvas->getLines().size()), 7);
   }
 
@@ -200,10 +200,10 @@ class MainWindowGuiTest : public QObject {
     MainWindow win(nullptr, /*restoreLast=*/false);
     QVERIFY(shown(win));
     win.acts.incognito->setChecked(true);
-    QVERIFY(win.incognito);
+    QVERIFY(win.projectHost.incognito);
     type(win, QStringLiteral("webcore"));
-    QVERIFY(!win.incognito);
-    QTRY_VERIFY_WITH_TIMEOUT(!win.activeProjectId.isEmpty(), 5000);   // a reopened project lands later
+    QVERIFY(!win.projectHost.incognito);
+    QTRY_VERIFY_WITH_TIMEOUT(!win.projectHost.activeProjectId.isEmpty(), 5000);   // a reopened project lands later
     type(win, QStringLiteral("webcore"));
   }
 

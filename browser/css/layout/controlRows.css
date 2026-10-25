@@ -32,7 +32,7 @@
 }
 /* Desktop twin: the View cluster. */
 #compare-mode + label { margin-left: 4px; }
-/* The desktop's 18px glyph box (mainWindowHelpers.hpp TOOL_ICON); the buttons keep their size. */
+/* The desktop's 18px glyph box (app/toolbar/toolbarMetrics.hpp TOOL_ICON); the buttons keep their size. */
 .ctrl-section-row .btn-icon .ic,
 .ctrl-section-row .btn-icon-text .ic { width: 18px; height: 18px; }
 

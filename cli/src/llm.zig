@@ -8,7 +8,7 @@ const config = @import("llm/config.zig");
 const providers = @import("llm/providers.zig");
 const wire = @import("llm/wire.zig");
 const transport = @import("llm/transport.zig");
-const opplan = @import("llm/opplan.zig");
+const opplan = @import("llm/plan.zig");
 pub const check = @import("llm/check.zig");
 
 // The contract-§1 caps live in the embedded registry: `schema().limitNamed("MAX_ACTIONS")`.
@@ -34,6 +34,7 @@ pub const edge_map_suffix = registry.edge_map_suffix;
 pub const Provider = config.Provider;
 pub const Env = config.Env;
 pub const Config = config.Config;
+pub const trimUrl = config.trimUrl;
 pub const Cmd = config.Cmd;
 pub const parseCmd = config.parseCmd;
 pub const providerDefaults = providers.get;

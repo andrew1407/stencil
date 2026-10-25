@@ -6,7 +6,7 @@
 #include "../../../support/motion/MenuShimmer.hpp"
 #include "../../../support/menu/menuDangerRow.hpp"
 #include "../../../support/theme/theme.hpp"
-#include "../../../support/guiHelpers.hpp"
+#include "menuIconColumn.hpp"
 #include "iconSet.hpp"
 #include "chatWidgets.hpp"
 #include "chatSheets.hpp"

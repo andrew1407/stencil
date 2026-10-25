@@ -7,6 +7,7 @@ import { pointColorOf } from '../../../core/line/render.js';
 import { selectionPredicate } from '../../../core/line/selection.js';
 import { wireLinesList, takeEyeToggled } from './events.js';
 import { paintNameCell } from './nameEdit.js';
+import { RowWindow } from '../rowWindow.js';
 import constants from '../../../../../common/config/constants.json' with { type: 'json' };
 
 const STROKE = constants.DEFAULT_VISUALS.color;
@@ -22,13 +23,12 @@ const TIPS = Object.freeze({
   name: 'Line name\nDouble-click to rename',
 });
 
-// Class toggle only — the list is never scrolled by a canvas hover.
+// Class toggle only — the list is never scrolled by a canvas hover; only the rows it moves off and onto.
 export const applyLinesListHover = (app) => {
   const el = document.getElementById('lines-list');
   if (!el) return;
-  el.querySelectorAll('.lines-row').forEach(r => {
-    r.classList.toggle('lines-row-hover', parseInt(r.dataset.idx, 10) === app.hoverLineIdx);
-  });
+  for (const r of el.querySelectorAll('.lines-row-hover')) if (parseInt(r.dataset.idx, 10) !== app.hoverLineIdx) r.classList.remove('lines-row-hover');
+  if (app.hoverLineIdx >= 0) el.querySelector(`.lines-row[data-idx="${app.hoverLineIdx}"]`)?.classList.add('lines-row-hover');
 };
 
 const cell = (cls, title) => {
@@ -89,7 +89,17 @@ const nameCell = (line, i) => {
   return td;
 };
 
-const rowOf = (app, line, i, selected) => {
+// Everything rowOf draws a row from: a re-render keeps a row whose inputs did not move. A row with an
+// editor open in it, or mid-exit (a class rowOf never sets), is built again, as every row once was.
+const rowSig = (app, line, i, selected) => {
+  const fill = fillState(line, app.defaultFillColor);
+  return JSON.stringify([i, selected, i === app.hoverLineIdx, !!line.hidden, !!line.locked, line.name ?? '', line.color ?? '',
+    line.thickness, pointColorOf(line), line.pointSize ?? app.pointSize, line.points.length, fill.enabled, fill.value]);
+};
+const keepable = (row, sig) => row?.dataset?.sig === sig && !row.querySelector?.('input')
+  && String(row.className).split(/\s+/).every((c) => !c || c.startsWith('lines-row'));
+
+const rowOf = (app, line, i, selected, flipped) => {
   const row = document.createElement('tr');
   row.className = 'lines-row' + (selected ? ' lines-row-selected' : '') + (line.hidden ? ' lines-row-hidden' : '');
   if (i === app.hoverLineIdx) row.classList.add('lines-row-hover');
@@ -108,8 +118,24 @@ const rowOf = (app, line, i, selected) => {
     numCell('thickness', line.thickness),
     swatchCell('lines-point-swatch', TIPS.pointColor, pointColorOf(line)),
     numCell('pointSize', line.pointSize ?? app.pointSize), count,
-    eyeCell(line, i + 1, takeEyeToggled(i)), removeCell(i + 1));
+    eyeCell(line, i + 1, flipped), removeCell(i + 1));
   return row;
+};
+
+// A long list's window (rowWindow.js), one per body: its rows are built as they scroll in, from live state.
+const windows = new WeakMap();
+const windowOf = (body, app) => {
+  if (!windows.has(body)) {
+    windows.set(body, new RowWindow(body, { columns: COLUMNS, indexAttr: 'data-idx', build: (i) => {
+      const line = app.lines[i];
+      const sel = selectionPredicate(app)(i);
+      const flipped = takeEyeToggled(i);
+      const row = rowOf(app, line, i, sel, flipped);
+      row.dataset.sig = flipped ? '' : rowSig(app, line, i, sel);
+      return row;
+    } }));
+  }
+  return windows.get(body);
 };
 
 // One row per committed line, reflecting the selection. No-op while the Lines tab is hidden: the
@@ -119,8 +145,8 @@ export const renderLinesList = (app) => {
   const body = table?.tBodies?.[0];
   if (!table || !body || table.style.display === 'none') return;
   wireLinesList(body, table.parentElement ?? table, app);
-  body.replaceChildren();
   if (!app.lines.length) {
+    body.replaceChildren();
     const row = document.createElement('tr');
     const message = cell('empty-message');
     message.colSpan = COLUMNS;
@@ -129,6 +155,17 @@ export const renderLinesList = (app) => {
     body.appendChild(row);
     return;
   }
+  if (windowOf(body, app).show(app.lines.length)) return;
   const selected = selectionPredicate(app);
-  app.lines.forEach((line, i) => body.appendChild(rowOf(app, line, i, selected(i))));
+  const old = [...body.children];
+  app.lines.forEach((line, i) => {
+    const sel = selected(i);
+    const flipped = takeEyeToggled(i);
+    const sig = rowSig(app, line, i, sel);
+    if (!flipped && keepable(old[i], sig)) return;
+    const row = rowOf(app, line, i, sel, flipped);
+    row.dataset.sig = flipped ? '' : sig;   // a played flip is built again, without it, next time
+    if (old[i]) body.replaceChild(row, old[i]); else body.appendChild(row);
+  });
+  for (let i = old.length - 1; i >= app.lines.length; i--) body.removeChild(old[i]);
 };

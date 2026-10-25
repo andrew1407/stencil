@@ -1,6 +1,6 @@
 #include "openImageDialogParts.hpp"
 #include "OpenImageDialog.hpp"
-#include "guiHelpers.hpp"
+#include "colorSwatch.hpp"
 #include "../../support/modal/modalReveal.hpp"
 #include <algorithm>
 #include <QFileDialog>

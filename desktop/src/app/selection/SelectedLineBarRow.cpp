@@ -2,7 +2,7 @@
 
 #include "controlReveal.hpp"
 #include "cssColor.hpp"
-#include "../../support/guiHelpers.hpp"
+#include "colorSwatch.hpp"
 #include "../../support/icon/iconSet.hpp"
 #include <QComboBox>
 #include <QPushButton>

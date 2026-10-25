@@ -59,5 +59,47 @@
   },
   "dropZones": {
     "accent": "#7c3aed"
+  },
+  "chromeMenu": {
+    "image": [
+      "Open Image in New Tab", "Save Image As…", "Copy Image", "Copy Image Address",
+      "Create QR Code for this Image", "Search This Image with Google Lens", "-",
+      "@stencil", "-",
+      { "label": "Get Image Descriptions from Google", "sub": true }, "-",
+      "Inspect"
+    ],
+    "video": [
+      "Loop", "Show All Controls", "-",
+      "Open Video in New Tab", "Save Video Frame As…", "Save Video As…", "Copy Video Frame",
+      "Copy Video Address", "Picture in Picture", "Cast…", "Search Video Frame with Google Lens", "-",
+      "@stencil", "-",
+      "Inspect"
+    ]
+  },
+  "clips": {
+    "site-hover": {
+      "height": 640,
+      "width": 1400,
+      "start": [0.5, 0.06],
+      "steps": 14,
+      "stepMs": 30,
+      "leadMs": 500,
+      "holdMs": 1300,
+      "rows": ["description.jpg", "stc.svg", "favicon.svg"]
+    },
+    "site-drop-crop": {
+      "height": 640,
+      "width": 1400,
+      "steps": 12,
+      "stepMs": 30,
+      "leadMs": 500,
+      "aimMs": 600,
+      "holdMs": 1400,
+      "route": [
+        [0.22, 0.3],
+        [0.25, 0.75],
+        [0.72, 0.78]
+      ]
+    }
   }
 }

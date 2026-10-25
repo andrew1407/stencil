@@ -82,6 +82,31 @@ class MainWindowGuiTest : public QObject {
     win.parts.styleControls.setCompareModeUi(QStringLiteral("none"));
   }
 
+  // A line that grows, moves and shrinks keeps the rows its table already lists, rewritten, each
+  // still with its bin (browser coordRows.js); the cells read what a fresh table would.
+  void thePointsTableKeepsItsRowsAsTheLineChanges() {
+    MainWindow win(nullptr, false);
+    CanvasWidget* canvas = openLoaded(win);
+    auto* table = win.findChild<QTableWidget*>("pointsTable");
+    QVERIFY(table);
+    canvas->setLines({lineOf({{10, 10}, {40, 10}, {40, 40}})});
+    canvas->selectLineByIndex(0);
+    QTRY_COMPARE(table->rowCount(), 3);
+    QTableWidgetItem* first = table->item(0, 1);
+    canvas->setLines({lineOf({{12, 10}, {40, 10}, {40, 40}, {70, 80}})});
+    canvas->selectLineByIndex(0);
+    QTRY_COMPARE(table->rowCount(), 4);
+    QCOMPARE(table->item(0, 1), first);
+    QCOMPARE(table->item(0, 1)->text(), QStringLiteral("12.0"));
+    QCOMPARE(table->item(3, 0)->text(), QStringLiteral("4"));
+    QCOMPARE(table->item(3, 2)->text(), QStringLiteral("80.0"));
+    canvas->setLines({lineOf({{12, 10}, {40, 10}})});
+    canvas->selectLineByIndex(0);
+    QTRY_COMPARE(table->rowCount(), 2);
+    QCOMPARE(table->item(0, 1), first);
+    for (int r = 0; r < 2; ++r) QVERIFY(table->cellWidget(r, table->columnCount() - 1));
+  }
+
 };
 
 QTEST_MAIN(MainWindowGuiTest)

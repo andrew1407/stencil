@@ -9,7 +9,7 @@ use std::sync::LazyLock;
 
 use base64::Engine;
 use serde_json::Value;
-use stencil_mcp::opplan::{from_result, OpPlanError};
+use stencil_mcp::plan::{from_result, OpPlanError};
 
 mod common;
 use common::plan::{action_json, canon};
@@ -172,7 +172,7 @@ fn text_of(fx: &Value) -> Vec<u8> {
 fn check_cli(bin: &std::path::Path, fx: &Value) {
     let name = fx["name"].as_str().unwrap_or_default();
     let mut child = Command::new(bin)
-        .args(stencil_mcp::opplan::PLAN_CHECK_ARGV)
+        .args(stencil_mcp::plan::PLAN_CHECK_ARGV)
         .env("NO_COLOR", "1")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

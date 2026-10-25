@@ -70,6 +70,11 @@
     <label class="f" for="editorUrl">Editor URL</label>
     <input id="editorUrl" type="url" placeholder="http://localhost:8080/">
     <div class="help">The Stencil browser app served over HTTP (e.g. <code>npm run serve</code> → <code>http://localhost:8080/</code>, used while this is blank). The full editor opens in a new tab; the quick crop opens as an in-page modal.</div>
+    <div id="editorUrlShared" class="help" hidden></div>
+
+    <label class="f" for="shareUrl">Share link URL</label>
+    <input id="shareUrl" type="url" placeholder="https://andrew1407.github.io/stencil/">
+    <div class="help">Where a copied <b>Copy Stencil link</b> opens (right-click an image or video → Stencil): the published app while this is blank, or your own address — <code>http://localhost:8080/</code>, a server of yours, any http(s) URL.</div>
 
     <label class="f" for="page">Default page size (crop aspect)</label>
     <!-- Options are generated from the shared ISO format table (see general.js). -->

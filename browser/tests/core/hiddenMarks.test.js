@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { installDom } from '../helpers/dom.js';
 
 installDom();
-const { EditingMethods } = await import('../../js/core/app/editing.js');
+const { EditingBase } = await import('../../js/core/app/editing.js');
 const { canvasClick } = await import('../../js/core/pointer/canvasClick.js');
 const { canvasMouseMove, canvasDblClick } = await import('../../js/core/pointer/hoverController.js');
 const { decideHover } = await import('../../js/ui/tip/tooltipHover.js');
@@ -24,7 +24,7 @@ const rig = ({ showPoints = true, showLines = true, ...over } = {}) => {
     hoverPt: null, hoverLineIdx: -1, continueLineIdx: -1, continueInsertIdx: -1, undonePoints: [],
     color: '#f00', thickness: 2, pointSize: 4, style: 'solid',
     strokeFx: { flyIn() {}, release() {}, cancel() {} },
-    coordTable: { update() {}, applyRowHighlight() {} }, coordinatesBody: { querySelector: () => null },
+    coordTable: { update() {}, applyRowHighlight() {}, revealRow() {} }, coordinatesBody: { querySelector: () => null },
     renderer: { redraw() {}, requestRedraw() {}, effectiveCompareMode: () => 'none' },
     tooltip: { hide() {}, applyHover() {} }, input: { holdEngaged: false },
     canvas: { width: 1000, height: 1000, style: {}, getBoundingClientRect: () => ({ left: 0, top: 0, width: 1000, height: 1000 }) },
@@ -34,7 +34,7 @@ const rig = ({ showPoints = true, showLines = true, ...over } = {}) => {
     ...over,
   };
   for (const m of ['findLineAt', 'findNearestPoint', 'findNearestPointWithIdx', 'findNearestSegmentWithIdx', 'beginPullOutDrag'])
-    app[m] = EditingMethods.prototype[m];
+    app[m] = EditingBase.prototype[m];
   return app;
 };
 const click = (app, x, y, mods = {}) => canvasClick(app, { clientX: x, clientY: y, detail: 1, ...mods });
@@ -110,6 +110,21 @@ test('the tooltip labels no hidden point, and no line while nothing of it shows'
   assert.deepEqual(keysAt(rig({ showPoints: false }), VERTEX), ['line:0:false'], 'the stroke answers instead');
   assert.deepEqual(keysAt(rig({ showLines: false }), BODY), []);
   assert.deepEqual(keysAt(rig({ showPoints: false, showLines: false }), VERTEX), []);
+});
+
+test('a caller that already knows no point is near skips the tooltip\'s own point scan', () => {
+  const NO_MODS = { altKey: false, ctrlKey: false, metaKey: false, shiftKey: false };
+  const app = rig();
+  let scans = 0;
+  const real = app.findNearestPoint.bind(app);
+  app.findNearestPoint = (...a) => { scans++; return real(...a); };
+  const keys = [];
+  const tip = { app, scheduleShow: (key) => keys.push(key), hide() {} };
+  decideHover(tip, ...BODY, ...BODY, NO_MODS, false, undefined, null);
+  assert.equal(scans, 0);
+  assert.deepEqual(keys, ['line:0:false']);
+  decideHover(tip, ...VERTEX, ...VERTEX, NO_MODS);
+  assert.equal(scans, 1, 'unknown: it looks');
 });
 
 test('double-click, Alt+wheel, a touch grab and the pull-out reach no hidden mark', () => {

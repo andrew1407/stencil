@@ -25,6 +25,8 @@ using stencil::test::Run;
 
 void checkImageHeaderCorpus();                  // imageHeaderFixtures.headless.cpp
 void checkDecodeRouting(const QString& dir);    // mediaLoaderRouting.headless.cpp
+void checkGuardedRemote();                      // mediaLoaderGuard.headless.cpp
+void checkDecodeCap();                          // mediaLoaderGuard.headless.cpp
 
 // Blocked in loose mode too (private / link-local / TEST-NET), so resolve() refuses them
 // without a socket.
@@ -163,6 +165,8 @@ int main(int argc, char** argv) {
   check(answers == 0, "a decode outliving its loader is discarded");
 
   checkDecodeRouting(dir.path());
+  checkGuardedRemote();
+  checkDecodeCap();
   checkImageHeaderCorpus();
 
   std::printf(failures ? "\nFAILED (%d)\n" : "\nOK\n", failures);

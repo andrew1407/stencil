@@ -32,6 +32,7 @@ namespace {
     QStringList log;
     OpDone pending;
     stencil::core::Lines lines;
+    void setStrictSources(bool on) override { log << (on ? QStringLiteral("strict on") : QStringLiteral("strict off")); }
     void openUrlThen(const QString& url, bool, OpDone done) override {
       log << QStringLiteral("open %1").arg(url);
       pending = std::move(done);
@@ -133,6 +134,31 @@ int main(int argc, char** argv) {
     target.answer(false, QStringLiteral("frame: timed out loading https://example.com/a.png"));
     check(out.result->has_value() && (*out.result)->line == 2 && (*out.result)->ops == 1,
           "a failed @frame stops the run at its own line, the @source counted");
+  }
+
+  std::printf("a script a link delivered:\n");
+  {
+    HeldTarget target(fixtureImage(), a4);
+    Outcome out;
+    stencil::gui::runScriptThen(stencil::model::ScriptDoc::parse(QString::fromUtf8(SCRIPT)), target, out.sink(),
+                                stencil::gui::ScriptRunRules{true});
+    check(target.log == QStringList({"strict on", "open https://example.com/a.png", "strict off"}),
+          "each of its sources starts loading strict, and the flag is off while it loads");
+    target.answer(true);
+    check(target.log.mid(3, 3) == QStringList({"strict on", "frame 3", "strict off"}), "…the @frame reload too");
+    target.answer(true);
+    check(out.result->has_value() && target.log.count(QStringLiteral("strict on")) == 2 &&
+              target.log.count(QStringLiteral("strict off")) == 2,
+          "…and nothing else in the run turns it on");
+  }
+  {
+    HeldTarget target(fixtureImage(), a4);
+    Outcome out;
+    stencil::gui::runScriptThen(stencil::model::ScriptDoc::parse(QString::fromUtf8(SCRIPT)), target, out.sink(),
+                                stencil::gui::ScriptRunRules{true});
+    target.pending = nullptr;   // the load's answer dropped: the run never finishes
+    check(!out.result->has_value() && target.log.last() == QStringLiteral("strict off"),
+          "a run that never finishes leaves later loads unaffected");
   }
 
   std::printf("a target torn down mid-load:\n");

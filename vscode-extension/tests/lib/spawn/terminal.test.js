@@ -63,7 +63,8 @@ test('a single quote is escaped the way each shell escapes it', async () => {
 
 test('each shell quotes what only it treats as special', async () => {
   await withLib('/bin/sh', ({ terminal }) => {
-    assert.equal(terminal.quoteArg('100%.stc', 'cmd'), '"100%.stc"', 'cmd expands %NAME%');
+    assert.equal(terminal.quoteArg('100%.stc', 'cmd'), '"100"^%".stc"', 'cmd expands %NAME% even in quotes');
+    assert.equal(terminal.quoteArg('a%PATH%b.stc', 'cmd'), '"a"^%"PATH"^%"b.stc"', 'a variable name never forms');
     assert.equal(terminal.quoteArg('a,b.stc', 'cmd'), '"a,b.stc"', 'cmd splits on a comma');
     assert.equal(terminal.quoteArg('@a.stc', 'powershell'), "'@a.stc'", 'a leading @ splats');
     assert.equal(terminal.quoteArg('100%.stc', 'posix'), '100%.stc', 'a POSIX shell is fine');

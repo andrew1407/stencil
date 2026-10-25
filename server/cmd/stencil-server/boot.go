@@ -121,7 +121,9 @@ func openBus(ctx context.Context, cfg config.Config) (eventbus.Bus, error) {
 func hubOptions(cfg config.Config) []hub.Option {
 	return []hub.Option{
 		hub.WithHelloLimit(cfg.HelloRatePerMin, cfg.TrustedProxies),
+		hub.WithOriginCheck(httpapi.FeedOriginAllowed(cfg.CORSOrigins)),
 		hub.WithMaxConnsPerIP(cfg.Live.MaxConnsPerIP),
+		hub.WithMaxConns(cfg.Live.MaxConns),
 		hub.WithTuning(hub.Tuning{OpTimeout: cfg.OpTimeout, HelloTimeout: cfg.Live.HelloTimeout,
 			NoticeTimeout: cfg.Live.NoticeTimeout, FeedBuffer: cfg.Live.BusSubBuffer}),
 	}

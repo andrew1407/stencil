@@ -8,7 +8,7 @@
       "pystencil": "pystencil/pystencil/llm/plan/registry.py (entries; validation in core/opplan)",
       "bot": "bot/src/Stencil.TelegramBot.Application/Llm/Plan/OpRegistryAsset.cs (entries; validation via the CLI --plan-check)",
       "mcp": "mcp/src/registry/entries.rs (entries; validation via the CLI --plan-check)",
-      "extension": "browser-extension/src/llm/op/validate.js (EXT_VALIDATORS over the copied JS schema)",
+      "extension": "browser-extension/src/llm/plan/validate.js (EXT_VALIDATORS over the copied JS schema)",
       "corpus": "common/fixtures/llm/opPlan/ (profiles + knownDivergence = the measured truth)"
     },
     "surfaceProfiles": {
@@ -46,7 +46,7 @@
       "filterSearch": 200,
       "filterFormats": 40,
       "filterSize": 100000,
-      "note": "extension-profile extras from browser-extension/src/llm/op/plan.js LIMITS; the extension has no frameIndices limit (it registers no frame op at top level)"
+      "note": "extension-profile extras from browser-extension/src/llm/plan/plan.js LIMITS; the extension has no frameIndices limit (it registers no frame op at top level)"
     },
     "json": {
       "MAX_DEPTH": 64,

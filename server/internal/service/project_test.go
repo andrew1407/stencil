@@ -83,6 +83,25 @@ func TestDeleteDropsRowThenBytes(t *testing.T) {
 	}
 }
 
+// A delete of an id that names no row is ErrNotFound and drops and announces nothing: a forged id
+// must not detach every editor of a real project.
+func TestDeleteOfAMissingIDAnnouncesNothing(t *testing.T) {
+	svc, _, files := projectSvc(t, 0)
+	events, unsub := svc.Bus.Subscribe(eventbus.ChannelEvents)
+	t.Cleanup(unsub)
+	if err := svc.Delete(context.Background(), "p_nope"); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("delete of a missing id = %v, want ErrNotFound", err)
+	}
+	if len(files.removed) != 0 {
+		t.Fatalf("removed = %v, want nothing", files.removed)
+	}
+	select {
+	case env := <-events:
+		t.Fatalf("a missing id was announced: %s", env.Data)
+	case <-time.After(50 * time.Millisecond):
+	}
+}
+
 // Dropped is the sweep's half: it takes bytes and announces, never a row.
 func TestDroppedTakesBytesWithoutTouchingTheRow(t *testing.T) {
 	svc, st, files := projectSvc(t, 0)

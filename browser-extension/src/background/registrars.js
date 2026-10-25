@@ -24,7 +24,9 @@ const injectIntoOpenTabs = async (urlPatterns, scripts, { allFrames = false } = 
 };
 
 // The probe's files in run order, as manifest.json's content_scripts entry lists them.
-export const CTX_PROBE_FILES = ['src/content/ctxResolve.js', 'src/content/ctxTarget.js'];
+// orphan.js first: each ISOLATED script that binds listeners claims its guard through it.
+const ORPHAN_FILE = 'src/content/orphan.js';
+export const CTX_PROBE_FILES = [ORPHAN_FILE, 'src/content/ctxResolve.js', 'src/content/ctxTarget.js'];
 
 // Inject the probe into already-open http(s) tabs, so the menu works without
 // reloading every tab. The probe guards against binding twice (see ctxTarget.js).
@@ -44,14 +46,14 @@ const SCRIPT_SETS = [
   {
     key: 'bridge',
     label: 'editor bridge',
-    scripts: [{ id: BRIDGE_ID, file: BRIDGE_FILE, runAt: 'document_start' }],
+    scripts: [{ id: BRIDGE_ID, files: [ORPHAN_FILE, BRIDGE_FILE], runAt: 'document_start' }],
     matches: ({ pattern }) => (pattern ? [pattern] : null),
   },
   {
     key: 'pageApi',
     label: 'page API',
     scripts: [
-      { id: 'stencil-page-bridge', file: 'src/content/pageApiBridge.js', world: 'ISOLATED', runAt: 'document_start' },
+      { id: 'stencil-page-bridge', files: [ORPHAN_FILE, 'src/content/pageApiBridge.js'], world: 'ISOLATED', runAt: 'document_start' },
       { id: 'stencil-page-main', files: PAGE_API_MAIN_FILES, world: 'MAIN', runAt: 'document_idle' },
     ],
     // Registered for every page; only http(s) tabs can be injected into after the fact.

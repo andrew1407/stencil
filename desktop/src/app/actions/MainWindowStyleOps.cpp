@@ -46,7 +46,7 @@ namespace stencil::gui {
     if (asUndoStep) canvas->commitFilter(mode, tools.filterColorValue);
     else canvas->setImageFilter(mode, tools.filterColorValue);
     persistSettings();
-    if (!remote.reloading) filterDirty = true;   // user changed the filter
+    if (!remote.reloading) projectHost.filterDirty = true;   // user changed the filter
     remoteSync->scheduleRemotePush();   // live co-edit: an adopted filter emits no changed()
   }
 
@@ -57,7 +57,7 @@ namespace stencil::gui {
     if (asUndoStep) canvas->commitFilter(settings.imageFilter, tools.filterColorValue);
     else canvas->setImageFilter(settings.imageFilter, tools.filterColorValue);
     persistSettings();
-    if (!remote.reloading) filterDirty = true;   // user changed the tint
+    if (!remote.reloading) projectHost.filterDirty = true;   // user changed the tint
     remoteSync->scheduleRemotePush();   // live co-edit: push tint changes to peers
   }
 

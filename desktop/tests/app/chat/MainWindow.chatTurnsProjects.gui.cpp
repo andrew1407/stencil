@@ -36,15 +36,15 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(win.settings.imageFilter, QStringLiteral("bw"));   // the rest still ran
 
     // Nothing on the canvas: the save is skipped with a warning, no project.
-    win.parts.projects.resetToBlankEditor();   // the trash button's body, minus its confirmation
+    win.projectHost.flows.resetToBlankEditor();   // the trash button's body, minus its confirmation
     QTRY_VERIFY(!win.canvas->hasImage());
-    const int before = int(win.projectList.size());
+    const int before = int(win.projectHost.projectList.size());
     mock.queue.append(wrap(
         "{\"version\":1,\"reply\":\"Saving.\",\"actions\":[{\"op\":\"save\",\"name\":\"x\"}]}"));
     win.chatSession->onChatSend("save it");
     QTRY_VERIFY(!dock->isBusy());
     QVERIFY2(chatTranscriptHas(dock, "no working image"), "an empty save must warn");
-    QCOMPARE(int(win.projectList.size()), before);
+    QCOMPARE(int(win.projectHost.projectList.size()), before);
     beat();
   }
 
@@ -105,7 +105,7 @@ class MainWindowGuiTest : public QObject {
     const QString goneId = win.parts.chatAppliers.addImageProjectEntry(img, "chat del target");
     const QString keptId = win.parts.chatAppliers.addImageProjectEntry(img, "chat del keeper");
     QVERIFY(!goneId.isEmpty() && !keptId.isEmpty());
-    const int before = int(win.projectList.size());
+    const int before = int(win.projectHost.projectList.size());
 
     // Remove one by name; the blocking QMessageBox confirm is answered "Yes".
     mock.queue.append(wrap(
@@ -114,9 +114,9 @@ class MainWindowGuiTest : public QObject {
     dismissModal("OK");
     win.chatSession->onChatSend("delete the chat del target project");
     QTRY_VERIFY(!dock->isBusy());
-    QTRY_COMPARE(int(win.projectList.size()), before - 1);
-    QVERIFY2(!win.findProject(goneId.toStdString()), "the named project must be gone");
-    QVERIFY2(win.findProject(keptId.toStdString()), "the other project must remain");
+    QTRY_COMPARE(int(win.projectHost.projectList.size()), before - 1);
+    QVERIFY2(!win.projectHost.findProject(goneId.toStdString()), "the named project must be gone");
+    QVERIFY2(win.projectHost.findProject(keptId.toStdString()), "the other project must remain");
 
     // clearProjects, confirm DECLINED: nothing removed, the note says so.
     mock.queue.append(wrap(
@@ -124,7 +124,7 @@ class MainWindowGuiTest : public QObject {
     dismissModal("Cancel");
     win.chatSession->onChatSend("clear all my projects");
     QTRY_VERIFY(!dock->isBusy());
-    QCOMPARE(int(win.projectList.size()), before - 1);
+    QCOMPARE(int(win.projectHost.projectList.size()), before - 1);
     QVERIFY2(chatTranscriptHas(dock, "clear canceled"),
              "a declined clear must land as a note");
     beat();
@@ -160,7 +160,7 @@ class MainWindowGuiTest : public QObject {
     shot.fill(Qt::darkCyan);
     canvas->loadFromImage(shot);
     QTRY_VERIFY(canvas->hasImage());
-    QVERIFY(win.incognito && win.activeProjectId.isEmpty());
+    QVERIFY(win.projectHost.incognito && win.projectHost.activeProjectId.isEmpty());
     stencil::core::Line line;
     line.points = {{10, 10}, {80, 40}};
     canvas->setLines({line});
@@ -192,14 +192,14 @@ class MainWindowGuiTest : public QObject {
     img.fill(Qt::darkBlue);
     const QString id = win.parts.chatAppliers.addImageProjectEntry(img, "chat current target");
     QVERIFY(!id.isEmpty());
-    win.activeProjectId = id;
-    const int before = int(win.projectList.size());
+    win.projectHost.activeProjectId = id;
+    const int before = int(win.projectHost.projectList.size());
     mock.queue.append(wrap(removeCurrent));
     dismissModal("OK");
     win.chatSession->onChatSend("remove this project");
     QTRY_VERIFY(!dock->isBusy());
-    QTRY_COMPARE(int(win.projectList.size()), before - 1);
-    QVERIFY2(!win.findProject(id.toStdString()), "the saved project must be the one removed");
+    QTRY_COMPARE(int(win.projectHost.projectList.size()), before - 1);
+    QVERIFY2(!win.projectHost.findProject(id.toStdString()), "the saved project must be the one removed");
     beat();
   }
 

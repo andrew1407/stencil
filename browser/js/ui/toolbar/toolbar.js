@@ -1,7 +1,8 @@
 import { StencilElement, hostTag, define } from '../base.js';
 import { hotkeys } from '../../core/settings/hotkeys.js';
 import { icon } from '../icons.js';
-import { wireHoverDust, foldDust, revealControls, CONTROLS_DUST_IN_MS, CONTROLS_DUST_OUT_MS } from '../motion.js';
+import { wireHoverDust, foldDust, CONTROLS_DUST_IN_MS, CONTROLS_DUST_OUT_MS } from '../motion/control/tips.js';
+import { revealControls } from '../motion/control/revealControls.js';
 import { onWindowResize } from '../../utils.js';
 import { subscribe, publish, EVENTS } from '../../eventBus/appBus.js';
 import { syncWrappedSeparators } from './separators.js';

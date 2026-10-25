@@ -2,7 +2,7 @@ import { setVal, notify } from '../../utils.js';
 import { normalizePageSize } from '../settings/units.js';
 import { validateLayout } from '../layout.js';
 import { normalizeHex } from '../settings/accents.js';
-import { playCanvasArrival } from '../../ui/motion.js';
+import { playCanvasArrival } from '../../ui/motion/control/canvasFx.js';
 import { requireConnection, createRemoteProject } from '../../net/remoteSync.js';
 import { getSyncToServer } from '../../net/connectionStore.js';
 import { originalHashOf } from '../remote/peerLayout.js';

@@ -58,7 +58,7 @@ class MainWindowGuiTest : public QObject {
     const auto forget = qScopeGuard([] { stencil::net::connectionStore::saveServers({}); });
     bool connectedAtFetch = false;
     http.onRequest = [&] {
-      connectedAtFetch = win.remote.connections && win.remote.connections->urls().contains(rest.url());
+      connectedAtFetch = win.remote.conns() && win.remote.conns()->urls().contains(rest.url());
     };
     userSays(win, QStringLiteral("connect, then open %1 and make it b&w").arg(http.url()));
     win.chatSession->onChatReply(planReply(

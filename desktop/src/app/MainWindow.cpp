@@ -15,7 +15,7 @@
 namespace stencil::gui {
 
   MainWindow::MainWindow(QWidget* parent, bool restoreLast)
-      : QMainWindow(parent), projectList(SharedState::instance().getProjects()) {
+      : QMainWindow(parent), projectHost(SharedState::instance().getProjects(), projectSeam()) {
     setWindowTitle("Stencil");
     setObjectName("stencilWindow");   // qss/app/shell.qss: the window's own separator is a hairline
     resize(1100, 760);

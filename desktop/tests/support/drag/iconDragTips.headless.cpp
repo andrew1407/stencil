@@ -1,13 +1,16 @@
 // No tip through a control drag (support/drag/iconDrag over support/tip/AppTooltip): as the drag
 // starts the app's tooltip goes at once with the dust it threw, none shows until the drag ends, and
-// the start hook already sees a window with neither; afterwards tips show again.
+// the start hook already sees a window with neither; afterwards tips show again. The parentless
+// panel is freed as the event loop ends.
 #include "AppTooltip.hpp"
 #include "iconDrag.hpp"
 #include "uiTimings.hpp"
 
 #include <QApplication>
 #include <QMouseEvent>
+#include <QPointer>
 #include <QPushButton>
+#include <QTimer>
 #include <QWidget>
 
 #include "../check.hpp"
@@ -65,5 +68,11 @@ int main(int argc, char** argv) {
   app.processEvents();
   tipOn(tip, button);
   check(tip->isVisible(), "the drag over, tips show again");
+
+  const QPointer<AppTooltip> held = tip;
+  QTimer::singleShot(0, &app, &QCoreApplication::quit);
+  app.exec();
+  check(held.isNull(), "the tip panel is freed when the app quits");
+  check(stencil::gui::appTooltip() != nullptr, "…and the next tip makes a fresh one");
   return failures ? 1 : 0;
 }

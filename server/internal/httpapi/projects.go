@@ -3,6 +3,7 @@ package httpapi
 import (
 	"errors"
 	"net/http"
+	"strconv"
 
 	"stencil/server/internal/auth"
 	"stencil/server/internal/protocol"
@@ -11,9 +12,22 @@ import (
 	"stencil/server/internal/validate"
 )
 
+// projectETag names a project's state: every write bumps its version, so the version is the validator.
+func projectETag(version int64) string { return `"v` + strconv.FormatInt(version, 10) + `"` }
+
+// handleGetProject answers the record and its layout under an ETag; a poller that sends it back gets a
+// bodiless 304 from a metadata read while the version is unchanged, the layout never leaving Postgres.
 func (a *API) handleGetProject(rw http.ResponseWriter, req *http.Request) {
 	ctx, cancel := a.opCtx(req)
 	defer cancel()
+	if inm := req.Header.Get("If-None-Match"); inm != "" {
+		meta, err := a.deps.Projects.GetProjectMeta(ctx, req.PathValue("id"))
+		if err == nil && etagMatches(inm, projectETag(meta.Version)) {
+			rw.Header().Set("ETag", projectETag(meta.Version))
+			rw.WriteHeader(http.StatusNotModified)
+			return
+		}
+	}
 	rec, err := a.deps.Projects.GetProject(ctx, req.PathValue("id"))
 	if errors.Is(err, store.ErrNotFound) {
 		writeNotFound(rw, msgProjectNotFound)
@@ -25,6 +39,7 @@ func (a *API) handleGetProject(rw http.ResponseWriter, req *http.Request) {
 	}
 	resp := protocol.ProjectResponse{Project: rec, Layout: rec.Layout}
 	resp.Project.Layout = nil // the layout rides once, beside the record
+	rw.Header().Set("ETag", projectETag(rec.Version))
 	writeJSON(rw, http.StatusOK, resp)
 }
 
@@ -97,7 +112,12 @@ func (a *API) handleUpdateProject(rw http.ResponseWriter, req *http.Request) {
 func (a *API) handleDeleteProject(rw http.ResponseWriter, req *http.Request) {
 	ctx, cancel := a.opCtx(req)
 	defer cancel()
-	if err := a.projects.Delete(ctx, req.PathValue("id")); err != nil {
+	err := a.projects.Delete(ctx, req.PathValue("id"))
+	if errors.Is(err, store.ErrNotFound) {
+		writeNotFound(rw, msgProjectNotFound)
+		return
+	}
+	if err != nil {
 		writeInternalError(rw, msgDeleteProject)
 		return
 	}

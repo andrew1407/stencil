@@ -9,17 +9,19 @@ siblings: `wasmCropApi.cpp` (crop geometry), `wasmStateApi.cpp` (the handle-base
 holdDraw), `wasmHistoryApi.cpp` (the handle-based editor history), `wasmEditApi.cpp` (the
 chain edits) and `wasmProjectsApi.cpp` (the scalar expiry rules); `wasmApi.cpp` also emits the
 exports both ABIs share from `abi/shared.inc`, the co-edit merge mask among them. The
-`if(EMSCRIPTEN)` block in `core/CMakeLists.txt` builds them all into `stencil_core.js`
-+ `stencil_core.wasm`; `EXPORTED_FUNCTIONS` there is a separate list a new export must
+`if(EMSCRIPTEN)` block in `core/CMakeLists.txt` builds them all into `stencilCore.js`
++ `stencilCore.wasm`; `EXPORTED_FUNCTIONS` there is a separate list a new export must
 also join. One more, `wasmOpplanApi.cpp` (the LLM op-plan validator of `opplan/`), is compiled
 there but deliberately left out of `EXPORTED_FUNCTIONS`: the browser validates plans with its
 JS twin, so wasm-ld drops those bodies and the module is byte-identical with or without them.
 
-The browser app runs the shared C++ core via WebAssembly. The module is built with
-`SINGLE_FILE=1` (wasm embedded as base64 in the `.js`, so it loads under `file://`
-with no `fetch`) and emitted to `browser/js/wasm/stencilCore.js`. That file is a
-generated artifact, not committed (it is gitignored): CI builds it for the parity
-check, and you build it locally to exercise the wasm path (steps below).
+The browser app runs the shared C++ core via WebAssembly. The module is an ES6 glue file,
+`browser/js/wasm/stencilCore.js`, and the `stencilCore.wasm` beside it, which the glue
+streams with `WebAssembly.instantiateStreaming` (compiling while it downloads; a server that
+does not answer `application/wasm` costs only the streaming). Both are generated artifacts, not
+committed (they are gitignored): CI builds them for the parity check, and you build them
+locally to exercise the wasm path (steps below). The app is served over HTTP, so `file://` is
+not a case; the single-file build (`npm run build`) bundles no wasm and runs the JS fallback.
 
 At boot, `js/index.js` calls `core.init()` on the `core` singleton exported by
 `js/core/abi/stencilCore.js`, which instantiates the module and installs typed wrappers
@@ -31,7 +33,7 @@ Node tests (which never load wasm) exercise.
 ```mermaid
 graph LR
     IDX["js/index.js<br/>core.init()"] --> SC["js/core/stencilCore.js<br/>instantiate + marshal"]
-    SC --> WASM["js/wasm/stencilCore.js<br/>Emscripten SINGLE_FILE module"]
+    SC --> WASM["js/wasm/stencilCore.js<br/>Emscripten glue + stencilCore.wasm"]
     SC --> OPS["core singleton<br/>installed ops"]
     CONS["formulaEngine · utils · drawingApp<br/>zoomPan · renderer"] --> OPS
     OPS -.->|"not built / load fails"| JS["JS reference fallback"]
@@ -40,15 +42,16 @@ graph LR
 A normal native `cmake` build never enters the Emscripten branch and produces the
 same `stencil_core` and `stencil_tests` targets; only `emcmake`
 (which defines `EMSCRIPTEN`) builds the wasm module. To rebuild it after editing the
-core, follow *Build the wasm module* below and copy `stencil_core.js` to
-`browser/js/wasm/stencilCore.js`.
+core, follow *Build the wasm module* below and copy `stencilCore.js` and `stencilCore.wasm`
+into `browser/js/wasm/`.
 
 ## What it replaces
 
 | Browser JS call site (wasm-backed) | Exported wasm function(s) |
 |---|---|
-| `core/parse/formulaEngine.js` validate / apply | `stencil_formulaValidate`, `stencil_formulaApply` (`stencil_formulaEvaluate` available) |
+| `core/parse/formulaEngine.js` validate / apply | `stencil_formulaValidate`, `stencil_formulaApply` |
 | `core/parse/formulaEngine.js` validateCtx / applyCtx | `stencil_formulaValidateCtx`, `stencil_formulaApplyCtx` — the same parser with the page/image constants of `formulaContext.js`; an absent field crosses as NaN |
+| `core/parse/pageMetrics.js` `pixelToPageCoordsAll` (a line's every point) | `stencil_formulaApplyPoints` — both formulas over a flat run of raw page points in one call |
 | `utils.js` `distToSegment` | `stencil_distToSegment` |
 | `core/format/logoBanner.js` — the console logo rows the CLI stage paints (`core/format/logoBanner.cpp`) | `stencil_logoBanner` |
 | `utils.js` `parseHex` (also feeds `hexToRgba`) | `stencil_parseHex` |
@@ -57,7 +60,7 @@ core, follow *Build the wasm module* below and copy `stencil_core.js` to
 | `renderer.js` `drawImageWithFilter` (custom duotone) | `stencil_applyFilterRGBA` |
 | `renderer.js` `drawImageWithFilter` (contour) / `contourFilter.js` | `stencil_applyContourRGBA` |
 | `drawingApp.js` `#rotateSelectedLine` rotation + bbox pivot | `stencil_rotatePoints`, `stencil_boundingBoxCenter` |
-| `zoom/pan.js` `clampScale` | `stencil_clampScale` (`anchoredZoom` available) |
+| `zoom/pan.js` `clampScale` | `stencil_clampScale` |
 | `zoom/pan.js` `rectZoom` — the zoom-to-rect fit, desktop's `core::rectZoom` | `stencil_rectZoom` |
 | `zoom/pan.js` `zoomMin` / `zoomMax` — the clamp's range, which the zoom input's bounds read | `stencil_zoomMin`, `stencil_zoomMax` |
 | `core/parse/cropGeometry.js` — the crop window math behind `cropModal.js` / `model.js` | `stencil_cropAspect`, `stencil_centeredCrop`, `stencil_resizeCropFromCorner`, `stencil_moveCropClamped`, `stencil_scaleCropCentered`, `stencil_cropResizeScale`, `stencil_cropChange`, `stencil_rotateCropRectQuarter`, `stencil_isAlbumOrientation` |
@@ -130,7 +133,7 @@ From `core/`:
 ```sh
 emcmake cmake -S . -B build-wasm -DCMAKE_BUILD_TYPE=Release
 emmake cmake --build build-wasm -j 4
-# -> build-wasm/stencil_core.js  +  build-wasm/stencil_core.wasm
+# -> build-wasm/stencilCore.js  +  build-wasm/stencilCore.wasm
 ```
 
 `emcmake` defines `EMSCRIPTEN`, so only the `stencil_wasm` target is produced
@@ -149,8 +152,8 @@ cmake -S core -B core/build -DCMAKE_BUILD_TYPE=Release && cmake --build core/bui
 
 ## How it is wired into the browser app
 
-The module is built `MODULARIZE=1 EXPORT_ES6=1 SINGLE_FILE=1`, so it imports
-cleanly and embeds its wasm. `js/core/abi/stencilCore.js` owns instantiation + all the
+The module is built `MODULARIZE=1 EXPORT_ES6=1` for size: `-Oz -flto -fno-rtti`, `emmalloc`,
+no longjmp support, and the browser's own `TextDecoder`. `js/core/abi/stencilCore.js` owns instantiation + all the
 marshalling (strings, flat point arrays, output pointers, the pixel buffer) and
 installs typed wrappers into the `core` singleton. The raw Emscripten surface it
 wraps looks like:
@@ -165,7 +168,7 @@ formulaApply('x+9', 'x'.charCodeAt(0), 3, 1); // 12
 ```
 
 Functions that return multiple doubles (`stencil_pageDimensions`,
-`stencil_pixelToPageRaw`, `stencil_anchoredZoom`, `stencil_rectZoom`) take an
+`stencil_pixelToPageRaw`, `stencil_rectZoom`) take an
 output pointer: `stencilCore.js` allocates a small Float64 buffer with `_malloc`,
 passes it, reads it back with `getValue(ptr + i*8, 'double')` and `_free`s it.
 
@@ -181,7 +184,7 @@ After editing anything in `core/`, rebuild (see *Build the wasm module*) and cop
 the artifact into the browser tree:
 
 ```sh
-cp build-wasm/stencil_core.js ../browser/js/wasm/stencilCore.js
+cp build-wasm/stencilCore.js build-wasm/stencilCore.wasm ../browser/js/wasm/
 ```
 
 ## Notes / decisions

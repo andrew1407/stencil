@@ -98,14 +98,14 @@ func TestSetFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !upd.HasImage || upd.ImageW != 640 || upd.ImageH != 480 {
+	if !upd.HasImage || upd.HasResult || upd.ImageW != 640 || upd.ImageH != 480 {
 		t.Fatalf("original file metadata not set: %+v", upd)
 	}
 	if upd.Version != 1 {
 		t.Fatalf("version not bumped on setfile")
 	}
 	res, err := s.SetFile(ctx, p.ID, StoredFile{Kind: protocol.KindResult, Path: "projects/" + p.ID + "/result.png"})
-	if err != nil || res.ResultPath == "" {
+	if err != nil || res.ResultPath == "" || !res.HasResult {
 		t.Fatalf("result file not set: %v %+v", err, res)
 	}
 }

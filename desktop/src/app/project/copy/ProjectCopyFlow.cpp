@@ -9,7 +9,7 @@
 #include "MenuShimmer.hpp"
 #include "menuReveal.hpp"
 #include "modalReveal.hpp"
-#include "guiHelpers.hpp"
+#include "menuIconColumn.hpp"
 
 #include <QListWidget>
 #include <QMenu>
@@ -36,7 +36,7 @@ namespace stencil::gui {
                           std::function<void(QString, CopyOpen)> done, QWidget* over) {
     QString server;
     const QString name = sourceName(from, &server);
-    CopyProjectDialog dlg(over ? over : &w, name, QString::fromUtf8(support::copyScopeLabel(from.what)),
+    CopyProjectDialog dlg(over ? over : w.window, name, QString::fromUtf8(support::copyScopeLabel(from.what)),
                           copyNameAmong({}, name.toStdString()), server);
     // Out of a projects row it stacks over that window and flies back into the row's chip.
     int answer = 0;
@@ -45,10 +45,10 @@ namespace stencil::gui {
       answer = dlg.exec();
     } else {
       // From the toolbar or the canvas menu it closes into the toolbar's copy button, or up when folded.
-      QPointer<MainWindow> self(&w);
+      QPointer<QWidget> self(w.window);
       QPointer<CopyProjectDialog> live(&dlg);
-      w.pop.dialogCloseRect = [self, live](bool) {
-        QWidget* b = self ? self->buttonForAction(self->acts.copyProject) : nullptr;
+      w.pop.dialogCloseRect = [this, self, live](bool) {
+        QWidget* b = self ? w.buttonForAction(w.acts.copyProject) : nullptr;
         if (b && b->isVisible() && b->width() > 0) return QRect(b->mapToGlobal(QPoint(0, 0)), b->size());
         return live ? support::riseRect(*live) : QRect();
       };
@@ -59,7 +59,7 @@ namespace stencil::gui {
     req.open = OPEN_OF[dlg.getOutcome()];
     req.incognito = dlg.getIncognito();
     req.local = dlg.getLocal();
-    QPointer<MainWindow> self(&w);
+    QPointer<QWidget> self(w.window);
     run(req, [this, self, req, done](bool ok, QString id, QString) {
       if (!self || !ok) return;
       w.notify->success(req.incognito ? QStringLiteral("Opened an incognito copy") : QStringLiteral("Copy made"));
@@ -69,10 +69,10 @@ namespace stencil::gui {
 
   void ProjectCopy::showToolbarMenu() {
     QWidget* button = w.buttonForAction(w.acts.copyProject);
-    QMenu menu(&w);
+    QMenu menu(w.window);
     support::CopyScope picked = support::COPY_LAYOUT;
     bool chose = false;
-    support::addCopyScopes(menu, w.palette().color(QPalette::WindowText), 15,
+    support::addCopyScopes(menu, w.window->palette().color(QPalette::WindowText), 15,
                            [&picked, &chose](support::CopyScope s) { picked = s; chose = true; });
     support::MenuShimmer shimmer(&menu);
     gui::compactIconMenu(menu);
@@ -81,7 +81,7 @@ namespace stencil::gui {
     menu.exec(at);
     if (!chose) return;
     // Deferred so the menu's mouse grab is gone before the modal opens (ProjectFlows::showProjectColorMenu).
-    QTimer::singleShot(0, &w, [this, picked] {
+    QTimer::singleShot(0, w.window, [this, picked] {
       CopyRequest req;
       req.what = picked;
       offer(req);
@@ -90,7 +90,7 @@ namespace stencil::gui {
 
   void ProjectCopy::wireProjectsList(ProjectsDialog& dlg) {
     QPointer<ProjectsDialog> live(&dlg);
-    QObject::connect(&dlg, &ProjectsDialog::copyRequested, &w,
+    QObject::connect(&dlg, &ProjectsDialog::copyRequested, w.window,
                      [this, live](const QString& id, const QString& server, int scope, const QRect& closeRect) {
       QListWidget* list = live ? live->findChild<QListWidget*>() : nullptr;
       CopyRequest from;
@@ -101,7 +101,7 @@ namespace stencil::gui {
       offer(from, closeRect, [this, live](const QString& newId, CopyOpen open) {
         if (!live) return;
         if (open == COPY_OPEN_HERE) return live->reject();   // the editor moved on to the copy
-        live->setProjects(w.projectList);
+        live->setProjects(host.projectList);
         QListWidget* rows = live->findChild<QListWidget*>();
         if (QListWidgetItem* it = rowOf(rows, newId, QString())) {
           rows->setCurrentItem(it);

@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { core } from '../../js/core/abi/stencilCore.js';
 import { HistoryStack, MAX_POINTS } from '../../js/core/historyStack.js';
 
-const MODULE_BUILT = existsSync(fileURLToPath(new URL('../../js/wasm/stencilCore.js', import.meta.url)));
+const MODULE_BUILT = ['stencilCore.js', 'stencilCore.wasm'].every((f) => existsSync(fileURLToPath(new URL(`../../js/wasm/${f}`, import.meta.url))));
 const wtest = MODULE_BUILT ? test : test.skip;
 
 before(async () => {

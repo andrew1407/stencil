@@ -2,7 +2,7 @@
 #include "windowSheets.hpp"
 #include "ProjectTitleController.hpp"
 #include "ToolbarBuilder.hpp"
-#include "mainWindowHelpers.hpp"
+#include "theme.hpp"
 #include "../../support/motion/ShimmerOverlay.hpp"
 #include "tipContent.hpp"
 #include "colorDrag.hpp"
@@ -11,6 +11,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QToolBar>
+#include <QToolButton>
 
 // MainWindow's toolbar assembly: the project-name field and its affordances.
 
@@ -75,15 +76,15 @@ namespace stencil::gui {
     nameLay->addWidget(w.nameBar.colorBtn);
     // The menu runs its own loop and fully closes before the picker opens (deferred), so no stray
     // grab dismisses the dialog.
-    support::wireColorChip(w.nameBar.colorBtn, [this] { w.parts.projects.showProjectColorMenu(); },
-                           [this] { w.parts.projects.setActiveProjectColor(QString()); });
-    support::installColorDrag(w.nameBar.colorBtn, {[this] { return w.parts.projects.projectNameColor(); },
-                                                   [this](const QColor& c) { w.parts.projects.setActiveProjectColor(c.name()); }});
+    support::wireColorChip(w.nameBar.colorBtn, [this] { w.projectHost.flows.showProjectColorMenu(); },
+                           [this] { w.projectHost.flows.setActiveProjectColor(QString()); });
+    support::installColorDrag(w.nameBar.colorBtn, {[this] { return w.projectHost.flows.projectNameColor(); },
+                                                   [this](const QColor& c) { w.projectHost.flows.setActiveProjectColor(c.name()); }});
     w.tools.statusHintAction = tbName->addWidget(w.tools.statusHint);
     w.tools.statusHintAction->setVisible(false);
     w.nameBar.colorBtn->setContextMenuPolicy(Qt::CustomContextMenu);
     QObject::connect(w.nameBar.colorBtn, &QToolButton::customContextMenuRequested, &w,
-                     [this](const QPoint&) { w.parts.projects.setActiveProjectColor(QString()); });
+                     [this](const QPoint&) { w.projectHost.flows.setActiveProjectColor(QString()); });
     w.nameBar.accept = new QToolButton(w.nameBar.group);
     w.nameBar.accept->setToolButtonStyle(Qt::ToolButtonIconOnly);
     // Hover text and the keycap suffix are shared with the browser's toolbar.js (#project-name-

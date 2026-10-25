@@ -39,9 +39,6 @@ platform the suites run on.
   cannot see the base style through `QProxyStyle`; assert `installedStyleKey()`.
 - **Rich-text `<hr>` paints in the text colour**; only `<hr style="background-color:…">`
   recolours it.
-- **`desktop/tests/pins/stylesheets.txt` hashes the app sheet (`desktop/resources/qss/app/`, joined in load order) with its comments**: a comment-only
-  edit moves every hash. Prove the rules unchanged (strip `/* */`, compare) and rewrite only the
-  hash lines — `STENCIL_UPDATE_UI_PINS=1` would also re-record the renders and hide a regression.
 
 ## Hi-dpi, painting, motion
 

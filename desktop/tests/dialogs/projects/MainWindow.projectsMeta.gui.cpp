@@ -92,7 +92,7 @@ class MainWindowGuiTest : public QObject {
     const QString id = win.parts.chatAppliers.addImageProjectEntry(img, "describe-me");
     QVERIFY(!id.isEmpty());
     const auto description = [&win, id] {
-      const stencil::gui::Project* pr = win.findProject(id.toStdString());
+      const stencil::gui::Project* pr = win.projectHost.findProject(id.toStdString());
       return pr ? QString::fromStdString(pr->meta.description) : QString();
     };
 
@@ -108,7 +108,7 @@ class MainWindowGuiTest : public QObject {
       landed = description() == QStringLiteral("Shared words");
       dlg->reject();
     });
-    win.parts.projects.openProjects();
+    win.projectHost.flows.openProjects();
     QVERIFY2(sawRow, "the seeded project row never appeared in the dialog");
     QVERIFY2(landed, "the row menu's description never reached the window's registry");
     stencil::gui::fileStore::flushWrites();
@@ -151,7 +151,7 @@ class MainWindowGuiTest : public QObject {
       failed = !notices->shown.filter(QStringLiteral("Description update failed")).isEmpty();
       dlg->reject();
     });
-    win.parts.projects.openProjects();
+    win.projectHost.flows.openProjects();
     QVERIFY2(sawRow, "the server row never appeared in the dialog");
     QVERIFY2(saved, "the description never reached the server through a guarded PUT");
     QVERIFY2(failed, "a refused PUT raised no toast");
@@ -185,7 +185,7 @@ class MainWindowGuiTest : public QObject {
       listsAfter = mock.listGets;
       dlg->reject();
     });
-    win.parts.projects.openProjects();
+    win.projectHost.flows.openProjects();
     QVERIFY2(listsBefore >= 0, "the server row never appeared in the dialog");
     QCOMPARE(mock.projects[QStringLiteral("p1")].description, QStringLiteral("Patched"));
     QVERIFY2(tip.contains(QStringLiteral("Description: Patched")), qPrintable("row tooltip: " + tip));
@@ -209,17 +209,17 @@ class MainWindowGuiTest : public QObject {
     img.fill(Qt::darkGreen);
     const QString id = win.parts.chatAppliers.addImageProjectEntry(img, "tag-me");
     QVERIFY(!id.isEmpty());
-    win.parts.projects.setProjectKeywordsById(id, QString(), {QStringLiteral("alpha"), QStringLiteral("beta")});
-    const stencil::gui::Project* pr = win.findProject(id.toStdString());
+    win.projectHost.flows.setProjectKeywordsById(id, QString(), {QStringLiteral("alpha"), QStringLiteral("beta")});
+    const stencil::gui::Project* pr = win.projectHost.findProject(id.toStdString());
     QVERIFY(pr && pr->meta.keywords == std::vector<std::string>({"alpha", "beta"}));
 
     QString err;
     QVERIFY2(stencil::test::connectNow(*win.ensureConnections(), mock.url(), QString(), err), qPrintable(err));
-    win.parts.projects.setProjectKeywordsById(QStringLiteral("p1"), mock.url(), {QStringLiteral("shared")});
+    win.projectHost.flows.setProjectKeywordsById(QStringLiteral("p1"), mock.url(), {QStringLiteral("shared")});
     QTRY_COMPARE(mock.projects[QStringLiteral("p1")].keywords, QStringList{QStringLiteral("shared")});
     QCOMPARE(mock.puts, 1);
     mock.putStatus = 500;
-    win.parts.projects.setProjectKeywordsById(QStringLiteral("p1"), mock.url(), {QStringLiteral("refused")});
+    win.projectHost.flows.setProjectKeywordsById(QStringLiteral("p1"), mock.url(), {QStringLiteral("refused")});
     QTRY_VERIFY(!notices->shown.filter(QStringLiteral("Keywords update failed")).isEmpty());
     QCOMPARE(mock.projects[QStringLiteral("p1")].keywords, QStringList{QStringLiteral("shared")});
     beat();

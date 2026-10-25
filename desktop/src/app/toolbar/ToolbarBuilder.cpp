@@ -1,13 +1,14 @@
 #include "MainWindow.hpp"
 #include "windowSheets.hpp"
 #include "ToolbarBuilder.hpp"
-#include "mainWindowHelpers.hpp"
+#include "toolbarMetrics.hpp"
 #include "../../support/motion/ShimmerOverlay.hpp"
 
 #include <QCheckBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QToolBar>
+#include <QFontDatabase>
 
 // MainWindow's toolbar assembly: the wrapping run, the formula fields and the row order.
 

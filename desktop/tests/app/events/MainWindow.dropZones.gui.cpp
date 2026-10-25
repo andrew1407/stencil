@@ -88,11 +88,11 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(win.overlays.dropZones->getActiveLeft(), bandIsSave);
 
     dropOn(win, mime, QPoint(band, 300));
-    QCOMPARE(win.incognito, !bandIsSave);
+    QCOMPARE(win.projectHost.incognito, !bandIsSave);
     QTRY_VERIFY(win.canvas->hasImage());
     dismissModal(QStringLiteral("This window"));   // an image is open now, so the drop asks where
     dropOn(win, mime, QPoint(2 * mid - band, 300));
-    QCOMPARE(win.incognito, bandIsSave);
+    QCOMPARE(win.projectHost.incognito, bandIsSave);
   }
 
   // The chat dock accepts drops, so Qt makes IT the drag's target and the window is sent no
@@ -151,13 +151,13 @@ class MainWindowGuiTest : public QObject {
 
     MainWindow win(nullptr, /*restoreLast=*/false);
     showWithChat(win);
-    const size_t before = win.projectList.size();
+    const size_t before = win.projectHost.projectList.size();
     QMimeData mime;
     mime.setUrls({QUrl::fromLocalFile(path)});
     dropOn(win, mime, QPoint(win.width() - 40, 300));
     QTRY_VERIFY(win.canvas->hasImage());
-    QVERIFY(win.incognito);
-    QCOMPARE(win.projectList.size(), before);
+    QVERIFY(win.projectHost.incognito);
+    QCOMPARE(win.projectHost.projectList.size(), before);
   }
 };
 

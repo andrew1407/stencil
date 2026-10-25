@@ -6,30 +6,67 @@
 
 namespace stencil::gui {
 
+  namespace {
+    // Image-space bounds of a line with points, padded for its stroke, rings and any flight.
+    QRectF paddedBounds(const core::Line& line, const stroke::Fx& fx, int lineIdx) {
+      double x0 = line.points[0].x, y0 = line.points[0].y, x1 = x0, y1 = y0;
+      const auto add = [&](double x, double y) {
+        x0 = std::min(x0, x); y0 = std::min(y0, y);
+        x1 = std::max(x1, x); y1 = std::max(y1, y);
+      };
+      const bool flying = fx.touches(lineIdx);
+      for (const core::Point& pt : line.points) {
+        add(pt.x, pt.y);
+        if (!flying) continue;
+        // A vertex in flight starts off the line (its anchor or its foot on the segment it
+        // split) and eases PAST its target before settling; the bow is covered by the pad.
+        if (const stroke::Flight* f = fx.at(lineIdx, pt)) {
+          add(f->from.x(), f->from.y());
+          const QPointF over = f->to + (f->to - f->from) * 0.07;
+          add(over.x(), over.y());
+        }
+      }
+      // Stroke half-width plus the wake's extra 7, the ripple's 4.2x point radius, the bow cap.
+      const double pad = line.thickness + line.pointSize * 4.2 + stroke::BOW_MAX + 8.0;
+      return {x0 - pad, y0 - pad, x1 - x0 + 2 * pad, y1 - y0 + 2 * pad};
+    }
+
+    QRect toWidget(const QRectF& image, double scale) {
+      return QRectF(image.x() * scale, image.y() * scale, image.width() * scale, image.height() * scale)
+          .toAlignedRect();
+    }
+  }  // namespace
+
   QRect CanvasWidget::lineRect(int lineIdx) const {
     if (lineIdx < -1 || lineIdx >= static_cast<int>(lines.size())) return {};
     const core::Line& line = lineIdx < 0 ? currentLine : lines[lineIdx];
     if (line.points.empty()) return {};
-    double x0 = line.points[0].x, y0 = line.points[0].y, x1 = x0, y1 = y0;
-    const auto add = [&](double x, double y) {
-      x0 = std::min(x0, x); y0 = std::min(y0, y);
-      x1 = std::max(x1, x); y1 = std::max(y1, y);
-    };
-    for (const core::Point& pt : line.points) {
-      add(pt.x, pt.y);
-      // A vertex in flight starts off the line (its anchor or its foot on the segment it
-      // split) and eases PAST its target before settling; the bow is covered by the pad.
-      if (const stroke::Flight* f = strokeFx.at(lineIdx, pt)) {
-        add(f->from.x(), f->from.y());
-        const QPointF over = f->to + (f->to - f->from) * 0.07;
-        add(over.x(), over.y());
-      }
+    return toWidget(paddedBounds(line, strokeFx, lineIdx), scale);
+  }
+
+  QRect CanvasWidget::paintRect(int lineIdx) const {
+    // The line a gesture, a hold or a continuation edits, and one in flight, change between paints unannounced.
+    if (lineIdx < 0 || lineIdx >= static_cast<int>(lines.size()) || !gesture.is(Gesture::NONE) ||
+        hold.timer.isActive() || lineIdx == continueLineIdx || strokeFx.touches(lineIdx))
+      return lineRect(lineIdx);
+    if (!bounds.valid || bounds.lines.size() != lines.size()) {
+      bounds.lines.assign(lines.size(), {});
+      bounds.valid = true;
     }
-    // Stroke half-width plus the wake's extra 7, the ripple's 4.2x point radius, the bow cap.
-    const double pad = line.thickness + line.pointSize * 4.2 + stroke::BOW_MAX + 8.0;
-    return QRectF((x0 - pad) * scale, (y0 - pad) * scale, (x1 - x0 + 2 * pad) * scale,
-                  (y1 - y0 + 2 * pad) * scale)
-        .toAlignedRect();
+    LineBounds::Entry& e = bounds.lines[lineIdx];
+    const core::Line& line = lines[lineIdx];
+    if (e.image.isNull() || e.points != line.points.size() || e.thickness != line.thickness ||
+        e.pointSize != line.pointSize) {
+      if (line.points.empty()) return {};
+      e = {paddedBounds(line, strokeFx, lineIdx), line.points.size(), line.thickness, line.pointSize};
+    }
+    return toWidget(e.image, scale);
+  }
+
+  QRect CanvasWidget::hoverDirty(int wasHover, int wasOver) const {
+    QRect dirty;
+    for (int idx : {wasHover, wasOver, hover.lineIdx, hover.overLineIdx}) dirty = dirty.united(lineRect(idx));
+    return dirty;
   }
 
   QRect CanvasWidget::dragRect() const {

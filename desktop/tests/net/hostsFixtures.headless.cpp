@@ -1,8 +1,10 @@
 // The shared SSRF host corpus (common/fixtures/net/hosts.json) through the real guard:
 // each host read as the address it names (or as a name), then judged under all four policy variants
-// of net/blockedRanges.json, as a bare literal and, for `fetch`, inside a URL. A local override
+// of net/blockedRanges.json, as a bare literal, for `fetch` inside a URL, and for a server as the
+// address a name resolved to. A local override
 // (tests/fixtureOverrides.json, "net/<name>") replaces verdicts with measured ones.
 #include "fetchGuard.hpp"
+#include "ServerClient.hpp"
 
 #include <QJsonArray>
 #include <QJsonObject>
@@ -51,6 +53,10 @@ namespace {
     for (const Variant& v : VARIANTS) {
       const bool want = expect.value(QLatin1String(v.key)).toString() == QLatin1String("block");
       if (guard::refusesLiteral(host, v.policy, v.options) != want) out << QStringLiteral("%1 literal").arg(v.key);
+      // A server name that resolves to this address is judged as the literal is (ConnectionManager).
+      if (v.policy == ranges::Policy::SERVER_TARGET && v.options.allowPrivate &&
+          stencil::net::ServerClient::refusesResolved({QHostAddress(address.toString())}) != want)
+        out << QStringLiteral("%1 resolved").arg(v.key);
       if (v.policy != ranges::Policy::FETCH) continue;
       const bool strict = !v.options.allowLoopback;
       if (!guard::blockedReason(urlFor(host), strict).isEmpty() != want) out << QStringLiteral("%1 URL").arg(v.key);

@@ -138,7 +138,7 @@ namespace stencil::gui {
 
     QObject::connect(w.acts.info, &QAction::triggered, &w, [this] { w.parts.dialogs.openInfo(); });
     QObject::connect(w.acts.incognito, &QAction::toggled, &w, [this](bool on) {
-      w.incognito = on;
+      w.projectHost.incognito = on;
       w.overlays.incognito->setActive(on);
       w.notify->info(on ? "Incognito mode — this editor won't be saved"
                        : "Incognito off");

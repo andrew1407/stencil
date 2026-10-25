@@ -3,9 +3,10 @@
 #include <QLabel>
 #include <QComboBox>
 #include <QDoubleSpinBox>
-#include "mainWindowHelpers.hpp"
+#include <QLineEdit>
+#include "naturalPage.hpp"
 #include "CanvasWidget.hpp"
-#include "guiHelpers.hpp"
+#include "pageSizeCombo.hpp"
 #include "RemoteSyncController.hpp"
 #include "../../support/control/reveal/controlReveal.hpp"
 

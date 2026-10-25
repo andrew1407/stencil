@@ -3,6 +3,10 @@
 import { canvasGestureActive } from './gesture.js';
 import { nearCompareDivider, canvasCoords } from './canvasCoords.js';
 import { removeLine } from '../line/editOps.js';
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
+
+// No point within the grab radius means none within the tooltip's smaller point radius either.
+const MISS_CARRIES = constants.HIT.grabRadiusPx >= constants.HIT.pointRadiusPx;
 
 export const canvasMouseMove = (app, e) => {
 // A coalesced pass older than the leave would re-hover an empty canvas.
@@ -94,7 +98,8 @@ export const canvasMouseMove = (app, e) => {
     setCursor('crosshair');
   }
 
-  app.tooltip.applyHover(e.clientX, e.clientY, x, y, e);
+  // With no point under the cursor, overLineIdx IS findLineAt(x, y): the tooltip needn't scan again.
+  app.tooltip.applyHover(e.clientX, e.clientY, x, y, e, false, nearPtIdx ? undefined : overLineIdx, nearPtIdx || !MISS_CARRIES ? undefined : null);
 };
 
 export const canvasDblClick = (app, e) => {

@@ -22,3 +22,32 @@ export async function launchExtension() {
   const extId = new URL((await background()).url()).host;
   return { context, background, extId };
 }
+
+// The in-page modal mounts its shell in a CLOSED shadow root (the host page must not reach the
+// iframe), so a spec reads it through the DevTools protocol, whose pierce walk sees closed roots:
+// `fn` runs with `this` bound to the shadow root of the element whose id is `hostId`.
+export async function inClosedShadow(page, hostId, fn) {
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    const { root } = await cdp.send('DOM.getDocument', { depth: -1, pierce: true });
+    const find = (n) => {
+      const attrs = n.attributes || [];
+      for (let i = 0; i < attrs.length; i += 2) if (attrs[i] === 'id' && attrs[i + 1] === hostId) return n;
+      for (const c of [...(n.children || []), ...(n.shadowRoots || [])]) {
+        const hit = find(c);
+        if (hit) return hit;
+      }
+      return null;
+    };
+    const host = find(root);
+    if (!host?.shadowRoots?.length) return null;
+    const { object } = await cdp.send('DOM.resolveNode', { backendNodeId: host.shadowRoots[0].backendNodeId });
+    const { result, exceptionDetails } = await cdp.send('Runtime.callFunctionOn', {
+      objectId: object.objectId, functionDeclaration: fn.toString(), returnByValue: true,
+    });
+    if (exceptionDetails) throw new Error(exceptionDetails.exception?.description || exceptionDetails.text);
+    return result.value;
+  } finally {
+    await cdp.detach();
+  }
+}

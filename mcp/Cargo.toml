@@ -51,3 +51,11 @@ harness = false
 [[test]]
 name = "imagesize_fixtures_test"
 harness = false
+
+# The release binary: a stdio server that does no numeric work, so size over speed. Panics keep
+# unwinding: a handler that panics fails its call, never the server.
+[profile.release]
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+strip = true

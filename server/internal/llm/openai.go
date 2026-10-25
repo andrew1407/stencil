@@ -30,9 +30,10 @@ type openAIMessage struct {
 }
 
 type openAIRequest struct {
-	Model    string          `json:"model"`
-	Stream   bool            `json:"stream"`
-	Messages []openAIMessage `json:"messages"`
+	Model     string          `json:"model"`
+	Stream    bool            `json:"stream"`
+	MaxTokens int             `json:"max_tokens,omitempty"`
+	Messages  []openAIMessage `json:"messages"`
 }
 
 type openAIResponse struct {
@@ -56,7 +57,7 @@ type openAIResponse struct {
 type openAIMapping struct{}
 
 func (openAIMapping) chat(ctx context.Context, c *Client, req protocol.LlmChatRequest, model string) (protocol.LlmChatResponse, error) {
-	body := openAIRequest{Model: model, Stream: false,
+	body := openAIRequest{Model: model, Stream: false, MaxTokens: c.tokens(req.MaxTokens),
 		Messages: make([]openAIMessage, 0, 1+len(req.Messages))}
 	if req.System != "" {
 		body.Messages = append(body.Messages, openAIMessage{Role: "system", Content: req.System})

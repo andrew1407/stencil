@@ -10,7 +10,7 @@
 
 using namespace stencil::core;
 
-// Mirrors the hit-test cases in browser/tests/ui/chat/geometry.test.js.
+// Mirrors the hit-test cases in browser/tests/utils/geometry.test.js.
 
 TEST_CASE("drift: CLOSE_SLACK_PX is HIT.closeSlackPx in common/config/constants.json") {
   namespace fs = std::filesystem;

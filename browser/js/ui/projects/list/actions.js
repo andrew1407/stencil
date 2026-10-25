@@ -1,7 +1,8 @@
 // The two buttons under the projects list: a fresh editor tab, and Clear All. Clear All wipes
 // only LOCAL projects — server ones are never touched — and plays every row out first.
 import { notify } from '../../../utils.js';
-import { leaveThenRemove, rowLeaveDust, ITEM_DUST_MS } from '../../motion.js';
+import { leaveThenRemove } from '../../motion/enterLeave.js';
+import { rowLeaveDust, ITEM_DUST_MS } from '../../motion/surface/tiles.js';
 import { clearedToast } from '../../../core/project/transferController.js';
 
 export function wireListActions({ app, els, list, hasServers, selected, selectables, doomed,

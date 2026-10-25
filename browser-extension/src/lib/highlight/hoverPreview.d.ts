@@ -2,6 +2,8 @@ export interface Rect { left: number; right: number; top: number; bottom: number
 export interface Size { width: number; height: number; }
 export interface Viewport { width: number; height: number; }
 
+export declare const PREVIEW_MEMO_LIMIT: number;
+
 export declare function previewPosition(args: { anchor: Rect; size: Size; viewport: Viewport }): { left: number; top: number };
 export declare function previewWorthwhile(image: { w: number; h: number }, thumbPx: number): boolean;
 
@@ -14,6 +16,7 @@ export interface HoverPreviewOptions {
   getPageUrl?: (image: unknown) => string;
   win?: Window;
   debounceMs?: number;
+  memoLimit?: number;
 }
 
 export interface HoverPreview {

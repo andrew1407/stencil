@@ -1,6 +1,7 @@
 #include "projectThumbs.hpp"
 #include "CanvasScene.hpp"
 #include "LruCache.hpp"
+#include "MediaLoader.hpp"
 #include "../../support/rowWork.hpp"
 
 #include <QFileInfo>
@@ -50,6 +51,7 @@ namespace stencil::gui::projectThumbs {
             : src.image;
       } else {
         QImageReader reader(src.path);
+        if (!capReader(reader)) return out;   // over LIMITS: no thumbnail, as no surface opens it
         const QSize full = reader.size();
         const double s = full.isValid() ? scaleFor(src.crop, full) : 1.0;
         if (s < 1.0) reader.setScaledSize((QSizeF(full) * s).toSize().expandedTo(QSize(1, 1)));

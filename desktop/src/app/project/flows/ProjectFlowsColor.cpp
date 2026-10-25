@@ -17,9 +17,9 @@
 namespace stencil::gui {
 
   QString ProjectFlows::activeProjectColor() const {
-    if (w.activeProjectId.isEmpty()) return {};
-    for (const auto& p : w.projectList)
-      if (QString::fromStdString(p.meta.id) == w.activeProjectId)
+    if (host.activeProjectId.isEmpty()) return {};
+    for (const auto& p : host.projectList)
+      if (QString::fromStdString(p.meta.id) == host.activeProjectId)
         return QString::fromStdString(p.meta.color);
     return {};
   }
@@ -40,7 +40,7 @@ namespace stencil::gui {
     // Direct modal picker: menu/InstantPopup/singleShot variants left a stray mouse grab that
     // closed the dialog. Non-native: the macOS shared NSColorPanel gets dismissed by our event filters.
     const QColor picked =
-        support::pickColorAnimated(projectNameColor(), &w, "Project name color", w.nameBar.colorBtn);
+        support::pickColorAnimated(projectNameColor(), w.window, "Project name color", w.nameBar.colorBtn);
     if (!picked.isValid()) return;   // user cancelled
     setActiveProjectColor(picked.name());
   }
@@ -52,9 +52,9 @@ namespace stencil::gui {
       chooseProjectColor();
       return;
     }
-    QMenu menu(&w);
+    QMenu menu(w.window);
     menu.setObjectName(QStringLiteral("projectColorMenu"));   // compact rows (theme.cpp)
-    const QColor mtxt = w.palette().color(QPalette::WindowText);
+    const QColor mtxt = w.window->palette().color(QPalette::WindowText);
     // Browser project-color-menu parity; the glyphs opt the rows into the menu icon motion.
     QAction* pick = menu.addAction(themedIcon("palette", mtxt, 15), "Choose color…");
     QAction* def = menu.addAction(themedIcon("x", mtxt, 15), "Use theme default color");
@@ -66,7 +66,7 @@ namespace stencil::gui {
     if (chosen == pick) {
       // Defer so the menu's mouse grab is released before the modal picker opens, or it dismisses
       // the dialog.
-      QTimer::singleShot(0, &w, [this] { chooseProjectColor(); });
+      QTimer::singleShot(0, w.window, [this] { chooseProjectColor(); });
     } else if (chosen == def) {   // guard: dismissed menu yields null, which != def here
       setActiveProjectColor(QString());
     }
@@ -81,7 +81,7 @@ namespace stencil::gui {
     // A server-linked session has no local id: push straight to the server.
     if (!w.remote.session->getLink().id.isEmpty()) {
       const QString n = *norm;
-      QPointer<MainWindow> self(&w);
+      QPointer<QWidget> self(w.window);
       setProjectColorById(w.remote.session->getLink().id, w.remote.session->getLink().address, n,
                             [this, self, n](bool ok) {
                               if (!self || !ok) return;
@@ -90,44 +90,44 @@ namespace stencil::gui {
                             });
       return;
     }
-    if (w.activeProjectId.isEmpty()) {
+    if (host.activeProjectId.isEmpty()) {
       w.notify->info("Open or save a project first");
       return;
     }
-    QPointer<MainWindow> self(&w);
-    setProjectColorById(w.activeProjectId, QString(), *norm,
+    QPointer<QWidget> self(w.window);
+    setProjectColorById(host.activeProjectId, QString(), *norm,
                           [this, self](bool ok) { if (self && ok) w.projectTitle->updateProjectTitle(); });
   }
 
   void ProjectFlows::setActiveBlankColor() {
-    if (w.docSource.blankColor.isEmpty() || !w.canvas->hasImage()) return;  // blanks only
-    QColor init(w.docSource.blankColor);
+    if (host.docSource.blankColor.isEmpty() || !w.canvas->hasImage()) return;  // blanks only
+    QColor init(host.docSource.blankColor);
     if (!init.isValid()) init = QColor("#ffffff");
     // Qt's own dialog, anchored on the Blank swatch button.
     const QColor c =
-        support::pickColorAnimated(init, &w, "Blank background color", w.nameBar.blankColorBtn);
+        support::pickColorAnimated(init, w.window, "Blank background color", w.nameBar.blankColorBtn);
     if (!c.isValid()) return;
     applyBlankColor(c);
   }
 
   // Dialog-free; shared with the assistant's §10 blankColor op.
   void ProjectFlows::applyBlankColor(const QColor& c) {
-    if (w.docSource.blankColor.isEmpty() || !w.canvas->hasImage() || !c.isValid()) return;  // blanks only
+    if (host.docSource.blankColor.isEmpty() || !w.canvas->hasImage() || !c.isValid()) return;  // blanks only
     // KEEPING the drawn lines (a separate overlay).
     const core::Lines keep = w.canvas->getLines();
     QImage img(w.canvas->imageWidth(), w.canvas->imageHeight(), QImage::Format_RGB32);
     img.fill(c);
     w.canvas->loadFromImage(img, /*keepZoom=*/true);   // same dimensions — nothing to refit
-    w.docSource.setBytes({}, {});  // recoloured blank is synthetic → re-encode on bundle
+    host.docSource.setBytes({}, {});  // recoloured blank is synthetic → re-encode on bundle
     if (!keep.empty()) w.canvas->setLines(keep);
-    w.docSource.blankColor = c.name();
+    host.docSource.blankColor = c.name();
     w.canvas->setBlankPage(true);  // loadFromImage reset the flag; still a blank
     // Persist into the local project's meta + raster; a server-linked session pushes on the next Save.
-    if (Project* pr = w.findProject(w.activeProjectId.toStdString())) {
-      pr->meta.blankColor = w.docSource.blankColor.toStdString();
+    if (Project* pr = host.findProject(host.activeProjectId.toStdString())) {
+      pr->meta.blankColor = host.docSource.blankColor.toStdString();
       pr->meta.blank = true;
       if (!pr->imagePath.isEmpty()) w.canvas->getOriginalImage().save(pr->imagePath, "PNG");
-      SharedState::instance().saveProjects(&w);
+      SharedState::instance().saveProjects(w.window);
     }
     w.refreshActions();
   }
@@ -152,11 +152,11 @@ namespace stencil::gui {
           [done](bool ok, qint64) { if (done) done(ok); });
       return;
     }
-    Project* pr = w.findProject(id.toStdString());
+    Project* pr = host.findProject(id.toStdString());
     if (!pr) { if (done) done(false); return; }
     pr->meta.color = norm->toStdString();
-    SharedState::instance().saveProjects(&w);
-    SiblingWindows::refreshDockMenu(w.projectList);
+    SharedState::instance().saveProjects(w.window);
+    SiblingWindows::refreshDockMenu(host.projectList);
     w.notify->success(norm->isEmpty() ? QStringLiteral("Color reset to theme default")
                                      : QString("Color set to %1").arg(*norm));
     if (done) done(true);

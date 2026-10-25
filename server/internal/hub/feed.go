@@ -4,9 +4,13 @@ package hub
 // connection however many clients listen) and copies each frame onto every listener's bounded channel.
 
 import (
+	"encoding/json"
 	"sync"
 
 	"stencil/server/internal/eventbus"
+	"stencil/server/internal/protocol"
+	"stencil/server/internal/transport"
+	"stencil/server/internal/validate"
 )
 
 // feed is the set of listening connections. A closed feed hands out closed channels, so a connection that
@@ -80,7 +84,35 @@ func (h *Hub) pump(events <-chan eventbus.Envelope, stop func()) {
 			if !ok {
 				return
 			}
-			h.feed.deliver(env.Data)
+			if env.Type == eventbus.TypeSessionRevoked {
+				var id string
+				if json.Unmarshal(env.Data, &id) == nil {
+					h.revoke(id)
+				}
+				continue
+			}
+			if forwardable(env) {
+				h.feed.deliver(env.Data)
+			}
 		}
 	}
+}
+
+// forwardable admits only what this server publishes: a project event no bigger than a hello frame,
+// naming a well-formed project id. The bus (Redis) sits inside the trust boundary, but a frame from it
+// reaches every client, so it is checked like client input.
+func forwardable(env eventbus.Envelope) bool {
+	if env.Type != protocol.WSProjectEv || len(env.Data) > transport.MaxHelloBytes {
+		return false
+	}
+	var msg struct {
+		Type    string `json:"type"`
+		Project *struct {
+			ID string `json:"id"`
+		} `json:"project"`
+	}
+	if json.Unmarshal(env.Data, &msg) != nil || msg.Type != protocol.WSProjectEv || msg.Project == nil {
+		return false
+	}
+	return validate.ProjectID(msg.Project.ID)
 }

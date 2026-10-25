@@ -25,10 +25,10 @@ a fixture, and a mapper plus executor where the op runs. You write no schema cod
 3. A typed mapper + executor per surface in the op's profiles; validation is table-driven
    (`core/opplan/` + the browser JS twin), so there is no validator to touch: browser
    `js/llm/plan/parser.js` + `js/console/stencilApi.js`; desktop `src/llm/plan/opPlan.cpp` +
-   `src/llm/plan/executor/planExecutor.cpp`; cli `src/llm/opplan.zig`; mcp
-   `src/opplan/actions.rs` + `src/opplan/lower/`; bot
+   `src/llm/plan/executor/planExecutor.cpp`; cli `src/llm/plan.zig`; mcp
+   `src/plan/actions.rs` + `src/plan/lower/`; bot
    `Application/Llm/Plan/OpPlanParser*.cs` + `Application/Llm/Prompt/PromptService.Actions.cs`;
-   pystencil `pystencil/llm/plan/{parse,execute}.py`; extension `src/llm/op/plan.js`.
+   pystencil `pystencil/llm/plan/{parse,execute}.py`; extension `src/llm/plan/plan.js`.
 4. `contracts/llm/llm-contract.md` (and the split §-files beside it) — the normative prose.
 5. Run every surface's fixture walker — they are the cross-language proof. Before a change to
    how existing ops normalize, snapshot every fixture's normalized output per surface and

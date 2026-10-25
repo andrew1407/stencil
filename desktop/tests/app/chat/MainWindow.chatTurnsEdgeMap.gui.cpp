@@ -23,9 +23,9 @@ class MainWindowGuiTest : public QObject {
     auto* dock = win.chatDock;
     QVERIFY(dock);
     // A local project to file the persisted copy under (§12).
-    win.adoptCanvasAsLocalProject();
-    QVERIFY(!win.activeProjectId.isEmpty());
-    const QString projectId = win.activeProjectId;
+    win.projectHost.adoptCanvasAsLocalProject();
+    QVERIFY(!win.projectHost.activeProjectId.isEmpty());
+    const QString projectId = win.projectHost.activeProjectId;
     const auto wrap = [](const char* plan) {
       return QJsonDocument(QJsonObject{{"message", QJsonObject{{"content", plan}}}})
           .toJson(QJsonDocument::Compact);
@@ -47,7 +47,7 @@ class MainWindowGuiTest : public QObject {
     win.parts.view.applyUnits("cm");                          // tidy the persisted setting
     QCOMPARE(win.chatSession->chatHistory.size(), 2);          // user + assistant kept
     {
-      Project* pr = win.findProject(projectId.toStdString());
+      Project* pr = win.projectHost.findProject(projectId.toStdString());
       QVERIFY2(pr && !pr->chat.isEmpty(), "the persisted copy must survive a decline");
     }
 
@@ -62,7 +62,7 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY2(assistantBubbleTexts(dock).isEmpty(), "the transcript must clear");
     QVERIFY2(win.chatSession->chatTextOnlyKey.isEmpty(), "the §7 text-only latch must re-arm");
     {
-      Project* pr = win.findProject(projectId.toStdString());
+      Project* pr = win.projectHost.findProject(projectId.toStdString());
       QVERIFY2(pr && pr->chat.isEmpty(), "the §12 persisted copy must clear (§12.2)");
     }
 

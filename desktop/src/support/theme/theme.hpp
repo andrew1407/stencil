@@ -77,10 +77,22 @@ namespace stencil::gui {
   inline constexpr int DOCK_SEPARATOR_PX = 9;       // QMainWindow::separator width
   inline constexpr int CHAT_PAGE_GAP_PX = 10;       // the window's own separator: page between chat and editor
   inline constexpr int FACE_PAD_X_PX = 6;           // QToolButton#drawFaceBtn side padding
+  // The ✎/🎨/✓/✗ chips beside the project name. Browser twin: .name-edit-btn.
+  inline constexpr int NAME_CHIP_BOX = 28;
+  // Half the box, as .name-edit-btn draws it (28px chip, 14px glyph).
+  inline constexpr int NAME_CHIP_GLYPH = 15;
 
   // The app-wide QMenu paddings are sized for the menu bar and read as dead space in flat icon menus.
   inline QString compactMenuQss() {
     return QStringLiteral("QMenu::item{padding:6px 10px 6px 6px;}QMenu::icon{padding-left:4px;}");
+  }
+
+  // Theme-INDEPENDENT: the re-open chevron overlays the canvas image, not a themed surface.
+  inline QString panelToggleQss() {
+    return QStringLiteral(
+        "QToolButton{background:rgba(70,76,94,230);border:1px solid rgba(255,255,255,42);"
+        "border-radius:7px;padding:0;outline:none;}"
+        "QToolButton:hover{background:rgba(94,102,124,245);}");
   }
 
   QString buildStylesheet(bool dark, const QString& accentKey = DEFAULT_ACCENT_KEY);

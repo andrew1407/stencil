@@ -11,6 +11,7 @@ export const MSG = Object.freeze({
   REGISTRY: 'stencil-registry',         // editorBridge → SW: the editor's project registry
   EDITOR_SWITCH: 'stencil-editor-switch', // panel → editorBridge (on the editor tab): switch to the project for a source (resume without a new tab)
   OPEN_TAB: 'stencil-open-tab',         // overlay → SW: open a URL in a new tab
+  OFFSCREEN_COPY: 'stencil-offscreen-copy', // SW → offscreen/clipboard.js: put `text` on the clipboard, answers {ok}
   OPEN_OPTIONS: 'stencil-open-options', // devtools panel → SW: open the options page (runtime.openOptionsPage is absent in devtools contexts)
   DROPZONES_ARM: 'stencil-dropzones-arm',   // panel → SW: inject the on-page 4-quadrant drop overlay on `tabId` (a row drag started)
   DROPZONES_DISARM: 'stencil-dropzones-disarm', // panel → SW: remove the drop overlay on `tabId` (drag ended without a page drop)

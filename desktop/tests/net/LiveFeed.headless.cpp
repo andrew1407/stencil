@@ -70,7 +70,9 @@ int main(int argc, char** argv) {
     bool deleted;
   };
   std::vector<Evt> got;
+  std::vector<bool> liveSeen;
   LiveFeed feed;
+  QObject::connect(&feed, &LiveFeed::liveChanged, [&](bool on) { liveSeen.push_back(on); });
   QObject::connect(&feed, &LiveFeed::projectUpdated, [&](const QString& id, qint64 v, bool d) {
     got.push_back({id, v, d});
   });
@@ -100,8 +102,31 @@ int main(int argc, char** argv) {
     check(!h.value("token").toString().isEmpty(), "hello carries the token");
   }
 
+  check(feed.isLive() && liveSeen == std::vector<bool>{true}, "live once its hello is sent");
   feed.unsubscribe();
   check(feed.getBase().isEmpty(), "unsubscribe clears the subscription");
+  check(!feed.isLive() && liveSeen == std::vector<bool>({true, false}), "…and no longer live after it");
+
+  // A refused hello (an error frame, then the close) is not live, so the poll goes back to full speed.
+  {
+    QTcpServer refusing;
+    check(refusing.listen(QHostAddress::LocalHost, 0), "a refusing server listens");
+    QObject::connect(&refusing, &QTcpServer::newConnection, [&] {
+      QTcpSocket* s = refusing.nextPendingConnection();
+      QObject::connect(s, &QTcpSocket::readyRead, [s] {
+        s->readAll();
+        s->write("{\"type\":\"error\",\"code\":\"unauthorized\",\"message\":\"bad token\"}\n");
+        s->flush();
+      });
+    });
+    LiveFeed refused;
+    std::vector<bool> seen;
+    QObject::connect(&refused, &LiveFeed::liveChanged, [&](bool on) { seen.push_back(on); });
+    refused.subscribe(QStringLiteral("http://127.0.0.1:%1").arg(refusing.serverPort() - 1), "bad");
+    pumpUntil([&] { return seen.size() >= 2; });
+    check(seen == std::vector<bool>({true, false}) && !refused.isLive(), "an error frame ends the live state");
+    refused.unsubscribe();
+  }
 
   // A line past the frame limit drops the feed even when its newline arrives with it.
   {

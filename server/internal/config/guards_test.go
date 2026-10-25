@@ -4,6 +4,7 @@ package config
 // admin token that is generated rather than left open.
 
 import (
+	"net/netip"
 	"os"
 	"testing"
 )
@@ -152,5 +153,32 @@ func TestAuthOpenConfig(t *testing.T) {
 	t.Setenv("AUTH_OPEN", "yes")
 	if _, err := Load(); err == nil {
 		t.Fatal("AUTH_OPEN=yes should be rejected")
+	}
+}
+
+// A listener other machines reach with no storage quota, and a trusted-proxy range wider than a
+// proxy fleet, are each one boot warning; a loopback listener or a quota or a narrow range is none.
+func TestPostureWarnings(t *testing.T) {
+	parse := func(s ...string) []netip.Prefix {
+		out := make([]netip.Prefix, len(s))
+		for i, v := range s {
+			out[i] = netip.MustParsePrefix(v)
+		}
+		return out
+	}
+	for _, tc := range []struct {
+		cfg  Config
+		want int
+	}{
+		{Config{ListenAddr: ":8090"}, 1},
+		{Config{ListenAddr: "127.0.0.1:8090"}, 0},
+		{Config{ListenAddr: "localhost:8090"}, 0},
+		{Config{ListenAddr: "[::1]:8090"}, 0},
+		{Config{ListenAddr: "0.0.0.0:8090", SessionQuotaBytes: 1 << 30}, 0},
+		{Config{ListenAddr: "127.0.0.1:1", TrustedProxies: parse("10.0.0.0/8", "0.0.0.0/0", "10.1.2.0/24", "fd00::/8", "fd00:1::/64")}, 3},
+	} {
+		if got := tc.cfg.Warnings(); len(got) != tc.want {
+			t.Errorf("%+v: %d warnings %q, want %d", tc.cfg, len(got), got, tc.want)
+		}
 	}
 }

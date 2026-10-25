@@ -6,6 +6,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { RUNTIME_EXPORTS, PARITY_EXPORTS, missingExports, droppedParityOps } from '../../../js/core/abi/coreExports.js';
+import { readCore } from '../../helpers/opplanAbi.js';
 
 const JS = resolve(dirname(fileURLToPath(import.meta.url)), '../../../js');
 const walk = (dir, out = []) => {
@@ -42,4 +43,12 @@ test('a missing runtime export is reported, which rejects the core', () => {
   const mod = Object.fromEntries(RUNTIME_EXPORTS.map((sym) => [`_${sym}`, () => 0]));
   delete mod._stencil_pageDimensions;
   assert.deepEqual(missingExports(mod, RUNTIME_EXPORTS), ['stencil_pageDimensions']);
+});
+
+test('EXPORTED_FUNCTIONS in core/CMakeLists.txt names every runtime and parity export', () => {
+  const list = /-sEXPORTED_FUNCTIONS=\[([^\]]*)\]/.exec(readCore('CMakeLists.txt'))?.[1] ?? '';
+  const exported = new Set([...list.matchAll(/'_(\w+)'/g)].map((m) => m[1]));
+  assert.ok(exported.has('stencil_parseHex'), 'read the wasm export list out of core/CMakeLists.txt');
+  const wanted = [...RUNTIME_EXPORTS, ...Object.values(PARITY_EXPORTS).flat()];
+  assert.deepEqual(wanted.filter((sym) => !exported.has(sym)), [], 'a fresh wasm build would lack these');
 });

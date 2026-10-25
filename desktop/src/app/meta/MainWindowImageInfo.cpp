@@ -1,5 +1,8 @@
 #include "MainWindow.hpp"
 #include "CanvasWidget.hpp"
+#include "iconInline.hpp"
+#include "theme.hpp"
+#include "../../support/skinPrefs.hpp"
 
 #include <QLabel>
 #include <algorithm>
@@ -47,7 +50,7 @@ namespace stencil::gui {
   void MainWindow::updateImageSizeInfo() {
     QString size;
     if (canvas && canvas->hasImage()) {
-      const bool isBlank = !docSource.blankColor.isEmpty();
+      const bool isBlank = !projectHost.docSource.blankColor.isEmpty();
       size = QString("Image Size: %1 × %2 px%3")
                  .arg(canvas->imageWidth())
                  .arg(canvas->imageHeight())
@@ -63,16 +66,31 @@ namespace stencil::gui {
     }
     // Browser parity (projectTitle.js updateInfo + .info-incognito): the badge is a widget of
     // its own beside the size. Our own text, never model output, so rich text is safe.
-    if (tools.incognitoTag && incognito) tools.incognitoTag->setText(incognitoTagHtml());
+    if (tools.incognitoTag && projectHost.incognito) tools.incognitoTag->setText(incognitoTagHtml());
     // The "?" carries the SAME size plus the incognito line — the collapsed state's only readout.
     if (tools.statusHint) {
       QString tip = size;
-      if (incognito) tip += QStringLiteral("\nIncognito — not saved");
+      if (projectHost.incognito) tip += QStringLiteral("\nIncognito — not saved");
       tools.statusHint->setToolTip(tip);
     }
     // Last: it is what flies the badge, and it must photograph the text written above.
     parts.view.refreshStatusHintVisibility();
   }
 
+  // Mirrors the browser's #image-info bar. The incognito half is the toolbar's own glyph (an emoji
+  // took the font's colour); divider and tag are one unit, so no dangling separator.
+  QString MainWindow::incognitoTagHtml() const {
+    const Palette pal = themePalette(resolveDark(settings.themeMode), settings.accentColor);
+    const int glyphPx = std::max(12, QFontMetrics(tools.imageSizeInfo->font()).height() - 2);
+    // The skin's accent is its navy, lost on the dark face: there the tag takes the bar's ink.
+    const QColor tagInk = support::isWebcore() ? pal.textMain : pal.accent;
+    return QStringLiteral("<span style=\"color:%1;\">|</span>&nbsp;&nbsp;"
+                          "%2<span style=\"color:%3;font-weight:700;vertical-align:middle;\">"
+                          "&nbsp;Incognito &mdash; not saved</span>")
+        .arg(pal.textMuted.name(),
+             inlineIconHtml("incognito", tagInk, glyphPx,
+                            QStringLiteral("vertical-align:middle")),
+             tagInk.name());
+  }
 
 }  // namespace stencil::gui

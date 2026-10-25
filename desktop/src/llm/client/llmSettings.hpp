@@ -45,6 +45,19 @@ namespace stencil::llm {
     return false;
   }
 
+  // What a settings form shows for a provider (providers.json `settings`; browser twin settingsRows):
+  // `key` "session" | "stored" | "", `endpoint` "base" | "server" | ""; "none" shows nothing.
+  struct LlmSettingsRows {
+    QString key;
+    QString endpoint;
+    bool endpointNote = false;
+  };
+  inline LlmSettingsRows llmSettingsRows(const QString& provider) {
+    const QJsonObject s = providerCanonEntry(provider).value(QStringLiteral("settings")).toObject();
+    return {s.value(QStringLiteral("key")).toString(), s.value(QStringLiteral("endpoint")).toString(),
+            s.value(QStringLiteral("endpointNote")).toBool()};
+  }
+
   // What an anthropic turn with no session key (never entered, expired or forgotten) reads (§6.5).
   inline constexpr char NO_SESSION_KEY_TEXT[] = "no API key for this session";
 

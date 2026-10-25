@@ -3,7 +3,7 @@
 import { MENU, MENU_ITEMS } from './contextMenuItems.js';
 
 export {
-  DYNAMIC_ITEMS, MENU, MENU_ITEMS, PIN_ITEMS, PREVIEW_ITEMS, STATIC_DESKTOP_ITEMS, pinItemTitle,
+  DYNAMIC_ITEMS, INCOGNITO_LINK_ITEMS, LINK_ITEMS, MENU, MENU_ITEMS, PIN_ITEMS, PREVIEW_ITEMS, STATIC_DESKTOP_ITEMS, pinItemTitle,
 } from './contextMenuItems.js';
 
 // open:'resume' switches to an existing project; target 'preview' is the poster.

@@ -45,9 +45,12 @@ namespace stencil::gui {
     RemoteLink& getLink() { return link; }
     const RemoteLink& getLink() const { return link; }
 
-    // Null until MainWindow lazily creates it.
-    void setConnections(stencil::net::ConnectionManager* c) { connections = c; }
+    // Null until the first ensureConnections(), which builds it under `owner` and saves the servers
+    // on every change (the desktop analogue of the browser connectionManager onChange → saveServers).
+    stencil::net::ConnectionManager* ensureConnections(QObject* owner);
     stencil::net::ConnectionManager* getConnections() const { return connections; }
+    // Plaintext http to a remote host sends the bearer token + image bytes in the clear.
+    void warnInsecureConnections();
 
     const QString& address() const { return link.address; }
     const QString& id() const { return link.id; }
@@ -79,6 +82,10 @@ namespace stencil::gui {
                       std::function<void(qint64 version,
                                          std::function<void(bool ok, qint64 newVersion, bool conflict)> cb)> put,
                       std::function<void(RemoteLink&)> ownLink, std::function<void(bool ok, qint64 outVersion)> done);
+
+   signals:
+    // The linked project's server was forgotten: it stops listening to it.
+    void linkedServerForgotten();
 
    private:
     RemoteLink link;

@@ -2,7 +2,7 @@
 // not at all, plus the accent CTA that loads the previewed pixels. Shown once a preview resolves.
 #include "../../../support/menu/SearchCombo.hpp"
 #include "LinksDialog.hpp"
-#include "guiHelpers.hpp"
+#include "pageSizeCombo.hpp"
 #include "../../../support/modal/modalChrome.hpp"
 #include <QCheckBox>
 #include <QFormLayout>

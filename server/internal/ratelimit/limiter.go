@@ -14,6 +14,10 @@ import (
 // are swept on use rather than growing for the process's lifetime.
 var idleTTL = 10 * time.Minute
 
+// maxBuckets bounds one limiter's keys. Past it a NEW key is refused after a sweep (at most one a
+// second) — the limit fails closed rather than letting a peer that mints keys grow the map without end.
+var maxBuckets = 1 << 17
+
 // SetIdleTTL applies d to every limiter; call it once at boot, before a spend. d <= 0 keeps the current TTL.
 func SetIdleTTL(d time.Duration) {
 	if d > 0 {
@@ -62,6 +66,14 @@ func (l *Limiter) Allow(key string) bool {
 	now := l.now()
 	b := l.buckets[key]
 	if b == nil {
+		if len(l.buckets) >= maxBuckets {
+			if now.Sub(l.lastSweep) >= time.Second {
+				l.sweep(now)
+			}
+			if len(l.buckets) >= maxBuckets {
+				return false
+			}
+		}
 		b = &bucket{tokens: l.perMin, last: now}
 		l.buckets[key] = b
 		l.maybeSweep(now)
@@ -104,6 +116,10 @@ func (l *Limiter) maybeSweep(now time.Time) {
 	if now.Sub(l.lastSweep) < idleTTL/2 && len(l.buckets) < 2*max(l.sweptLen, 64) {
 		return
 	}
+	l.sweep(now)
+}
+
+func (l *Limiter) sweep(now time.Time) {
 	for key, b := range l.buckets {
 		if now.Sub(b.last) > idleTTL {
 			delete(l.buckets, key)

@@ -6,7 +6,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { breaches, commentLines, folderUnits, isSource, lineCount, scanTree, unitOf } from './caps.mjs';
+import { breaches, commentLines, folderUnits, isSource, kindNameBreaches, kindNamed, lineCount, scanTree, unitOf } from './caps.mjs';
 
 test('lineCount counts lines as wc does, a missing final newline included', () => {
   assert.equal(lineCount(''), 0);
@@ -44,6 +44,13 @@ test('a leading doc banner is not a body comment; later comment-only lines are',
   assert.deepEqual(commentLines(src, 'js'), { body: 3, lines: 8 });
   assert.deepEqual(commentLines('# banner\nx = "#"  # trailing\n# body\n', 'py'), { body: 1, lines: 3 });
   assert.deepEqual(commentLines('/* banner */\na { b: c; }\n/* body */\n', 'css'), { body: 1, lines: 3 });
+});
+
+test('a file named for a kind is a breach unless frozen, and a renamed one leaves the list', () => {
+  for (const f of ['a/fooHelpers.hpp', 'a/shared.js', 'a/layout-helpers.test.js', 'a/emit/common.zig', 'a/utils.js', 'a/xShared.cpp']) assert.ok(kindNamed(f), f);
+  for (const f of ['a/commonPaths.js', 'a/sharedLink.js', 'a/chatDockParts.hpp', 'a/miscue.js', 'a/utilsRow.js']) assert.ok(!kindNamed(f), f);
+  assert.deepEqual(kindNameBreaches(['a/shared.js', 'a/shared.d.ts', 'a/aHelpers.hpp'], ['a/shared.js']).map((b) => b.where), ['a/aHelpers.hpp']);
+  assert.deepEqual(kindNameBreaches(['a/rows.js'], ['a/rows.js']).map((b) => b.limit), ['drop its tools/kindNames.json entry']);
 });
 
 test('breaches names each rule over a synthetic tree', async () => {

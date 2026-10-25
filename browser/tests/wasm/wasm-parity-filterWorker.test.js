@@ -6,7 +6,7 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { PixelCanvas, PixelImageData, gradientImage } from '../helpers/pixelCanvas.js';
 
-const MODULE_BUILT = existsSync(fileURLToPath(new URL('../../js/wasm/stencilCore.js', import.meta.url)));
+const MODULE_BUILT = ['stencilCore.js', 'stencilCore.wasm'].every((f) => existsSync(fileURLToPath(new URL(`../../js/wasm/${f}`, import.meta.url))));
 const wtest = MODULE_BUILT ? test : test.skip;
 
 globalThis.OffscreenCanvas = PixelCanvas;
@@ -22,7 +22,7 @@ await import('../../js/worker/imageWorker.js');
 
 before(async () => {
   if (!MODULE_BUILT) return;
-  assert.equal(await core.init(), true, 'wasm core must load in Node (SINGLE_FILE ES module)');
+  assert.equal(await core.init(), true, 'wasm core must load in Node (ES glue + .wasm)');
 });
 
 const viaWorker = async (image, filter, color) => {

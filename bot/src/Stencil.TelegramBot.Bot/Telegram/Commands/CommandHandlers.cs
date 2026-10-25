@@ -138,6 +138,9 @@ public sealed partial class CommandHandlers
         {
             RenderResult buffered = await _editing.RenderAsync(userId, ct);
             UserSession current = await _store.GetAsync(userId, ct);
+            // Only the last render is the photo's result, so an earlier one is spent.
+            captured.ForEach(superseded => _editing.Discard(superseded.Result));
+            captured.Clear();
             captured.Add(new PromptRender(current.ImageLabel ?? "image", buffered));
             return;
         }

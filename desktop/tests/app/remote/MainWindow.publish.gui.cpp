@@ -24,7 +24,7 @@ class MainWindowGuiTest : public QObject {
              qPrintable(err));
 
     bool linked = false;
-    win->parts.projects.createServerProject(mock.url(), QStringLiteral("Published"), [&] { linked = true; });
+    win->projectHost.flows.createServerProject(mock.url(), QStringLiteral("Published"), [&] { linked = true; });
     QTRY_VERIFY(linked);
     QCOMPARE(mock.created, 1);
     const QImage uploaded = QImage::fromData(mock.projects.value(QStringLiteral("p1")).original, "PNG");

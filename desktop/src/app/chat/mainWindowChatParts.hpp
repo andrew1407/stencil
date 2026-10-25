@@ -1,6 +1,6 @@
 #pragma once
 // The chat glue's image/edge-map encoders, tip rows and toast metrics (llm-contract §7), private to the MainWindowChat*.cpp TUs.
-#include "mainWindowHelpers.hpp"
+#include "fileBytes.hpp"
 #include "../../llm/client/LlmClient.hpp"
 #include "../../support/theme/theme.hpp"
 #include "chatSheets.hpp"

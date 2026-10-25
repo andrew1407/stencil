@@ -6,6 +6,19 @@ import {
 } from '../motion.js';
 
 const GAP = 12;
+// Sources a panel memoises: each byte entry is a whole image as a data URL, and a side or
+// DevTools panel lives as long as its window, so the oldest is dropped past this many.
+export const PREVIEW_MEMO_LIMIT = 32;
+
+class BoundedMap extends Map {
+  constructor(limit) { super(); this.limit = limit; }
+  set(key, value) {
+    this.delete(key);
+    super.set(key, value);
+    for (const oldest of this.keys()) { if (this.size <= this.limit) break; this.delete(oldest); }
+    return this;
+  }
+}
 
 // Right of the row, flipping left / clamping up on overflow.
 export const previewPosition = ({ anchor, size, viewport }) => {
@@ -24,10 +37,10 @@ export const previewWorthwhile = (image, thumbPx) =>
 // hotlink-protected source.
 export const createHoverPreview = ({
   previewEl, previewImg, thumbPx, fetchDataUrl, getSrc,
-  getPageUrl = () => '', win = window, debounceMs = 100,
+  getPageUrl = () => '', win = window, debounceMs = 100, memoLimit = PREVIEW_MEMO_LIMIT,
 }) => {
-  const cache = new Map();   // source → data URL; the row thumbnails' recovery path reuses it
-  const tiny = new Set();    // sources whose bytes measured no bigger than the row thumbnail
+  const cache = new BoundedMap(memoLimit);   // source → data URL; the row thumbnails' recovery path reuses it
+  const tiny = new BoundedMap(memoLimit);    // sources whose bytes measured no bigger than the row thumbnail
   let srcKey = '';
   let showTimer = null;
   let anchor = null;
@@ -81,7 +94,7 @@ export const createHoverPreview = ({
   previewImg.addEventListener('load', () => {
     if (previewImg.naturalWidth > 0 && previewImg.naturalWidth <= thumbPx &&
         previewImg.naturalHeight > 0 && previewImg.naturalHeight <= thumbPx) {
-      if (srcKey) tiny.add(srcKey);
+      if (srcKey) tiny.set(srcKey, true);
       dustHide();
       return;
     }
@@ -133,18 +146,18 @@ export const createHoverPreview = ({
       if (t !== token) return;
       previewImg.src = src;
       // Decode before showing: undecodable / thumbnail-sized bytes show no card.
-      try { await previewImg.decode(); } catch { tiny.add(ps); return; }
+      try { await previewImg.decode(); } catch { tiny.set(ps, true); return; }
       if (t !== token) return;
       const nw = previewImg.naturalWidth;
       const nh = previewImg.naturalHeight;
-      if (nw > 0 && nh > 0 && nw <= thumbPx && nh <= thumbPx) { tiny.add(ps); return; }
+      if (nw > 0 && nh > 0 && nw <= thumbPx && nh <= thumbPx) { tiny.set(ps, true); return; }
       const wasHidden = revealAt(el);
       // A 0×0-intrinsic SVG renders collapsed — no bare padding pill.
       const box = previewImg.getBoundingClientRect();
       if (box.width < 24 || box.height < 24) {
         previewEl.hidden = true;
         dustPoint = null;
-        tiny.add(ps);
+        tiny.set(ps, true);
         return;
       }
       if (wasHidden) dustIn();

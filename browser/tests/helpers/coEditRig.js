@@ -17,7 +17,7 @@ let current = null;
 globalThis.FileReader = class { readAsDataURL() { current.calls.loads++; } };
 
 export const HASH = 'a'.repeat(64);
-export const RECORD = { id: 'r1', hasImage: true, originalPath: 'projects/r1/original.png', imageW: 4, imageH: 3, originalHash: HASH };
+export const RECORD = { id: 'r1', hasImage: true, imageW: 4, imageH: 3, originalHash: HASH };
 export const settle = () => new Promise((r) => setImmediate(r));
 
 export const rig = () => {

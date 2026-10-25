@@ -3,7 +3,7 @@ mod common;
 use common::e2e::{cli_present, confined_params, FIXTURE};
 
 use serde_json::json;
-use stencil_mcp::{opplan, pipeline};
+use stencil_mcp::{pipeline, plan};
 
 /// The CLI's `--probe` answers out of the header: size, format, alpha and the file's bytes.
 #[tokio::test]
@@ -112,33 +112,33 @@ async fn widened_blank_and_page_cm_dims_run_and_formula_clear_is_noted() {
     let out_dir = dir.path().to_string_lossy().into_owned();
 
     // blank with explicit cm dims (fixture 016's form): 10cm x 15cm → 378 x 567 px.
-    let plan = opplan::parse_op_plan(
+    let plan = plan::parse_op_plan(
         r##"{"reply":"x","actions":[{"op":"blank","color":"white","width":10,"height":15}]}"##,
     )
     .await
     .unwrap();
-    let requests = opplan::to_edit_requests(&plan, None, &out_dir, &mut Vec::new()).unwrap();
+    let requests = plan::to_edit_requests(&plan, None, &out_dir, &mut Vec::new()).unwrap();
     let result = pipeline::run_edit(&requests[0].params).await.expect("blank dims run");
     assert_eq!((result.width, result.height), (Some(378), Some(567)));
 
     // page custom dims + blank (fixture 014's form): 20cm x 30cm → 756 x 1134 px.
-    let plan = opplan::parse_op_plan(
+    let plan = plan::parse_op_plan(
         r##"{"reply":"x","actions":[{"op":"page","width":20,"height":30},{"op":"blank","color":"red"}]}"##,
     )
     .await
     .unwrap();
-    let requests = opplan::to_edit_requests(&plan, None, &out_dir, &mut Vec::new()).unwrap();
+    let requests = plan::to_edit_requests(&plan, None, &out_dir, &mut Vec::new()).unwrap();
     let result = pipeline::run_edit(&requests[0].params).await.expect("page dims run");
     assert_eq!((result.width, result.height), (Some(756), Some(1134)));
 
     // formula clear / disable (fixtures 011/012): valid, inert, noted — no CLI run.
-    let plan = opplan::parse_op_plan(
+    let plan = plan::parse_op_plan(
         r##"{"reply":"x","actions":[{"op":"formula","axis":"y","expr":""},{"op":"formula","enabled":false}]}"##,
     )
     .await
     .unwrap();
     let mut notes = Vec::new();
-    let requests = opplan::to_edit_requests(&plan, Some(FIXTURE), &out_dir, &mut notes).unwrap();
+    let requests = plan::to_edit_requests(&plan, Some(FIXTURE), &out_dir, &mut notes).unwrap();
     assert!(requests.is_empty());
     assert!(notes.iter().any(|n| n.contains("formula")), "{notes:?}");
 }
@@ -153,14 +153,14 @@ async fn a_save_path_writes_the_project_inside_output_dir_via_the_real_cli() {
     let dir = tempfile::tempdir().unwrap();
     let out_dir = dir.path().to_string_lossy().into_owned();
 
-    let plan = opplan::parse_op_plan(
+    let plan = plan::parse_op_plan(
         r##"{"reply":"x","actions":[{"op":"rotate","dir":"right"},
             {"op":"save","name":"Keeper","path":"projects/best"}]}"##,
     )
     .await
     .unwrap();
     let mut notes = Vec::new();
-    let requests = opplan::to_edit_requests(&plan, Some(FIXTURE), &out_dir, &mut notes).unwrap();
+    let requests = plan::to_edit_requests(&plan, Some(FIXTURE), &out_dir, &mut notes).unwrap();
     assert!(notes.is_empty(), "{notes:?}");
     let save = requests.iter().find(|r| r.project).expect("a project write");
     let expected = dir.path().join("projects/best").join("keeper.stencil");

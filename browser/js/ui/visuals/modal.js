@@ -7,9 +7,8 @@ import { motionModeIcon } from '../motion/icons.js';
 import { enhanceSelect } from '../control/customSelect.js';
 import { motionPrefs, MOTION_EVENT, DEFAULT_MOTION_MODE, DEFAULT_DRAWING_ANIMATIONS, DEFAULT_MULTI_WINDOW, DEFAULT_MOTION_SPEED, DEFAULT_CONSOLE_SPEED } from '../motion/motionPrefs.js';
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';
-import { wireVoiceSilenceRow } from './voiceRow.js';
+import { wireSpeedRow, wireVoiceSilenceRow } from './rows.js';
 import { wireNotifyRow } from './notifyRow.js';
-import { wireSpeedRow } from './speedRow.js';
 import { clampThickness, clampPointSize } from '../../core/settings/limits.js';
 import constants from '../../../../common/config/constants.json' with { type: 'json' };
 // ── Component: visual defaults modal ────────────────────────────

@@ -1,6 +1,6 @@
 #include "MainWindow.hpp"
 #include "ThemePainter.hpp"
-#include "mainWindowHelpers.hpp"
+#include "toolbarMetrics.hpp"
 #include "CanvasWidget.hpp"
 #include "iconMotion.hpp"
 #include "iconSet.hpp"

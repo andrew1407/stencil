@@ -173,6 +173,8 @@ int stencil_cli_scriptDiagRelated(int h, int i, int* line, int* col, int* len);
 
 int stencil_cli_scriptTokenCount(int h);
 int stencil_cli_scriptTokenAt(int h, int i, int* kind, int* line, int* col, int* len);
+// The first `cap` tokens as (kind, line, col, len) quadruples: the count written, -1 unknown.
+int stencil_cli_scriptTokens(int h, int* out, int cap);
 
 int stencil_cli_scriptBlockCount(int h);
 const char* stencil_cli_scriptBlockAt(int h, int i, int* kind, int* frame, int* opStart,

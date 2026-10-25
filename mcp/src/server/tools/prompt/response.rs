@@ -6,7 +6,7 @@ use rmcp::ErrorData as McpError;
 use schemars::JsonSchema;
 use serde::Serialize;
 
-use crate::opplan;
+use crate::plan;
 use crate::server::tools::ok_result;
 
 /// One written result of a `stencil_prompt` plan: the base result (`label` null), a variant
@@ -43,7 +43,7 @@ struct PromptAsk<'a> {
 }
 
 /// Borrow a validated card into the payload shape.
-fn prompt_ask(card: &opplan::AskCard) -> PromptAsk<'_> {
+fn prompt_ask(card: &plan::AskCard) -> PromptAsk<'_> {
     PromptAsk {
         question: &card.question,
         multi: card.multi,
@@ -55,7 +55,7 @@ fn prompt_ask(card: &opplan::AskCard) -> PromptAsk<'_> {
 /// The single success exit of `stencil_prompt`: the reply, any notes, one `wrote` line per
 /// result, and — since a plan may both edit and ask (§11.3) — the ask card last.
 pub(super) fn prompt_response(
-    plan: &opplan::OpPlan,
+    plan: &plan::OpPlan,
     notes: &[String],
     results: &[PromptResult],
 ) -> Result<CallToolResult, McpError> {
@@ -76,7 +76,7 @@ pub(super) fn prompt_response(
         }
     }
     if let Some(card) = &plan.ask {
-        summary.push_str(&opplan::format_ask(card));
+        summary.push_str(&plan::format_ask(card));
     }
     let payload = PromptPayload {
         reply: &plan.reply,

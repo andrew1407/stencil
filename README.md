@@ -17,6 +17,14 @@ optional `f(x,y)` formula transforms, and save your work.
 
 [![two lines clicked in point by point and a sepia filter in the browser editor](usecases/docs/browser/img/edit-draw.gif)](usecases/docs/browser/USECASES.md)
 
+**Chrome extension** — hover a listed picture and the page scrolls to it, outlined
+
+[![rows hovered in the side panel, each outlining its picture on the page and scrolling it into view](usecases/docs/browser-extension/img/site-hover.gif)](usecases/docs/browser-extension/USECASES.md#see-which-element-is-which)
+
+**Chrome extension** — drag a picture onto the page and drop it on Crop
+
+[![a row dragged out of the side panel over the page's drop targets, dropped on Crop, the crop window opening](usecases/docs/browser-extension/img/site-drop-crop.gif)](usecases/docs/browser-extension/USECASES.md#keep-it-docked)
+
 **Desktop** — the same editor as a native Qt app
 
 [![two lines clicked in point by point and a sepia filter in the desktop app](usecases/docs/desktop/img/edit-draw.gif)](usecases/docs/desktop/USECASES.md)
@@ -43,9 +51,11 @@ Stencil ships as **one shared logic core with a family of front-ends and service
 |---|---|---|---|---|
 | **Core** | [`core/`](core/) | C++17, STL-only, GUI-free shared library | [core/README.md](core/README.md) | — |
 | **Browser** | [`browser/`](browser/) | Vanilla ES-module JS, no build step (optional single-file bundle) | [browser/README.md](browser/README.md) | [browser](usecases/docs/browser/USECASES.md) |
+| **Chrome extension** | [`browser-extension/`](browser-extension/) | Chrome MV3, plain ES modules, no dependencies; lists a page's pictures and hands them to the browser editor | [browser-extension/README.md](browser-extension/README.md) | [browser-extension](usecases/docs/browser-extension/USECASES.md) |
 | **Desktop** | [`desktop/`](desktop/) | C++17 + Qt 6, CMake build | [desktop/README.md](desktop/README.md) | [desktop](usecases/docs/desktop/USECASES.md) |
 | **CLI** | [`cli/`](cli/) | Zig, wraps the C++ core | [cli/README.md](cli/README.md) | [cli](usecases/docs/cli/USECASES.md) |
 | **Python** | [`pystencil/`](pystencil/) | Stdlib-only Python, drives the C++ core via ctypes | [pystencil/README.md](pystencil/README.md) | [pystencil](usecases/docs/pystencil/USECASES.md) |
+| **VS Code extension** | [`vscode-extension/`](vscode-extension/) | Plain ES modules on the VS Code API; edits `.stc`, `.stcjs` and `.pystc`, runs them through the CLI and Python | [vscode-extension/README.md](vscode-extension/README.md) | [vscode-extension](usecases/docs/vscode-extension/USECASES.md) |
 | **MCP server** | [`mcp/`](mcp/) | Rust, exposes the CLI's pipeline as MCP tools | [mcp/README.md](mcp/README.md) | — |
 | **Collaboration server** | [`server/`](server/) | Go, stores/shares projects and announces their changes on a live feed | [server/README.md](server/README.md) | — |
 | **Telegram bot** | [`bot/`](bot/) | .NET (C#), chat-driven editing over the CLI + server REST | [bot/README.md](bot/README.md) | [bot](usecases/docs/bot/USECASES.md) |

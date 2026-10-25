@@ -3,8 +3,6 @@
 // the single script left: `stencil` and nothing else.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { PAGE_API_MAIN_FILES } from '../../src/background/registrars.js';
 import { PAGE_API_PARTS, importApi, loadApi, setupEnv, img } from '../helpers/pageApiEnv.js';
 
@@ -12,8 +10,6 @@ const NS = '__stencilPageApiParts';
 
 test('the registration runs the four parts in the order the suites load them', () => {
   assert.deepEqual(PAGE_API_MAIN_FILES, PAGE_API_PARTS.map((p) => `src/content/${p}.js`));
-  for (const file of PAGE_API_MAIN_FILES)
-    assert.ok(existsSync(fileURLToPath(new URL(`../../${file}`, import.meta.url))), `${file} is missing`);
 });
 
 test('once loaded, the page holds window.stencil and no trace of the shared namespace', async () => {

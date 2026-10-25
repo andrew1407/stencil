@@ -56,7 +56,14 @@ public sealed partial class PromptService
         try
         {
             RenderResult render = await _editing.RenderContourAsync(userId, session.OriginalImagePath, ct);
-            return await _attachments.LoadAsync(render.Path, ct);
+            try
+            {
+                return await _attachments.LoadAsync(render.Path, ct);
+            }
+            finally
+            {
+                _editing.Discard(render);
+            }
         }
         catch (Exception)
         {

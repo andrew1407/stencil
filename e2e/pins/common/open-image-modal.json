@@ -1,0 +1,687 @@
+{
+  "name": "open-image-modal",
+  "root": "#open-image-modal-overlay",
+  "nodes": [
+    {
+      "path": ":root",
+      "tag": "stencil-open-image-modal",
+      "classes": "app-modal-overlay modal-open",
+      "style": {
+        "display": "flex",
+        "position": "fixed",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgba(0, 0, 0, 0.5)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif",
+        "justify-content": "center",
+        "align-items": "center",
+        "z-index": "100001"
+      }
+    },
+    {
+      "path": ":root/div[1]",
+      "tag": "div",
+      "classes": "app-modal",
+      "style": {
+        "display": "flex",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(255, 255, 255)",
+        "border-color": "rgb(221, 221, 221)",
+        "border-width": "1px",
+        "border-radius": "10px",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif",
+        "box-shadow": "rgba(0, 0, 0, 0.45) 0px 16px 48px 0px",
+        "flex-direction": "column",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[1]",
+      "tag": "div",
+      "classes": "settings-header",
+      "style": {
+        "display": "flex",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0) rgb(0, 0, 0) rgb(221, 221, 221)",
+        "border-width": "0px 0px 1px",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif",
+        "justify-content": "space-between",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[1]/h2[1]",
+      "tag": "h2",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-weight": "700",
+        "font-family": "Arial, sans-serif"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[1]/h2[1]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-image",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-weight": "700",
+        "font-family": "Arial, sans-serif"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[1]/button[1]",
+      "tag": "button",
+      "classes": "app-modal-close btn-icon-text",
+      "style": {
+        "display": "flex",
+        "position": "relative",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(221, 221, 221)",
+        "border-width": "1px",
+        "border-radius": "12px",
+        "font-size": "13px",
+        "font-family": "Arial",
+        "text-align": "center",
+        "align-items": "center",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[1]/button[1]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-x",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Arial",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[1]/button[1]/span[1]",
+      "tag": "span",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Arial",
+        "text-align": "center"
+      },
+      "text": "Close"
+    },
+    {
+      "path": ":root/div[1]/div[2]",
+      "tag": "div",
+      "classes": "settings-body",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/stencil-tabs[1]",
+      "tag": "stencil-tabs",
+      "classes": "",
+      "style": {
+        "display": "contents",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/stencil-tabs[1]/div[1]",
+      "tag": "div",
+      "classes": "oi-tabs",
+      "style": {
+        "display": "flex",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0) rgb(0, 0, 0) rgb(221, 221, 221)",
+        "border-width": "0px 0px 1px",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/stencil-tabs[1]/div[1]/button[1]",
+      "tag": "button",
+      "classes": "is-active oi-tab",
+      "style": {
+        "display": "flex",
+        "position": "relative",
+        "color": "rgb(124, 58, 237)",
+        "border-color": "rgb(124, 58, 237)",
+        "border-width": "0px 0px 2px",
+        "border-radius": "4px",
+        "font-size": "13px",
+        "font-weight": "500",
+        "font-family": "Arial",
+        "text-align": "center",
+        "align-items": "center",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/stencil-tabs[1]/div[1]/button[1]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-file-text",
+      "style": {
+        "display": "block",
+        "color": "rgb(124, 58, 237)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-weight": "500",
+        "font-family": "Arial",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/stencil-tabs[1]/div[1]/button[1]/span[1]",
+      "tag": "span",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(124, 58, 237)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-weight": "500",
+        "font-family": "Arial",
+        "text-align": "center"
+      },
+      "text": "Local file"
+    },
+    {
+      "path": ":root/div[1]/div[2]/stencil-tabs[1]/div[1]/button[2]",
+      "tag": "button",
+      "classes": "oi-tab",
+      "style": {
+        "display": "flex",
+        "position": "relative",
+        "color": "rgb(136, 136, 136)",
+        "border-color": "rgb(136, 136, 136) rgb(136, 136, 136) rgba(0, 0, 0, 0)",
+        "border-width": "0px 0px 2px",
+        "border-radius": "4px",
+        "font-size": "13px",
+        "font-weight": "500",
+        "font-family": "Arial",
+        "text-align": "center",
+        "align-items": "center",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/stencil-tabs[1]/div[1]/button[2]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-link",
+      "style": {
+        "display": "block",
+        "color": "rgb(136, 136, 136)",
+        "border-color": "rgb(136, 136, 136)",
+        "font-size": "13px",
+        "font-weight": "500",
+        "font-family": "Arial",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/stencil-tabs[1]/div[1]/button[2]/span[1]",
+      "tag": "span",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(136, 136, 136)",
+        "border-color": "rgb(136, 136, 136)",
+        "font-size": "13px",
+        "font-weight": "500",
+        "font-family": "Arial",
+        "text-align": "center"
+      },
+      "text": "URL link"
+    },
+    {
+      "path": ":root/div[1]/div[2]/stencil-tabs[1]/div[1]/button[3]",
+      "tag": "button",
+      "classes": "oi-tab",
+      "style": {
+        "display": "flex",
+        "position": "relative",
+        "color": "rgb(136, 136, 136)",
+        "border-color": "rgb(136, 136, 136) rgb(136, 136, 136) rgba(0, 0, 0, 0)",
+        "border-width": "0px 0px 2px",
+        "border-radius": "4px",
+        "font-size": "13px",
+        "font-weight": "500",
+        "font-family": "Arial",
+        "text-align": "center",
+        "align-items": "center",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/stencil-tabs[1]/div[1]/button[3]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-plus-circle",
+      "style": {
+        "display": "block",
+        "color": "rgb(136, 136, 136)",
+        "border-color": "rgb(136, 136, 136)",
+        "font-size": "13px",
+        "font-weight": "500",
+        "font-family": "Arial",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/stencil-tabs[1]/div[1]/button[3]/span[1]",
+      "tag": "span",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(136, 136, 136)",
+        "border-color": "rgb(136, 136, 136)",
+        "font-size": "13px",
+        "font-weight": "500",
+        "font-family": "Arial",
+        "text-align": "center"
+      },
+      "text": "Blank"
+    },
+    {
+      "path": ":root/div[1]/div[2]/stencil-oi-file-source[1]",
+      "tag": "stencil-oi-file-source",
+      "classes": "",
+      "style": {
+        "display": "contents",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/stencil-oi-file-source[1]/div[1]",
+      "tag": "div",
+      "classes": "oi-panel",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/stencil-oi-file-source[1]/div[1]/div[1]",
+      "tag": "div",
+      "classes": "vs-row",
+      "style": {
+        "display": "flex",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0) rgb(0, 0, 0) rgb(221, 221, 221)",
+        "border-width": "0px 0px 1px",
+        "font-size": "13px",
+        "font-family": "Arial, sans-serif",
+        "justify-content": "flex-start",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/stencil-oi-file-source[1]/div[1]/div[1]/label[1]",
+      "tag": "label",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "14px",
+        "font-family": "Arial, sans-serif"
+      },
+      "text": "Choose"
+    },
+    {
+      "path": ":root/div[1]/div[2]/stencil-oi-file-source[1]/div[1]/div[1]/span[1]",
+      "tag": "span",
+      "classes": "oi-file",
+      "style": {
+        "display": "flex",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "color(srgb 0 0 0 / 0.25)",
+        "border-width": "1px",
+        "border-radius": "4px",
+        "font-size": "13px",
+        "font-family": "Arial, sans-serif",
+        "align-items": "stretch",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/stencil-oi-file-source[1]/div[1]/div[1]/span[1]/button[1]",
+      "tag": "button",
+      "classes": "btn-icon-text oi-file-btn",
+      "style": {
+        "display": "flex",
+        "position": "relative",
+        "color": "rgb(255, 255, 255)",
+        "background-color": "rgb(124, 58, 237)",
+        "border-color": "rgb(255, 255, 255)",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "text-align": "center",
+        "align-items": "center",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/stencil-oi-file-source[1]/div[1]/div[1]/span[1]/button[1]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-folder",
+      "style": {
+        "display": "block",
+        "color": "rgb(255, 255, 255)",
+        "border-color": "rgb(255, 255, 255)",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/stencil-oi-file-source[1]/div[1]/div[1]/span[1]/button[1]/span[1]",
+      "tag": "span",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(255, 255, 255)",
+        "border-color": "rgb(255, 255, 255)",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "text-align": "center"
+      },
+      "text": "Choose File"
+    },
+    {
+      "path": ":root/div[1]/div[2]/stencil-oi-file-source[1]/div[1]/div[1]/span[1]/span[1]",
+      "tag": "span",
+      "classes": "is-empty oi-file-name",
+      "style": {
+        "display": "flex",
+        "color": "rgb(136, 136, 136)",
+        "background-color": "rgb(255, 255, 255)",
+        "border-color": "rgb(136, 136, 136)",
+        "font-size": "14px",
+        "font-family": "Arial, sans-serif",
+        "align-items": "center",
+        "overflow": "hidden"
+      },
+      "text": "No file chosen"
+    },
+    {
+      "path": ":root/div[1]/div[2]/stencil-oi-url-source[1]",
+      "tag": "stencil-oi-url-source",
+      "classes": "",
+      "style": {
+        "display": "contents",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/stencil-oi-blank-tab[1]",
+      "tag": "stencil-oi-blank-tab",
+      "classes": "",
+      "style": {
+        "display": "contents",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/div[6]",
+      "tag": "div",
+      "classes": "vs-row",
+      "style": {
+        "display": "flex",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Arial, sans-serif",
+        "justify-content": "flex-start",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/div[6]/label[1]",
+      "tag": "label",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "14px",
+        "font-family": "Arial, sans-serif"
+      },
+      "text": "Incognito"
+    },
+    {
+      "path": ":root/div[1]/div[2]/div[6]/span[1]",
+      "tag": "span",
+      "classes": "oi-incognito",
+      "style": {
+        "display": "flex",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Arial, sans-serif",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/div[6]/span[1]/input[1]",
+      "tag": "input",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "border-width": "1px",
+        "border-radius": "3px",
+        "font-size": "13.3px",
+        "font-family": "Arial"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/div[6]/span[1]/label[1]",
+      "tag": "label",
+      "classes": "footer-hint",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "14px",
+        "font-family": "Arial, sans-serif"
+      },
+      "text": "Edit without saving — the image is never written to storage."
+    },
+    {
+      "path": ":root/div[1]/div[3]",
+      "tag": "div",
+      "classes": "settings-footer",
+      "style": {
+        "display": "flex",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(221, 221, 221) rgb(0, 0, 0) rgb(0, 0, 0)",
+        "border-width": "1px 0px 0px",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif",
+        "justify-content": "flex-end",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[3]/span[1]",
+      "tag": "span",
+      "classes": "footer-hint",
+      "style": {
+        "display": "block",
+        "color": "rgb(136, 136, 136)",
+        "border-color": "rgb(136, 136, 136)",
+        "font-size": "12px",
+        "font-family": "Arial, sans-serif"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[3]/button[1]",
+      "tag": "button",
+      "classes": "btn-icon-text",
+      "style": {
+        "display": "flex",
+        "position": "relative",
+        "color": "rgb(255, 255, 255)",
+        "background-color": "rgb(124, 58, 237)",
+        "border-color": "rgb(255, 255, 255)",
+        "border-radius": "4px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "text-align": "center",
+        "align-items": "center",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[3]/button[1]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-x",
+      "style": {
+        "display": "block",
+        "color": "rgb(255, 255, 255)",
+        "border-color": "rgb(255, 255, 255)",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[3]/button[1]/span[1]",
+      "tag": "span",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(255, 255, 255)",
+        "border-color": "rgb(255, 255, 255)",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "text-align": "center"
+      },
+      "text": "Cancel"
+    },
+    {
+      "path": ":root/div[1]/div[3]/button[3]",
+      "tag": "button",
+      "classes": "btn-icon-text",
+      "style": {
+        "display": "flex",
+        "position": "relative",
+        "color": "rgb(154, 160, 168)",
+        "background-color": "rgb(228, 230, 234)",
+        "border-color": "rgb(154, 160, 168)",
+        "border-radius": "4px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "text-align": "center",
+        "align-items": "center",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[3]/button[3]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-image",
+      "style": {
+        "display": "block",
+        "color": "rgb(154, 160, 168)",
+        "border-color": "rgb(154, 160, 168)",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[3]/button[3]/span[1]",
+      "tag": "span",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(154, 160, 168)",
+        "border-color": "rgb(154, 160, 168)",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "text-align": "center"
+      },
+      "text": "Open here"
+    },
+    {
+      "path": ":root/div[1]/div[3]/button[4]",
+      "tag": "button",
+      "classes": "btn-icon-text",
+      "style": {
+        "display": "flex",
+        "position": "relative",
+        "color": "rgb(154, 160, 168)",
+        "background-color": "rgb(228, 230, 234)",
+        "border-color": "rgb(154, 160, 168)",
+        "border-radius": "4px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "text-align": "center",
+        "align-items": "center",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[3]/button[4]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-external",
+      "style": {
+        "display": "block",
+        "color": "rgb(154, 160, 168)",
+        "border-color": "rgb(154, 160, 168)",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[3]/button[4]/span[1]",
+      "tag": "span",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(154, 160, 168)",
+        "border-color": "rgb(154, 160, 168)",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "text-align": "center"
+      },
+      "text": "Open in new tab"
+    }
+  ]
+}

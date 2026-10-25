@@ -49,14 +49,14 @@ namespace stencil::gui {
     auto* win = new MainWindow();
     win->setAttribute(Qt::WA_DeleteOnClose);
     win->show();
-    QTimer::singleShot(0, win, [win] { win->parts.projects.openProjects(); });
+    QTimer::singleShot(0, win, [win] { win->projectHost.flows.openProjects(); });
   }
 
   void SiblingWindows::openProjectWindowById(const QString& id) {
     auto* win = new MainWindow();
     win->setAttribute(Qt::WA_DeleteOnClose);
     win->show();
-    if (!win->loadProjectIntoCanvas(id)) win->close();
+    if (!win->projectHost.loadProjectIntoCanvas(id)) win->close();
   }
 
   // Connected to qApp so the lambdas outlive the window that built the menu. A no-op off macOS.

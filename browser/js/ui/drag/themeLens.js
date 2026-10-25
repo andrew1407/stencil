@@ -5,7 +5,7 @@
 import { wireIconDrag } from './iconDrag.js';
 import { NO_COPY_ATTR, buildPageCopy, cutInheritance, pageSheets, readPageCss } from '../accent/themeCopy.js';
 import { webcoreActive } from '../webcore/toggle.js';
-import { THEME_INSTANT_CLASS, THEME_SWAP_CLASS } from '../motion.js';
+import { THEME_INSTANT_CLASS, THEME_SWAP_CLASS } from '../motion/surface/themeSwap.js';
 import { motionReduced } from '../motion/motionPrefs.js';
 
 export const LENS_RADIUS_PX = 90;

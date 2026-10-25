@@ -48,6 +48,7 @@ namespace stencil::gui {
     void connectServerThen(const QString& server, llm::OpDone done) override;
     void extractFramesThen(const QVector<int>& indices, llm::OpDone done) override;
     void openUrlThen(const QString& url, bool incognito, llm::OpDone done) override;
+    void setStrictSources(bool on) override;
     void openFileThen(const QString& path, llm::OpDone done) override;
     void openSourceFrameThen(const QString& spec, int frame, llm::OpDone done) override;
     bool copyImage(QString*) override;

@@ -55,9 +55,9 @@ stencil_headless_test(stencil_menuhover_headless
   LIBS stencil_gui_objs Qt6::Test
   INCLUDE_TESTS)
 
-# The app-wide pointer cursor (support/guiHelpers.cpp installPointerCursor) over real controls and a menu.
+# The app-wide pointer cursor (support/cursor/pointerCursor.cpp installPointerCursor) over real controls and a menu.
 stencil_headless_test(stencil_pointercursor_headless
-  SOURCES tests/support/pointerCursor.headless.cpp
+  SOURCES tests/support/cursor/pointerCursor.headless.cpp
   LIBS stencil_gui_objs Qt6::Test)
 
 # The 'slide' entrance of a selector's list (support/menu/popupSlide.hpp): the first frame's maths.
@@ -125,3 +125,8 @@ stencil_headless_test(stencil_uipins_headless
 add_test(NAME stencil_uipins_hidpi_headless COMMAND stencil_uipins_headless)
 set_tests_properties(stencil_uipins_hidpi_headless PROPERTIES
   ENVIRONMENT "QT_QPA_PLATFORM=offscreen;STENCIL_NO_ANIM=1;QT_SCALE_FACTOR=2")
+
+# A long list or line in the selection panel: row widgets only for the rows shown, made as more scroll in.
+stencil_headless_test(stencil_lineslazy_headless
+  SOURCES tests/app/selection/linesLazyRows.headless.cpp
+  LIBS stencil_gui_objs Qt6::Widgets)

@@ -1,4 +1,5 @@
-# Stencil — local multi-service stack.
+# Stencil — local multi-service stack, for development only: Redis has no password, and every
+# service on this network can reach it and Postgres.
 #
 #   docker compose up --build            # db + redis + collab server + browser app
 #   docker compose up --build server     # just the collab server (+ its db/redis deps)

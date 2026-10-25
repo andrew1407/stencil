@@ -170,3 +170,15 @@ test('an open menu follows its trigger when the page moves under it', async () =
   delete globalThis.requestAnimationFrame;
   delete globalThis.cancelAnimationFrame;
 });
+
+test('a menu shown again while open (a second right-click) re-wires instead of stacking listeners', async () => {
+  const { el, listeners } = setupDom();
+  const { showMenu, hideMenu } = await import('../../../js/ui/control/dropdownMenu.js');
+  const home = { insertBefore: (node) => { node.parentElement = home; } };
+  const menu = el({ width: 100, height: 80 }, { parentElement: home });
+  const trigger = el({ left: 10, top: 10, bottom: 40, width: 100 });
+  for (let i = 0; i < 3; i++) showMenu(menu, trigger);
+  assert.deepEqual(listeners.map(([t]) => t).sort(), ['resize', 'scroll']);
+  hideMenu(menu);
+  assert.equal(listeners.length, 0, 'nothing left on window after the close');
+});

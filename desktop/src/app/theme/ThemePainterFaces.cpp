@@ -1,6 +1,6 @@
 #include "MainWindow.hpp"
 #include "ThemePainter.hpp"
-#include "mainWindowHelpers.hpp"
+#include "toolbarMetrics.hpp"
 #include "CanvasWidget.hpp"
 #include "../../support/theme/faceSwap.hpp"
 #include "theme.hpp"
@@ -77,7 +77,7 @@ namespace stencil::gui {
     face.glyph = drawing ? QStringLiteral("stop") : QStringLiteral("play");
     face.label = want->iconText();   // the short toolbar word; the menus keep the long one
     face.iconSize = TOOL_ICON;
-    face.gapPx = FACE_ICON_GAP;   // air between glyph and word (see mainWindowHelpers.hpp)
+    face.gapPx = FACE_ICON_GAP;   // air between glyph and word (see toolbarMetrics.hpp)
     // Idle: the theme's own ink, the accent outline says draw toggle; running: the fill's own ink.
     face.glyphColor = drawing ? pal.onAccent : pal.textMain;
     face.textColor = face.glyphColor;

@@ -4,7 +4,7 @@
 import { notify } from '../../utils.js';
 import { resolveInsertIdx } from '../layout.js';
 import { shouldCloseShape } from './transforms.js';
-import { strokeFoot } from '../../ui/motion.js';
+import { strokeFoot } from '../../ui/motion/strokeFly.js';
 import constants from '../../../../common/config/constants.json' with { type: 'json' };
 import { CHANGE, changed } from '../app/changes.js';
 import { shownMarks } from '../pointer/markHits.js';

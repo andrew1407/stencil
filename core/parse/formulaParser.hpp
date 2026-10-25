@@ -37,6 +37,11 @@ namespace stencil::core {
 
     static std::optional<double> evaluate(const std::string& expr, char varName,
                                           double varValue, const FormulaContext& ctx);
+
+    // A run of raw page points (flat x0,y0,…, in place): each axis through its formula with both
+    // raw axes in `ctx`, as apply per point (twin: pageMetrics.js pixelToPageCoordsAll).
+    static void applyPoints(const std::string& exprX, const std::string& exprY, double* xy,
+                            std::size_t count, FormulaContext ctx);
   };
 
 }

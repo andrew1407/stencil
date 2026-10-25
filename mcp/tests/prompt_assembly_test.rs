@@ -3,7 +3,7 @@
 //! pins are in `registry_test.rs`.
 
 use stencil_mcp::llm::llm_system_prompt;
-use stencil_mcp::opplan::fold;
+use stencil_mcp::plan::fold;
 use stencil_mcp::registry::{
     assemble_ops_section, censor_violation, descriptor, op_registry, OpDescriptor,
     WIRED_CAPABILITIES,

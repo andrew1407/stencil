@@ -5,7 +5,7 @@
 
 use crate::common::cli::FakeCli;
 use crate::common::try_plan;
-use stencil_mcp::opplan::{parse_op_plan_with, registry_skew, Action, Dir, OpPlanError};
+use stencil_mcp::plan::{parse_op_plan_with, registry_skew, Action, Dir, OpPlanError};
 use stencil_mcp::registry::fingerprint;
 
 /// The one line `--plan-check` prints, around `result`, for this server's own registry.

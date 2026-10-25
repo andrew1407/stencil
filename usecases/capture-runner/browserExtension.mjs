@@ -7,6 +7,8 @@ import { makeSiteSteps } from './extension/siteSteps.mjs';
 import { makePopupSteps } from './extension/popupSteps.mjs';
 import { makeServerSteps } from './extension/serverSteps.mjs';
 import { makePanelSteps } from './extension/panelSteps.mjs';
+import { makeClipSteps } from './extension/clipSteps.mjs';
+import { makeMenuSteps } from './extension/menuSteps.mjs';
 
 const rows = config.get('rows');
 const byName = Object.fromEntries([
@@ -14,6 +16,8 @@ const byName = Object.fromEntries([
   ...makePopupSteps({ image: rows.image, clipRow: rows.clip }),
   ...makeServerSteps({ serverPin: rows.serverPin, localPin: rows.localPin }),
   ...makePanelSteps({ image: rows.image }),
+  ...makeClipSteps({ image: rows.image }),
+  ...makeMenuSteps(),
 ].map((step) => [step.name, step]));
 
 // State builds up in this order: the image is opened before its row shows the opened flag, the
@@ -22,7 +26,7 @@ const ORDER = [
   'site', 'popup-list-light', 'popup-list-dark', 'popup-row-menu', 'popup-video-menu',
   'site-highlight', 'site-crop-modal', 'site-editor-modal', 'editor-tab', 'editor-tab-incognito',
   'popup-opened', 'options-connect', 'popup-pin-dialog', 'popup-pinned', 'options', 'popup-assistant',
-  'side-panel', 'site-dropzones', 'crop-page',
+  'side-panel', 'site-dropzones', 'site-hover', 'site-drop-crop', 'crop-page', 'site-menu-image', 'site-menu-video',
 ];
 
 console.log('extension shots');

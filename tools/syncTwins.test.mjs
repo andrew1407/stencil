@@ -51,11 +51,13 @@ const goCopies = () => {
   });
 };
 
+// pystencil's generated copies are the tables build_data.py syncs (FILES), each landing under _data/
+// by its basename; test_canonical_drift.py proves the sync writes and restores them.
+const PY_SYNC = 'pystencil/build_data.py';
 const pyCopies = () => {
-  const t = src(PY);
-  const segs = (s) => [...s.matchAll(/"([^"]+)"/g)].map((m) => m[1]).join('/');
-  const canon = Object.fromEntries([...t.matchAll(/_CANON_(\w+) = _CONSTANTS\.parent((?: \/ "[^"]+")+)/g)].map(([, n, s]) => [n, `common/config/${segs(s)}`]));
-  return [...t.matchAll(/_DATA_(\w+) = _PKG_ROOT((?: \/ "[^"]+")+)/g)].map(([, n, s]) => ({ from: canon[n], to: `pystencil/${segs(s)}` }));
+  const files = /FILES = \(([^)]*)\)/.exec(src(PY_SYNC))[1];
+  assert.match(src(PY), /build_data\.sync\(/, 'test_canonical_drift.py no longer drives the sync');
+  return [...files.matchAll(/"([^"]+)"/g)].map(([, f]) => ({ from: `common/config/${f}`, to: `pystencil/pystencil/_data/${path.posix.basename(f)}` }));
 };
 
 const dataCopies = () => {

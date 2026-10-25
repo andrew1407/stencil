@@ -184,4 +184,20 @@ public sealed class PromptVisionTests : PromptServiceTestBase
         Assert.Empty(_llm.CannedReplies);
         Assert.Equal("two", outcome.Reply);
     }
+
+    [Fact]
+    public async Task Should_Leave_No_Render_Behind_Once_The_Model_Has_Been_Shown_It()
+    {
+        PromptService service = WithAttachments();
+        Reply("""{"reply":"one","actions":[{"op":"blank","color":"#ffffff"},{"op":"filter","mode":"bw"}]}""");
+        Reply("chat");
+
+        await service.PromptAsync(UserId, "blank it", null, CancellationToken.None);
+
+        // The continuation's snapshot and its edge map are base64 in the request; their PNGs are spent.
+        UserSession session = await _store.GetAsync(UserId);
+        Assert.Contains(_cli.Requests, r => r.Filter == "contour");
+        Assert.All(_cli.Requests.Where(r => r.Output != session.OriginalImagePath),
+            r => Assert.False(File.Exists(r.Output), r.Output));
+    }
 }

@@ -6,8 +6,9 @@ import { createConnectRowDrag } from './rowDrag.js';
 import { connectRow } from './row.js';
 import { matchesConnFilter } from './rules.js';
 import { releaseHeldHeight } from '../motion/easeBoxHeight.js';
-import { leaveThenRemove, createListHold, emptyStateVisible, createFilterAnimator, revealControls,
-  revealBar, CONN_DUST_MS, rowLeaveDust, wipeDurationMs } from '../motion.js';
+import { leaveThenRemove, createListHold, emptyStateVisible, createFilterAnimator, wipeDurationMs } from '../motion/enterLeave.js';
+import { CONN_DUST_MS, rowLeaveDust } from '../motion/surface/tiles.js';
+import { revealControls, revealBar } from '../motion/control/revealControls.js';
 
 export function createConnectList(app, {
   overlay, list, reconnectBtn, filterEl, batchBar, batchCount, selectAllBtn, selectedGroup, mgr,

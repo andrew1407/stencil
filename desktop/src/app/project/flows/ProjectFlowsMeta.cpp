@@ -4,7 +4,7 @@
 #include "KeywordsDialog.hpp"
 #include "SiblingWindows.hpp"
 #include "ProjectFlows.hpp"
-#include "mainWindowHelpers.hpp"
+#include "stamps.hpp"
 #include "Notifications.hpp"
 #include "ProjectTitleController.hpp"
 #include "RemoteSession.hpp"
@@ -18,34 +18,34 @@ namespace stencil::gui {
 
   // Written back through the Projects window's store path (DescriptionDialog::apply ≙ commitRowEdit).
   void ProjectFlows::openDescription() {
-    Project* pr = w.incognito ? nullptr : w.findProject(w.activeProjectId.toStdString());
+    Project* pr = host.incognito ? nullptr : host.findProject(host.activeProjectId.toStdString());
     if (!pr) { w.notify->info("Save the project first to add a description"); return; }
     const QString current = QString::fromStdString(pr->meta.description);
-    DescriptionDialog dlg(current, &w);
+    DescriptionDialog dlg(current, w.window);
     if (w.execMaybePopover(dlg, w.acts.description) != QDialog::Accepted) return;
     const QString text = dlg.text();
     if (text == current) return;
-    setProjectDescriptionById(w.activeProjectId, QString(), text);
+    setProjectDescriptionById(host.activeProjectId, QString(), text);
   }
 
   // Same way (KeywordsDialog::apply ≙ commitRowEdit).
   void ProjectFlows::openKeywords() {
-    Project* pr = w.incognito ? nullptr : w.findProject(w.activeProjectId.toStdString());
+    Project* pr = host.incognito ? nullptr : host.findProject(host.activeProjectId.toStdString());
     if (!pr) { w.notify->info("Save the project first to add keywords"); return; }
     QStringList current;
     for (const auto& k : pr->meta.keywords) current << QString::fromStdString(k);
-    KeywordsDialog dlg(current, &w);
+    KeywordsDialog dlg(current, w.window);
     if (w.execMaybePopover(dlg, w.acts.keywords) != QDialog::Accepted) return;
     const QStringList next = dlg.keywords();
     if (next == current) return;
-    setProjectKeywordsById(w.activeProjectId, QString(), next);
+    setProjectKeywordsById(host.activeProjectId, QString(), next);
   }
 
   void ProjectFlows::setProjectDescriptionById(const QString& id, const QString& serverUrl,
                                                const QString& text, MetaLanded landed) {
     setProjectMetaById(
         id, serverUrl, QStringLiteral("Description"), text.isEmpty(),
-        [this, id, text] { return DescriptionDialog::apply(w.projectList, id, text, nowMs()); },
+        [this, id, text] { return DescriptionDialog::apply(host.projectList, id, text, nowMs()); },
         [id, text](stencil::net::ServerClient* c, qint64 version, std::function<void(bool, qint64, bool)> cb) {
           c->updateProjectDescriptionAsync(id, text, version, std::move(cb));
         },
@@ -56,7 +56,7 @@ namespace stencil::gui {
                                             const QStringList& keywords, MetaLanded landed) {
     setProjectMetaById(
         id, serverUrl, QStringLiteral("Keywords"), keywords.isEmpty(),
-        [this, id, keywords] { return KeywordsDialog::apply(w.projectList, id, keywords, nowMs()); },
+        [this, id, keywords] { return KeywordsDialog::apply(host.projectList, id, keywords, nowMs()); },
         [id, keywords](stencil::net::ServerClient* c, qint64 version, std::function<void(bool, qint64, bool)> cb) {
           c->updateProjectKeywordsAsync(id, keywords, version, std::move(cb));
         },
@@ -71,7 +71,7 @@ namespace stencil::gui {
       return;
     }
     if (!applyLocal()) return;
-    SharedState::instance().saveProjects(&w);
+    SharedState::instance().saveProjects(w.window);
     w.notify->success(what + (cleared ? QStringLiteral(" cleared") : QStringLiteral(" saved")));
   }
 
@@ -83,7 +83,7 @@ namespace stencil::gui {
       if (landed) landed(false, 0);
       return;
     }
-    QPointer<MainWindow> self(&w);
+    QPointer<QWidget> self(w.window);
     w.remote.session->putMetaAsync(
         c, serverUrl, id,
         [c, put](qint64 version, std::function<void(bool, qint64, bool)> cb) { put(c, version, std::move(cb)); },
@@ -98,18 +98,18 @@ namespace stencil::gui {
 
   bool ProjectFlows::renameProjectById(const QString& id, const QString& rawName) {
     const QString name = rawName.trimmed();
-    Project* pr = w.findProject(id.toStdString());
+    Project* pr = host.findProject(id.toStdString());
     if (!pr) return false;
-    const auto check = w.checkProjectName(name, id);
+    const auto check = host.checkProjectName(name, id);
     if (!check.ok) {
       w.notify->error(QString::fromStdString(check.reason));
       return false;
     }
     pr->meta.name = name.toStdString();
     // Downloads use projectBaseName(), so there is no separate image name.
-    SharedState::instance().saveProjects(&w);
-    SiblingWindows::refreshDockMenu(w.projectList);
-    if (w.activeProjectId == id) w.projectTitle->updateProjectTitle();
+    SharedState::instance().saveProjects(w.window);
+    SiblingWindows::refreshDockMenu(host.projectList);
+    if (host.activeProjectId == id) w.projectTitle->updateProjectTitle();
     w.notify->success(QString("Renamed to \"%1\"").arg(support::shortName(name)));
     return true;
   }

@@ -1,7 +1,7 @@
 #include "ConsoleHost.hpp"
 #include "MainWindow.hpp"
 #include "SharedState.hpp"
-#include "mainWindowHelpers.hpp"
+#include "popupGuards.hpp"
 #include "ConsoleWindow.hpp"
 #include "CliSkins.hpp"
 #include "CliStage.hpp"

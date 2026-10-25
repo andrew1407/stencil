@@ -63,6 +63,21 @@ A **flag** is on for an empty value (`?incognito`), `1`, `true`, `yes` or `on`.
   machine. Everything else may ride either carrier.
 - A server a link names that no saved connection knows is **asked about first**; a link never
   silently persists a connection to an unknown origin.
+- **A link re-points the assistant only with consent, and never carries a key across.** The
+  browser asks before `llm-provider`, `llm-base-url` or `llm-server-url` changes what is set,
+  naming each, and before an `llm-api-key` replaces the key in use, never showing it; the
+  consoles say each change as they apply it. A link that moves the base URL's origin drops the
+  stored API key unless it brings its own `llm-api-key`, and one that moves `llm-server-url`
+  drops a stencil-server fallback token; each drop is said. The desktop applies no `llm-*` from
+  a link.
+- **A link never replaces a saved credential.** A `token` that differs from the one saved for that
+  server connects for the session only; what is saved stays as it was.
+- **A link never expires a shared project.** On a server project `expire` is ignored with a notice
+  on every surface, and in the browser `description`, `keywords` and `project-color` apply on this
+  machine only (the cli console, which keeps no local projects, sets them on the fetched project).
+- **Inside a frame only the picture and the look apply** (the browser): a host page could dress the
+  confirms up as its own, so `connect`, `token`, `llm-*`, a server picture and the project fields
+  are left out with one notice.
 - A link is consumed once: the browser strips the pairs from its URL at once, so a reload repeats
   nothing.
 

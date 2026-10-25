@@ -159,3 +159,14 @@ test('a worker error event rejects every pending task and retires the worker', a
   assert.equal(instance.dead, true);
   assert.equal(imageWorkerUsable(), false);
 });
+
+test('a task that never reached a worker closes the bitmap copy it made for it', async () => {
+  class Worker { constructor() { throw new Error('single-file build: no module worker'); } }
+  const bitmaps = [];
+  const createImageBitmap = async (s) => { const b = { width: s.width, height: s.height, close() { this.closed = true; } }; bitmaps.push(b); return b; };
+  install({ Worker, FileReader, OffscreenCanvas: class {}, createImageBitmap, document: fakeDom() });
+  const { downscaleToDataUrl } = await freshClient();
+  assert.equal(await downscaleToDataUrl({ width: 10, height: 10 }, 10, 10, { maxEdge: 5 }), 'data:image/png;q=,5x5');
+  assert.equal(bitmaps.length, 1);
+  assert.equal(bitmaps[0].closed, true, 'the untransferred copy is released, not left for the GC');
+});

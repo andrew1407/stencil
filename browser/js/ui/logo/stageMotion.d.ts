@@ -15,7 +15,8 @@ export interface BounceState {
 export declare const bounceState: (rest: number, impulse: number) => BounceState;
 /** Re-measure the bounce for a resized window; a snap in flight scales instead of jumping. */
 export declare const bounceResize: (st: BounceState, rest: number, impulse: number) => BounceState;
-export declare const bounceImpulse: (st: BounceState, now: number) => BounceState;
+/** One click: a step of the way toward the impulse (`cfg.stepShare` of the range), never the whole way. */
+export declare const bounceImpulse: (st: BounceState, now: number, cfg?: StageConfig['bounce']) => BounceState;
 /** The size at `now`; snaps toward the impulse, then recovers to rest. */
 export declare const bounceStep: (st: BounceState, now: number, cfg?: StageConfig['bounce']) => number;
 

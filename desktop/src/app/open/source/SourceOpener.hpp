@@ -42,8 +42,11 @@ namespace stencil::gui {
     void loadLocalImageReset(const QString& path, std::function<void(bool)> done);
     void onLaunchImageLoaded(const QImage& image, const QString& localPath);
     void applyQuickCrop();
-    void applyLayoutFromSource(const QString& src);
-    void openImageSource(const QString& src, int frame, const QStringList& fallbacks = {});
+    // `strict`: the URL came from a link, so loopback is refused too (fetchGuard's strict tier).
+    void applyLayoutFromSource(const QString& src, bool strict = false);
+    void openImageSource(const QString& src, int frame, const QStringList& fallbacks = {}, bool strict = false);
+    // Set while a link-delivered script runs: every source it opens is fetched strict.
+    bool strictSources = false;
     void ensureMediaLoader();
     void retainSourceFromFile(const QString& path);
 

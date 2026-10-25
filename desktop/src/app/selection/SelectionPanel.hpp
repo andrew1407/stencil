@@ -52,8 +52,8 @@ namespace stencil::gui {
     // Off in fullscreen, where the panel hides on its own (browser: the clone drops its chevron).
     void setCollapseChevronVisible(bool on);
     // A Lines row's line and point colour chips, the anchors their pickers grow from.
-    QWidget* lineSwatchCell(int index) const;
-    QWidget* pointSwatchCell(int index) const;
+    QWidget* lineSwatchCell(int index);
+    QWidget* pointSwatchCell(int index);
     QTableWidget* linesTable() const { return lines; }
     // True while the view is read-only (compare): the lists then leave Delete/Backspace to the window.
     std::function<bool()> readOnly;
@@ -101,6 +101,15 @@ namespace stencil::gui {
     void addLineNameCell(int i, const core::Line& ln);
     void addLineEye(int i, bool hidden);
     void dimHiddenRow(int i);
+    // A row's items, and its widgets unless the list is long (SelectionPanelLineRow.cpp).
+    void buildLineRow(int i, const core::Line& ln, const QColor& stroke);
+    void buildLineRowWidgets(int i, const core::Line& ln, const QColor& stroke);
+    bool lazyLineRows() const;
+    void ensureLineRowWidgets(int i);
+    void materializeLineRows();   // the rows on screen get their widgets
+    void watchRowsShown();   // both tables: a scroll or a grown viewport makes the rows it shows
+    void addPointDelButton(int r);
+    void materializePointRows();
     QBrush rowWash(bool picked) const;
     QBrush rowInk() const;
     void applyUnitHeaders();
@@ -131,6 +140,7 @@ namespace stencil::gui {
     // What the Lines tab last built: each row's look (its points left empty) and point count.
     std::vector<std::pair<core::Line, size_t>> builtRows;
     qint64 builtPalette = -1;
+    QColor builtStroke;   // the default stroke the built rows' chips fell back to
     int eyeFlipRow = -1;   // the row whose eye was just clicked: its next build plays the toggle once
   };
 

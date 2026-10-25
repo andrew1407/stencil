@@ -76,6 +76,23 @@ pub fn rotate(src: []const u8, w: i32, h: i32, quarters: i32, dst: []u8) void {
     spread(dims.h, bandCount(dims.h, dst.len / 4), ctx, Rotate.band);
 }
 
+const Mirror = struct {
+    src: []const u8,
+    w: i32,
+    h: i32,
+    dst: []u8,
+
+    fn band(s: Mirror, y0: i32, y1: i32) void {
+        c.stencil_cli_mirrorImageRows(s.src.ptr, s.w, s.h, s.dst.ptr, y0, y1);
+    }
+};
+
+/// core.mirrorImageRGBA (left-right), band-parallel over the rows; `dst` is never `src`.
+pub fn mirror(src: []const u8, w: i32, h: i32, dst: []u8) void {
+    const ctx = Mirror{ .src = src, .w = w, .h = h, .dst = dst };
+    spread(h, bandCount(h, dst.len / 4), ctx, Mirror.band);
+}
+
 const Filter = struct {
     mode: [:0]const u8,
     data: []u8,
@@ -143,7 +160,7 @@ fn gradient(a: std.mem.Allocator, w: usize, h: usize) ![]u8 {
     return buf;
 }
 
-test "banded crop/rotate/filter/contour match the whole-image calls byte for byte" {
+test "banded crop/rotate/mirror/filter/contour match the whole-image calls byte for byte" {
     const a = testing.allocator;
     const w = 600;
     const h = 500;
@@ -166,6 +183,10 @@ test "banded crop/rotate/filter/contour match the whole-image calls byte for byt
     defer a.free(serial_rot);
     rotate(src, w, h, 1, banded_rot);
     core.rotateImageRGBA(src, w, h, 1, serial_rot);
+    try testing.expectEqualSlices(u8, serial_rot, banded_rot);
+
+    mirror(src, w, h, banded_rot);
+    core.mirrorImageRGBA(src, w, h, serial_rot);
     try testing.expectEqualSlices(u8, serial_rot, banded_rot);
 
     const banded_px = try a.dupe(u8, src);

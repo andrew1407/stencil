@@ -137,7 +137,7 @@ namespace stencil::support {
     };
     IconDragHooks h;
     h.ghost = false;
-    h.start = [st, lift, owner](const QPoint&, const QPoint& global) {
+    h.start = [st, lift, owner, end](const QPoint&, const QPoint& global) {
       const std::optional<Spot> s = lift();
       if (!s || !s->live() || s->swatch.read().alpha() == 0) return false;
       st->source = s->swatch;
@@ -148,6 +148,8 @@ namespace stencil::support {
           st->lit << t;
           markDropTarget(t.glow, true);
         }
+      // A source gone mid-drag drops and cancels nothing, so its chip and glows go with it.
+      QObject::connect(owner, &QObject::destroyed, st->chip.data(), [end] { end(); });
       return true;
     };
     h.move = [st, litAt](const IconDragPoint& p) {

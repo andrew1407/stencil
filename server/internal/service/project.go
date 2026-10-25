@@ -77,7 +77,8 @@ func (s *ProjectService) Update(ctx context.Context, id string, req protocol.Upd
 	return rec, nil
 }
 
-// Delete removes a project row, then its bytes, then announces it.
+// Delete removes a project row, then its bytes, then announces it; a missing row is the store's
+// ErrNotFound, and nothing is dropped or announced for it.
 func (s *ProjectService) Delete(ctx context.Context, id string) error {
 	if err := s.Projects.DeleteProject(ctx, id); err != nil {
 		return err

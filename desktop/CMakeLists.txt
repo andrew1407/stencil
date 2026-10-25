@@ -61,15 +61,18 @@ option(STENCIL_REQUIRE_QT "Fail configuration if Qt6 is missing (release packagi
 # Release packaging turns this OFF and builds only the app.
 option(STENCIL_BUILD_TESTS "Configure the ctest targets (OFF for release packaging)" ON)
 option(STENCIL_DOCS_CAPTURE "Build the usecases/ screenshot capture binary (not a test)" OFF)
-# Svg is needed by support/iconSet.cpp, which rasterizes the shared SVG icon set
+# Link-time optimisation of the app and the core it links (release packaging): off by default, since
+# every ctest target links the same static core and would each pay the LTO link.
+option(STENCIL_IPO "Interprocedural optimisation of stencil and stencil_core (release packaging)" OFF)
+# Svg is needed by support/icon/iconSet.cpp, which rasterizes the shared SVG icon set
 # (the qrc-embedded common/config/icons.json canon) into themed toolbar/menu QIcons. qt6-qtsvg
 # is already an effective dependency — the window/taskbar icon (appicon.svg) is
 # drawn by the same module's SVG icon engine.
-# 6.3 is the floor: the install step below needs qt6_generate_deploy_app_script (Qt >= 6.3).
+# 6.12 is the floor: the one Qt the app is built, tested and shipped on.
 if(STENCIL_REQUIRE_QT)
-  find_package(Qt6 6.3 REQUIRED COMPONENTS Widgets Network Multimedia Svg Test)
+  find_package(Qt6 6.12 REQUIRED COMPONENTS Widgets Network Multimedia Svg Test)
 else()
-  find_package(Qt6 6.3 QUIET COMPONENTS Widgets Network Multimedia Svg Test)
+  find_package(Qt6 6.12 QUIET COMPONENTS Widgets Network Multimedia Svg Test)
 endif()
 if(Qt6_FOUND)
   set(CMAKE_AUTOMOC ON)
@@ -94,6 +97,16 @@ if(Qt6_FOUND)
     message(STATUS "stencil: portable build — state resolves to per-user config dir")
   endif()
   message(STATUS "Qt6 found — building stencil (${Qt6_VERSION})")
+  if(STENCIL_IPO)
+    include(CheckIPOSupported)
+    check_ipo_supported(RESULT stencil_ipo OUTPUT stencil_ipo_why LANGUAGES CXX)
+    if(stencil_ipo)
+      set_target_properties(stencil stencil_core PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
+      message(STATUS "stencil: IPO on")
+    else()
+      message(WARNING "stencil: IPO requested but unsupported: ${stencil_ipo_why}")
+    endif()
+  endif()
 
   include(cmake/StencilPackaging.cmake)  # app icon, bundle shape, codesign
   include(cmake/StencilDeploy.cmake)     # install, Qt deploy, CPack
@@ -105,4 +118,4 @@ else()
 endif()
 
 # The WebAssembly target moved to core/CMakeLists.txt (it builds the shared core, not
-# anything desktop-specific). Configure core through emcmake to produce stencil_core.js.
+# anything desktop-specific). Configure core through emcmake to produce stencilCore.js + .wasm.

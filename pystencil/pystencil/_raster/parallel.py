@@ -8,7 +8,13 @@ cores).
 
 from __future__ import annotations
 
+import os
 from concurrent.futures import ThreadPoolExecutor
+
+# A picture smaller than this (pixels) runs in one call: a band's thread costs more than it saves.
+BAND_MIN_PIXELS = 1 << 20
+# The CLI's band bound (cli/src/media/imageRows.zig): at most this many threads per kernel.
+MAX_BANDS = 8
 
 
 def map_parallel(jobs, work, max_workers: int) -> list:
@@ -23,3 +29,11 @@ def map_parallel(jobs, work, max_workers: int) -> list:
   if len(jobs) < 2: return [work(job) for job in jobs]
   with ThreadPoolExecutor(max_workers=min(max_workers, len(jobs))) as pool:
     return list(pool.map(work, jobs))
+
+
+def row_bands(width: int, height: int) -> list:
+  """Half-open row ranges covering ``height``, one per thread, or a single range when small."""
+  if height <= 0: return []
+  n = 1 if width * height < BAND_MIN_PIXELS else max(1, min(MAX_BANDS, os.cpu_count() or 1, height))
+  step = -(-height // n)
+  return [(y, min(height, y + step)) for y in range(0, height, step)]

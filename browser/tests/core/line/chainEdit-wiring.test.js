@@ -1,4 +1,4 @@
-// The ways back out of a closed shape, wired: the Alt+Ctrl/⌘ pull-out (pointer/controller.js →
+// The ways back out of a closed shape, wired: the Alt+Ctrl/⌘ pull-out (ui/bindings/pointer/controller.js →
 // app/editing.js beginPullOutDrag) opens no context menu and wins over the plain Alt gestures, and
 // the selection bar's Unchain is offered on areas only. Desktop twin: canvas/input/CanvasDrag.cpp.
 import test from 'node:test';
@@ -27,7 +27,7 @@ test('the pull-out chord opens no context menu', async () => {
 
 // The press handlers wired on a stub canvas; `press(mods)` fires one left mousedown.
 const wirePointer = async (app) => {
-  const { PointerController } = await import('../../../js/core/pointer/controller.js');
+  const { PointerController } = await import('../../../js/ui/bindings/pointer/controller.js');
   const doc = installDom({}, { window: { innerWidth: 800, innerHeight: 600 } });
   doc.register('canvas-viewport', createStubElement('div'));
   // Client px are image px: the canvas sits at the origin at 1:1 (pointer/canvasCoords.js).
@@ -61,9 +61,9 @@ test('Alt+Ctrl/⌘+drag is checked before the plain Alt gestures', async () => {
 });
 
 test('the pull-out selects the line it broke and drags the new point', async () => {
-  const { EditingMethods } = await import('../../../js/core/app/editing.js');
+  const { EditingBase } = await import('../../../js/core/app/editing.js');
   installDom();
-  const make = (mode) => Object.assign(Object.create(EditingMethods.prototype), {
+  const make = (mode) => Object.assign(Object.create(EditingBase.prototype), {
     lines: [area()], selectedLineIdx: -1, scale: 1, strokeFx: { flyIn() {} },
     renderer: { effectiveCompareMode: () => mode, redraw() {} }, coordTable: { update() {} },
     showSelectionPanel() {}, findNearestPointWithIdx: () => ({ lineIdx: 0, ptIdx: 1 }),

@@ -3,7 +3,7 @@ import { notify } from '../../utils.js';
 import { pageNaturalSize } from '../../core/settings/units.js';
 import { cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped, scaleCropCentered, cropChange, isAlbumOrientation, swapCropOrientation } from '../../core/parse/cropGeometry.js';
 import { icon, spinIconOnce } from '../icons.js';
-import { pinWidestFace } from '../motion.js';
+import { pinWidestFace } from '../motion/control/fx.js';
 import { RECT_TWEEN_MS, tweenRect } from '../motion/rectTween.js';
 import { motionMs } from '../motion/motionPrefs.js';
 import { wireCropFit } from './cropFit.js';

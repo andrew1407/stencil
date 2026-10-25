@@ -1,11 +1,12 @@
 // One async handler per click group: toolbar action items, the video-preview submenu, pin
 // items, and the default image/video-frame path.
 import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings, buildHandoff } from '../lib/stencil.js';
-import { MENU, resolveContextAction, PIN_ITEMS } from '../lib/menu/contextMenu.js';
+import { MENU, resolveContextAction, PIN_ITEMS, LINK_ITEMS } from '../lib/menu/contextMenu.js';
 import { buildStencilSchemeUrl, INLINE_MAX_CHARS } from '../lib/menu/openIn.js';
 import { setPinned, loadPins, isPinnedIn, siteOf } from '../lib/prefs/pins.js';
 import { lastTargetByTab, lastVideoByTab, lastPosterByTab } from './tabState.js';
 import { captureFrameFromScreenshot, captureVideoFrameInTab, captureVideoFrameViaFetch } from './frameCapture.js';
+import { copyLinkFromMenu } from './linkCopy.js';
 
 // A probe-captured video frame (rec.video) wins: for a <video>, info.srcUrl is the media file.
 const resolveSrc = (info, rec) => {
@@ -142,5 +143,6 @@ export const resolveClickHandler = (info) => {
   if (info.menuItemId === MENU.ACTION_OPEN || info.menuItemId === MENU.ACTION_OPEN_INCOGNITO) return openFreshEditor;
   if (typeof info.menuItemId === 'string' && info.menuItemId.startsWith('stencil-preview-')) return actOnPreview;
   if (PIN_ITEMS.includes(info.menuItemId)) return togglePinFromMenu;
+  if (LINK_ITEMS.includes(info.menuItemId)) return copyLinkFromMenu;
   return openImageOrFrame;
 };

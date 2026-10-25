@@ -47,6 +47,8 @@
                              scrollback (wheel/PgUp/PgDn), click logo to change theme
       --confine-output       Refuse an output path outside the working directory
                              (absolute or ~); for adapters forwarding chosen paths
+      --strict-fetch         Refuse loopback on every fetch of the run (also
+                             STENCIL_FETCH_STRICT=1); for adapters forwarding URLs
       --no-clobber           Refuse to overwrite an existing output (checked after
                              the missing extension is filled in)
       --probe                Print -i's format, size, alpha and bytes as JSON (a

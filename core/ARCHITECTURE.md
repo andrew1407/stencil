@@ -13,9 +13,9 @@ adapters, which reach it through `wasm*Api.cpp`, a direct link, or `cliApi.h`.
 
 A group includes only what is to its left; `script/` lowers into the vocabulary of `parse/` and
 `color/` rather than growing its own, spells its numbers through `json/jsNumber.hpp`, and the
-library never includes `abi/`. By convention, no
-lint: every group directory is on one flat include path, so includes are bare
-(`"cropGeometry.hpp"`) and the direction shows only in the `#include` lines.
+library never includes `abi/`. Every group directory is on one flat include path, so includes are
+bare (`"cropGeometry.hpp"`); `tests/layerLint.test.cpp` resolves each one to its folder and holds
+the direction, beyond the frozen allowance of crossings within one column.
 
 ## Where things go
 
@@ -151,7 +151,8 @@ classDiagram
   `contracts/stc/stc-contract.md` is normative.
 - **A formula evaluation.** The caller applies `FormulaParser::apply` per axis after
   `pixelToPageRaw`; a failure leaves the value unchanged, and an unsupplied `FormulaContext`
-  field is NaN, so its name fails rather than reading zero.
+  field is NaN, so its name fails rather than reading zero. `applyPoints` does the same for a
+  whole run of points in one call, each with both of its raw axes in reach.
 - **A history push and undo.** `push` drops the redo branch and trims the oldest steps past `MAX_STEPS`,
   then while the points kept exceed `MAX_POINTS`, never the step just pushed. Below
   the first entry sits a floor with no lines and the stack's base view, so undoing the first
@@ -180,13 +181,16 @@ text (uint8[]):  color, style, fillColor, pointColor, name per line, UTF-8, conc
 ## Concurrency
 
 Core owns no thread and starts none: every call runs on its caller's thread. The adapters
-bring the parallelism — the CLI and pystencil slice whole-image work across a caller-owned pool
+bring the parallelism — the CLI and pystencil slice whole-image work across their own pools
 through the `*Rows` kernels, and pystencil calls the C ABI from a thread pool with the GIL
 released, so a script's `__del__` may destroy a handle on any thread. Shared mutable state
 exists only in the ABI's handle tables and the two memos they own; every other `static` in the
 tree is a `static const` (or `constexpr`) table whose function-local initialisation C++11
-makes thread-safe. `HandleTable` itself is unsynchronised: its ids are monotonic and never
-reused, so a stale handle stays stale, and callers rely on the ABI's lock. The wasm module is
+makes thread-safe, or a per-thread `thread_local` buffer: the stroke pass's coverage row, zero
+between calls, and the contour export's luma plane, freed past 16 MiB. `HandleTable` itself is
+unsynchronised: its ids are monotonic and wrap past `INT_MAX` only around ids still held, so a
+stale handle stays stale, and callers rely on the ABI's lock. A table holds every instance until
+its host destroys it. The wasm module is
 built without pthreads and runs on the browser's one thread, so its mutexes compile to
 Emscripten's single-thread stubs.
 
@@ -196,6 +200,7 @@ Emscripten's single-thread stubs.
 | script ABI (`abi/scriptShared.inc`) | any caller thread, both ABIs | the `ScriptProgram` table and its memoized `getDump()` | `scriptLock()`, one mutex taken by every export; `parse` runs before the lock, only the insert holds it | destroy frees under the lock; pointers into a program stay valid until `scriptDestroy`, since it is immutable after `parse` |
 | holdDraw and history tables (`wasmStateApi.cpp`, `wasmHistoryApi.cpp`) | the browser's main thread (wasm only) | their `HandleTable`s | none: wasm-only, single-threaded | an unknown handle is a no-op |
 | `*Rows` kernels (`raster/`) | the adapter's pool threads | the caller's buffers, disjoint row ranges | none needed: re-entrant, no statics, each writes only its own rows | `applyFilterRows` trusts `y1`; the others clamp |
+| stroke coverage row (`raster/strokeCoverage.cpp`) | any caller thread | one `thread_local` row of doubles | none needed: each thread owns its own, every column written is reset before the pass returns | grows to the widest image that thread has stroked, never shrinks |
 | contour two-phase (`buildLumaRows` → `sobelRows`) | the adapter's pool threads | the caller's `luma` plane | the caller's barrier: every luma row is built before any Sobel row runs, since Sobel reads one row past each end of its range | — |
 
 ## Rules

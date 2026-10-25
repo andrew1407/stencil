@@ -153,3 +153,25 @@ test('a refused credential stops the retries; a user disconnect never starts the
   await flush();
   assert.equal(srv2.sockets.length, 1);
 });
+
+test('a redial still shaking hands when the user disconnects opens no orphan socket', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const srv = flakyServer();
+  let gate = null;
+  const fetchImpl = async (url, init) => {
+    if (gate) await gate.wait;
+    return srv.fetchImpl(url, init);
+  };
+  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: srv.WS });
+  await mgr.connect('http://a:1');
+  let open;
+  gate = { wait: new Promise((r) => { open = r; }) };
+  srv.sockets[0].fire('close');
+  t.mock.timers.tick(1000);
+  await flush();
+  mgr.disconnect('http://a:1');
+  gate = null;
+  open();
+  await flush();
+  assert.equal(srv.sockets.length, 1, 'the late handshake opened no feed for a closed connection');
+});

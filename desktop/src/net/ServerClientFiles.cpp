@@ -8,11 +8,19 @@
 namespace stencil::net {
 
   void ServerClient::getProjectAsync(
-      const QString& id, std::function<void(bool, ServerProject, QJsonObject)> done) {
+      const QString& id, std::function<void(bool, ServerProject, QJsonObject)> done, qint64 knownVersion) {
+    // The server's ETag is "v<version>" (server/internal/httpapi/projects.go).
+    const QByteArray etag = knownVersion >= 0 ? "\"v" + QByteArray::number(knownVersion) + "\"" : QByteArray();
     requestAsync("GET", QString("/projects/%1").arg(id), {}, {},
-                 [this, done = std::move(done)](int status, QByteArray body) {
+                 [this, knownVersion, done = std::move(done)](int status, QByteArray body) {
                    ServerProject meta;
                    QJsonObject layoutOut;
+                   if (status == 304 && knownVersion >= 0) {
+                     meta.version = knownVersion;
+                     meta.serverUrl = base;
+                     done(true, meta, layoutOut);
+                     return;
+                   }
                    if (!isOkStatus(status)) {
                      done(false, meta, layoutOut);
                      return;
@@ -37,7 +45,8 @@ namespace stencil::net {
                    meta.serverUrl = base;
                    layoutOut = root.value("layout").toObject();
                    done(true, meta, layoutOut);
-                 });
+                 },
+                 /*retried=*/false, etag);
   }
 
   namespace {

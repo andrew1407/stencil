@@ -70,9 +70,9 @@ pub fn freeStrList(gpa: std.mem.Allocator, items: [][]u8) void {
 
 /// Dupe a slice of borrowed strings into an owned [][]u8 (free with freeStrList).
 pub fn dupeStrList(gpa: std.mem.Allocator, src: []const []const u8) ![][]u8 {
-    var list: std.ArrayList([]u8) = .empty;
+    var list: std.ArrayList([]u8) = try .initCapacity(gpa, src.len); // full, so toOwnedSlice never allocates
     errdefer freeStrList(gpa, list.toOwnedSlice(gpa) catch &.{});
-    for (src) |s| try list.append(gpa, try gpa.dupe(u8, s));
+    for (src) |s| list.appendAssumeCapacity(try gpa.dupe(u8, s));
     return list.toOwnedSlice(gpa);
 }
 
@@ -94,7 +94,7 @@ pub fn parseProjectList(gpa: std.mem.Allocator, body: []const u8) ![]ProjectInfo
     };
     var p = std.json.parseFromSlice(T, gpa, body, .{ .ignore_unknown_fields = true }) catch return Error.BadResponse;
     defer p.deinit();
-    var list: std.ArrayList(ProjectInfo) = .empty;
+    var list: std.ArrayList(ProjectInfo) = try .initCapacity(gpa, p.value.projects.len);
     errdefer freeProjectList(gpa, list.toOwnedSlice(gpa) catch &.{});
     for (p.value.projects) |proj| {
         const nm = try gpa.dupe(u8, proj.name);
@@ -105,7 +105,7 @@ pub fn parseProjectList(gpa: std.mem.Allocator, body: []const u8) ![]ProjectInfo
         errdefer gpa.free(desc);
         const kws = try dupeStrList(gpa, proj.keywords);
         errdefer freeStrList(gpa, kws);
-        try list.append(gpa, .{ .name = nm, .created_at = proj.createdAt, .updated_at = proj.updatedAt, .expires_at = proj.expiresAt, .w = proj.imageW, .h = proj.imageH, .color = col, .description = desc, .keywords = kws });
+        list.appendAssumeCapacity(.{ .name = nm, .created_at = proj.createdAt, .updated_at = proj.updatedAt, .expires_at = proj.expiresAt, .w = proj.imageW, .h = proj.imageH, .color = col, .description = desc, .keywords = kws });
     }
     return list.toOwnedSlice(gpa);
 }

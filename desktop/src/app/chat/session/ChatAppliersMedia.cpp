@@ -2,8 +2,8 @@
 #include "SharedState.hpp"
 #include "ChatAppliers.hpp"
 #include "ChatSessionController.hpp"
-#include "mainWindowHelpers.hpp"
-#include "guiHelpers.hpp"   // confirmYesNo()
+#include "stamps.hpp"
+#include "modalChrome.hpp"   // confirmYesNo()
 #include "MediaLoader.hpp"
 #include "PlanAwait.hpp"
 #include "Notifications.hpp"
@@ -21,8 +21,8 @@ namespace stencil::gui {
   void ChatAppliers::offerChatVideoUpload(const QString& path) {
     // Optional server storage with kind "video" (contract §8).
     const auto& link = w.remote.session->getLink();
-    if (link.address.isEmpty() || !w.remote.connections) return;
-    auto* c = w.remote.connections->find(link.address);
+    if (link.address.isEmpty() || !w.remote.conns()) return;
+    auto* c = w.remote.conns()->find(link.address);
     if (!c) return;
     const QString host = QUrl(link.address).host();
     if (!confirmYesNo(&w, "Upload video",
@@ -82,7 +82,7 @@ namespace stencil::gui {
     // ONE registry write + dock-menu rebuild for the whole extraction.
     if (registryChanged) {
       SharedState::instance().saveProjects(&w);
-      SiblingWindows::refreshDockMenu(w.projectList);
+      SiblingWindows::refreshDockMenu(w.projectHost.projectList);
     }
     w.refreshActions();
     w.notify->success(QStringLiteral("Opened %1 video frame(s) as projects").arg(frames.size()));
@@ -90,15 +90,15 @@ namespace stencil::gui {
 
   QString ChatAppliers::addImageProjectEntry(const QImage& img, const QString& baseName,
                                            bool deferRegistrySave) {
-    if (img.isNull() || w.incognito) return QString();  // incognito never persists
+    if (img.isNull() || w.projectHost.incognito) return QString();  // incognito never persists
     Project pr;
-    pr.meta.id = w.projectsStore.createId(nowMs(), makeSalt());
+    pr.meta.id = w.projectHost.projectsStore.createId(nowMs(), makeSalt());
     // Unique-ify against the local list with the shared collision rules (checkProjectName → core validateName).
     QString name = baseName.isEmpty() ? QStringLiteral("variant") : baseName;
     {
       QString candidate = name;
       int i = 2;
-      while (!w.checkProjectName(candidate, QString()).ok)
+      while (!w.projectHost.checkProjectName(candidate, QString()).ok)
         candidate = QStringLiteral("%1 %2").arg(name).arg(i++);
       name = candidate;
     }
@@ -114,10 +114,10 @@ namespace stencil::gui {
     pr.meta.hasImage = true;
     pr.meta.imageW = img.width();
     pr.meta.imageH = img.height();
-    w.projectList.push_back(pr);
+    w.projectHost.projectList.push_back(pr);
     if (!deferRegistrySave) {
       SharedState::instance().saveProjects(&w);
-      SiblingWindows::refreshDockMenu(w.projectList);
+      SiblingWindows::refreshDockMenu(w.projectHost.projectList);
     }
     return QString::fromStdString(pr.meta.id);
   }

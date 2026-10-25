@@ -20,7 +20,8 @@ export const VIEWS = config.get('viewports');
 export const TIMEOUTS = config.get('timeouts');
 export const MIN_ROWS = config.get('minRows');
 
-const { EXT_PATH } = await e2e('helpers/extension.js');
+const { EXT_PATH, inClosedShadow } = await e2e('helpers/extension.js');
+export { inClosedShadow };
 export const { freezeMotion } = await e2e('helpers/uiPin.js');
 export const { llmSettings } = await e2e('helpers/chat.js');
 

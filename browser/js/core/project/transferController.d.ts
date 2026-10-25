@@ -80,9 +80,9 @@ export declare class ProjectTransferController {
   clearAllProjects(): void;
   renameProject(id: string, name: string): ProjectMeta | null;
   pushProjectFieldToServer(id: string, fields: Record<string, unknown>, failMsg: string): Promise<void>;
-  setProjectColor(id: string, color: string): ProjectMeta | null;
-  setProjectKeywords(id: string, keywords: string | string[]): ProjectMeta | null;
-  setProjectDescription(id: string, description: string): ProjectMeta | null;
+  setProjectColor(id: string, color: string, opts?: { local?: boolean }): ProjectMeta | null;
+  setProjectKeywords(id: string, keywords: string | string[], opts?: { local?: boolean }): ProjectMeta | null;
+  setProjectDescription(id: string, description: string, opts?: { local?: boolean }): ProjectMeta | null;
   setProjectBlankColor(id: string, color: string): ProjectMeta | null;
   moveProjectToServer(id: string, address: string): Promise<string>;
   copyProjectToServer(id: string, address: string, opts?: { name?: string }): Promise<string>;

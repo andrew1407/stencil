@@ -9,6 +9,7 @@ const send = @import("net/send.zig");
 const job = @import("net/job.zig");
 const jobCall = @import("net/jobCall.zig");
 const pin = @import("net/pin.zig");
+const shown = @import("net/shown.zig");
 
 // The host/authority split + SSRF guard live in host.zig; these are the names callers use.
 pub const Authority = host_guard.Authority;
@@ -53,7 +54,8 @@ pub fn hasForeignScheme(s: []const u8) bool {
 /// SSRF guard: refuse loopback/private/link-local/metadata targets before connecting.
 fn guardHost(io: std.Io, url: []const u8, strict: bool) Error!void {
     const host = hostOf(url) orelse {
-        report.err("could not parse a host from URL '{s}'\n", .{url});
+        var sb: shown.Buf = undefined;
+        report.err("could not parse a host from URL '{s}'\n", .{shown.of(&sb, url)});
         return Error.BlockedHost;
     };
     if (isBlockedFetchHost(host, strict)) {
@@ -83,14 +85,23 @@ fn guardServer(io: std.Io, host: []const u8, out: []std.Io.net.IpAddress) Error!
     return got;
 }
 
+/// Set once at startup by `--strict-fetch` / `STENCIL_FETCH_STRICT=1`: an adapter (the bot, mcp) whose
+/// URLs are not the user's own keeps its loopback refusal through the CLI, so every fetch is strict.
+var all_strict = std.atomic.Value(bool).init(false);
+
+pub fn setStrictFetch(on: bool) void {
+    all_strict.store(on, .release);
+}
+
 /// The guard for `opts`, then the exchange under its deadline.
 fn exchange(gpa: std.mem.Allocator, io: std.Io, url: []const u8, opts: RequestOptions) send.Result {
     if (!opts.server_target) {
-        try guardHost(io, url, opts.strict);
+        try guardHost(io, url, opts.strict or all_strict.load(.acquire));
         return send.deadlined(gpa, io, url, opts, &.{});
     }
     const host = hostOf(url) orelse {
-        report.err("could not parse a host from URL '{s}'\n", .{url});
+        var sb: shown.Buf = undefined;
+        report.err("could not parse a host from URL '{s}'\n", .{shown.of(&sb, url)});
         return Error.BlockedHost;
     };
     var pins: [pin.max_pins]std.Io.net.IpAddress = undefined;
@@ -99,7 +110,8 @@ fn exchange(gpa: std.mem.Allocator, io: std.Io, url: []const u8, opts: RequestOp
         .blocked => unreachable,
         .unresolved => |e| {
             // a watch giving up mid-lookup: the waiting side says why
-            if (e != error.Canceled) report.err("HTTP request failed for {s}: {s}\n", .{ url, @errorName(e) });
+            var sb: shown.Buf = undefined;
+            if (e != error.Canceled) report.err("HTTP request failed for {s}: {s}\n", .{ shown.of(&sb, url), @errorName(e) });
             return Error.HttpFailed;
         },
     };
@@ -141,12 +153,14 @@ pub fn requestWatched(gpa: std.mem.Allocator, io: std.Io, url: []const u8, opts:
 /// loopback — pass it for sub-resources harvested from scanned content, false for a user-named URL.
 pub fn fetch(gpa: std.mem.Allocator, io: std.Io, url: []const u8, strict: bool) ![]u8 {
     const res = request(gpa, io, url, .{ .strict = strict }) catch |e| {
-        if (e == error.Cancelled) report.note("cancelled — {s} was not fetched\n", .{url});
+        var sb: shown.Buf = undefined;
+        if (e == error.Cancelled) report.note("cancelled — {s} was not fetched\n", .{shown.of(&sb, url)});
         return e;
     };
     if (res.status < 200 or res.status >= 300) {
         defer gpa.free(res.body);
-        report.err("HTTP {d} fetching {s}\n", .{ res.status, url });
+        var sb: shown.Buf = undefined;
+        report.err("HTTP {d} fetching {s}\n", .{ res.status, shown.of(&sb, url) });
         return Error.HttpFailed;
     }
     return res.body;

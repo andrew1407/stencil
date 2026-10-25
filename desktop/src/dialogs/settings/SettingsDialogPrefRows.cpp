@@ -1,7 +1,7 @@
 // App preferences: the desktop-only rows the browser modal has no home for.
 #include "SettingsDialog.hpp"
 #include "../../support/menu/SearchCombo.hpp"
-#include "guiHelpers.hpp"
+#include "pageSizeCombo.hpp"
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDoubleSpinBox>

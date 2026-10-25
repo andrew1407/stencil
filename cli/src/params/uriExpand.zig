@@ -47,11 +47,13 @@ pub fn expandOptions(a: std.mem.Allocator, opts: *options.Options) !bool {
         },
         .server => |s| {
             opts.server = s.url;
+            opts.server_from_link = true;
             opts.input = s.id;
         },
         // A bare ref without a server names a local project, which the one-shot has none of.
         .project => |p| {
             opts.server = q.projectOrigin(p.server) orelse return false;
+            opts.server_from_link = true;
             opts.input = p.ref;
         },
     }
@@ -95,11 +97,14 @@ test "expandOptions: a source URI becomes -i -f -l, a blank one --blank, a serve
     try testing.expectEqualStrings("http://h:8090", server.server.?);
     try testing.expectEqualStrings("p_1", server.input.?);
     try testing.expectEqualStrings("tok", server.token.?);
+    try testing.expect(server.server_from_link);
+    try testing.expect(!src.server_from_link);
 
     var project = options.Options{ .input = "https://app.example/?project=localhost:8080/projects/Sketch" };
     try testing.expect(try expandOptions(a, &project));
     try testing.expectEqualStrings("localhost:8080", project.server.?);
     try testing.expectEqualStrings("Sketch", project.input.?);
+    try testing.expect(project.server_from_link);
     var bare = options.Options{ .input = "https://app.example/?connect=http://h:8090&project=p_1" };
     try testing.expect(try expandOptions(a, &bare));
     try testing.expectEqualStrings("http://h:8090", bare.server.?);

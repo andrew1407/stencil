@@ -1,13 +1,13 @@
 #pragma once
 #include "BlockedCursor.hpp"
 #include "ContextMenuParts.hpp"
-#include "DocumentSource.hpp"
 #include "FullscreenController.hpp"
 #include "HeldKeys.hpp"
 #include "HotkeyTable.hpp"
 #include "PaintedTheme.hpp"
 #include "PanelSlide.hpp"
 #include "PopoverHost.hpp"
+#include "ProjectHost.hpp"
 #include "ProjectNameBar.hpp"
 #include "RemoteState.hpp"
 #include "SessionController.hpp"
@@ -19,7 +19,6 @@
 #include "fileStore.hpp"
 #include "formulaParser.hpp"
 #include "pageMetrics.hpp"
-#include "ProjectsStore.hpp"
 #include "tooltipRows.hpp"
 #include <QByteArray>
 #include <QMainWindow>
@@ -70,6 +69,8 @@ namespace stencil::gui {
     void applyLaunchOptions(const LaunchOptions& opts);
     void openPathFromOS(const QString& path, int frame = 0);
     void openStencilUrl(const QUrl& url);
+    // The project this window holds and its flows; another window's code reaches it here.
+    ProjectHost& projects() { return projectHost; }
 
    private:
     void newBlankImage();
@@ -104,18 +105,10 @@ namespace stencil::gui {
     stencil::net::ConnectionManager* ensureConnections();
     // Plaintext http to a remote host sends the bearer token + image bytes in the clear.
     void warnInsecureConnections();
-    // Browser switchToProject(); animate=false for a REBIND, where a dust arrival would be a lie.
-    // False without such a project; `landed` hears whether its off-thread decode went in.
-    bool loadProjectIntoCanvas(const QString& id, bool animate = true,
-                               std::function<void(bool)> landed = {});
     // `decode` runs on the pool and touches no GUI object; `adopt` gets its pixels (null: the decode
     // failed) on the GUI thread, or `dropped` does when a newer picture load began meanwhile.
     void decodeForCanvas(std::function<QImage()> decode, std::function<void(const QImage&)> adopt,
                          std::function<void()> dropped = {});
-    bool projectOpenInOtherWindow(const QString& id) const;
-    void createLocalProject(const QString& name, bool announce = true, bool fromFile = false);
-    void adoptCanvasAsLocalProject();
-    void saveToActiveProject();
     void loadImageWithLayout(const QImage& img, const QJsonObject& layout,
                              const QByteArray& bytes = {}, const QString& ext = {});
     // The project StencilFileSync writes out; the live sync itself is that controller's.
@@ -126,13 +119,9 @@ namespace stencil::gui {
     void positionOverlayArrows();
     // A file dialog closes every open popup; Upload/Download re-open the flyout on the script row.
     void reopenScriptFlyout();
-    QString promoteIncognitoToLocal(const QString& name = QString());
-    Project* findProject(const std::string& id);
+    // The seam ProjectHost reaches the window through (app/project/MainWindowProjectSeam.cpp).
+    ProjectWindow projectSeam();
     void persistSettings();
-    // Browser twin: validateName/nameExists.
-    QString activeProjectName() const;
-    QString projectBaseName() const;
-    core::ProjectsStore::NameCheck checkProjectName(const QString& name, const QString& exceptId) const;
     void setActionTip(QAction* a, const QString& desc);
     void updateStatusIdle();
     void keyPressEvent(QKeyEvent* event) override;
@@ -162,8 +151,6 @@ namespace stencil::gui {
     friend class PopoverGestures;
     friend class DocumentPersistence;
     friend class ChatAppliers;
-    friend class ProjectFlows;
-    friend class ProjectCopy;
     friend class ThemePainter;
     friend class EditorView;
     friend class DockChrome;
@@ -194,7 +181,6 @@ namespace stencil::gui {
     QLabel* status = nullptr;
     QComboBox* zoom = nullptr;
     SessionController session;
-    bool filterDirty = false;
     ProjectNameBar nameBar;
     bool toolbarsShown = true;
     bool tearingDown = false;
@@ -211,12 +197,8 @@ namespace stencil::gui {
     PanelSlide panelSlide;
     HotkeyTable keys;
     Settings settings;
-    core::ProjectsStore projectsStore;
-    std::vector<Project>& projectList;   // SharedState's, shared by every window
-    QString activeProjectId;
+    ProjectHost projectHost;
     RemoteState remote;
-    DocumentSource docSource;
-    bool incognito = false;
     bool firstShow = true;
     MediaLoader* mediaLoader = nullptr;
     std::unique_ptr<DataExportController> dataExport;

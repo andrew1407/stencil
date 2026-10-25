@@ -13,3 +13,11 @@ export declare const filterPixels: (
   rgb: { r: number; g: number; b: number },
   op: (name: 'applyContourRGBA' | 'applyFilterRGBA') => ((...args: never[]) => void) | null,
 ) => boolean;
+
+/** filterPixels' pass, answering the array that holds the result: `data`, or a wasm-heap view to read
+ *  before the next core call; null where filterPixels answers false. */
+export declare const filteredPixels: (
+  recipe: FilterRecipe, data: Uint8ClampedArray | Uint8Array, width: number, height: number,
+  rgb: { r: number; g: number; b: number },
+  op: (name: 'applyContourRGBA' | 'applyFilterRGBA') => ((...args: never[]) => Uint8ClampedArray | void) | null,
+) => Uint8ClampedArray | Uint8Array | null;

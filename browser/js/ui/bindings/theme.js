@@ -1,4 +1,4 @@
-import { applyAccentFavicon } from '../../core/settings/accents.js';
+import { applyAccentFavicon } from '../accent/favicon.js';
 import { wireThemeLens } from '../drag/themeLens.js';
 export function wireTheme(app) {
   app.accents.updateThemeIcon();

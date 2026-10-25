@@ -1,4 +1,4 @@
-import { replayWaves } from '../motion.js';
+import { replayWaves } from '../motion/control/fx.js';
 import { notify } from '../../utils.js';
 import { VOICE_STATE_EVENT } from '../../llm/voice/modes.js';
 import { attachVoiceDust } from '../dust/voiceDust.js';

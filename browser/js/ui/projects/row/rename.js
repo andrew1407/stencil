@@ -1,7 +1,7 @@
 import { icon } from '../../icons.js';
 import { wireNameEditor } from '../../../utils.js';
 import { validateProjectName } from '../../../core/parse/validation.js';
-import { markIn, markOut } from '../../motion.js';
+import { markIn, markOut } from '../../motion/surface/marks.js';
 
 // The row's inline rename editor: ✓/✗ form out of dust, live validation against the store's
 // uniqueness rule, Enter = ✓, Escape / click-away = ✗. `gesture` is the row's own open gesture,

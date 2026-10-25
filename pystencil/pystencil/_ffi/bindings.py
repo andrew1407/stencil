@@ -55,20 +55,26 @@ def bind(lib: ctypes.CDLL) -> None:
 
   lib.stencil_cli_rotateImageRGBA.restype = None
   lib.stencil_cli_rotateImageRGBA.argtypes = [_src, ctypes.c_int, ctypes.c_int, ctypes.c_int, _u8p]
-
   lib.stencil_cli_mirrorEdit.restype = None
   lib.stencil_cli_mirrorEdit.argtypes = [_d] * 4 + [ctypes.c_int, _d, _d, _dblp]
+  # Half-open [y0,y1) row slices (core/cliApi.h `*Rows`), banded by _raster/bands.py.
+  lib.stencil_cli_cropImageRows.restype = None
+  lib.stencil_cli_cropImageRows.argtypes = [_src] + [ctypes.c_int] * 6 + [_u8p, ctypes.c_int, ctypes.c_int]
+  lib.stencil_cli_rotateImageRows.restype = None
+  lib.stencil_cli_rotateImageRows.argtypes = [_src] + [ctypes.c_int] * 3 + [_u8p, ctypes.c_int, ctypes.c_int]
   lib.stencil_cli_mirrorImageRows.restype = None
   lib.stencil_cli_mirrorImageRows.argtypes = [_src, ctypes.c_int, ctypes.c_int, _u8p, ctypes.c_int, ctypes.c_int]
-
   lib.stencil_cli_fillRGBA.restype = None
   lib.stencil_cli_fillRGBA.argtypes = [_u8p] + [ctypes.c_int] * 5
-
   lib.stencil_cli_applyFilter.restype = None
   lib.stencil_cli_applyFilter.argtypes = [_cstr, _u8p] + [ctypes.c_int] * 4
-
   lib.stencil_cli_applyContour.restype = None
   lib.stencil_cli_applyContour.argtypes = [_u8p, ctypes.c_int, ctypes.c_int]
+  # The contour's two row-banded phases (core/cliApi.h): every luma row before any sobel row.
+  lib.stencil_cli_buildLumaRows.restype = None
+  lib.stencil_cli_buildLumaRows.argtypes = [_src] + [ctypes.c_int] * 4 + [_u8p]
+  lib.stencil_cli_sobelRows.restype = None
+  lib.stencil_cli_sobelRows.argtypes = [_src, _u8p] + [ctypes.c_int] * 4
 
   # The double* parameter here is the one that MUST be typed or the call corrupts.
   lib.stencil_cli_rasterizeLine.restype = None
@@ -154,6 +160,9 @@ def _bind_script(lib: ctypes.CDLL) -> None:
 
   lib.stencil_cli_scriptTokenAt.restype = _i
   lib.stencil_cli_scriptTokenAt.argtypes = [_i, _i, _intp, _intp, _intp, _intp]
+
+  lib.stencil_cli_scriptTokens.restype = _i
+  lib.stencil_cli_scriptTokens.argtypes = [_i, _intp, _i]
 
   lib.stencil_cli_scriptBlockCount.restype = _i
   lib.stencil_cli_scriptBlockCount.argtypes = [_i]

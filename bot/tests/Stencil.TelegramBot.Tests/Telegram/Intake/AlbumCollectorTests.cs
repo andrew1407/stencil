@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Stencil.TelegramBot.Bot.Telegram.Intake;
 
 namespace Stencil.TelegramBot.Tests.Telegram.Intake;
@@ -99,11 +100,12 @@ public sealed class AlbumCollectorTests
     {
         SettleGate gate = new();
         AlbumCollector collector = new(gate.Wait);
-        List<string> flushedGroups = new();
+        // The two windows elapse together, so the flushes run on two pool threads at once.
+        ConcurrentQueue<string> flushedGroups = new();
 
-        collector.Add(_userId, "g1", photo(1), _ => { flushedGroups.Add("g1"); return Task.CompletedTask; },
+        collector.Add(_userId, "g1", photo(1), _ => { flushedGroups.Enqueue("g1"); return Task.CompletedTask; },
             CancellationToken.None);
-        collector.Add(_userId, "g2", photo(2), _ => { flushedGroups.Add("g2"); return Task.CompletedTask; },
+        collector.Add(_userId, "g2", photo(2), _ => { flushedGroups.Enqueue("g2"); return Task.CompletedTask; },
             CancellationToken.None);
 
         await gate.ReleaseAsync(2);

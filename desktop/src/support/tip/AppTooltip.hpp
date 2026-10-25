@@ -150,7 +150,7 @@ namespace stencil::gui {
    private:
     void dismiss();
 
-    AppTooltip* tip = nullptr;
+    QPointer<AppTooltip> tip;
     QPointer<QWidget> tracked;   // the widget this tip switched mouse tracking on for
   };
 

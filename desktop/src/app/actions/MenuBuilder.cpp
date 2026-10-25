@@ -134,9 +134,9 @@ namespace stencil::gui {
     project->addSeparator();
     project->addAction(w.acts.renameProject);
     // Per-project name colour; enabled only with an active project (updateProjectTitle).
-    w.acts.projectColor = project->addAction("Project &color…", &w, [this] { w.parts.projects.chooseProjectColor(); });
+    w.acts.projectColor = project->addAction("Project &color…", &w, [this] { w.projectHost.flows.chooseProjectColor(); });
     w.acts.projectColorClear =
-        project->addAction("Use theme &default color", &w, [this] { w.parts.projects.setActiveProjectColor(QString()); });
+        project->addAction("Use theme &default color", &w, [this] { w.projectHost.flows.setActiveProjectColor(QString()); });
     w.acts.projectColor->setEnabled(false);
     w.acts.projectColorClear->setEnabled(false);
     project->addSeparator();

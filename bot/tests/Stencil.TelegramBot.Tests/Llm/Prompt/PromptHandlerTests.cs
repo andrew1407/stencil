@@ -1,9 +1,10 @@
 using Telegram.Bot.Requests;
+using Stencil.TelegramBot.Application.Llm;
 using Stencil.TelegramBot.Domain.Llm.Wire;
 
 namespace Stencil.TelegramBot.Tests.Llm.Prompt;
 
-/// <summary>The <c>/prompt</c> (and <c>/p</c>) main path: both verbs, the usage hint, reply + photo, the media group for variants, warning surfacing, and LLM failures as chat text.</summary>
+/// <summary>The <c>/prompt</c> (and <c>/p</c>) main path: both verbs, the usage hint, reply + photo, the media group for variants, warning surfacing, LLM failures as chat text, and every render deleted once sent.</summary>
 public sealed class PromptHandlerTests : PromptHandlerTestBase
 {
     [Fact]
@@ -65,6 +66,44 @@ public sealed class PromptHandlerTests : PromptHandlerTestBase
 
         SendMediaGroupRequest album = Assert.Single(_bot.Requests.OfType<SendMediaGroupRequest>());
         Assert.Equal(2, album.Media.Count());
+        await assertOnlyTheOriginalRemains();
+    }
+
+    [Fact]
+    public async Task Should_Delete_A_Lone_Variant_Once_It_Is_Sent()
+    {
+        await Dispatch("/blank");
+        _llm.CannedReplies.Enqueue(new LlmReply(
+            "{\"reply\":\"bw + one rotated variant\",\"actions\":[{\"op\":\"filter\",\"mode\":\"bw\"}],\n"
+            + " \"variants\":[{\"label\":\"turned\",\"actions\":[{\"op\":\"rotate\",\"dir\":\"right\",\"times\":2}]}]}"));
+
+        await Dispatch("/prompt bw and a turned take");
+
+        Assert.Equal(3, _bot.Requests.OfType<SendPhotoRequest>().Count()); // blank, result, variant
+        await assertOnlyTheOriginalRemains();
+    }
+
+    [Fact]
+    public async Task Should_Buffer_Only_The_Last_Render_And_Delete_The_Superseded_One_Under_A_Capture()
+    {
+        await Dispatch("/blank");
+        List<PromptRender> captured = new();
+
+        using (_handlers.BeginRenderCapture(UserId, captured))
+        {
+            await _handlers.RenderAndSendAsync(UserId, ChatId, CancellationToken.None);
+            await _handlers.RenderAndSendAsync(UserId, ChatId, CancellationToken.None);
+        }
+
+        Assert.True(File.Exists(Assert.Single(captured).Result.Path));
+        Assert.False(File.Exists(_cli.Requests[^2].Output));
+    }
+
+    // A sent render is spent; only the working image may outlive the turn.
+    private async Task assertOnlyTheOriginalRemains()
+    {
+        string? original = (await _store.GetAsync(UserId)).OriginalImagePath;
+        Assert.All(_cli.Requests.Where(r => r.Output != original), r => Assert.False(File.Exists(r.Output), r.Output));
     }
 
     [Fact]

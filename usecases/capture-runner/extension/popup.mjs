@@ -148,7 +148,8 @@ export const openInTab = async (ctx, theme, image, label, name) => {
   await openFlyout(ui, 'Open');
   const [tab] = await Promise.all([context.waitForEvent('page'), clickMenuItem(ui, label, true)]);
   await tab.setViewportSize(VIEWS.site);
-  await tab.waitForFunction(() => document.getElementById('canvas')?.width > 0, null, { timeout: TIMEOUTS.editorMs });
+  // The canvas is sized before index.js defines window.stencil, which the theme is set through.
+  await tab.waitForFunction(() => !!window.stencil && document.getElementById('canvas')?.width > 0, null, { timeout: TIMEOUTS.editorMs });
   await freezeMotion(tab);
   await applyAppTheme(tab, theme);
   await runner.shot(tab, name);

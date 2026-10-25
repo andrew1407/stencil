@@ -88,7 +88,11 @@ pub fn expand(gpa: std.mem.Allocator, io: std.Io, spec: []const u8, kind: script
                 report.err("@source '{s}': only http(s) URLs and local paths can be opened\n", .{spec});
                 return Error.ForeignScheme;
             }
-            try out.append(gpa, try gpa.dupe(u8, spec));
+            const owned = try gpa.dupe(u8, spec);
+            out.append(gpa, owned) catch |e| {
+                gpa.free(owned);
+                return e;
+            };
         },
         .dir, .glob => {
             const parts: DirLeaf = if (kind == .dir) .{ .dir = spec, .leaf = "*" } else splitDir(spec);
@@ -108,7 +112,11 @@ pub fn expand(gpa: std.mem.Allocator, io: std.Io, spec: []const u8, kind: script
                     report.err("@source '{s}': more than {d} inputs matched\n", .{ spec, MAX_INPUTS });
                     return Error.TooManyInputs;
                 }
-                try out.append(gpa, try std.fs.path.join(gpa, &.{ parts.dir, entry.name }));
+                const joined = try std.fs.path.join(gpa, &.{ parts.dir, entry.name });
+                out.append(gpa, joined) catch |e| {
+                    gpa.free(joined);
+                    return e;
+                };
             }
             std.mem.sort([]u8, out.items, {}, struct {
                 fn lt(_: void, a: []u8, b: []u8) bool {

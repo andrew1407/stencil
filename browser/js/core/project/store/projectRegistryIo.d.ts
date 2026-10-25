@@ -8,6 +8,8 @@ export declare const storageKeys: (storage: StorageBackend | null | undefined) =
 export declare const parseJSON: <T>(raw: string | null | undefined, fallback: T) => T;
 /** `fallback` on a missing key, junk JSON or a stored null. */
 export declare const readJSON: <T>(storage: StorageBackend, key: string, fallback: T) => T;
+/** Already-serialised JSON text, written verbatim where it stands in a writeJSON value. */
+export declare const rawJson: (text: string) => object;
 /** QuotaExceededError propagates so the DOM adapter can evict + retry. */
 export declare const writeJSON: (storage: StorageBackend, key: string, value: unknown) => void;
 /** Fills only ABSENT fields, so an explicit expiresAt of 0 (keep forever) survives. */

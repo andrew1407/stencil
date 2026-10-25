@@ -88,6 +88,10 @@ func TestCORSEmptyListAllowsLoopbackOnly(t *testing.T) {
 			{"http://localhost:8080", "http://localhost:8080"},
 			{"http://127.0.0.1:3000", "http://127.0.0.1:3000"},
 			{"https://evil.example", ""},
+			{"http://127.evil.example", ""}, // a name that starts with "127.", not a loopback address
+			{"http://127.0.0.1.evil.example:8080", ""},
+			{"http://[::1]:5173", "http://[::1]:5173"},
+			{"http://127.1.2.3", "http://127.1.2.3"},
 			{"chrome-extension://abcdefghijklmnop", ""}, // non-http scheme
 		}
 		for _, c := range cases {
@@ -113,5 +117,22 @@ func TestCORSNoOriginHeaderUntouched(t *testing.T) {
 	}
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+}
+
+// The feed's rule is CORS_ORIGINS (loopback when empty) plus the extension schemes and no-Origin clients.
+func TestFeedOriginRule(t *testing.T) {
+	loop := FeedOriginAllowed(nil)
+	for origin, want := range map[string]bool{
+		"": true, "http://localhost:5173": true, "chrome-extension://abcdef": true, "moz-extension://x": true,
+		"https://evil.example": false, "http://127.evil.example": false,
+	} {
+		if got := loop(origin); got != want {
+			t.Errorf("default rule, %q: %v, want %v", origin, got, want)
+		}
+	}
+	listed := FeedOriginAllowed([]string{"https://app.example"})
+	if !listed("https://app.example") || listed("http://localhost:5173") {
+		t.Error("an allowlist admits its origins and drops the loopback default")
 	}
 }

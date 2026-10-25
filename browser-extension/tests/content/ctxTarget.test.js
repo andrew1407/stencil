@@ -8,8 +8,8 @@ import { MSG } from '../../src/lib/messages.js';
 import { CTX_PROBE_FILES } from '../../src/background/registrars.js';
 import { el, at, probe, PROBE_FILES, SOURCES } from '../helpers/ctxProbeEnv.js';
 
-test('the resolver loads before the probe, the same way from the manifest and into open tabs', () => {
-  assert.deepEqual(PROBE_FILES, ['src/content/ctxResolve.js', 'src/content/ctxTarget.js']);
+test('the orphan claim and the resolver load before the probe, the same way from the manifest and into open tabs', () => {
+  assert.deepEqual(PROBE_FILES, ['src/content/orphan.js', 'src/content/ctxResolve.js', 'src/content/ctxTarget.js']);
   assert.deepEqual(CTX_PROBE_FILES, PROBE_FILES);
 });
 
@@ -87,4 +87,34 @@ test('the double-injection guard binds one set of listeners, not two', () => {
   const before = listeners.contextmenu.length;
   for (const src of SOURCES) vm.runInContext(src, sandbox);
   assert.equal(listeners.contextmenu.length, before);
+});
+
+// An extension reload orphans the copy in an open tab: its chrome.* is dead, its listeners live on.
+const bound = (listeners) => Object.values(listeners).reduce((n, fns) => n + fns.length, 0);
+
+test('an orphaned probe stands down at its next event: no listener or timer is left', () => {
+  const { listeners, fire, timers, sandbox, ctxSent } = probe();
+  sandbox.chrome.runtime.id = undefined;
+  fire('pointerover', { target: el('div', { bg: 'url("/a.png")' }), clientX: 0, clientY: 0 });
+  assert.equal(bound(listeners), 0);
+  assert.equal(timers.size, 0);
+  assert.equal(sandbox.window.__stencilCtxProbe, undefined, 'the guard is freed for the new copy');
+  assert.equal(ctxSent().length, 0);
+});
+
+test('the reloaded copy sends the orphan away and binds in its place', () => {
+  const { listeners, sandbox, load, resolve } = probe();
+  const before = bound(listeners);
+  sandbox.chrome.runtime.id = undefined;
+  load();   // the same isolated world: the old guard would have kept the new copy out
+  assert.equal(bound(listeners), before, 'one set of listeners: the orphan\'s are gone');
+  sandbox.chrome.runtime.id = 'stencil-ext';
+  assert.equal(resolve(el('div', { bg: 'url("/b.png")' })).data.url, 'https://shop.example/b.png');
+});
+
+test('a live copy ignores the orphan word, whoever sends it', () => {
+  const { listeners, sandbox } = probe();
+  const before = bound(listeners);
+  sandbox.document.dispatchEvent(new sandbox.Event('stencil-ext-orphan'));
+  assert.equal(bound(listeners), before);
 });

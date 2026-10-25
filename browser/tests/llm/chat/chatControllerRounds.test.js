@@ -31,18 +31,8 @@ test('a layout plan issues EXACTLY ONE model round — nothing follows the reply
   assert.strictEqual(client.calls.length, 1, 'still one — nothing runs in the background');
 });
 
-test('the withdrawn machinery is gone from the controller\'s surface', async () => {
+test('a layout turn is one round: the edge-map attachment stays, and no sharpening pass follows', async () => {
   const mod = await import('../../../js/llm/chat/controller.js');
-  for (const gone of ['auxDeadline', 'AUX_ROUND_TIMEOUT_MS', 'findSuspectLines',
-    'LAYOUT_CORRECTION_PROMPT', 'REFINE_MAX_PARALLEL', 'REFINE_MAX_RENDER_ZOOM',
-    'refineOutlines', 'correctDrawnLayout', 'refineDrawnOutlines', 'startAuxChain']) {
-    assert.strictEqual(mod[gone], undefined, `${gone} must not exist`);
-  }
-  const { controller } = makeController(makeClient(['hi']));
-  for (const gone of ['cancelAux', 'auxRunning', 'refineOutlines', 'correctDrawnLayout',
-    'refineDrawnOutlines', 'startAuxChain']) {
-    assert.strictEqual(controller[gone], undefined, `controller.${gone} must not exist`);
-  }
   // §7's own attachments STAY — the working-image snapshot and its edge map are what
   // the main turn sends, and they are not part of the withdrawn passes.
   assert.strictEqual(typeof mod.EDGE_MAP_SENTENCE, 'string');

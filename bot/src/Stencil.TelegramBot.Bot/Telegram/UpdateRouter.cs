@@ -23,6 +23,7 @@ public sealed class UpdateRouter
     private readonly MessageRouter _messages;
     private readonly ISessionStore _store;
     private readonly SyncRegistry? _sync;
+    private readonly IBotPolicy _policy;
 
     public UpdateRouter(
         CommandHandlers handlers,
@@ -39,6 +40,7 @@ public sealed class UpdateRouter
     {
         _store = store;
         _sync = sync;
+        _policy = options;
         _callbacks = callbacks;
         _gate = gate;
         _access = new AccessGate(options, bot, logger, clock);
@@ -114,10 +116,10 @@ public sealed class UpdateRouter
     }
 
     // The registry lives in memory while SyncEnabled persists with the session, so a restart
-    // re-registers a synced chat on its first update; after that the registry is the truth.
+    // re-registers a synced chat on its first update. An unlisted sender can never have /sync'ed.
     private async Task rejoinSyncAsync(long userId, long chatId, CancellationToken ct)
     {
-        if (_sync is null || _sync.Consulted(userId))
+        if (_sync is null || !_policy.AllowedFor(userId) || _sync.Consulted(userId))
         {
             return;
         }

@@ -5,7 +5,7 @@
 // no fields. index.js builds it after the app → window.stencil.
 import { hotkeys } from '../core/settings/hotkeys.js';
 import { ConnectionManager } from '../net/connectionManager.js';
-import { loadSavedServers, saveServers, getAutoConnect } from '../net/connectionStore.js';
+import { loadSavedServers, saveServers, getAutoConnect, mergeSaved } from '../net/connectionStore.js';
 import { notify } from '../utils.js';
 import { publish, EVENTS } from '../eventBus/appBus.js';
 import { createLineWrappers } from './lineAndPoint.js';
@@ -32,9 +32,9 @@ export const createStencil = (app) => {
   const firstInit = !app.connections;
   const connMgr = app.connections || (app.connections = new ConnectionManager({
     onChange: (change) => {
-      // Persist the live set so it survives reloads (store.js), then let
-      // the connect/projects UI refresh off the same DOM event.
-      try { saveServers(connMgr.snapshot()); } catch { /* storage blocked */ }
+      // Persist the live set over the saved one, keeping what was not reached and dropping only
+      // what the user disconnected, then let the connect/projects UI refresh off the same event.
+      try { saveServers(mergeSaved(connMgr.snapshot(), loadSavedServers(), connMgr.forgotten)); } catch { /* storage blocked */ }
       // Live co-edit: a peer's project-event, or a feed back from a drop, reaches the editor.
       if (change && change.type === 'event') {
         try { app.remoteSync?.onServerProjectEvent?.(change.message, change.connection); } catch { /* editor not ready */ }

@@ -1,6 +1,9 @@
 import { StencilElement, hostTag, define } from '../base.js';
 import { icon } from '../icons.js';
-import { surfaceIn, surfaceOut, dockAwayPoint, motionMs, retargetDust, SURFACE_MENU_IN_MS } from '../motion.js';
+import { motionMs } from '../motion/motionPrefs.js';
+import { retargetDust } from '../motion/surface/tiles.js';
+import { dockAwayPoint, SURFACE_MENU_IN_MS } from '../motion/surface/motion.js';
+import { surfaceIn, surfaceOut } from '../motion/surface/surfaces.js';
 import { attachToastGlow } from '../dust/toastGlow.js';
 import { STAGE } from '../logo/stageRules.js';
 import SVG_ART from '../../../../common/config/svgArt.json' with { type: 'json' };

@@ -1,17 +1,24 @@
 // Clones of the live controls and coord panel for the fullscreen panels. Display only:
 // every interaction relays to the original, whose own change keeps the clone in step.
+
+// Each strip's mirror listeners on the live controls, dropped before its next copy is bound.
+const unbinds = new WeakMap();
+
 export const populateFsControls = (fsControlsPanel) => {
   const existing = fsControlsPanel.querySelector('.controls');
   if (existing) existing.remove();
+  unbinds.get(fsControlsPanel)?.();
+  unbinds.delete(fsControlsPanel);
   const src = document.querySelector('#controls-body .controls');
   if (src) {
     const clone = src.cloneNode(true);
     fsControlsPanel.appendChild(clone);
-    bindClonedControls(fsControlsPanel, src);
+    unbinds.set(fsControlsPanel, bindClonedControls(fsControlsPanel, src));
   }
 };
 
 export const bindClonedControls = (cloneRoot, srcRoot) => {
+  const offs = [];
   srcRoot.querySelectorAll('[id]').forEach(srcEl => {
     const cloneEl = cloneRoot.querySelector('#' + srcEl.id);
     if (!cloneEl) return;
@@ -34,9 +41,13 @@ export const bindClonedControls = (cloneRoot, srcRoot) => {
       }
       srcEl.dispatchEvent(new Event('change', { bubbles: true }));
     });
-    if (kind === 'checkbox') srcEl.addEventListener('change', () => { cloneEl.checked = srcEl.checked; });
-    else if (kind === 'select') srcEl.addEventListener('change', () => { cloneEl.value = srcEl.value; });
+    const mirror = kind === 'checkbox' ? () => { cloneEl.checked = srcEl.checked; }
+      : kind === 'select' ? () => { cloneEl.value = srcEl.value; } : null;
+    if (!mirror) return;
+    srcEl.addEventListener('change', mirror);
+    offs.push(() => srcEl.removeEventListener('change', mirror));
   });
+  return () => { for (const off of offs) off(); };
 };
 
 export const populateFsPoints = (fsPointsPanel) => {
@@ -63,6 +74,10 @@ export const populateFsPoints = (fsPointsPanel) => {
       });
     }
     fsPointsPanel.appendChild(clone);
+    // A windowed table (panel/rowWindow.js) holds the rows its scroller shows: the copy opens on them.
+    const from = src.querySelector('#coord-body');
+    const to = clone.querySelector('#fs-clone-coord-body');
+    if (from && to && src.querySelector('.row-window-spacer')) to.scrollTop = from.scrollTop;
   }
 };
 

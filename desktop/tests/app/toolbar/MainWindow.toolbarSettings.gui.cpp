@@ -46,12 +46,12 @@ class MainWindowGuiTest : public QObject {
       if (b->defaultAction() == win.acts.incognito) incognitoBtn = b;
     QVERIFY(incognitoBtn);
     QVERIFY2(incognitoBtn->isCheckable(), "the incognito button must show a lit state");
-    QVERIFY(!win.incognito);
+    QVERIFY(!win.projectHost.incognito);
     incognitoBtn->click();                       // toolbar → state + menu bar
-    QTRY_VERIFY2(win.incognito, "the toolbar button did not turn incognito on");
+    QTRY_VERIFY2(win.projectHost.incognito, "the toolbar button did not turn incognito on");
     QVERIFY(win.acts.incognito->isChecked() && incognitoBtn->isChecked());
     win.acts.incognito->setChecked(false);        // menu bar → toolbar button
-    QTRY_VERIFY(!win.incognito);
+    QTRY_VERIFY(!win.projectHost.incognito);
     QVERIFY2(!incognitoBtn->isChecked(), "the toolbar button kept its lit state");
 
     // Theme flips both ways from the toolbar too.

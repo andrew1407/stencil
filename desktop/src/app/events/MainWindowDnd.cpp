@@ -1,6 +1,6 @@
 #include "MainWindow.hpp"
 #include <QScrollArea>
-#include "mainWindowHelpers.hpp"
+#include "fileBytes.hpp"
 #include "CanvasWidget.hpp"
 #include "DropZonesOverlay.hpp"
 #include "dragPasteboard.hpp"

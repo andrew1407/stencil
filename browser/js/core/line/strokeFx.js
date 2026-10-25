@@ -1,7 +1,4 @@
-import {
-  strokeBowSign, strokeFlyMs, strokeFlyPoint, strokePhase, strokeRipple,
-  strokeSpark, strokeVertexScale, strokeWake,
-} from '../../ui/motion.js';
+import { strokeBowSign, strokeFlyMs, strokeFlyPoint, strokePhase, strokeRipple, strokeSpark, strokeVertexScale, strokeWake } from '../../ui/motion/strokeFly.js';
 import { drawMotionEnabled } from '../../ui/motion/motionPrefs.js';
 import { pointColorOf } from '../draw/renderer.js';
 

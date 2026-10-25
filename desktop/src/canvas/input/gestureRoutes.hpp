@@ -3,7 +3,7 @@
 
 class QMouseEvent;
 
-// Each gesture's move and release, looked up by the one state (browser core/pointer/controller.js
+// Each gesture's move and release, looked up by the one state (browser ui/bindings/pointer/controller.js
 // onMove, release.js ON_RELEASE); NONE has neither. The canvas's friend: a handler reaches the
 // gesture and the lines it moves.
 namespace stencil::gui {

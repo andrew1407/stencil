@@ -1,5 +1,5 @@
 #include "StencilFileSync.hpp"
-#include "mainWindowHelpers.hpp"
+#include "fileBytes.hpp"
 #include "../../support/modal/modalChrome.hpp"  // confirmModalChoice — the browser-styled question
 #include "Notifications.hpp"
 #include "deferredWrite.hpp"

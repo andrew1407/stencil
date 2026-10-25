@@ -83,7 +83,11 @@ export const addPinEntry = (entries, rec) => {
     : (Array.isArray(prevKeywords) ? prevKeywords : []);
   if (kws.length) entry.keywords = kws;
   list.unshift(entry);
-  if (list.length > MAX_PINS) list.length = MAX_PINS;
+  // Full: the pinning site gives up its own oldest, so a page pinning in bulk never evicts another site's.
+  if (list.length > MAX_PINS) {
+    const own = list.findLastIndex((e, j) => j > 0 && e.site === entry.site);
+    list.splice(own > 0 ? own : MAX_PINS, own > 0 ? 1 : list.length - MAX_PINS);
+  }
   return list;
 };
 

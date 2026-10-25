@@ -21,17 +21,17 @@ namespace stencil::gui {
 
   void WindowAssembly::setupSyncControllers() {
     w.projectTitle = std::make_unique<ProjectTitleController>(
-        &w, w.canvas, w.scroll, w.incognito, w.activeProjectId, w.nameBar, w.acts, w.remote, w.notify,
+        &w, w.canvas, w.scroll, w.projectHost.incognito, w.projectHost.activeProjectId, w.nameBar, w.acts, w.remote, w.notify,
         w.settings,
         ProjectTitleController::Hooks{
-            [this] { return w.activeProjectName(); },
+            [this] { return w.projectHost.activeProjectName(); },
             [this](const QString& name, const QString& exceptId) {
-              const auto check = w.checkProjectName(name, exceptId);
+              const auto check = w.projectHost.checkProjectName(name, exceptId);
               return ProjectTitleController::NameCheck{check.ok, QString::fromStdString(check.reason)};
             },
-            [this](const QString& id, const QString& name) { return w.parts.projects.renameProjectById(id, name); },
-            [this] { return w.parts.projects.currentProjectColor(); },
-            [this] { return w.docSource.blankColor; },
+            [this](const QString& id, const QString& name) { return w.projectHost.flows.renameProjectById(id, name); },
+            [this] { return w.projectHost.flows.currentProjectColor(); },
+            [this] { return w.projectHost.docSource.blankColor; },
             [this](QToolButton* btn, const QColor& color) { w.updateColorSwatch(btn, color); },
             [this] { return w.painted.dark; },
             [this] { w.updateImageSizeInfo(); },
@@ -44,39 +44,39 @@ namespace stencil::gui {
         &w, w.remote.session, &w.remote.reloading, &w.remote.pushing, &w.chatSession->planRunning,
         RemoteSyncController::Hooks{
             [this] { return w.settings.syncToServer; },
-            [this] { return w.incognito; },
-            [this] { w.parts.projects.saveToServer(); },
-            [this](const QString& a, const QString& i, bool s) { w.parts.projects.openServerProject(a, i, s); },
+            [this] { return w.projectHost.incognito; },
+            [this] { w.projectHost.flows.saveToServer(); },
+            [this](const QString& a, const QString& i, bool s) { w.projectHost.flows.openServerProject(a, i, s); },
             [this] {
-              w.parts.projects.resetToBlankEditor();
+              w.projectHost.flows.resetToBlankEditor();
               w.projectTitle->updateProjectTitle();
               w.notify->info(QStringLiteral("This server project was deleted"));
             },
             [this](std::function<void()> done) { w.parts.persistence.uploadServerResult(std::move(done)); },
         });
     w.projectTransfer = std::make_unique<ProjectTransferController>(
-        w.notify, w.canvas, &w.settings, &w.projectsStore, &w.projectList,
+        w.notify, w.canvas, &w.settings, &w.projectHost.projectsStore, &w.projectHost.projectList,
         ProjectTransferController::Hooks{
-            [this] { return w.remote.connections; },
-            [this](const std::string& id) { return w.findProject(id); },
+            [this] { return w.remote.conns(); },
+            [this](const std::string& id) { return w.projectHost.findProject(id); },
             [this] { return w.currentLayoutMeta(); },
             [this](const QString& url, std::function<void(QByteArray)> done) {
               fetchUrlBytesAsync(&w, url, std::move(done));
             },
-            [this] { return w.activeProjectId; },
+            [this] { return w.projectHost.activeProjectId; },
             [this] { return w.remote.session->getLink().address; },
             [this] { return w.remote.session->getLink().id; },
             [this](const QString& serverUrl, const QString& newId, const QString& name,
                    const QString& color, qint64 version) {
-              w.activeProjectId.clear();
+              w.projectHost.activeProjectId.clear();
               w.remote.session->getLink().bind(serverUrl, newId, name, color, version);
               w.remoteSync->startRemotePoll();
               w.projectTitle->updateProjectTitle();
             },
             [this](const QString& id, bool animate, std::function<void()> then) {
-              if (!w.loadProjectIntoCanvas(id, animate, [then](bool) { then(); })) then();
+              if (!w.projectHost.loadProjectIntoCanvas(id, animate, [then](bool) { then(); })) then();
             },
-            [this] { w.refreshActions(); SiblingWindows::refreshDockMenu(w.projectList); },
+            [this] { w.refreshActions(); SiblingWindows::refreshDockMenu(w.projectHost.projectList); },
         });
     w.stencilSync = std::make_unique<StencilFileSync>(
         &w, w.notify,
@@ -87,7 +87,7 @@ namespace stencil::gui {
               if (w.acts.stencilLiveSync) w.acts.stencilLiveSync->setEnabled(linked);
               if (w.acts.deleteProjectFile) w.acts.deleteProjectFile->setEnabled(linked);
               // The registry row carries the link, so the CLI's /desktopsync can offer the file.
-              Project* pr = w.findProject(w.activeProjectId.toStdString());
+              Project* pr = w.projectHost.findProject(w.projectHost.activeProjectId.toStdString());
               const QString path = linked ? w.stencilSync->linkedPath() : QString();
               if (!pr || pr->linkedFile == path) return;
               pr->linkedFile = path;
@@ -114,7 +114,7 @@ namespace stencil::gui {
     QObject::connect(&SharedState::instance(), &SharedState::projectsChanged, &w, [this](QObject* source) {
       if (source == &w) return;
       w.refreshActions();
-      for (ProjectsDialog* dlg : w.findChildren<ProjectsDialog*>()) dlg->setProjects(w.projectList);
+      for (ProjectsDialog* dlg : w.findChildren<ProjectsDialog*>()) dlg->setProjects(w.projectHost.projectList);
     });
     // The filter/tint and the compare view never carry over an app relaunch (a .stencil round-trip
     // still keeps them); reset before applySettings.
@@ -157,7 +157,7 @@ namespace stencil::gui {
     w.refreshActions();
     w.onSelectionChanged();
     w.updateStatusIdle();
-    SiblingWindows::refreshDockMenu(w.projectList);  // macOS Dock menu (no-op elsewhere)
+    SiblingWindows::refreshDockMenu(w.projectHost.projectList);  // macOS Dock menu (no-op elsewhere)
 
     // Follow the OS scheme only in "system" mode; colorSchemeChanged arrived in Qt 6.5, older Qt
     // applies it at startup only.

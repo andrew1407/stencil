@@ -117,7 +117,7 @@ set(CPACK_PACKAGE_FILE_NAME
 set(CPACK_STRIP_FILES ON)
 if(APPLE)
   set(CPACK_GENERATOR "DragNDrop")
-  set(CPACK_DMG_FORMAT "ULMO")  # LZMA: needs macOS 10.15, and the bundled Qt 6.9 needs 12
+  set(CPACK_DMG_FORMAT "ULMO")  # LZMA: needs macOS 10.15, and the bundled Qt 6.12 needs 14.4
 elseif(WIN32)
   set(CPACK_GENERATOR "ZIP")
 else()

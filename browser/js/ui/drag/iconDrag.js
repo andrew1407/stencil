@@ -86,6 +86,13 @@ const swallowNextClick = () => {
   setTimeout(off, 0);
 };
 
+const iconGhost = (el, at) => {
+  const ghost = createDragGhost(el, at.x, at.y, GHOST_OPACITY);
+  ghost.el.style.boxShadow = '';   // the shining rim is css/animations/icon/drag.css's
+  ghost.el.classList.add(GHOST_CLASS);
+  return ghost;
+};
+
 // `hooks`: start / move / drop / cancel as the machine's, plus `ghost` (false: the owner draws its own),
 // `ghostCentred` (the ghost rides centred on the pointer, not held where it was grabbed)
 // and `enabled` (checked at each press; a disabled control is not dragged).
@@ -128,11 +135,7 @@ export const wireIconDrag = (el, hooks = {}) => {
       try { el.setPointerCapture?.(pointerId); } catch { /* the pointer is already gone */ }
       const r = ghostCentred ? el.getBoundingClientRect() : null;
       const hold = r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : pressAt;
-      if (wantGhost) {
-        ghost = createDragGhost(el, hold.x, hold.y, GHOST_OPACITY);
-        ghost.el.style.boxShadow = '';   // the shining rim is css/animations/icon/drag.css's
-        ghost.el.classList.add(GHOST_CLASS);
-      }
+      if (wantGhost) ghost = iconGhost(el, hold);
       document.documentElement.classList.add(DRAGGING_CLASS);
       el.classList.add(SOURCE_CLASS);
       window.addEventListener('keydown', onKey, true);
@@ -165,10 +168,14 @@ export const wireIconDrag = (el, hooks = {}) => {
   };
   const listen = (on) => {
     const f = on ? 'addEventListener' : 'removeEventListener';
-    window[f]('pointermove', onMove, true);
-    window[f]('pointerup', onUp, true);
+    window[f]('pointermove', move, true);
+    window[f]('pointerup', up, true);
     window[f]('pointercancel', onLost, true);
+    window[f]('lostpointercapture', orphan, true);   // a captured node's removal fires it at the document
   };
+  // A source removed mid-drag (its row rebuilt) cancels at the first word after, and drops nothing.
+  const [move, up, orphan] = [onMove, onUp, () => {}]
+    .map((fn) => (e) => (el.isConnected === false ? onLost(e) : fn(e)));
   el.addEventListener('pointerdown', (e) => {
     if (e.button !== 0 || !e.isPrimary || e.pointerType === 'touch' || !enabled()) return;
     pointerId = e.pointerId;

@@ -34,6 +34,11 @@ the pointer, which is handiest from the side panel.
 
 ![the page with its pictures outlined](img/site-highlight.png)
 
+With **highlight on hover** on in the side panel, moving down the list outlines each row's picture
+in turn, and a picture out of view scrolls into the middle of the page.
+
+![rows hovered in the side panel, each outlining its picture on the page and scrolling it into view](img/site-hover.gif)
+
 ## Open a picture in the editor
 
 Click a row's thumbnail or name to open the picture in a new editor tab; double-click either to
@@ -72,10 +77,14 @@ image** — the poster — which also lists on its own row.
 
 The extension adds a **Stencil** entry to Chrome's own right-click menu. On a picture it holds
 **✎ Open in editor ›** (a new tab, the editor already open, incognito, or right here),
-**✂ Crop image…**, **🖥 Open in desktop app** and **📌 Pin image**; on a video the same for its
+**✂ Crop image…**, **🖥 Open in desktop app**, **📌 Pin image** and **🔗 Copy Stencil link ›**; on a video the same for its
 current frame, and its preview image when it has one; on an element painted with a CSS image the
 same entry appears for that image. Right-click the toolbar icon for **✎ Open Stencil editor** and
 its incognito twin.
+
+| On a picture | On a video |
+|---|---|
+| ![Chrome's menu on a picture, its Stencil entry and Open in editor open](img/site-menu-image.png) | ![Chrome's menu on a video, its Stencil entry open](img/site-menu-video.png) |
 
 ## Quick crop before editing
 
@@ -104,6 +113,10 @@ lit; the drop does it, and `Esc` takes the targets away. The popup closes when t
 it, so this works from the side panel only.
 
 ![a row dragged out of the side panel over the page's drop targets](img/site-dropzones.png)
+
+Let go over **Crop** and the crop window opens over the page with that picture in it.
+
+![a row dragged out of the side panel, dropped on Crop, the crop window opening](img/site-drop-crop.gif)
 
 ## Pin pictures
 

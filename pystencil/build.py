@@ -39,8 +39,8 @@ NATIVE_DIR = _HERE / "pystencil" / "_native"
 BUILD_TIMEOUT = 600
 
 
-# SYNC: keep this list identical to STENCIL_CORE_SOURCES in core/CMakeLists.txt and
-# cli/build.zig. cliApi.cpp is appended below — the extern "C" ABI this binding wraps.
+# Held to STENCIL_CORE_SOURCES in core/CMakeLists.txt by tools/repo/coreLists.mjs (as is
+# cli/build.zig). cliApi.cpp is appended below — the extern "C" ABI this binding wraps.
 STENCIL_CORE_SOURCES = [
   "geometry/pointMath.cpp",
   "geometry/hitTest.cpp",

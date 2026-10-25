@@ -109,14 +109,21 @@ test('IPv4-mapped IPv6 is checked as its embedded IPv4', () => {
   assert.equal(isAllowedImageUrl('http://[::ffff:808:808]/x.png'), true);   // 8.8.8.8
 });
 
-test('allowSameHostAs permits the scanned page\'s OWN host (any private class)', () => {
+test('allowSameHostAs permits the scanned page\'s OWN origin (any private class)', () => {
   const from = (page) => ({ allowSameHostAs: page });
-  // Same host — port and path may differ (host is what the browser already talks to).
-  assert.equal(isAllowedImageUrl('http://localhost:8080/x.png', from('http://localhost:9000/page')), true);
-  assert.equal(isAllowedImageUrl('http://127.0.0.1/x.png', from('http://127.0.0.1:3000/a')), true);
-  assert.equal(isAllowedImageUrl('http://10.0.0.5/x.png', from('https://10.0.0.5/index')), true);
+  // Same scheme, host and port — the path may differ; a default port is the same port spelled out.
+  assert.equal(isAllowedImageUrl('http://localhost:8080/x.png', from('http://localhost:8080/page')), true);
+  assert.equal(isAllowedImageUrl('http://127.0.0.1:3000/x.png', from('http://127.0.0.1:3000/a')), true);
+  assert.equal(isAllowedImageUrl('https://10.0.0.5/x.png', from('https://10.0.0.5:443/index')), true);
   assert.equal(isAllowedImageUrl('http://192.168.1.10/x.png', from('http://192.168.1.10/')), true);
   assert.equal(isAllowedImageUrl('http://[fe80::1]/x.png', from('http://[fe80::1]/wiki')), true);
+});
+
+test('allowSameHostAs never unlocks another port or scheme of the page\'s host', () => {
+  const from = (page) => ({ allowSameHostAs: page });
+  assert.equal(isAllowedImageUrl('http://192.168.1.10:8080/admin.png', from('http://192.168.1.10/')), false);
+  assert.equal(isAllowedImageUrl('http://localhost:8080/x.png', from('http://localhost:9000/page')), false);
+  assert.equal(isAllowedImageUrl('http://10.0.0.5/x.png', from('https://10.0.0.5/index')), false);
 });
 
 test('allowSameHostAs never unlocks a DIFFERENT private host', () => {

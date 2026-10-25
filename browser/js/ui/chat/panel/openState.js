@@ -4,10 +4,12 @@ import { PHONE_MEDIA } from '../../../utils.js';
 import { wireModalOpenGestures } from '../../tip/popover.js';
 import { subscribe, EVENTS } from '../../../eventBus/appBus.js';
 import { modalShells } from '../../modal/registry.js';
-import {
-  surfaceIn, surfaceOut, settleSurface, sweepDust, dockAwayPoint, motionMs, motionReduced, rectCenter,
-  CHAT_SURFACE_IN_MS, CHAT_SURFACE_OUT_MS,
-} from '../../motion.js';
+import { motionMs, motionReduced } from '../../motion/motionPrefs.js';
+import { sweepDust } from '../../motion/surface/tiles.js';
+import { dockAwayPoint } from '../../motion/surface/motion.js';
+import { surfaceIn, surfaceOut, settleSurface } from '../../motion/surface/surfaces.js';
+import { rectCenter } from '../../motion/control/tips.js';
+import { CHAT_SURFACE_IN_MS, CHAT_SURFACE_OUT_MS } from '../../motion/control/chatFx.js';
 import { compactChatRect } from '../geometry.js';
 import { createChatDock } from '../dock.js';
 

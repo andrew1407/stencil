@@ -3,7 +3,7 @@ using Stencil.TelegramBot.Domain.Editing;
 namespace Stencil.TelegramBot.Infrastructure.Cli;
 
 // A port of mcp/src/outcome.rs over the cli/CONTRACT.md §2 stderr contract, so the shared
-// cli/testdata/outcome_fixtures.json pass identically. NO_COLOR=1 keeps ANSI out.
+// common/fixtures/cli/outcome.json pass identically. NO_COLOR=1 keeps ANSI out.
 public static partial class CliOutcomeParser
 {
     // The exact stderr prefixes the CLI emits — the peer of mcp's PREFIX_* consts.

@@ -14,7 +14,10 @@ A layer may use everything to its left, nothing to its right; every line starts 
 dependency-free end.
 
 - **browser** — `config/` + `utils.js` → `core/` (**no DOM**) → `eventBus/` (`core/emitter.js`) →
-  `net/` → `llm/` → console facade (`console/stencilApi.js`) → `ui/` → render.
+  `net/` → `llm/` → console facade (`console/stencilApi.js`) → `ui/` → render. A module whose job is
+  to add listeners on `document`/`window` or to look a node up is a binding and lives in
+  `ui/bindings/`, whatever it imports; `core/` holds state and logic, beyond the frozen
+  `CORE_DOM_ALLOWANCE` in `browser/tests/layerBoundary.test.js`.
 - **browser-extension** — `lib/` → `config/` → `llm/` → `background/` → `content/` → `popup`,
   `options`, `crop`.
 - **vscode-extension** — `src/config/` + `src/parser/` (copied, imports nothing outward) →
@@ -29,7 +32,7 @@ dependency-free end.
   (**transport only** — decode, authorize, encode) → `cmd/`. No business rule in a handler.
 - **bot** — `Domain` → `Application`, `Infrastructure` → `Bot`. Dependencies point inward;
   `Domain` stays free of Telegram, HTTP and process types.
-- **mcp** — `llm` + `llmtransport` → `pipeline` → `args` → `opplan/` → `server/` + tools.
+- **mcp** — `llm` + `llmtransport` → `pipeline` → `args` → `plan/` → `server/` + tools.
 - **pystencil** — `_native`/`core` → `image`/`codecs`/`layout` → `editor` → `llm`/`server`/
   `sitesource` → `cli`.
 
@@ -39,6 +42,16 @@ A file is **at most 230 lines** on every surface. A new file is written within i
 that has grown past it is split by feature when it is next touched, not padded further.
 `node tools/caps.mjs --check` holds every source, test and stylesheet file to it, generated and
 vendored files aside, together with the folder and comment caps below.
+
+A function is at most 80 lines; `caps.mjs --check` holds it as a ratchet over the frozen list in
+`tools/functionCaps.json`, which only shrinks. A file split that leaves a function over the cap is
+not a split.
+
+A class is never split by installing methods onto its prototype or by `friend` classes holding it
+by reference. A part that reaches more than a dozen members of its host is a member cluster: it
+becomes an owned object with its own state and a `Hooks` seam. The `friend` parts
+`desktop/src/app/WindowParts.hpp` lists are the standing exception; a part leaves that list as it
+becomes an owned object, and none joins it.
 
 ## Folders
 
@@ -51,10 +64,15 @@ then leaves the file names: `ui/openImage/tabs.js`, not `ui/openImage/openImageT
 class split across translation units keeps the class name on each
 (`app/chat/MainWindowChatDock.cpp`), because every unit defines `MainWindow::`.
 
+A split by kind is not allowed in file names either: `*Helpers`, `*Shared`, `*Common`, `*Misc`,
+`*Utils` name no file. A class split across translation units may keep one private seam header,
+`<Class>Parts.hpp`, holding only what those units share and included by nothing else.
+`node tools/caps.mjs --check` holds it over the frozen `tools/kindNames.json`, which only shrinks.
+
 A file a byte-pinned port imports keeps its name. Nesting stops three levels below the
-surface's source root. Tests mirror the split one for one, and a case that spans modules stays
-at `tests/` root; a mirrored test folder is the one place the cap does not apply, and is never
-split by kind to get under it. The procedure and its traps are the `split-move` skill.
+surface's source root. A test moves with the code it names; suites are by concern, not one per
+module, and a case that spans modules stays at `tests/` root. A test folder is the one place the
+cap does not apply, and is never split by kind to get under it. The procedure and its traps are the `split-move` skill.
 
 ## C++ member names
 
@@ -98,6 +116,10 @@ extension, the `.vsix`) — ship a checked-in copy **with a byte-equality drift 
 without a drift test is a bug. If a value can be read back out of the core over the C ABI, do
 that instead of mirroring it. A table only the browser reads stays in `browser/js/config/`.
 
+`core/CMakeLists.txt` is the one core source and include-dir list; `node tools/repo/coreLists.mjs
+--check` holds `cli/build.zig` and `pystencil/build.py` to it, `--write` rewrites them; and
+`EXPORTED_FUNCTIONS` contains every name `browser/js/core/abi/coreExports.js` lists.
+
 The same rule covers copied **code** — the ports in `browser-extension/src/lib/` and the parser
 copy in `vscode-extension/src/parser/`, pinned both ways by `portParity.test.js` and
 `parserParity.test.js` (the parser copy byte-equal except the import specifiers its
@@ -107,7 +129,36 @@ copy in `vscode-extension/src/parser/`, pinned both ways by `portParity.test.js`
 ## Typed boundaries
 
 Every public JS module gets a sibling `.d.ts` describing its exported surface; add one when
-you create a module or rework its exports.
+you create a module or rework its exports. `browser/tests/dtsArity.test.js` holds each declared function's arity
+to its module's, over a frozen list of known mismatches that only shrinks.
+
+## Lifetimes — what is taken is given back
+
+Every acquisition has one owner and is released on **every** path out, the error and
+early-return paths included: the close, unmount, disconnect or dispose that mirrors an open
+undoes everything that open took.
+
+- **Listeners, observers, timers, subscriptions, `Disposable`s** are removed by the teardown
+  that mirrors their install. Opening twice adds nothing: a re-open, re-mount or redial first
+  tears down the registration it replaces, and an injected or replaced node runs its own cleanup.
+- **Native memory**: a buffer or handle a C ABI returns is freed by its one free/destroy export,
+  allocated slot-first so a failed second allocation frees the first. Zig frees through
+  `errdefer`, never an explicit free beside one; a borrowed token or client is copied, or passed
+  by pointer, before anything can re-mint or free it.
+- **Media and processes**: an `ImageBitmap` is `close()`d, a helper `<video>` loses its `src`, an
+  object URL is revoked, a child process is killed and reaped on timeout or cancel, a temp file
+  or a sent render is deleted, a connection, reply or socket is closed on the failing return too.
+- **Qt**: every `QObject` has a parent or a `deleteLater`, a lambda `connect` takes a context
+  object, and a `QNetworkReply` is deleted on every terminal path.
+- **Collections keyed by an open-ended id** (user, chat, connection, IP, tab, document, URL,
+  hovered image) evict: on close, by TTL or at a cap. Growth bounded by a `LIMITS` entry or by
+  a user's own sends (a chat transcript) is the only kind left unbounded.
+
+A leak fix lands with a test that counts: listener, timer, handle, goroutine or child counts
+back to baseline after close, a malloc/free or create/destroy balance, a map's size after
+eviction — and fails on the unfixed code. Code under test allocates through the leak-checking
+allocator its platform has (`std.testing.allocator`, the core's ASan+LSan leg), never an arena
+that hides what it drops.
 
 ## UI
 

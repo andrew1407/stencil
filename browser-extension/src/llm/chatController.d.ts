@@ -4,7 +4,7 @@
 // open-action translation (openActions.js) and op executors (executors.js) re-export
 // through it, so this file is the whole module's contract.
 import type { ChatMessage, LlmClient, ChatImage } from './client.js';
-import type { OpPlan } from './op/plan.js';
+import type { OpPlan } from './plan/plan.js';
 
 /** One entry in the working listing the model addresses by index (§8). */
 export interface ListingItem {

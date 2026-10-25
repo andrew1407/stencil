@@ -50,12 +50,33 @@ test('nothing restricts frame-ancestors', () => {
 
 test('nginx serves the SAME policy, on every location', () => {
   assert.ok(NGINX.includes(`default "${POLICY}";`), 'nginx.conf policy drifted from index.html');
-  // add_header is NOT inherited into a location that sets one of its own, so /sw.js re-adds it.
-  const added = NGINX.split('add_header Content-Security-Policy $stencil_csp always;').length - 1;
-  assert.equal(added, 2);
+  // add_header is NOT inherited into a location that sets one of its own, so each such location
+  // re-adds it: the server level once, then every location block with an add_header.
+  const CSP = 'add_header Content-Security-Policy $stencil_csp always;';
+  const blocks = [...NGINX.matchAll(/location\b[^{]*\{([^}]*)\}/g)].map((m) => m[1]);
+  assert.ok(blocks.length >= 2, 'read the location blocks out of nginx.conf');
+  for (const body of blocks.filter((b) => b.includes('add_header')))
+    assert.ok(body.includes(CSP), `a location sets a header without the CSP:\n${body}`);
+  const server = NGINX.replace(/location\b[^{]*\{[^}]*\}/g, '');
+  assert.ok(server.includes(CSP), 'the server level carries the policy for every other location');
 });
 
 test('the single-file build drops the meta — one all-inline file cannot obey it', () => {
   assert.ok(HTML.match(CSP_META));
   assert.ok(!HTML.replace(CSP_META, '').includes('Content-Security-Policy'));
+});
+
+// mime.types carries its own `types {}` block: included inside ours, nginx refuses the whole config
+// and the image never starts. It is included beside it.
+test('nginx.conf never nests mime.types inside a types block', () => {
+  assert.doesNotMatch(NGINX, /types\s*\{[^}]*include\s+\/etc\/nginx\/mime\.types/);
+  assert.match(NGINX, /^\s*include \/etc\/nginx\/mime\.types;/m);
+});
+
+// Paths are stable across deploys, so a cached module outliving its index.html boots a mixed app:
+// every file nginx sets a lifetime on revalidates instead.
+test('nginx.conf caches no file past a revalidation', () => {
+  const lifetimes = [...NGINX.matchAll(/add_header Cache-Control "([^"]*)"/g)].map((m) => m[1]);
+  assert.ok(lifetimes.length >= 2, 'read the Cache-Control headers out of nginx.conf');
+  for (const v of lifetimes) assert.equal(v, 'no-cache');
 });

@@ -23,6 +23,14 @@ fn an_origin_is_scheme_host_and_a_non_default_port() {
 }
 
 #[test]
+fn only_a_real_loopback_host_defaults_to_plain_http() {
+    assert_eq!(origin_of("127.0.0.1:8090").unwrap(), "http://127.0.0.1:8090");
+    assert_eq!(origin_of("[::1]:8090").unwrap(), "http://[::1]:8090");
+    assert_eq!(origin_of("app.localhost:8090").unwrap(), "http://app.localhost:8090");
+    assert_eq!(origin_of("127.evil.example:8090").unwrap(), "https://127.evil.example:8090");
+}
+
+#[test]
 fn the_allowlist_maps_each_origin_to_its_token() {
     let (servers, warnings) = servers(
         "http://localhost:8090, https://team.example",

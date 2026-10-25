@@ -3,7 +3,7 @@
 // and Delete.
 // Desktop twin: app/selection/SelectionPanelLines.cpp.
 import { isTypingTarget } from '../../../utils.js';
-import { leaveThenRemove } from '../../motion.js';
+import { leaveThenRemove } from '../../motion/enterLeave.js';
 import { selectLineFromList, setListHoverLine, setLineHidden } from '../../../core/line/selection.js';
 import { removeLine } from '../../../core/line/editOps.js';
 import { createSwatchPicker } from './swatchPicker.js';
@@ -104,9 +104,16 @@ const wire = (body, host) => {
     e.stopPropagation();
     const i = indexOf(row);
     removeLine(app, i);
-    const rows = body.querySelectorAll('.lines-row');
-    if (rows.length) rows[Math.min(i, rows.length - 1)].focus();
+    rowTakingPlace(body, app, i)?.focus();
   });
+};
+
+// The row now at index i (or the last): a windowed list (panel/rowWindow.js) holds a span of rows, so
+// there it is found by index, not by position.
+const rowTakingPlace = (body, app, i) => {
+  if (body.querySelector('.row-window-spacer')) return body.querySelector(`.lines-row[data-idx="${Math.min(i, app.lines.length - 1)}"]`);
+  const rows = body.querySelectorAll('.lines-row');
+  return rows.length ? rows[Math.min(i, rows.length - 1)] : null;
 };
 
 // `host` keeps the hidden picker field and must outlive the list's re-renders.

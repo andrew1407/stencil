@@ -5,19 +5,19 @@
 // resolved (`theme.resolved`) — never prefers-color-scheme, which a host page answers.
 export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
   const ID = 'stencil-ext-modal';
+  // A replaced modal unhooks its page listeners and its fallback timer before its node goes.
   const existing = document.getElementById(ID);
-  if (existing) existing.remove();
+  if (existing) { existing.dispatchEvent(new Event('stencil-teardown')); existing.remove(); }
 
   const host = document.createElement('div');
   host.id = ID;
   host.style.cssText = 'position:fixed;inset:0;z-index:2147483647;';
-  const root = host.attachShadow ? host.attachShadow({ mode: 'open' }) : host;
+  const root = host.attachShadow ? host.attachShadow({ mode: 'closed' }) : host;
+  // A host page reads every frame src back (Resource Timing): the editor waits on `#stencil-await`.
+  const cut = url.indexOf('#stencil='), handoff = cut < 0 ? '' : url.slice(cut);
 
   const t = theme || {};
-  const prefersDark = () => {
-    try { return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches); }
-    catch (e) { return false; }
-  };
+  const prefersDark = () => { try { return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches); } catch (e) { return false; } };
   // Mirror of lib/prefs/shellTheme.js injectedScheme + resolveShellMode — an injected fn can't
   // import. The page's own media query is the last resort.
   const resolveMode = (mode) => {
@@ -194,8 +194,10 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
     if (e.source !== frame.contentWindow || !d || d.source !== 'stencil-modal') return;   // only OUR frame may post
     if (d.type === 'ready') {
       clearTimeout(timer);
-      const l = root.querySelector('.loading');
-      if (l) l.remove();
+      const editorOrigin = handoff && new URL(url).origin;   // a frame that says ready loaded a valid url
+      if (handoff && e.origin !== editorOrigin) return void (close(), openTab());   // redirected: a tab keeps the payload
+      if (handoff) frame.contentWindow.postMessage({ source: 'stencil-extension', type: 'handoff', hash: handoff }, editorOrigin);
+      root.querySelector('.loading')?.remove();
     } else if (d.type === 'close') {
       close();
     }
@@ -207,13 +209,11 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
 
   window.addEventListener('message', onMsg);
   document.addEventListener('keydown', onKey, true);
+  host.addEventListener('stencil-teardown', cleanup);
   wrap.querySelector('.close').onclick = close;
   wrap.querySelector('.backdrop').onclick = close;
-  wrap.querySelector('.tab').onclick = () => {
-    close();
-    openTab();
-  };
+  wrap.querySelector('.tab').onclick = () => { close(); openTab(); };
 
-  frame.src = url;
+  frame.src = handoff ? url.slice(0, cut) + '#stencil-await' : url;
   (document.body || document.documentElement).appendChild(host);
 };

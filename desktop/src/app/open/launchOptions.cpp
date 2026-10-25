@@ -40,6 +40,7 @@ namespace stencil::gui {
       }
       void operator()(const launchUri::SourcePicture& p) const {
         o.src = p.url;
+        o.srcFromLink = true;
         o.frame = (p.frame && *p.frame > 0) ? int(*p.frame) : 0;
       }
       void operator()(const launchUri::BlankPicture&) const {}
@@ -116,8 +117,14 @@ namespace stencil::gui {
     o.serverProjectId = link.serverProjectId;
     o.serverVersion = link.serverVersion;
     if (!link.project.isEmpty()) o.project = link.project;
-    if (!link.src.isEmpty()) o.src = link.src;
-    if (!link.layout.isEmpty()) o.layout = link.layout;
+    if (!link.src.isEmpty()) {
+      o.src = link.src;
+      o.srcFromLink = link.srcFromLink;
+    }
+    if (!link.layout.isEmpty()) {
+      o.layout = link.layout;
+      o.layoutFromLink = link.layoutFromLink;
+    }
     if (!link.layoutJson.isEmpty()) o.layoutJson = link.layoutJson;
     if (link.frame > 0) o.frame = link.frame;
     o.incognito = o.incognito || link.incognito;
@@ -139,6 +146,7 @@ namespace stencil::gui {
         if (json.size() <= deepLink::browserLaunchPayloadMax()) o.layoutJson = json;
       } else {
         o.layout = link.layout->url;
+        o.layoutFromLink = true;
       }
     }
     o.incognito = o.incognito || link.incognito;

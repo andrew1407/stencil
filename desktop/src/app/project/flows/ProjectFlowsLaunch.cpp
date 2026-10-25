@@ -35,6 +35,7 @@ namespace stencil::gui {
     QString token = linkToken;
     auto kind = stencil::net::ServerClient::CredentialKind::NONE;
     bool known = false;
+    stencil::net::SavedServer saved;
     for (const auto& s : stencil::net::connectionStore::loadSavedServers()) {
       if (stencil::net::ServerClient::normalizeBase(s.url) == url) {
         if (token.isEmpty()) {
@@ -42,6 +43,7 @@ namespace stencil::gui {
           kind = stencil::net::ServerClient::kindFromTag(s.kind);
         }
         known = true;
+        saved = s;
         break;
       }
     }
@@ -52,10 +54,10 @@ namespace stencil::gui {
       spec.message = intent.message.arg(url);
       spec.confirmLabel = MainWindow::tr("Connect");
       spec.confirmIcon = QStringLiteral("server");
-      if (!confirmModal(&w, spec)) return;
+      if (!confirmModal(w.window, spec)) return;
     }
-    QPointer<MainWindow> self(&w);
-    mgr->connectToAsync(url, token, [this, self, url, then](bool ok, QString err) {
+    QPointer<QWidget> self(w.window);
+    auto landed = [this, self, url, then](bool ok, QString err) {
       if (!self) return;
       if (!ok) {
         // The normal connect path: surface the failure and open the Servers dialog.
@@ -65,7 +67,13 @@ namespace stencil::gui {
       }
       w.warnInsecureConnections();
       if (then) then(url);
-    }, kind);
+    };
+    // A link never replaces a saved credential: a differing token connects for this session only.
+    if (known && !linkToken.isEmpty() && linkToken != saved.token) {
+      mgr->connectSessionOnlyAsync(url, token, saved, landed);
+      return;
+    }
+    mgr->connectToAsync(url, token, landed, kind);
   }
 
   void ProjectFlows::openServerLaunch(const QString& serverUrl, const QString& id,
@@ -78,10 +86,10 @@ namespace stencil::gui {
 
   bool ProjectFlows::openProjectByName(const QString& name) {
     const QString want = name.trimmed();
-    for (const auto& p : w.projectList) {
+    for (const auto& p : host.projectList) {
       if (QString::fromStdString(p.meta.name).compare(want, Qt::CaseInsensitive) ==
           0)
-        return w.loadProjectIntoCanvas(QString::fromStdString(p.meta.id));
+        return host.loadProjectIntoCanvas(QString::fromStdString(p.meta.id));
     }
     return false;
   }

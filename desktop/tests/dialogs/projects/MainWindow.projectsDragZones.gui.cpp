@@ -138,7 +138,7 @@ class MainWindowGuiTest : public QObject {
       w.list->onDragEnd();
       w.dlg->reject();
     });
-    win.parts.projects.openProjects();
+    win.projectHost.flows.openProjects();
     QVERIFY2(here.isValid(), "the zones came with the drag");
     QCOMPARE(newWin.top(), here.top());
     QCOMPARE(newWin.left() - here.right() - 1, win.width() % 2 + 16);

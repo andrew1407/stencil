@@ -12,13 +12,17 @@ const VIDEO_FETCH_MAX = 25_000_000;
 export const captureFrameFromScreenshot = async (windowId, rect, dpr = 1) => {
   const shot = await chrome.tabs.captureVisibleTab(windowId, { format: 'png' });
   const bitmap = await createImageBitmap(await (await fetch(shot)).blob());
-  const sx = Math.max(0, rect.x * dpr), sy = Math.max(0, rect.y * dpr);
-  const sw = Math.max(1, Math.round(rect.width * dpr)), sh = Math.max(1, Math.round(rect.height * dpr));
-  const s = Math.min(1, FRAME_MAX_SIDE / Math.max(sw, sh));
-  const dw = Math.max(1, Math.round(sw * s)), dh = Math.max(1, Math.round(sh * s));
-  const canvas = new OffscreenCanvas(dw, dh);
-  canvas.getContext('2d').drawImage(bitmap, sx, sy, sw, sh, 0, 0, dw, dh);
-  return blobToDataUrl(await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.92 }));
+  try {
+    const sx = Math.max(0, rect.x * dpr), sy = Math.max(0, rect.y * dpr);
+    const sw = Math.max(1, Math.round(rect.width * dpr)), sh = Math.max(1, Math.round(rect.height * dpr));
+    const s = Math.min(1, FRAME_MAX_SIDE / Math.max(sw, sh));
+    const dw = Math.max(1, Math.round(sw * s)), dh = Math.max(1, Math.round(sh * s));
+    const canvas = new OffscreenCanvas(dw, dh);
+    canvas.getContext('2d').drawImage(bitmap, sx, sy, sw, sh, 0, 0, dw, dh);
+    return blobToDataUrl(await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.92 }));
+  } finally {
+    bitmap.close?.();   // a whole retina screenshot, held by the worker until it is closed
+  }
 };
 
 // Direct draw (same-origin), then a fresh crossOrigin="anonymous" video at the same src/time
@@ -80,7 +84,7 @@ export const captureVideoFrameInTab = async (tabId, frameId, point) => {
           const nv = document.createElement('video');
           nv.crossOrigin = 'anonymous'; nv.muted = true; nv.preload = 'auto'; nv.src = src;
           let done = false;
-          const fin = (x) => { if (!done) { done = true; resolve(x); } };
+          const fin = (x) => { if (!done) { done = true; nv.removeAttribute('src'); nv.load(); resolve(x); } };
           nv.addEventListener('loadeddata', () => {
             try {
               nv.currentTime = Math.min(t, Math.max(0, (nv.duration || t) - 0.01));
@@ -127,7 +131,15 @@ export const captureVideoFrameViaFetch = async (tabId, frameId, src, t, pageUrl 
           const v = document.createElement('video');
           v.muted = true; v.preload = 'auto'; v.src = url;
           let done = false;
-          const fin = (x) => { if (!done) { done = true; URL.revokeObjectURL(url); resolve(x); } };
+          // A detached video keeps downloading its src until it is emptied.
+          const fin = (x) => {
+            if (done) return;
+            done = true;
+            v.removeAttribute('src');
+            v.load();
+            URL.revokeObjectURL(url);
+            resolve(x);
+          };
           v.addEventListener('loadeddata', () => {
             try {
               v.currentTime = Math.min(time, Math.max(0, (v.duration || time) - 0.01));

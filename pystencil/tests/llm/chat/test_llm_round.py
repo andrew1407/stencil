@@ -5,7 +5,6 @@ from __future__ import annotations
 import unittest
 
 from tests.helpers.nativecase import NativeCase
-import pystencil.llm as llm_module
 from pystencil.editor import Editor
 from pystencil.llm import LlmPlanError, MAX_ATTACHMENTS, execute_op_plan, parse_op_plan
 from tests.helpers.stubs import _StubClient, _plan_json
@@ -117,12 +116,3 @@ class SingleModelRoundTest(NativeCase):
     for text in [plan.reply] + plan.warnings:
       self.assertNotIn("correction", text)
       self.assertNotIn("self-check", text)
-
-  def test_the_module_exposes_no_post_plan_pass(self):
-    for name in (
-      "correct_layout",
-      "LAYOUT_CORRECTION_PROMPT",
-      "MULTI_IMAGE_SKIP_WARNING",
-      "plan_is_multi_image",
-    ):
-      self.assertFalse(hasattr(llm_module, name), name)

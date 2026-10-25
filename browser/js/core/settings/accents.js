@@ -72,21 +72,3 @@ export const toHexColor = (v) => {
   const m = /^rgba?\(\s*(\d+),\s*(\d+),\s*(\d+)/i.exec(a);   // alpha form → drop alpha
   return m ? '#' + [m[1], m[2], m[3]].map((n) => (+n).toString(16).padStart(2, '0')).join('') : s;
 };
-
-// The favicon is a static .svg that can't read a CSS var, so the <link> becomes an inline data URL.
-export const applyFaviconHex = (hex) => {
-  if (typeof document === 'undefined') return;
-  let link = document.querySelector('link[rel="icon"]');
-  if (!link) {
-    link = document.createElement('link');
-    link.rel = 'icon';
-    document.head.appendChild(link);
-  }
-  link.type = 'image/svg+xml';
-  link.href = 'data:image/svg+xml,' + encodeURIComponent(faviconSvg(hex));
-  const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute('content', hex);
-};
-
-export const applyAccentFavicon = (key) =>
-  applyFaviconHex(accentHex(isAccent(key) ? key : DEFAULT_ACCENT));

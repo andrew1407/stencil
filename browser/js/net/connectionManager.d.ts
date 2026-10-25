@@ -5,7 +5,10 @@ import type { ServerConnection, TaggedRemoteProject } from './serverConnection.j
 import type { SavedServer } from './connectionStore.js';
 
 /** A URL string, an invite link, or a saved entry; arrays connect each in turn. */
-export type ConnectSpec = string | { url: string; token?: string; kind?: 'admin' | '' };
+/** `saved`: the credential snapshot() keeps for this URL; `token` then lives for the session only. */
+export type ConnectSpec = string | {
+  url: string; token?: string; kind?: 'admin' | ''; saved?: { token: string; kind?: 'admin' | '' };
+};
 
 /** The stand-in row the list renders while a reconnect's handshake is in flight. */
 export interface ReconnectingRow {
@@ -32,6 +35,8 @@ export declare class ConnectionManager {
   readonly expiredUrls: string[];
   /** Live first, then the sessions that need a token, then any reconnect in flight. */
   readonly knownUrls: string[];
+  /** URLs the user disconnected this session; the saved set drops them, and only them. */
+  readonly forgotten: string[];
   readonly connections: ServerConnection[];
   readonly reconnectable: boolean;
   readonly last: ServerConnection | null;

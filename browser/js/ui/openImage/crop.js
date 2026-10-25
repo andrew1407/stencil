@@ -8,7 +8,7 @@ import { cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped, swapCr
 import { RECT_TWEEN_MS, tweenRect } from '../motion/rectTween.js';
 import { motionMs } from '../motion/motionPrefs.js';
 import { icon } from '../icons.js';
-import { pinWidestFace } from '../motion.js';
+import { pinWidestFace } from '../motion/control/fx.js';
 
 // All rect math in ORIGINAL-image pixels (the natural pixels of the imported still);
 // `scale` is the only screen-space number, and `iw`/`ih` the picture the rect belongs to.

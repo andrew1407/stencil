@@ -3,6 +3,7 @@ package auth
 import (
 	"bytes"
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -126,5 +127,15 @@ func TestQueryTokenIsNeverRead(t *testing.T) {
 		if rec.Code != http.StatusUnauthorized {
 			t.Fatalf("%s with a query token: code %d, want 401", path, rec.Code)
 		}
+	}
+}
+
+func TestVerifyKeepsAStoreFailureApartFromAnInvalidToken(t *testing.T) {
+	_, err := Verify(context.Background(), errResolver{errors.New("pool timeout")}, "tok", 0)
+	if !errors.Is(err, ErrLookupFailed) || errors.Is(err, ErrInvalidToken) {
+		t.Fatalf("a store failure: %v, want ErrLookupFailed and not ErrInvalidToken", err)
+	}
+	if _, err := Verify(context.Background(), errResolver{ErrInvalidToken}, "tok", 0); !errors.Is(err, ErrInvalidToken) {
+		t.Fatalf("an unknown token: %v, want ErrInvalidToken", err)
 	}
 }

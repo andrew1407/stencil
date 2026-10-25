@@ -1,5 +1,5 @@
 import { wireNameEditor } from '../../../utils.js';
-import { markIn, markOut } from '../../motion.js';
+import { markIn, markOut } from '../../motion/surface/marks.js';
 import { validateProjectName } from '../../../core/parse/validation.js';
 import { updateProjectTitle } from '../../projects/window/projectTitle.js';
 export function wireProjectNameField(app) {

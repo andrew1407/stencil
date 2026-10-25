@@ -1,9 +1,10 @@
+#include "MediaLoader.hpp"
 #include "MainWindow.hpp"
 #include "SharedState.hpp"
 #include "SourceOpener.hpp"
 #include "ChatSessionController.hpp"
 #include "Notifications.hpp"
-#include "mainWindowHelpers.hpp"
+#include "fileBytes.hpp"
 #include "StencilFileSync.hpp"
 
 #include <memory>
@@ -31,8 +32,10 @@ namespace stencil::gui {
           else if (!fileStore::parseProjectFile(parsed->bytes, parsed->pf, &why))
             parsed->err = QStringLiteral("Invalid .stencil file: ") + why;
           if (!parsed->err.isEmpty()) return QImage();
-          const QImage img = QImage::fromData(parsed->pf.imageBytes);
-          if (img.isNull()) parsed->err = QStringLiteral("Could not decode the project image");
+          bool tooLarge = false;
+          const QImage img = decodeCapped(parsed->pf.imageBytes, &tooLarge);
+          if (tooLarge) parsed->err = imageTooLargeMessage();
+          else if (img.isNull()) parsed->err = QStringLiteral("Could not decode the project image");
           return img;
         },
         [this, path, parsed, done, incognito](const QImage& img) {
@@ -43,10 +46,10 @@ namespace stencil::gui {
           }
           const QByteArray& bytes = parsed->bytes;
           const fileStore::ProjectFileData& pf = parsed->pf;
-          w.activeProjectId.clear();   // an opened project file is a fresh editor (Save to Project keeps it)
+          w.projectHost.activeProjectId.clear();   // an opened project file is a fresh editor (Save to Project keeps it)
           w.loadImageWithLayout(img, pf.layout, pf.imageBytes, pf.imageExt);
-          w.docSource.currentSource = pf.source;
-          w.docSource.currentResource = pf.resource;
+          w.projectHost.docSource.currentSource = pf.source;
+          w.projectHost.docSource.currentResource = pf.resource;
           // Only a file that carried a theme changes the user's; a custom-hex accent is ignored (desktop
           // uses presets).
           if (pf.hasTheme) {
@@ -70,14 +73,14 @@ namespace stencil::gui {
             }
           }
           if (!incognito) {
-            w.createLocalProject(pf.name, /*announce=*/false, /*fromFile=*/true);
+            w.projectHost.createLocalProject(pf.name, /*announce=*/false, /*fromFile=*/true);
             w.stencilSync->link(path, bytes);
           }
           // Chat persistence (§12.3): adopt the file's saved chat when the opt-in is on.
           if (w.settings.saveChatsWithProject) {
             w.chatSession->restoreChatFromDoc(pf.chat);
             if (!pf.chat.isEmpty()) {
-              if (Project* pr = w.findProject(w.activeProjectId.toStdString())) {
+              if (Project* pr = w.projectHost.findProject(w.projectHost.activeProjectId.toStdString())) {
                 pr->chat = w.chatSession->buildActiveChatDoc();
                 SharedState::instance().saveProjects(&w);
               }

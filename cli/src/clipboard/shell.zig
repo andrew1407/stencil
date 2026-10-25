@@ -40,6 +40,12 @@ pub fn runOrFail(gpa: std.mem.Allocator, io: std.Io, argv: []const []const u8) !
     if (!exitedOk(res.term)) return Error.Failed;
 }
 
+/// `sh -c` line `cmd` with its tools' stdout and stderr on /dev/null: wl-copy and xclip fork a
+/// server to hold the selection, and one holding our pipes keeps `run` waiting out its deadline.
+pub fn detachedLine(gpa: std.mem.Allocator, comptime cmd: []const u8, args: anytype) ![]u8 {
+    return gpa.print("{{ " ++ cmd ++ "; }} >/dev/null 2>&1", args);
+}
+
 /// `s` with backslashes and single quotes escaped, so it can sit inside a '…' JS literal.
 pub fn escapeJs(gpa: std.mem.Allocator, s: []const u8) ![]u8 {
     var out: std.ArrayList(u8) = .empty;
@@ -56,4 +62,20 @@ pub fn exitedOk(term: std.process.Child.Term) bool {
         .exited => |code| code == 0,
         else => false,
     };
+}
+
+const testing = std.testing;
+
+test "a tool that forks a server holding our pipes does not hold the copy to its deadline" {
+    if (builtin.os.tag == .windows) return error.SkipZigTest;
+    const a = testing.allocator;
+    var threaded = std.Io.Threaded.init(a, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+    const line = try detachedLine(a, "(sleep {d} &)", .{5});
+    defer a.free(line);
+    try testing.expectEqualStrings("{ (sleep 5 &); } >/dev/null 2>&1", line);
+    const start = std.Io.Clock.awake.now(io);
+    try runOrFail(a, io, &.{ "sh", "-c", line });
+    try testing.expect(start.durationTo(std.Io.Clock.awake.now(io)).toMilliseconds() < 3_000);
 }

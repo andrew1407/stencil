@@ -68,3 +68,20 @@ test('a browser that refuses session storage says so instead of dropping the key
   assert.equal(leaked(), false);
   Object.defineProperty(globalThis, 'sessionStorage', { value: tab, configurable: true, writable: true });
 });
+
+test('a moved base-URL origin drops the key it was given; a path change on the same origin keeps it', () => {
+  local.clear(); tab.clear();
+  const stencil = createStencil(makeApp());
+  stencil.llm.setup({ provider: 'anthropic', apiKey: KEY });
+  stencil.llm.baseUrl = 'https://proxy.example';
+  assert.equal(readSessionKey(), null, 'the session key never follows a new origin');
+
+  stencil.llm.setup({ provider: 'openai-compat', baseUrl: 'https://llm.example/v1', apiKey: 'sk-compat' });
+  stencil.llm.baseUrl = 'https://llm.example/v2';
+  assert.equal(stencil.llm.apiKey, 'sk-compat');
+  stencil.llm.serverUrl = 'https://srv.example';
+  assert.equal(stencil.llm.apiKey, 'sk-compat', 'serverUrl carries no key of its own');
+  stencil.llm.baseUrl = 'https://other.example/v1';
+  assert.equal(stencil.llm.apiKey, '');
+  assert.equal(local.getItem('drawingApp_llmSettings').includes('sk-compat'), false);
+});

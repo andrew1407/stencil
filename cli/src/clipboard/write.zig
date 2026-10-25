@@ -15,8 +15,8 @@ pub fn writeImage(gpa: std.mem.Allocator, io: std.Io, png: []const u8) !void {
     const path = try scratchPath(gpa, "out");
     defer gpa.free(path);
     const dir = std.Io.Dir.cwd();
+    defer dir.deleteFile(io, path) catch {}; // before the write: a partial one is removed too
     dir.writeFile(io, .{ .sub_path = path, .data = png }) catch return Error.Failed;
-    defer dir.deleteFile(io, path) catch {};
 
     switch (builtin.os.tag) {
         .macos => {
@@ -26,7 +26,7 @@ pub fn writeImage(gpa: std.mem.Allocator, io: std.Io, png: []const u8) !void {
         },
         // wl-copy takes the bytes on stdin, xclip reads the file directly; try Wayland first.
         .linux => {
-            const cmd = try gpa.print("wl-copy --type image/png < '{s}' || xclip -selection clipboard -t image/png -i '{s}'", .{ path, path });
+            const cmd = try shell.detachedLine(gpa, "wl-copy --type image/png < '{s}' || xclip -selection clipboard -t image/png -i '{s}'", .{ path, path });
             defer gpa.free(cmd);
             try runOrFail(gpa, io, &.{ "sh", "-c", cmd });
         },
@@ -52,13 +52,18 @@ pub fn writeText(gpa: std.mem.Allocator, io: std.Io, text: []const u8) !void {
     const path = try gpa.print("{s}{s}stencil_clip_text.{d}.txt", .{ tmpDir(), sep, std.c.getpid() });
     defer gpa.free(path);
     const dir = std.Io.Dir.cwd();
-    dir.writeFile(io, .{ .sub_path = path, .data = text }) catch return Error.Failed;
     defer dir.deleteFile(io, path) catch {};
+    dir.writeFile(io, .{ .sub_path = path, .data = text }) catch return Error.Failed;
 
     switch (builtin.os.tag) {
-        .macos, .linux => {
-            const tool: []const u8 = if (builtin.os.tag == .macos) "pbcopy" else "wl-copy || xclip -selection clipboard -i";
-            const cmd = try gpa.print("{s} < '{s}'", .{ tool, path });
+        .macos => {
+            const cmd = try gpa.print("pbcopy < '{s}'", .{path});
+            defer gpa.free(cmd);
+            try runOrFail(gpa, io, &.{ "sh", "-c", cmd });
+        },
+        // Each tool reads the file itself: a bare `wl-copy` would read the console's own stdin.
+        .linux => {
+            const cmd = try shell.detachedLine(gpa, "wl-copy < '{s}' || xclip -selection clipboard -i '{s}'", .{ path, path });
             defer gpa.free(cmd);
             try runOrFail(gpa, io, &.{ "sh", "-c", cmd });
         },

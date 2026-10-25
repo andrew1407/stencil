@@ -2,7 +2,7 @@
 // (image, filter, tint), which every frame composites and only those three rebuild. A duotone
 // tint change of the picture on screen is painted in the image worker; a filter switch and
 // export build the exact copy now.
-import { ImageFilterCanvas, readFilterInput, isPixelFilter } from '../image/filterCanvas.js';
+import { ImageFilterCanvas, filterJob, isPixelFilter } from '../image/filterCanvas.js';
 import { filterInWorker, imageWorkerUsable } from '../../worker/imageTasks.js';
 
 const sameKey = (a, b) => !!a && !!b && a.image === b.image && a.filter === b.filter && a.color === b.color;
@@ -13,6 +13,7 @@ export class BaseLayer {
   #wanted = null;   // the key the last frame asked for
   #job = null;      // the key the worker is painting
   #failed = null;   // a key the worker could not paint: built on this thread from then on
+  #landed = new Set();   // worker bitmaps still held by the cache or #shown, closed once neither is
 
   // `onReady` repaints once a worker copy lands.
   constructor(onReady = () => {}) {
@@ -21,7 +22,9 @@ export class BaseLayer {
 
   // On this thread, now: the export and thumbnail path. The image itself when unfiltered.
   now(image, filter, color) {
-    return this.#filters.canvasFor(image, filter, color) || image;
+    const source = this.#build(image, filter, color);
+    this.#landed.delete(source);   // a resting job reads it later (restingPaint.js): the GC lets it go
+    return source;
   }
 
   // The exact copy when cached; while the worker paints another tint of the pixel filter already
@@ -33,8 +36,15 @@ export class BaseLayer {
     const shown = this.#shown;
     const retint = shown?.image === image && shown.filter === filter;
     if (!hit && isPixelFilter(filter) && retint && this.#submit(key)) return shown.source;
-    const source = hit || this.now(image, filter, color);
+    const source = hit || this.#build(image, filter, color);
     this.#shown = { image, filter, source };
+    this.#release();
+    return source;
+  }
+
+  #build(image, filter, color) {
+    const source = this.#filters.canvasFor(image, filter, color) || image;
+    this.#release();
     return source;
   }
 
@@ -45,7 +55,7 @@ export class BaseLayer {
     if (this.#job) return true;
     let input;
     try {
-      input = readFilterInput(key.image, key.filter, key.color);
+      input = filterJob(key.image, key.filter, key.color);
     } catch {
       this.#failed = key;
       return false;
@@ -63,7 +73,17 @@ export class BaseLayer {
     else if (want && want.image === key.image && want.filter === key.filter) {
       if (want.color === key.color) this.#filters.adopt(key.image, key.filter, key.color, bitmap);
       this.#shown = { image: key.image, filter: key.filter, source: bitmap };
+      this.#landed.add(bitmap);
+      this.#release();
     } else bitmap.close?.();
     this.onReady();
+  }
+
+  #release() {
+    for (const b of this.#landed) {
+      if (b === this.#shown?.source || this.#filters.holds(b)) continue;
+      this.#landed.delete(b);
+      b.close?.();
+    }
   }
 }

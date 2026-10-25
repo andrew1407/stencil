@@ -1,6 +1,7 @@
 // External launch: the `#stencil=<encodeURIComponent(JSON)>` fragment and the extension
 // bridge's import into THIS tab. Schema and precedence live in deepLink.js
 // (normalizeLaunchPayload); each function takes the app and reuses its loaders.
+import type { LaunchQuery } from './query.js';
 import type { DrawingApp } from '../drawingApp.js';
 import type { CropRectInput, RemoteLayout } from '../image/loadFlow.js';
 
@@ -32,6 +33,10 @@ export declare const stripExt: (name: string | null | undefined) => string;
 export declare const importInlineImage: (app: DrawingApp, launch: NormalizedLaunch, opts?: { mode?: ImportMode }) => Promise<void>;
 /** The longest handed-over script taken, `LAUNCH.scriptMaxChars` (config/constants.json). */
 export declare const MAX_LAUNCH_SCRIPT: number;
+/** The page URL's boot hand-over: the launch query, the "?open=" id it leaves standing, and whether it opens a session. */
+export declare const readLaunchState: (search: string, hash: string) => {
+  launchQuery: LaunchQuery | null; pendingOpenProjectId: string | null; hasExternalLaunch: boolean;
+};
 /** Consumes the fragment once (stripped from the URL) and routes it through the loaders. */
 export declare const applyExternalLaunch: (app: DrawingApp) => Promise<void>;
 /** The extension bridge's entry point: 'new' resets to a blank editor first. */

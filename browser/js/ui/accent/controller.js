@@ -1,6 +1,7 @@
 import { icon } from '../icons.js';
-import { themeSwap, originOf, originOfId } from '../motion.js';
-import { ACCENT_STORAGE_KEY, DEFAULT_ACCENT, isAccent, applyAccentFavicon, applyFaviconHex, normalizeHex, accentHex, needsDarkGlyph } from '../../core/settings/accents.js';
+import { themeSwap, originOf, originOfId } from '../motion/surface/themeSwapPlay.js';
+import { ACCENT_STORAGE_KEY, DEFAULT_ACCENT, isAccent, normalizeHex, accentHex, needsDarkGlyph } from '../../core/settings/accents.js';
+import { applyAccentFavicon, applyFaviconHex } from './favicon.js';
 import { publish, EVENTS } from '../../eventBus/appBus.js';
 
 // Three appearance modes, like the desktop and the extension; 'system' is the default.

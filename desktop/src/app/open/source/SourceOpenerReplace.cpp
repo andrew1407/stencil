@@ -1,7 +1,7 @@
 #include "MainWindow.hpp"
 #include "ProjectTitleController.hpp"
 #include "SourceOpener.hpp"
-#include "mainWindowHelpers.hpp"
+#include "fileBytes.hpp"
 #include "CanvasWidget.hpp"
 #include "RemoteSession.hpp"
 #include "ServerClient.hpp"
@@ -15,8 +15,8 @@ namespace stencil::gui {
 
   // Not a blank or incognito session — there is nothing to keep the same.
   bool SourceOpener::canReplaceActive() const {
-    return w.canvas->hasImage() && !w.incognito
-        && (!w.activeProjectId.isEmpty() || !w.remote.session->getLink().address.isEmpty());
+    return w.canvas->hasImage() && !w.projectHost.incognito
+        && (!w.projectHost.activeProjectId.isEmpty() || !w.remote.session->getLink().address.isEmpty());
   }
 
   // Same local id / server link; `rename` adopts the file's name, `keepAnnotations` keeps the
@@ -31,7 +31,7 @@ namespace stencil::gui {
         const QString newName = QFileInfo(path).completeBaseName();
         if (!w.remote.session->getLink().address.isEmpty()) {
           w.remote.session->getLink().name = newName;
-        } else if (Project* pr = w.findProject(w.activeProjectId.toStdString())) {
+        } else if (Project* pr = w.projectHost.findProject(w.projectHost.activeProjectId.toStdString())) {
           pr->meta.name = newName.toStdString();
         }
         w.projectTitle->updateProjectTitle();
@@ -39,7 +39,7 @@ namespace stencil::gui {
       // The original upload + version refresh must finish before saveToActiveProject, whose guard
       // reads it.
       QPointer<MainWindow> self(&w);
-      auto save = [this, self]() { if (self) w.saveToActiveProject(); };
+      auto save = [this, self]() { if (self) w.projectHost.saveToActiveProject(); };
       if (!w.remote.session->getLink().address.isEmpty())
         replaceServerOriginal(save);
       else
@@ -53,7 +53,7 @@ namespace stencil::gui {
       if (done) done();
       return;
     }
-    stencil::net::ServerClient* c = w.remote.connections ? w.remote.connections->find(w.remote.session->getLink().address) : nullptr;
+    stencil::net::ServerClient* c = w.remote.conns() ? w.remote.conns()->find(w.remote.session->getLink().address) : nullptr;
     if (!c || !w.canvas->hasImage()) {
       if (done) done();
       return;
@@ -68,7 +68,7 @@ namespace stencil::gui {
     support::runOnPool<QByteArray>(
         &w, [original] { return pngBytes(original); },
         [this, self, addr, id, width, height, done](QByteArray bytes) {
-          stencil::net::ServerClient* c = w.remote.connections ? w.remote.connections->find(addr) : nullptr;
+          stencil::net::ServerClient* c = w.remote.conns() ? w.remote.conns()->find(addr) : nullptr;
           if (!c || w.remote.session->getLink().id != id) { if (done) done(); return; }
           const qint64 before = w.remote.session->getLink().version;
           c->uploadFileAsync(id, "original", bytes, "png", width, height, [this, self, c, id, before, done](bool uok) {

@@ -68,12 +68,14 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # 6.9 is the floor: macos-latest (macOS 26 / Tahoe) dropped AGL from the SDK and
-      # Qt <= 6.9.1 still links -framework AGL in Qt6::Gui (QTBUG-137687).
+      # Qt 6.12: the one Qt the app is built, tested and shipped on.
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
-          version: '6.9.*'
+          version: '6.12.*'
+          # aqtinstall 3.3.0 cannot read Qt 6.12's per-compiler Windows repository; this commit can.
+          aqtsource: git+https://github.com/miurahr/aqtinstall.git@076e1659807d0b362a3ed684d54c2e9c775eb9c7
+          py7zrversion: '==1.1.4'
           modules: qtimageformats qtmultimedia  # qtmultimedia backs the --src video-frame grab
           cache: true
 
@@ -107,13 +109,13 @@ jobs:
 
       # STENCIL_REQUIRE_QT fails loudly if Qt is missing (rather than skipping the GUI +
       # CPack config and erroring later in cpack); CMAKE_PREFIX_PATH points at the Qt above.
-      # macOS targets 12.0, the floor of the bundled Qt 6.9: left unset, the app inherits the
+      # macOS targets 14.4, the floor of the bundled Qt 6.12: left unset, the app inherits the
       # runner's own macOS and refuses to start on any older one.
       - name: Configure (portable build — no repo-local state dir)
         working-directory: desktop
-        run: cmake -S . -B build ${{ matrix.generator }} ${{ runner.os == 'macOS' && '-DCMAKE_OSX_DEPLOYMENT_TARGET=12.0' || '' }} -DCMAKE_BUILD_TYPE=Release -DSTENCIL_DEV_STATE_DIR=OFF -DSTENCIL_REQUIRE_QT=ON -DSTENCIL_BUILD_TESTS=OFF -DCMAKE_C_COMPILER_LAUNCHER=${{ matrix.cachetool }} -DCMAKE_CXX_COMPILER_LAUNCHER=${{ matrix.cachetool }} -DCMAKE_PREFIX_PATH="${{ env.QT_ROOT_DIR }}"
+        run: cmake -S . -B build ${{ matrix.generator }} ${{ runner.os == 'macOS' && '-DCMAKE_OSX_DEPLOYMENT_TARGET=14.4' || '' }} -DCMAKE_BUILD_TYPE=Release -DSTENCIL_DEV_STATE_DIR=OFF -DSTENCIL_REQUIRE_QT=ON -DSTENCIL_BUILD_TESTS=OFF -DSTENCIL_IPO=ON -DCMAKE_C_COMPILER_LAUNCHER=${{ matrix.cachetool }} -DCMAKE_CXX_COMPILER_LAUNCHER=${{ matrix.cachetool }} -DCMAKE_PREFIX_PATH="${{ env.QT_ROOT_DIR }}"
 
-      # Build only the shipped app, not the 66 Qt test binaries (ci.yml builds + runs those).
+      # Build only the shipped app, not the Qt test binaries (ci.yml runs those).
       # STENCIL_BUILD_TESTS=OFF above is what keeps them out: cpack runs the `preinstall`
       # target, which builds `all`, so merely limiting THIS step to --target stencil does not.
       # --parallel is the runner's core count; the macOS box has fewer than the others.

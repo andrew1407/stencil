@@ -1,5 +1,9 @@
 #include "ServerClient.hpp"
 
+#include <QHostAddress>
+#include <QHostInfo>
+#include <QUrl>
+
 
 namespace stencil::net {
 
@@ -26,6 +30,29 @@ namespace stencil::net {
       done(false, QStringLiteral("refusing a link-local, metadata or reserved server address"));
       return;
     }
+    // A name is judged by what it resolves to, as the CLI and the bot judge it; a failed lookup is
+    // left for the handshake to report.
+    const QString host = QUrl(base).host();
+    if (QHostAddress().setAddress(host)) {
+      dial(base, cred, std::move(done), kindHint);
+      return;
+    }
+    QHostInfo::lookupHost(host, this, [this, base, cred, done = std::move(done), kindHint](const QHostInfo& info) mutable {
+      if (ServerClient::refusesResolved(info.addresses())) {
+        done(false, QStringLiteral("refusing a server whose name resolves to a link-local, metadata or reserved address"));
+        return;
+      }
+      if (find(base)) {
+        done(false, QStringLiteral("already connected"));
+        return;
+      }
+      dial(base, cred, std::move(done), kindHint);
+    });
+  }
+
+  void ConnectionManager::dial(const QString& base, const QString& cred,
+                               std::function<void(bool, QString)> done,
+                               ServerClient::CredentialKind kindHint) {
     auto* client = new ServerClient(base);
     pending.push_back(client);
     client->connectAsync(cred, [this, client, done](bool ok) {
@@ -44,9 +71,21 @@ namespace stencil::net {
     }, kindHint);
   }
 
+  void ConnectionManager::connectSessionOnlyAsync(const QString& url, const QString& token,
+                                                  const SavedServer& saved,
+                                                  std::function<void(bool, QString)> done) {
+    const QString base = ServerClient::normalizeBase(url);
+    if (!find(base)) sessionOnly.insert(base, {base, saved.token, saved.kind});
+    connectToAsync(url, token, [this, base, done](bool ok, QString err) {
+      if (!find(base)) sessionOnly.remove(base);
+      done(ok, err);
+    });
+  }
+
   void ConnectionManager::disconnectFrom(const QString& url) {
     if (clients.isEmpty()) return;
     if (url.isEmpty()) {
+      sessionOnly.remove(clients.last()->getBase());
       forgotten << clients.last()->getBase();
       delete clients.takeLast();
       emit changed();
@@ -55,6 +94,7 @@ namespace stencil::net {
     const QString base = ServerClient::normalizeBase(url);
     for (int i = 0; i < clients.size(); ++i) {
       if (clients[i]->getBase() == base) {
+        sessionOnly.remove(base);
         forgotten << base;
         delete clients.takeAt(i);
         emit changed();
@@ -80,6 +120,8 @@ namespace stencil::net {
       return;
     }
     // The client is REUSED so the row keeps its place; connectToAsync() would answer "already connected".
+    // A token the user signs in with is theirs to keep.
+    sessionOnly.remove(c->getBase());
     c->connectAsync(token, [this, c, done](bool ok) {
       emit changed();
       done(ok, ok ? QString() : c->lastError());
@@ -116,8 +158,12 @@ namespace stencil::net {
     QVector<SavedServer> out;
     out.reserve(clients.size());
     // Persist the CREDENTIAL (a minted session dies with a server restart) and its KIND.
-    for (auto* c : clients)
-      out.push_back({c->getBase(), c->getCredential(), ServerClient::kindTag(c->credentialKind())});
+    for (auto* c : clients) {
+      const auto kept = sessionOnly.constFind(c->getBase());
+      out.push_back(kept != sessionOnly.constEnd()
+                        ? *kept
+                        : SavedServer{c->getBase(), c->getCredential(), ServerClient::kindTag(c->credentialKind())});
+    }
     return out;
   }
 

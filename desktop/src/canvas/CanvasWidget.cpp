@@ -17,6 +17,7 @@ namespace stencil::gui {
     editCommitTimer.setInterval(pointerTuning::table().editCommitMs);
     connect(&editCommitTimer, &QTimer::timeout, this,
             [this] { commitHistory(); });
+    connect(this, &CanvasWidget::changed, this, [this] { bounds.clear(); });
     // Hold-to-draw: while a hold is engaged, tick the controller (HOLD_DRAW.tickMs) so the
     // hold/dwell thresholds fire even when the cursor is held perfectly still.
     hold.clock.start();
@@ -31,7 +32,9 @@ namespace stencil::gui {
       // frame before and after the step so the one that just landed is cleared too.
       const QRect before = strokeFxRect();
       if (!strokeFx.step(fxNow())) fxTimer.stop();
-      update(before.united(strokeFxRect()));
+      const QRect moving = before.united(strokeFxRect());
+      bounds.ask(moving);
+      update(moving);
     });
     // Watch modifier key changes app-wide so the tooltip/cursor refresh on
     // Shift/Ctrl/Alt without needing a mouse move (see eventFilter).

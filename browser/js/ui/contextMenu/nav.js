@@ -1,4 +1,5 @@
-import { surfaceIn, surfaceOut, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../motion.js';
+import { SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../motion/surface/motion.js';
+import { surfaceIn, surfaceOut } from '../motion/surface/surfaces.js';
 import { pointInRect } from '../../utils.js';
 import { submenuPlacement, samePoint } from './model.js';
 

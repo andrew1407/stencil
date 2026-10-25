@@ -107,7 +107,7 @@ set(STENCIL_DISINTEGRATE_SOURCES
   src/support/motion/DisintegratePaint.cpp
   src/support/motion/DisintegrateMotes.cpp)
 
-# Per-icon hover motion (support/iconMotion.hpp) is split across four TUs: the spec
+# Per-icon hover motion (support/icon/iconMotion.hpp) is split across four TUs: the spec
 # table read off the glyph canon, the pose maths and markup, the two runners, and the
 # app-wide event filter. Every target that hovers an icon needs the set.
 set(STENCIL_ICONMOTION_SOURCES
@@ -126,8 +126,10 @@ list(APPEND STENCIL_GUI_SOURCES
   ${STENCIL_THEME_SOURCES}
   ${STENCIL_SHEETS_SOURCES}
   ${STENCIL_NOTIFY_SOURCES}
-  src/support/guiHelpers.cpp
-  src/support/guiHelpersColor.cpp
+  src/support/pageSizeCombo.cpp
+  src/support/colorSwatch.cpp
+  src/support/icon/iconInline.cpp
+  src/support/cursor/pointerCursor.cpp
   src/support/menu/menuReveal.cpp
   src/support/menu/popupSlide.cpp
   src/support/modal/modalReveal.cpp

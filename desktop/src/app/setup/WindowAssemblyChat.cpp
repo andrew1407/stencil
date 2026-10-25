@@ -56,7 +56,7 @@ namespace stencil::gui {
             },
             [this] {
               SharedState::instance().saveProjects(&w);
-              SiblingWindows::refreshDockMenu(w.projectList);
+              SiblingWindows::refreshDockMenu(w.projectHost.projectList);
             },
             [this] { w.refreshActions(); },
             [this] { w.parts.chatAppliers.persistActiveChat(); },
@@ -75,7 +75,7 @@ namespace stencil::gui {
     QObject::connect(w.chatDock, &ChatDock::retryRequested, chat, &ChatSessionController::chatRetryTurn);
     QObject::connect(w.chatDock, &ChatDock::stopRequested, chat, &ChatSessionController::onChatStop);
     QObject::connect(w.chatDock, &ChatDock::reconnectRequested, &w,
-                     [this](const QString&) { w.parts.projects.openConnections(); });
+                     [this](const QString&) { w.projectHost.flows.openConnections(); });
     // Every close on the dock leaves like the toolbar toggle: a docked chat slides into its edge,
     // a float flies to the icon.
     QObject::connect(w.chatDock, &ChatDock::closeRequested, &w, [this] {

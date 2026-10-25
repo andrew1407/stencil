@@ -179,11 +179,11 @@ class MainWindowGuiTest : public QObject {
       pr.lines = std::move(lines);
       return pr;
     };
-    win.projectList.push_back(project("drawn", {lineOf(20), lineOf(60, 4)}));
-    win.projectList.push_back(project("empty", {}));
+    win.projectHost.projectList.push_back(project("drawn", {lineOf(20), lineOf(60, 4)}));
+    win.projectHost.projectList.push_back(project("empty", {}));
     const auto open = [&win](const char* id) {
       bool done = false;
-      QVERIFY(win.loadProjectIntoCanvas(QString::fromLatin1(id), false, [&done](bool) { done = true; }));
+      QVERIFY(win.projectHost.loadProjectIntoCanvas(QString::fromLatin1(id), false, [&done](bool) { done = true; }));
       QTRY_VERIFY_WITH_TIMEOUT(done, 10000);
     };
     open("drawn");

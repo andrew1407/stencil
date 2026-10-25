@@ -14,6 +14,8 @@ export interface RemoteProjectRecord {
   color?: string;
   version: number;
   hasImage?: boolean;
+  /** An edited result is stored (the server derives it; file paths never leave it). */
+  hasResult?: boolean;
   /** SHA-256 of the stored original, lowercase hex; absent when there is none or it predates the hash. */
   originalHash?: string;
   expiresAt?: number;
@@ -59,6 +61,8 @@ export declare class ServerConnection {
   /** What the user supplied — persisted, since a minted session dies with the server. */
   credential: string;
   credentialKind: 'admin' | '';
+  /** The saved credential persisted in place of `credential` (a link's session-only token). */
+  persisted?: { token: string; kind: 'admin' | '' };
   clientId: string;
   connected: boolean;
   status: ConnectionStatus;

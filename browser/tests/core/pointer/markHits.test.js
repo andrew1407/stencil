@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import { shownMarks, lineAt, holdTargetAt } from '../../../js/core/pointer/markHits.js';
 import { findLineAt } from '../../../js/core/draw/hitTest.js';
-import { EditingMethods } from '../../../js/core/app/editing.js';
+import { EditingBase } from '../../../js/core/app/editing.js';
 
 const pts = (...xy) => xy.map(([x, y]) => ({ x, y }));
 // An open corner line and a lone point (a lone point is drawn only as a point).
@@ -61,7 +61,7 @@ test('a hold never continues a hidden point nor inserts into a hidden line', () 
 const hitApp = (showPoints, showLines) => {
   const app = { lines: LINES, currentLine: { points: pts([500, 500], [520, 500]) }, scale: 1, showPoints, showLines };
   for (const m of ['findLineAt', 'findNearestPoint', 'findNearestPointWithIdx', 'findNearestSegmentWithIdx'])
-    app[m] = EditingMethods.prototype[m];
+    app[m] = EditingBase.prototype[m];
   return app;
 };
 

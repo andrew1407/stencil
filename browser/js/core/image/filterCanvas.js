@@ -2,7 +2,7 @@
 // in the image worker, over the wasm op when loaded, else its JS twin.
 import { parseHex } from '../../utils.js';
 import { core } from '../abi/stencilCore.js';
-import { FILTER_RECIPE, filterPixels } from './filterPixels.js';
+import { FILTER_RECIPE, filteredPixels } from './filterPixels.js';
 
 const op = (name) => core.op(name);
 const rgbOf = (hex) => (hex ? parseHex(hex) : { r: 0, g: 0, b: 0 });
@@ -44,13 +44,26 @@ export const readFilterInput = (image, filter, color) => {
   return { recipe: p.recipe, pixels: fctx.getImageData(0, 0, image.width, image.height), rgb: rgbOf(color) };
 };
 
+// A worker job for the same pass: a pass that reads the picture plain gets the picture, and the worker
+// draws and reads it there; the grayscale prepass, which a worker canvas may not filter, reads here.
+export const filterJob = (image, filter, color) => {
+  const p = pixelRecipe(filter);
+  if (!p) return null;
+  return p.draw === plainDraw ? { recipe: p.recipe, image, rgb: rgbOf(color) } : readFilterInput(image, filter, color);
+};
+
 const paintPixels = (filter) => (fctx, image, color) => {
   const p = pixelRecipe(filter);
   const w = fctx.canvas.width;
   const h = fctx.canvas.height;
   p.draw(fctx, image);
   const imageData = fctx.getImageData(0, 0, w, h);
-  filterPixels(p.recipe, imageData.data, w, h, rgbOf(color), op);
+  const out = filteredPixels(p.recipe, imageData.data, w, h, rgbOf(color), op);
+  // A heap result goes to the canvas as it lies, never copied back into imageData first.
+  if (out && out !== imageData.data) {
+    if (typeof ImageData === 'function') { fctx.putImageData(new ImageData(out, w, h), 0, 0); return; }
+    imageData.data.set(out);
+  }
   fctx.putImageData(imageData, 0, 0);
 };
 
@@ -107,4 +120,6 @@ export class ImageFilterCanvas {
   adopt(image, filter, color, layer) {
     this.#filtered = { image, filter, color, canvas: layer };
   }
+
+  holds(layer) { return this.#filtered?.canvas === layer; }
 }

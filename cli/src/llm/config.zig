@@ -159,6 +159,13 @@ pub const Config = struct {
         self.key_expires_ms = 0;
     }
 
+    /// Zero the stencil-server fallback token and free it.
+    pub fn forgetServerToken(self: *Config, gpa: std.mem.Allocator) void {
+        std.crypto.secureZero(u8, self.server_token);
+        freeSlice(gpa, self.server_token);
+        self.server_token = &.{};
+    }
+
     pub fn setServerUrl(self: *Config, gpa: std.mem.Allocator, url: []const u8) !void {
         const dup = try gpa.dupe(u8, trimUrl(url));
         freeSlice(gpa, self.server_url);

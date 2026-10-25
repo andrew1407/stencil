@@ -179,3 +179,21 @@ test('the on-canvas overlays never eat the pointer', async () => {
   const zoomRect = markup.slice(markup.indexOf('id="zoom-rect-overlay"'));
   assert.match(zoomRect.slice(0, zoomRect.indexOf('>')), /pointer-events:none/, 'and the zoom rect too');
 });
+
+// One findLineAt per move: with no point under the cursor the hover's own line hit is the tooltip's,
+// handed over instead of scanned again; with a point near, the tooltip judges for itself.
+test('the tooltip is handed the hover\'s line hit, so the lines are scanned once per move', () => {
+  const ev = { clientX: 100, clientY: 120, altKey: false, shiftKey: false, ctrlKey: false, metaKey: false };
+  let scans = 0;
+  const handed = [];
+  const m = hoverMock({ compareReadOnly: () => false, findLineAt: () => { scans++; return 3; },
+    tooltip: { hide() {}, applyHover: (...a) => handed.push(a.slice(6)) } });
+  canvasMouseMove(m, ev);
+  assert.equal(scans, 1);
+  assert.deepEqual(handed, [[3, null]], 'no point in grab range: the tooltip need not look for one either');
+
+  const near = hoverMock({ compareReadOnly: () => false, findNearestPointWithIdx: () => ({ lineIdx: 0, ptIdx: 1 }),
+    tooltip: { hide() {}, applyHover: (...a) => handed.push(a.slice(6)) } });
+  canvasMouseMove(near, ev);
+  assert.deepEqual(handed[1], [undefined, undefined], 'a grab-radius point says nothing about the tooltip\'s line or point');
+});

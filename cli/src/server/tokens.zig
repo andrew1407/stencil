@@ -5,22 +5,32 @@ const std = @import("std");
 const net = @import("../net.zig");
 const urls = @import("urls.zig");
 
+/// Where a credential came from, said beside a connection a link opened (the token itself never is).
+pub const Source = enum { explicit, invite, per_origin, single, none };
+
 /// The token `url` connects with, or null for a self-issued session. `per_origin` is a
 /// comma list of `origin=token` pairs; only the first `=` splits one. Slices alias the inputs.
 pub fn pick(explicit: ?[]const u8, per_origin: ?[]const u8, single: ?[]const u8, url: []const u8) ?[]const u8 {
-    if (explicit) |t| return t;
+    return choose(explicit, per_origin, single, url).token;
+}
+
+/// pick() with the source of what it picked.
+pub fn choose(explicit: ?[]const u8, per_origin: ?[]const u8, single: ?[]const u8, url: []const u8) struct { token: ?[]const u8, source: Source } {
+    if (explicit) |t| return .{ .token = t, .source = .explicit };
     // connect() reads the link's own token; returning null leaves it to do so.
-    if (urls.splitInviteToken(url, null).token != null) return null;
-    const want = originOf(url) orelse return nonEmpty(single);
+    if (urls.splitInviteToken(url, null).token != null) return .{ .token = null, .source = .invite };
+    const fallback = nonEmpty(single);
+    const last: Source = if (fallback != null) .single else .none;
+    const want = originOf(url) orelse return .{ .token = fallback, .source = last };
     var pairs = std.mem.splitScalar(u8, per_origin orelse "", ',');
     while (pairs.next()) |raw| {
         const pair = std.mem.trim(u8, raw, " \t\r\n");
         const eq = std.mem.indexOfScalar(u8, pair, '=') orelse continue;
         const origin = originOf(std.mem.trim(u8, pair[0..eq], " \t")) orelse continue;
         if (!origin.same(want)) continue;
-        if (nonEmpty(pair[eq + 1 ..])) |t| return t;
+        if (nonEmpty(pair[eq + 1 ..])) |t| return .{ .token = t, .source = .per_origin };
     }
-    return nonEmpty(single);
+    return .{ .token = fallback, .source = last };
 }
 
 fn nonEmpty(s: ?[]const u8) ?[]const u8 {
@@ -76,4 +86,13 @@ test "pick: origins compare by scheme, host case and effective port" {
     try testing.expect(pick(null, map, null, "http://x.test:8080") == null);
     // A malformed entry or an empty token is passed over, never an error.
     try testing.expectEqualStrings("ok", pick(null, "junk,ftp://x.test=no,http://y.test=,http://y.test=ok", null, "http://y.test").?);
+}
+
+test "choose: names where each pick came from" {
+    const map = "http://a.test:8090=tok-a";
+    try testing.expectEqual(Source.explicit, choose("flag", map, "one", "http://a.test:8090").source);
+    try testing.expectEqual(Source.invite, choose(null, map, "one", "http://a.test:8090#token=link").source);
+    try testing.expectEqual(Source.per_origin, choose(null, map, "one", "http://a.test:8090").source);
+    try testing.expectEqual(Source.single, choose(null, map, "one", "http://c.test").source);
+    try testing.expectEqual(Source.none, choose(null, map, null, "http://c.test").source);
 }

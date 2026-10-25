@@ -29,7 +29,7 @@ pins before any code moves, and never re-record to make a move's proof pass.
 |---|---|---|
 | browser CSS | `browser/tests/pins/css.json` | `cd browser && UPDATE_CSS_PIN=1 node --test tests/cssInventory.test.js` |
 | browser-extension CSS | `browser-extension/tests/pins/css.json` | `cd browser-extension && UPDATE_CSS_PIN=1 node --test tests/cssInventory.test.js` |
-| browser or extension UI (rendered state) | `e2e/pins/<platform>/*.json` — computed styles + DOM per pinned state | `cd e2e && UPDATE_PINS=1 npm run test:ui` |
+| browser or extension UI (rendered state) | `e2e/pins/common/*.json` — the DOM, text and the style properties no OS moves, run on every platform (CI sets `E2E_REQUIRE_PINS=1`) — plus `e2e/pins/<platform>/*.json`, the whole capture with its box metrics | `cd e2e && UPDATE_PINS=1 npm run test:ui` (writes both) |
 | desktop QSS or any painted widget | `desktop/tests/pins/stylesheets.txt` (the stylesheet hashes, tracked) + `desktop/tests/pins/<platform>/*.png` (the pinned states at @1x and @2x, a gitignored local baseline) | `STENCIL_UPDATE_UI_PINS=1 ctest --test-dir desktop/build -R uipins` |
 | CLI terminal output | `cli/tests/pins/*.txt` (the TUI goldens) | `cd cli && STENCIL_UPDATE_PINS=1 zig build test` |
 | CLI full-screen effects and easter eggs | `cli/tests/pins/fx/*.txt` (frame sequences) | `cd cli && STENCIL_UPDATE_FX_PINS=1 zig build test` — **never in a refactor**: they are what proves the effects survived it |
@@ -55,7 +55,7 @@ raise one only when its suite has grown well past it.
 
 | Surface | Where |
 |---|---|
-| browser, browser-extension, vscode-extension | `tests/testFloor.test.js` — spawns an inner `node --test` and reads its summary, so it takes a couple of seconds |
+| browser, browser-extension, vscode-extension | `package.json` `stencil.testFloor` — `tools/repo/testRun.mjs` reads the TAP total of a bare `npm test` and holds it to the floor; `tests/testFloor.test.js` keeps the key and the script in place |
 | e2e | `tests/specGuard.test.js` — counts `test(` declarations and proves every spec is claimed by a Playwright project; `npm test` runs it first |
 | core | `tests/testMain.cpp` — doctest's own registry |
 | desktop | `tests/testFloor.headless.cpp` — parses the generated `CTestTestfile.cmake` |
@@ -89,8 +89,9 @@ Add the hand-written fixture for the interesting case yourself.
 The `.stc` corpus is its twin: one plain-text file,
 `common/fixtures/script/cases.txt`, walked by `core/tests/script/scriptFixtures.test.cpp`,
 `browser/tests/core/scriptFixtures.test.js` (and the wasm-parity script spec),
-`cli/tests/script/script_fixtures_test.zig`, `pystencil/tests/fixtures/test_fixture_script.py`,
-`vscode-extension/tests/parser/fixtureWalker.test.js` and the `e2e/` cli + browser script specs. Nothing about it is generated and no walker records
+`cli/tests/script/script_fixtures_test.zig`, `pystencil/tests/fixtures/test_fixture_script.py`
+and the `e2e/` cli + browser script specs (the VS Code parser is a byte-equal copy of the browser's
+walked one). Nothing about it is generated and no walker records
 it: append the section by hand, run a walker, and read the mismatch it prints. A case named
 `err-*` must produce an error and every other case must not, so the name is part of the
 assertion.
@@ -98,7 +99,8 @@ assertion.
 The conformance corpora under `common/fixtures/` work the same way — `layout/`,
 `deepLink/`, `stencilProject/`, the SSRF hosts in `net/hosts.json` (judged against
 `common/config/net/blockedRanges.json`) and the image-header cases in `imageHeader/` — each
-walked by every surface its `_schema.md` names. A guard or sniffer change adds its case there,
+walked by every surface its `_schema.md` names; `cli/` (the stderr grammar the CLI prints and
+mcp and bot parse) names its walkers in each file's `_comment`. A guard or sniffer change adds its case there,
 never a surface-local table.
 
 `node --test` never loads wasm; it always exercises the JS fallback. The wasm-parity test

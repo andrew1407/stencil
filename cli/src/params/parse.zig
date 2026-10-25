@@ -78,6 +78,8 @@ pub fn parse(argv: []const [:0]const u8) Error!Options {
             opts.script_emit = try value(&st, "--script-emit");
         } else if (eq(arg, "--confine-output")) {
             opts.confine_output = true;
+        } else if (eq(arg, "--strict-fetch")) {
+            opts.strict_fetch = true;
         } else if (eq(arg, "--no-clobber")) {
             opts.no_clobber = true;
         } else if (eq(arg, "--thumbnail")) {
@@ -111,8 +113,7 @@ pub fn parse(argv: []const [:0]const u8) Error!Options {
     return opts;
 }
 
-// "-1", "-90" etc. are values, not flags (so they aren't misread as unknown flags when
-// they appear as a stray positional — rotate values are consumed positionally above).
+// "-1", "-90" are values, not flags: a stray rotate value is never misread as an unknown flag.
 fn looksNegativeNumber(a: []const u8) bool {
     if (a.len < 2 or a[0] != '-') return false;
     for (a[1..]) |ch| if (!std.ascii.isDigit(ch)) return false;
@@ -135,7 +136,6 @@ test "parse: --layout-frame source/current; junk rejected" {
     try testing.expectEqual(LayoutFrame.source, (try parse(&s)).layout_frame);
     const c = [_][:0]const u8{ "-i", "in.png", "--layout-frame", "current", "out.png" };
     try testing.expectEqual(LayoutFrame.current, (try parse(&c)).layout_frame);
-    // Default stays `current` (plain CLI behavior unchanged).
     const d = [_][:0]const u8{ "-i", "in.png", "out.png" };
     try testing.expectEqual(LayoutFrame.current, (try parse(&d)).layout_frame);
     const bad = [_][:0]const u8{ "-i", "in.png", "--layout-frame", "snapshot" };

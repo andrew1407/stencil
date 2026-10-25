@@ -28,7 +28,7 @@ output lines change, update **this file, the shared fixtures, and both adapters 
   `mcp/tests/args_test.rs` and `bot/tests/.../CliArgvBuilderTests.cs`.
 - **Output grammar** ⇒ each adapter's stderr parser, unit-tested in
   `mcp/tests/outcome_test.rs` and `bot/tests/.../CliOutcomeParserTests.cs`, **and** pinned to
-  a shared, language-neutral golden set: **`cli/testdata/outcome_fixtures.json`**, replayed
+  a shared, language-neutral golden set: **`common/fixtures/cli/outcome.json`**, replayed
   by `mcp/tests/fixtures_test.rs` and `bot/tests/.../SharedOutcomeFixturesTests.cs`. Both
   suites load the *same* file, so a divergence between the two parsers is caught by CI.
 
@@ -79,6 +79,7 @@ that begins with `-` would misparse as a flag; adapters reject dash-leading outp
 | `--source-min-height` / `--source-max-height` | `<u32>` value | Inclusive pixel height bounds (`0` = unset). |
 | `--no-clobber` | switch | Refuse to overwrite an existing output, checked on the name the result really lands under — a missing or unknown extension filled in first (`out` from a JPEG input is `out.jpg`), a `.stencil` name as given. It runs before anything is fetched or uploaded: `error: --no-clobber: '{path}' already exists`, exit 1. Applies to the pipeline and `.stencil` one-shots, to every `@save` of a `--script` run (§4.2) and to the `--script-emit` output (§4.4). Adapters that are asked not to overwrite (mcp's `overwrite=false`) pass it; the CLI is the authority on the resolved name. |
 | `--confine-output` | switch | Refuse an output path that leaves the working directory: an **absolute** path, a leading `~`, or a symbolic link on the path that resolves outside it (a dangling one included), on top of the `..` traversal refused in every mode (`error: --confine-output: refusing to write outside the working directory: …`, exit 1). Off by default. Adapters that forward an LLM-chosen `<output>` (mcp, bot) pass it; it also confines the scrape destination directory. |
+| `--strict-fetch` | switch | Every fetch of the run refuses loopback as well as the internal ranges, as a URL read out of fetched content always does; `STENCIL_FETCH_STRICT=1` in the environment is the same. Off by default: a URL the user typed may name their own `localhost`. Adapters whose URLs come from a chat or a model (mcp, bot) set the variable, so the CLI keeps their loopback refusal. A collaboration server (`--server`, `--remote`) is judged as a server target either way. |
 | `--script` | `<path>` value | **Script mode.** Run a `.stc` script (`-` reads stdin). A script with no `@source` block edits the `-i` input. Mutually exclusive with `--script-check` and `--script-plan` (→ `DuplicateSource`). See §4. |
 | `--script-check` | `<path>` value | Print the script's diagnostics **to stdout** and exit 1 if any is an error. See §4. |
 | `--script-plan` | `<path>` value | Print the script lowered to an op-plan envelope, as JSON **on stdout** (`-` reads stdin). Runs nothing and writes no file; exits 1 when the script has an error. See §4.3. |
@@ -107,6 +108,10 @@ that begins with `-` would misparse as a flag; adapters reject dash-leading outp
 (`https://h` is `https://h:443`); a bare host is https unless it is loopback, as the CLI
 normalizes a server URL. Only the first `=` splits a pair, and a malformed entry is skipped.
 So one run's `--server` and `--remote` may each get their own token.
+
+A server that a launch link names (`-i <link>`, or the console's `/open <link>`) skips step 4:
+the link chose that origin, so the unscoped `STENCIL_SERVER_TOKEN` never goes to it, while a
+`STENCIL_SERVER_TOKENS` entry the user wrote for that origin still applies.
 
 A token is never printed, and both variables are scrubbed from every child process the CLI
 spawns (ffmpeg, ffprobe, the clipboard helpers), as `STENCIL_LLM_*` is. An adapter hands its
@@ -281,7 +286,10 @@ Reference: `mcp/src/outcome.rs::parse_remotes` (returns all deliveries found, in
 ### 2.3 Error lines — `error: …`
 
 Failures print one or more lines beginning with `error:` (e.g. from `args.zig`, `net.zig`,
-`pipeline.zig` — see `grep -rn "error:" cli/src`). Examples:
+`pipeline.zig` — see `grep -rn "error:" cli/src`). A fetch error names its URL as
+`scheme://host/path` only: userinfo is dropped and a query or fragment shows as `?…` / `#…`
+(`net/shown.zig`), so a pre-signed query string never reaches an adapter's reply or log.
+Examples:
 
 ```
 error: could not parse crop spec "oops" (a bad edge, or one outside the 640x480 image)
@@ -349,7 +357,8 @@ the parenthetical tail when it matches `^\d+x\d+`, else null (video lines have n
 errors as in §2.3.
 
 The scrape line shapes are pinned by the shared golden set
-**`cli/testdata/scrape_fixtures.json`** (the CLI reproduces them; `mcp/` + `bot/` parse them).
+**`common/fixtures/cli/scrape.json`** (the CLI reproduces them through `src/scrape/run.zig`'s `line`
+formats, walked by `tests/scrape/scrape_fixtures_test.zig`; `mcp/` + `bot/` parse them).
 
 ---
 
@@ -570,7 +579,7 @@ its target off the `wrote` line).
 
 ## 5. Shared golden fixtures
 
-`cli/testdata/outcome_fixtures.json` is the language-neutral golden set for §2. It has three
+`common/fixtures/cli/outcome.json` is the language-neutral golden set for §2. It has three
 sections — `wrote`, `remotes`, `errors` — mapping 1:1 to the three parser functions. Each
 case is `{ name, stderr, expected }`, where `expected` is `null` / an object for `wrote`, a
 (possibly empty) list of `{action:"updated"|"created", …}` objects for `remotes`, and the

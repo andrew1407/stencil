@@ -4,7 +4,8 @@
 import { composeControlTitle } from '../../utils.js';
 import { hotkeys } from '../../core/settings/hotkeys.js';
 import { CHANGE, FLUSH } from '../../core/app/changes.js';
-import { revealControls, settleMark } from '../motion.js';
+import { settleMark } from '../motion/surface/marks.js';
+import { revealControls } from '../motion/control/revealControls.js';
 import { motionReduced } from '../motion/motionPrefs.js';
 import { updateStencilSyncUI } from '../../core/project/fileIO.js';
 import { syncDrawToggleUI, syncDrawModeUI } from '../panel/drawToggleUI.js';

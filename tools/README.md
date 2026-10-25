@@ -12,7 +12,8 @@ run from the repo root, using Node builtins only: nothing to install, nothing ad
 | finish a comment-only sweep | `node tools/commentOnlyDiff.mjs <gitRef> <path...>` | anything other than comments or whitespace changed |
 | move, rename or delete any file | `node tools/docPaths.mjs --check` and `node tools/commentPaths.mjs --check` | a doc or a code comment names a path that no longer exists |
 | edit a file another surface ships a copy of | `node tools/syncTwins.mjs` (then `--check`) | a copy differs from its original |
-| add, split or grow a source file or folder | `node tools/caps.mjs --check` | a file passes 230 lines, a folder 12 source units, or a directory's body comments a fifth of its lines |
+| add, split or grow a source file, function or folder | `node tools/caps.mjs --check` | a file passes 230 lines, a function 80 (or its `tools/functionCaps.json` entry), a folder 12 source units, a file name ends in a kind word beyond `tools/kindNames.json`, or a directory's body comments a fifth of its lines |
+| add, remove or rename a `core/*.cpp` or a core folder | `node tools/repo/coreLists.mjs --write` (then `--check`) | `cli/build.zig` or `pystencil/build.py` names other core sources or include dirs than `core/CMakeLists.txt` |
 
 Every tool prints a one-line summary last (`docPaths: 0 dead paths`), so the last line says
 whether it passed.
@@ -140,7 +141,9 @@ source, test and stylesheet file, build output, vendored and generated files asi
 | Rule | Counts |
 |---|---|
 | a file is at most 230 lines | lines as `wc -l` counts them |
+| a function is at most 80 lines, beyond the frozen `tools/functionCaps.json`, which only shrinks | each outermost function body, header line to closing brace, found by `repo/functions.mjs`'s brace walk over the masked source (JS, C++, C#, Go, Rust, Zig); keyed `file#name`, a repeated name `name~2`; test folders and `.d.ts` files are exempt |
 | a folder holds at most 12 direct source units | a module and its `.d.ts`, a header with its `.cpp` and per-OS bodies (`xMac.mm`), count once; test folders and Go `_test.go` files are exempt |
+| no file is named for a kind, beyond the frozen `tools/kindNames.json`, which only shrinks | a file name whose stem (test and `.d` suffixes aside) ends in `Helpers`, `Shared`, `Common`, `Misc` or `Utils`; a `.d.ts` follows its module |
 | a directory's body comments stay under a fifth of its lines | comment-only lines after each file's leading doc banner, over every line of the directory's files; `.d.ts` shape files are exempt |
 
 Comments are found by the same string-aware scanners `commentPaths.mjs` uses. A `path` narrows the
@@ -148,8 +151,10 @@ run to files under it.
 
 **Output:** one line per breach, `<file or folder>  <rule> <value> (limit <limit>)`, then the summary.
 
-**On failure:** split the file or folder by feature (the `split-move` skill), or delete the comments
-that do not say what the code cannot.
+**On failure:** split the file, function or folder by feature (the `split-move` skill), or delete the
+comments that do not say what the code cannot. A function split under the cap drops its
+`functionCaps.json` entry in the same change; a file renamed for its concern drops its
+`kindNames.json` entry.
 
 ## `syncTwins.mjs` — keep every copy equal to its original
 
@@ -187,6 +192,25 @@ exactly the pairs those tests read.
 **Editor hook:** `.claude/settings.json` runs `node tools/syncTwins.mjs --hook` after every
 Edit/Write. It reads the call on stdin and, when the edited file belongs to a drifted pair,
 exits `2` with one line: re-copy from the original, or edit the original instead of the copy.
+
+## `repo/coreLists.mjs` — do the recompiling builds name CMake's core files?
+
+```sh
+node tools/repo/coreLists.mjs --check   # report only; exits 1 on drift
+node tools/repo/coreLists.mjs --write   # rewrite the zig and py lists from CMake
+```
+
+`core/CMakeLists.txt` (`STENCIL_CORE_SOURCES`, `STENCIL_CORE_INCLUDE_DIRS`) is the one list.
+The CLI's `core_sources` / `core_include_dirs` and pystencil's `STENCIL_CORE_SOURCES` /
+`INCLUDE_DIRS` must name the same entries, order free; each recompiling build appends
+`cliApi.cpp` itself, and no `wasm*Api.cpp` is shared. **Output:** one line per drifted list
+(`lacks …`, `adds …`, `repeats …`), then `coreLists: N drifted`.
+
+## `repo/cssInventory.mjs` — the stylesheet pins' scanner
+
+Not run directly: `browser/tests/cssInventory.test.js` and
+`browser-extension/tests/cssInventory.test.js` import it to key every rule of a document's
+sheets by at-rule prelude and selector, and its own cases are `repo/cssInventory.test.mjs`.
 
 ## Tests
 

@@ -39,10 +39,17 @@ const spawn = () => {
   return worker;
 };
 
+// A message that never left (no worker, a clone error) settles nothing later: its entry and bitmap go now.
 const post = (msg, transfer) => new Promise((resolve, reject) => {
   const id = ++seq;
   pending.set(id, { resolve, reject });
-  spawn().postMessage({ ...msg, id }, transfer);
+  try {
+    spawn().postMessage({ ...msg, id }, transfer);
+  } catch (err) {
+    pending.delete(id);
+    for (const t of transfer) t?.close?.();
+    throw err;
+  }
 });
 
 const makeCanvas = (w, h) => {
@@ -91,15 +98,31 @@ export const contourToDataUrl = (readPixels, type = 'image/png') => run(
 
 // A filter build's RGBA pass (filterPixels.js) off-thread, painted into an ImageBitmap; rejects
 // when the worker is unusable or fails, and the caller then builds on its own thread.
-export const filterInWorker = async ({ recipe, pixels, rgb }) => {
+export const filterInWorker = async ({ recipe, pixels, image, rgb }) => {
   if (!imageWorkerUsable()) throw new Error('image worker unavailable');
-  const { data, width, height } = pixels;
   try {
+    if (image) {
+      const bitmap = await createImageBitmap(image);
+      return (await post({ task: IMAGE_TASK.FILTER, recipe, bitmap, width: image.width, height: image.height, rgb }, [bitmap])).bitmap;
+    }
+    const { data, width, height } = pixels;
     return (await post({ task: IMAGE_TASK.FILTER, recipe, data: data.buffer, width, height, rgb }, [data.buffer])).bitmap;
   } catch (err) {
     if (!worker) dead = true;
     throw err;
   }
+};
+
+// A resting paint scaled to fit, as a data URL: composed and encoded in the worker over a bitmap copy
+// of the base, else `inline()` — the main thread pays only the snapshot.
+export const resultThumbnail = (job, { maxEdge, halve = false, type = 'image/png', quality }, inline) => {
+  const { base, ...fields } = job;
+  return run(
+    async () => {
+      const bitmap = await createImageBitmap(base);
+      return post({ task: IMAGE_TASK.RESULT, ...fields, fit: { maxEdge, halve }, bitmap, type, quality }, [bitmap]);
+    },
+    inline);
 };
 
 const blobBytes = async (blob) => (blob ? new Uint8Array(await blob.arrayBuffer()) : null);

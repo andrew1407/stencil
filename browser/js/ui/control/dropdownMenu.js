@@ -76,6 +76,7 @@ export const placeMenu = (menu, trigger) => {
 // resize and on any scroll, so the list follows a trigger that moves under it.
 export const showMenu = (menu, trigger) => {
   if (!menu) return;
+  unfollow(menu);   // a re-open while open (a second right-click) re-wires, never stacks
   if (!home.has(menu)) home.set(menu, { parent: menu.parentElement, next: menu.nextSibling });
   if (typeof document !== 'undefined' && menu.parentElement !== document.body) document.body.appendChild(menu);
   menu.classList.add('dd-portal');
@@ -111,6 +112,15 @@ const trackTrigger = (menu, trigger) => {
   menu.__ddTrack = requestAnimationFrame(step);
 };
 
+const unfollow = (menu) => {
+  if (menu.__ddTrack && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(menu.__ddTrack);
+  menu.__ddTrack = 0;
+  if (!menu.__ddReflow) return;
+  window.removeEventListener('resize', menu.__ddReflow);
+  window.removeEventListener('scroll', menu.__ddReflow, true);
+  menu.__ddReflow = null;
+};
+
 // Hide `menu` and put it back where it was built, clearing everything showMenu set.
 export const hideMenu = (menu) => {
   if (!menu) return;
@@ -121,13 +131,7 @@ export const hideMenu = (menu) => {
   menu.__ddTrigger = null;
   menu.__ddAt = null;
   menu.hidden = true;
-  if (menu.__ddTrack && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(menu.__ddTrack);
-  menu.__ddTrack = 0;
-  if (menu.__ddReflow) {
-    window.removeEventListener('resize', menu.__ddReflow);
-    window.removeEventListener('scroll', menu.__ddReflow, true);
-    menu.__ddReflow = null;
-  }
+  unfollow(menu);
   menu.classList.remove('dd-portal');
   for (const prop of ['left', 'top', 'minWidth', 'maxHeight', 'transformOrigin']) menu.style[prop] = '';
   const h = home.get(menu);

@@ -22,7 +22,7 @@ class MainWindowGuiTest : public QObject {
     const QString id = win.parts.chatAppliers.addImageProjectEntry(img, "the-only-one");
     QVERIFY(!id.isEmpty());
     bool landed = false;   // …and it is this window's OPEN project, once its picture decodes
-    QVERIFY(win.loadProjectIntoCanvas(id, false, [&landed](bool ok) { landed = ok; }));
+    QVERIFY(win.projectHost.loadProjectIntoCanvas(id, false, [&landed](bool ok) { landed = ok; }));
     QTRY_VERIFY_WITH_TIMEOUT(landed, 5000);
 
     bool sawRow = false, tempPinned = false, noPlaceholder = true, landedWhereItArrived = false;
@@ -72,7 +72,7 @@ class MainWindowGuiTest : public QObject {
       }
       bailOut();
     });
-    win.parts.projects.openProjects();
+    win.projectHost.flows.openProjects();
     QVERIFY2(sawRow, "the seeded project row never appeared in the dialog");
     QVERIFY2(tempPinned, "the emptied list never pinned the window's \"Temporary (unsaved)\" row");
     QVERIFY2(noPlaceholder, "the emptied list still read \"No projects yet\"");
@@ -161,7 +161,7 @@ class MainWindowGuiTest : public QObject {
       }
       bailOut();   // belt and braces — Close already rejected the dialog
     });
-    win.parts.projects.openProjects();
+    win.projectHost.flows.openProjects();
     QVERIFY2(sawRow, "the seeded project row never appeared in the dialog");
     QVERIFY2(finalized, "closing mid-scatter left the doomed row in the list");
     QVERIFY2(ghostSeen, "the close flight's ghost was not found");

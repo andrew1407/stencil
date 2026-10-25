@@ -1,7 +1,7 @@
 // The canvas viewport's overlay scrollbars (desktop parity: canvas/overlay/OverlayScrollArea.hpp).
 // The native bars are hidden (layout/scrollbars.css): scrollbar-color is one colour for
 // both bars and the webkit pseudo-elements are ignored once scrollbar-width is set.
-import { motionReduced } from '../motion.js';
+import { motionReduced } from '../motion/motionPrefs.js';
 import { onWindowResize } from './frameSync.js';
 import { SB_MIN_THUMB_PX, thumbMetrics } from '../control/thumbMetrics.js';
 

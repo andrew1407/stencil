@@ -52,6 +52,9 @@ test('an incognito launch saves no project, and a credential rides the fragment 
     search: '?blank=red&incognito&llm-api-key=k',
     hash: '#llm-provider=anthropic&llm-api-key=sk-e2e-test-1234',
   });
+  // A link that switches the provider asks first (launch-uri.md §2).
+  await expect(page.locator('#confirm-modal-message')).toContainText('provider anthropic', { timeout: 15_000 });
+  await page.locator('#confirm-modal-confirm').click();
   await launched(page);
   const state = await page.evaluate(() => ({
     incognito: window.stencil.incognito,

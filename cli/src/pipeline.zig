@@ -13,6 +13,7 @@ const output = @import("pipeline/output.zig");
 
 pub const Source = steps.Source;
 pub const run = oneshot.run;
+pub const deliverToServer = oneshot.deliverToServer;
 
 pub const acquireInput = steps.acquireInput;
 pub const acquireBlank = sources.acquireBlank;

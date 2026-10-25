@@ -1,13 +1,18 @@
-import { cmToUnit, isTypingTarget } from '../../utils.js';
-import { icon } from '../icons.js';
-import { leaveThenRemove } from '../motion.js';
-import { pixelToPageCoords } from '../../core/parse/pageMetrics.js';
+import { isTypingTarget, perFrame } from '../../utils.js';
+import { leaveThenRemove } from '../motion/enterLeave.js';
+import { buildCoordRow, reuseCoordRows, paintCoordRow, coordSizerRow } from './coordRows.js';
+import { RowWindow } from './rowWindow.js';
 import { setPointCoord, removePoint } from '../../core/line/editOps.js';
 // The points table DOM + per-row interactions.
 export class CoordTable {
   #points = null;
   #lineIdx = -1;
   #wiredBody = null;
+  #window = null;   // a long line's rows as a window (rowWindow.js)
+  // Pointer events land many times a frame; the rows are rewritten once a frame, newest points.
+  #refreshSoon = perFrame((points, lineIdx) => {
+    if (this.app.coordLineIdx === lineIdx) this.#refreshNow(points, lineIdx);
+  });
 
   constructor(app) {
     this.app = app;
@@ -22,35 +27,41 @@ export class CoordTable {
     this.app.hoveredPtIdx = -1;
     this.#points = points;
     this.#lineIdx = lineIdx;
-    this.#wire(this.app.coordinatesBody);
-    this.app.coordinatesBody.innerHTML = '';
+    const body = this.app.coordinatesBody;
+    this.#wire(body);
 
     if (!points || points.length === 0) {
-      this.app.coordinatesBody.innerHTML = `<tr><td colspan="6" class="empty-message">No points yet.</td></tr>`;
+      body.innerHTML = `<tr><td colspan="6" class="empty-message">No points yet.</td></tr>`;
       this.#capPanel();
       return;
     }
-
-    points.forEach((point, index) => {
-      const pageCoords = pixelToPageCoords(this.app, point.x, point.y);
-      const row = document.createElement('tr');
-      row.dataset.ptIdx = index;
-      // Focusable so a bare Delete/Backspace is scoped to this table, as the desktop's points
-      // table scopes it to widget focus (SelectionPanel.cpp eventFilter).
-      row.tabIndex = 0;
-      if (index === this.app.focusedPtIdx) row.classList.add('row-focused');
-
-      row.innerHTML = `
-        <td>${index + 1}</td>
-        <td class="cell-px-x">${Math.round(point.x)}</td>
-        <td class="cell-px-y">${Math.round(point.y)}</td>
-        <td>${cmToUnit(pageCoords.x, this.app.unit).toFixed(2)}</td>
-        <td>${cmToUnit(pageCoords.y, this.app.unit).toFixed(2)}</td>
-        <td style="text-align:center;padding:2px;"><button class="del-pt-btn btn-icon" data-title="Remove point">${icon('trash', { size: 14 })}</button></td>
-      `;
-      this.app.coordinatesBody.appendChild(row);
-    });
+    if (this.#windowOf(body).show(points.length)) {
+      this.#capPanel();
+      return;
+    }
+    if (!reuseCoordRows(this.app, body, points)) {
+      body.innerHTML = '';
+      points.forEach((point, index) => body.appendChild(buildCoordRow(this.app, point, index)));
+    }
     this.#capPanel();
+  }
+
+
+
+  #windowOf(body) {
+    if (this.#window?.body !== body) {
+      this.#window = new RowWindow(body, { columns: 6, indexAttr: 'data-pt-idx',
+        build: (i) => buildCoordRow(this.app, this.#points[i], i), sizer: () => coordSizerRow(this.app, this.#points),
+        onRender: () => this.applyRowHighlight() });
+    }
+    return this.#window;
+  }
+
+  // The row a canvas click picked, scrolled into view; a long line's window renders it on the way.
+  revealRow(ptIdx) {
+    if (this.#window?.active) { this.#window.reveal(ptIdx, 'smooth'); return; }
+    const row = this.app.coordinatesBody.querySelector(`tr[data-pt-idx="${ptIdx}"]`);
+    if (row && typeof row.scrollIntoView === 'function') row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
   // -1 is the stroke in progress; an index past the line set names nothing.
@@ -67,13 +78,16 @@ export class CoordTable {
   }
 
   // A drag moves the points the table already lists: rewrite the cells, keep the rows.
-  refreshRows(points, lineIdx) {
+  refreshRows(points, lineIdx) { this.#refreshSoon(points, lineIdx); }
+
+  #refreshNow(points, lineIdx) {
     const rows = this.app.coordinatesBody.querySelectorAll('tr[data-pt-idx]');
-    if (lineIdx !== this.#lineIdx || points !== this.#points || rows.length !== points.length) {
+    const listed = this.#window?.active ? this.#window.count : rows.length;
+    if (lineIdx !== this.#lineIdx || points !== this.#points || listed !== points.length) {
       this.update(points, lineIdx);
       return;
     }
-    for (let i = 0; i < points.length; i++) this.refreshCoordRow(i);
+    for (const row of rows) paintCoordRow(this.app, row, points[parseInt(row.dataset.ptIdx, 10)]);
   }
 
   // One listener per event type on the body, not per row; mouseover/out stand in for the
@@ -187,6 +201,10 @@ export class CoordTable {
   // The table is rebuilt after a keyboard delete, so re-focus the row that slid into the
   // deleted one's place (Qt's table keeps its current row too).
   focusRowAfterRemoval(index) {
+    if (this.#window?.active) {
+      this.#window.reveal(Math.min(index, this.#window.count - 1))?.focus();
+      return;
+    }
     const rows = this.app.coordinatesBody.querySelectorAll('tr[data-pt-idx]');
     if (!rows.length) return;
     (rows[Math.min(index, rows.length - 1)]).focus();
@@ -205,16 +223,8 @@ export class CoordTable {
     const lineIdx = this.app.coordLineIdx;
     const line = lineIdx === -1 ? this.app.currentLine : this.app.lines[lineIdx];
     if (!line || ptIdx >= line.points.length) return;
-    const point = line.points[ptIdx];
     const row = this.app.coordinatesBody.querySelector(`tr[data-pt-idx="${ptIdx}"]`);
-    if (!row) return;
-    const pageCoords = pixelToPageCoords(this.app, point.x, point.y);
-    const cellX = row.querySelector('.cell-px-x');
-    const cellY = row.querySelector('.cell-px-y');
-    if (cellX && !cellX.querySelector('.coord-px-input')) cellX.textContent = Math.round(point.x);
-    if (cellY && !cellY.querySelector('.coord-px-input')) cellY.textContent = Math.round(point.y);
-    const tds = row.querySelectorAll('td');
-    if (tds[3]) tds[3].textContent = cmToUnit(pageCoords.x, this.app.unit).toFixed(2);
-    if (tds[4]) tds[4].textContent = cmToUnit(pageCoords.y, this.app.unit).toFixed(2);
+    if (row) paintCoordRow(this.app, row, line.points[ptIdx]);
   }
+
 }

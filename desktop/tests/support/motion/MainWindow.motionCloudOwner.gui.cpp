@@ -75,7 +75,7 @@ class MainWindowGuiTest : public QObject {
       hiddenAtClose = noneShowing(clouds);
       bailOut();
     });
-    win.parts.projects.openProjects();
+    win.projectHost.flows.openProjects();
     QVERIFY2(!clouds.isEmpty(), "Clear All raised no row cloud to close over");
     QVERIFY2(hiddenAtClose, "a row cloud was still showing as the dialog closed");
     QTest::qWait(20);

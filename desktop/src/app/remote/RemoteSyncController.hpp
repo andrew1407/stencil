@@ -60,6 +60,7 @@ namespace stencil::gui {
     static constexpr int RESULT_IDLE_MS = 2000;
     static constexpr int RESULT_GAP_MS = 10000;
     static constexpr int POLL_MS = 2000;
+    static constexpr int LIVE_POLL_FACTOR = 10;   // the poll's slowdown while the live feed is up
     static constexpr int CLOSE_HOLD_CAP_MS = 5000;   // the push and the result holds together
 
    private:

@@ -2,7 +2,7 @@
 //! form §4's "Available ops" section), then the console profile (spliced in as the settings
 //! block). One entry per `Action` variant, pinned at comptime below.
 const std = @import("std");
-const opplan = @import("../opplan.zig");
+const opplan = @import("../plan.zig");
 const descriptor = @import("descriptor.zig");
 const coreOps = @import("coreOps.zig");
 const consoleOps = @import("consoleOps.zig");

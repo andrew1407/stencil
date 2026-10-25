@@ -53,6 +53,7 @@ test "providerWire corpus: request building + reply extraction against the cli c
     var w = fx.Walk.start();
     defer w.stop();
     const a = w.alloc();
+    const g = testing.allocator; // the code under test: its leaks fail the walk
 
     try w.loadOverrides();
     for (wire_files) |file| {
@@ -89,8 +90,8 @@ test "providerWire corpus: request building + reply extraction against the cli c
                 for (imgs.array.items) |img| try images.append(a, fx.memberStr(img, "data").?);
             }
 
-            const req = try llm.buildRequestWithSystem(
-                a,
+            var req = try llm.buildRequestWithSystem(
+                g,
                 &cfg,
                 fx.memberStr(chat, "system").?,
                 fx.memberStr(last, "text").?,
@@ -100,6 +101,7 @@ test "providerWire corpus: request building + reply extraction against the cli c
                 history.items,
                 "",
             );
+            defer req.deinit(g);
 
             try testing.expectEqualStrings(fx.memberStr(case, "expectUrl").?, req.url);
             if (fx.memberStr(case, "expectAuthorization")) |auth| {
@@ -122,7 +124,8 @@ test "providerWire corpus: request building + reply extraction against the cli c
             // Feed the canned 2xx response through reply extraction.
             if (fx.member(case, "response")) |resp| {
                 const rbytes = try fx.stringify(a, resp);
-                const ex = try llm.extractReply(a, provider, rbytes);
+                const ex = try llm.extractReply(g, provider, rbytes);
+                defer ex.deinit(g);
                 const want_kind: []const u8 = if (ov != null and fx.memberStr(ov.?, "extract") != null)
                     fx.memberStr(ov.?, "extract").?
                 else if (fx.member(case, "expectReply") != null)
@@ -150,7 +153,7 @@ test "providerWire corpus: request building + reply extraction against the cli c
                 const body_v = fx.member(er, "body").?;
                 const body_bytes = if (body_v == .string) body_v.string else try fx.stringify(a, body_v);
                 var dbuf: [200 + "…".len]u8 = undefined;
-                const got = llm.errorDetail(a, body_bytes, &dbuf);
+                const got = llm.errorDetail(g, body_bytes, &dbuf);
 
                 var want = fx.memberStr(expect_err, "message").?;
                 if (ov != null and fx.memberStr(ov.?, "detail") != null) want = fx.memberStr(ov.?, "detail").?;
@@ -162,7 +165,7 @@ test "providerWire corpus: request building + reply extraction against the cli c
                 // as the dedicated LlmDisabled error (finish() keys on isLlmDisabled), everything else HttpFailed.
                 try testing.expectEqual(status, fx.member(expect_err, "status").?.integer);
                 const want_disabled = std.mem.eql(u8, fx.memberStr(expect_err, "kind").?, "disabled");
-                try testing.expectEqual(want_disabled, llm.isLlmDisabled(a, body_bytes));
+                try testing.expectEqual(want_disabled, llm.isLlmDisabled(g, body_bytes));
             }
         }
     }

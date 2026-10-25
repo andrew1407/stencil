@@ -64,6 +64,25 @@ TEST_CASE("editor history: the floor clears the lines but keeps the view the sta
   CHECK(f->quarters == 2);
 }
 
+TEST_CASE("editor history: the floor keeps every view field, the mirror and the filter included") {
+  EditorHistory h;
+  EditorMemento m = at(3, 1, 4);
+  m.mirrored = true;
+  m.filter = "tint";
+  m.filterColor = "#336699";
+  h.reset(m, 0);
+  const std::optional<EditorMemento> f = h.undo();
+  REQUIRE(f.has_value());
+  CHECK(f->lines.empty());
+  CHECK(f->hasView);
+  CHECK(f->crop.x == 3);
+  CHECK(f->crop.width == 50);
+  CHECK(f->quarters == 1);
+  CHECK(f->mirrored);
+  CHECK(f->filter == "tint");
+  CHECK(f->filterColor == "#336699");
+}
+
 TEST_CASE("editor history: past MAX_STEPS the floor takes the view of the last step dropped") {
   EditorHistory h;
   h.reset(at(-1, 0, 0));

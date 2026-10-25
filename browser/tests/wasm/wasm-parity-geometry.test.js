@@ -14,13 +14,13 @@ import {
 
 // js/wasm/stencilCore.js is a generated, gitignored artifact, present only after the Emscripten build, so the
 // suite skips when it is missing: the other suites already cover the JS reference path it mirrors.
-const MODULE_BUILT = existsSync(fileURLToPath(new URL('../../js/wasm/stencilCore.js', import.meta.url)));
+const MODULE_BUILT = ['stencilCore.js', 'stencilCore.wasm'].every((f) => existsSync(fileURLToPath(new URL(`../../js/wasm/${f}`, import.meta.url))));
 const wtest = MODULE_BUILT ? test : test.skip;
 
 before(async () => {
   if (!MODULE_BUILT) return; // nothing to load; wtest already skipped the suite
   const ok = await core.init();
-  assert.strictEqual(ok, true, 'wasm core must load in Node (SINGLE_FILE ES module)');
+  assert.strictEqual(ok, true, 'wasm core must load in Node (ES glue + .wasm)');
 });
 
 wtest('rotatePoints + boundingBoxCenter: wasm matches JS rotation (in/out array marshalling)', () => {

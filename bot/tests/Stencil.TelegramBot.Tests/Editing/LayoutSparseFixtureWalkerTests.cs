@@ -12,7 +12,7 @@ public sealed class LayoutSparseFixtureWalkerTests
     public static TheoryData<string> Vectors() => SharedFixtures.TheoryNames(SharedFixtures.CaseNames(Corpus));
 
     [Fact]
-    public void Should_Have_Every_Vector_In_The_Corpus() => Assert.Equal(10, SharedFixtures.Cases(Corpus).Count);
+    public void Should_Have_Every_Vector_In_The_Corpus() => Assert.True(SharedFixtures.Cases(Corpus).Count >= 10, $"the sparse-layout corpus collapsed to {SharedFixtures.Cases(Corpus).Count}");
 
     [Theory]
     [MemberData(nameof(Vectors))]

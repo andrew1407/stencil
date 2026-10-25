@@ -57,9 +57,11 @@ pub fn scrapeOne(gpa: std.mem.Allocator, io: std.Io, o: ConsoleOpts) !Loaded {
         if (!formatPass(m, o.format)) continue;
 
         var dims: ?Sniff = null;
-        var cached: ?[]const u8 = null; // measurement bytes, reused for the pick (no double fetch)
+        // Measurement bytes, reused for the pick (no double fetch); a candidate's go before the next.
+        var cached: ?[]u8 = null;
+        defer if (cached) |b| gpa.free(b);
         if (dim_active) {
-            const bytes = net.fetch(arena, io, m.url, subStrict(m.url, page_host)) catch |e| {
+            const bytes = net.fetch(gpa, io, m.url, subStrict(m.url, page_host)) catch |e| {
                 if (e == error.Cancelled) return e; // a Ctrl-C ends the scrape, not one candidate
                 report.err("could not fetch {s} ({s})\n", .{ m.url, @errorName(e) });
                 continue;
@@ -70,15 +72,17 @@ pub fn scrapeOne(gpa: std.mem.Allocator, io: std.Io, o: ConsoleOpts) !Loaded {
         }
 
         if (matches == o.index) {
-            const bytes = cached orelse (net.fetch(arena, io, m.url, subStrict(m.url, page_host)) catch |e| {
+            if (cached == null) cached = net.fetch(gpa, io, m.url, subStrict(m.url, page_host)) catch |e| {
                 if (e != error.Cancelled) report.err("could not fetch {s} ({s})\n", .{ m.url, @errorName(e) });
                 return e;
-            });
+            };
+            const bytes = cached.?;
             if (dims == null) dims = sniff(bytes);
-            const img = image.decode(gpa, bytes) catch |e| {
+            var img = image.decode(gpa, bytes) catch |e| {
                 report.err("could not decode an image from '{s}' ({s})\n", .{ m.url, @errorName(e) });
                 return e;
             };
+            errdefer img.deinit(gpa);
             var fbuf: [16]u8 = undefined;
             const ext = formatFor(&fbuf, m, dims);
             const fmt = image.formatFromExt(ext) orelse .png;

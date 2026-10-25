@@ -1,8 +1,10 @@
 import { StencilElement, hostTag, define } from '../base.js';
 import { hotkeys } from '../../core/settings/hotkeys.js';
-import { chatRowMenuOpen } from '../chat/view.js';
-import { menuPopOrigin, surfaceIn, surfaceOut, settleSurface, motionReduced,
-         SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../motion.js';
+import { chatRowMenuOpen } from '../chat/row/chatRowMenu.js';
+import { motionReduced } from '../motion/motionPrefs.js';
+import { menuPopOrigin } from '../motion/flip.js';
+import { SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../motion/surface/motion.js';
+import { surfaceIn, surfaceOut, settleSurface } from '../motion/surface/surfaces.js';
 import { hideExportPreview, clearAltPreviewHover } from '../export/preview.js';
 import { assistantEnabled, assistantItemHtml } from '../ctx/assistantItem.js';
 import { wireCtxAssistant } from '../ctx/assistant.js';

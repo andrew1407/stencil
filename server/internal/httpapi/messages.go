@@ -47,6 +47,9 @@ const (
 	msgAdminRequired  = "admin token required to issue tokens"
 	msgTokenGenFailed = "token generation failed"
 	msgPersistSession = "could not persist session"
+	msgAdminRevoke    = "admin token required to revoke another session"
+	msgNoSession      = "no such session"
+	msgRevokeSession  = "could not revoke the session"
 	msgInvalidJSONPre = "invalid JSON body: " // suffixed by the decoder's reason
 )
 

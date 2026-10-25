@@ -17,7 +17,7 @@ import type {
 } from './app/vocabulary.js';
 
 export declare class DrawingApp {
-  constructor();
+  constructor(view: import('../ui/app/viewPorts.js').ViewPorts);
 
   // ── DOM ──
   canvas: HTMLCanvasElement;

@@ -15,7 +15,8 @@ const isMetadataHost = (host) => {
 };
 
 // http(s) only (data:/blob: pass); a localhost name or an address the table's `fetch` policy blocks
-// is refused. `allowLoopback`: USER-typed URLs only. `allowSameHostAs`: TRUSTED page URL, never the metadata IP.
+// is refused. `allowLoopback`: USER-typed URLs only. `allowSameHostAs`: TRUSTED page URL — its own
+// origin (scheme, host and port) only, never the metadata IP: a LAN page on :80 lends nothing to :8080.
 export const isAllowedImageUrl = (url, { allowLoopback = false, allowSameHostAs = '' } = {}) => {
   let u;
   try { u = new URL(String(url)); } catch { return false; }
@@ -26,7 +27,8 @@ export const isAllowedImageUrl = (url, { allowLoopback = false, allowSameHostAs 
   if (allowSameHostAs && !isMetadataHost(host)) {
     try {
       const p = new URL(String(allowSameHostAs));
-      if ((p.protocol === 'http:' || p.protocol === 'https:') && p.hostname.toLowerCase().replace(/\.$/, '') === host) return true;
+      if ((p.protocol === 'http:' || p.protocol === 'https:') && p.protocol === u.protocol && p.port === u.port
+        && p.hostname.toLowerCase().replace(/\.$/, '') === host) return true;
     } catch { /* no usable page context — stay strict */ }
   }
   if (host === 'localhost' || host.endsWith('.localhost')) return allowLoopback;

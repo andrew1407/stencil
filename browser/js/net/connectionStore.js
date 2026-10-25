@@ -1,11 +1,23 @@
 // The connected server set ({url, token}) and the auto-connect / sync toggles in
 // localStorage, guarded so importing this leaf in Node stays inert.
 
+import { normalizeUrl } from './urlRules.js';
+
 const SERVERS_KEY = 'drawingApp_servers';
 const AUTOCONNECT_KEY = 'drawingApp_autoConnectServers';
 const SYNC_KEY = 'drawingApp_syncToServer';
 
 const ls = () => (typeof localStorage !== 'undefined' ? localStorage : null);
+
+// What is saved after a change: the live set, then every saved server that is neither live nor one
+// the user disconnected. A server that could not be reached this session stays saved, its
+// credential as it was (desktop twin: connectionStore::merged).
+export const mergeSaved = (live, saved, forgotten = []) => {
+  const key = (u) => { try { return normalizeUrl(u); } catch { return String(u); } };
+  const liveUrls = new Set(live.map((s) => key(s.url)));
+  const gone = new Set([...forgotten].map(key));
+  return [...live, ...saved.filter((s) => !liveUrls.has(key(s.url)) && !gone.has(key(s.url)))];
+};
 
 // The saved set: [{ url, token }]. Bad/missing data degrades to an empty list.
 export const loadSavedServers = () => {

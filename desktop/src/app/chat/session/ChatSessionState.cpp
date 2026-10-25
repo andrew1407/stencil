@@ -1,10 +1,10 @@
 #include "ChatSessionController.hpp"
 #include "ChatMenuPanel.hpp"
 #include "fileStore.hpp"
-#include "guiHelpers.hpp"   // confirmYesNo()
+#include "modalChrome.hpp"   // confirmYesNo()
 #include "MediaLoader.hpp"
 #include "Notifications.hpp"
-#include "mainWindowHelpers.hpp"
+#include "popupGuards.hpp"
 
 #include <QWidgetAction>
 #include <QTimer>

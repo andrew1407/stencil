@@ -51,7 +51,7 @@ CMake + Doctest; each other surface uses its platform's default.
 
 - `node --test` **never loads wasm** — it always runs the JS fallback path.
 - **wasm build** (needs Emscripten): `cd browser && npm run build-wasm` → the gitignored
-  `browser/js/wasm/stencilCore.js`.
+  `browser/js/wasm/stencilCore.js` and the `stencilCore.wasm` beside it.
 - After editing `common/config/llm/opRegistry.json`: `cd browser && npm run gen-fixtures`
   (it rewrites `common/fixtures/llm/opPlan/generated/`; the browser walker fails while that bundle
   is stale), then `node tools/syncTwins.mjs`, which also refreshes the copies the Chrome

@@ -2,10 +2,9 @@
 // generated (core/WASM.md) and may be absent, so it is imported dynamically inside init(),
 // degrading to the JS fallback; the dynamic-only import keeps Node from ever loading wasm.
 import { buildStateOps } from './coreHandles.js';
-import { buildScriptOps } from '../scriptHandles.js';
 import { RUNTIME_EXPORTS, missingExports, droppedParityOps } from './coreExports.js';
 import { createMarshal, guardHeapOps, withJsFallback } from './coreMarshal.js';
-import { buildScalarOps } from './coreScalarOps.js';
+import { buildScalarOps, buildFormulaPointOps } from './coreScalarOps.js';
 import { buildPageOps } from './corePageOps.js';
 import { buildImageOps } from './coreImageOps.js';
 import { buildCropOps } from './coreCropOps.js';
@@ -28,9 +27,11 @@ class StencilCore {
   // Resolves to true, or false when the module could not load (JS fallback). Idempotent.
   init() {
     if (this.#initPromise) return this.#initPromise;
-    this.#initPromise = import(WASM_MODULE_PATH)
-      .then(({ default: createStencilCore }) => createStencilCore())
-      .then(core => {
+    this.#initPromise = Promise.all([
+      import(WASM_MODULE_PATH).then(({ default: createStencilCore }) => createStencilCore()),
+      import('../scriptHandles.js'),   // the .stc wrappers, off the boot graph
+    ])
+      .then(([core, { buildScriptOps }]) => {
         // A stale artifact can load yet lack exports: cwrap'ing a missing one yields a
         // non-callable that throws at call time, so verify up front and fall back to JS.
         const missing = missingExports(core, RUNTIME_EXPORTS);
@@ -65,11 +66,14 @@ class StencilCore {
     return this.#ops[name] ?? null;
   }
 
+  // The pixel ops' scratch back to the allocator once no picture needs it; nothing to free on the JS twins.
+  releasePixelScratch() { this.#ops.releasePixelScratch?.(); }
+
   // A stable list for tests/introspection.
   get opNames() {
     return [
       'parseHex', 'distToSegment', 'formulaValidate', 'formulaApply',
-      'formulaValidateCtx', 'formulaApplyCtx', 'parseDuration',
+      'formulaValidateCtx', 'formulaApplyCtx', 'formulaApplyPoints', 'parseDuration',
       'pageDimensions', 'pageFormats', 'pixelToPageRaw', 'rotatePoints', 'flipPoints', 'boundingBoxCenter',
       'clampScale', 'zoomMin', 'zoomMax', 'rectZoom', 'shouldCloseShape', 'applyFilterRGBA', 'applyContourRGBA',
       'isAlbumOrientation', 'cropAspect', 'centeredCrop', 'resizeCropFromCorner',
@@ -100,6 +104,7 @@ class StencilCore {
       // Shared with scriptHandles.js: a script is far too long for cwrap's stack marshal.
       withCString: m.withCString,
       ...buildScalarOps(core, m),
+      ...buildFormulaPointOps(core, m),
       ...buildPageOps(core, m),
       ...buildImageOps(core, m),
       ...buildCropOps(core, m),

@@ -66,7 +66,7 @@ class MainWindowGuiTest : public QObject {
       goneAfter = !rowPresent();
       bailOut();
     });
-    win.parts.projects.openProjects();
+    win.projectHost.flows.openProjects();
     QVERIFY2(sawRow, "the seeded project row never appeared in the dialog");
     QVERIFY2(blankedAtOnce, "the original row kept painting under the scatter");
     QVERIFY2(slotHeld, "the row's slot collapsed before the scatter finished");
@@ -129,7 +129,7 @@ class MainWindowGuiTest : public QObject {
       travelled = from - last;
       bailOut();
     });
-    win.parts.projects.openProjects();
+    win.projectHost.flows.openProjects();
     QVERIFY2(sawPinned, "the pinned row was not listed with the saved projects");
     QVERIFY2(!dustedOnOpen, "no row may form out of particles just because the dialog opened");
     QVERIFY2(barWasUp, "the batch bar was not up over the selectable rows");

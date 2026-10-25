@@ -30,14 +30,14 @@ class MainWindowGuiTest : public QObject {
   void rowMenuScopeReachesTheRequest() {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = loadedWithLine(win);
-    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage() && !win.activeProjectId.isEmpty(), 5000);
-    stencil::gui::ProjectsDialog dlg(win.projectList, 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage() && !win.projectHost.activeProjectId.isEmpty(), 5000);
+    stencil::gui::ProjectsDialog dlg(win.projectHost.projectList, 5000);
     dlg.show();
     QTest::qWait(50);
     auto* list = dlg.findChild<QListWidget*>(QStringLiteral("projectsList"));
     QListWidgetItem* row = nullptr;
     for (int i = 0; list && i < list->count() && !row; ++i)
-      if (list->item(i)->data(Qt::UserRole).toString() == win.activeProjectId) row = list->item(i);
+      if (list->item(i)->data(Qt::UserRole).toString() == win.projectHost.activeProjectId) row = list->item(i);
     QVERIFY(row);
     int picked = -1;
     QString pickedId;
@@ -64,17 +64,17 @@ class MainWindowGuiTest : public QObject {
     });
     emit list->customContextMenuRequested(list->visualItemRect(row).center());
     QTRY_COMPARE(picked, int(scope::COPY_IMAGE));
-    QCOMPARE(pickedId, win.activeProjectId);
+    QCOMPARE(pickedId, win.projectHost.activeProjectId);
   }
 
   // From a projects row the confirmation stacks on that window, so its flight plays over the list.
   void rowConfirmationStacksOnTheProjectsWindow() {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = loadedWithLine(win);
-    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage() && !win.activeProjectId.isEmpty(), 5000);
-    stencil::gui::ProjectsDialog dlg(win.projectList, 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage() && !win.projectHost.activeProjectId.isEmpty(), 5000);
+    stencil::gui::ProjectsDialog dlg(win.projectHost.projectList, 5000);
     dlg.show();
-    win.parts.projectCopy.wireProjectsList(dlg);
+    win.projectHost.copy.wireProjectsList(dlg);
     QWidget* parent = nullptr;
     QTimer answer;
     QObject::connect(&answer, &QTimer::timeout, [&] {
@@ -85,7 +85,7 @@ class MainWindowGuiTest : public QObject {
       confirm->findChild<QPushButton*>(QStringLiteral("copyProjectCancel"))->click();
     });
     answer.start(20);
-    emit dlg.copyRequested(win.activeProjectId, QString(), scope::COPY_IMAGE, QRect());
+    emit dlg.copyRequested(win.projectHost.activeProjectId, QString(), scope::COPY_IMAGE, QRect());
     QTRY_VERIFY_WITH_TIMEOUT(parent != nullptr, 5000);
     QCOMPARE(parent, static_cast<QWidget*>(&dlg));
   }

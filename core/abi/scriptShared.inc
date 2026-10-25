@@ -102,6 +102,24 @@ int STENCIL_ABI(scriptTokenAt, scriptTokenAt)(int h, int i, int* kind, int* line
   return 1;
 }
 
+// The first `cap` tokens as (kind, line, col, len) int quadruples into `out`: the count written,
+// -1 on an unknown handle. One crossing for the stream an editor re-reads on every keystroke.
+int STENCIL_ABI(scriptTokens, scriptTokens)(int h, int* out, int cap) {
+  std::lock_guard<std::mutex> hold(scriptLock());
+  const auto* p = scriptTable().get(h);
+  if (!p) return -1;
+  const auto& tokens = p->getTokens();
+  const int n = std::min(std::max(cap, 0), static_cast<int>(tokens.size()));
+  for (int i = 0; i < n && out; ++i) {
+    const stencil::core::script::Token& t = tokens[static_cast<std::size_t>(i)];
+    out[4 * i] = static_cast<int>(t.kind);
+    out[4 * i + 1] = t.line;
+    out[4 * i + 2] = t.col;
+    out[4 * i + 3] = t.len;
+  }
+  return out ? n : 0;
+}
+
 int STENCIL_ABI(scriptBlockCount, scriptBlockCount)(int h) {
   std::lock_guard<std::mutex> hold(scriptLock());
   const auto* p = scriptTable().get(h);

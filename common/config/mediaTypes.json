@@ -157,6 +157,16 @@
         "ts",
         "gifv"
       ]
+    },
+    "server": {
+      "image": [
+        "png",
+        "jpg",
+        "jpeg",
+        "webp",
+        "gif",
+        "bmp"
+      ]
     }
   },
   "surfaceNotes": {
@@ -167,7 +177,8 @@
     "extension.imageFilter": "src/lib/filterUi.js COMMON_FORMATS — the popup's format chips, IN DISPLAY ORDER.",
     "desktop.video": "src/io/MediaLoader.cpp isVideoFileName().",
     "desktop.image": "src/io/MediaLoader.cpp isImageFileName() — what the Qt image plugins are relied on to decode.",
-    "cli.video": "src/video.zig video_exts (stored there with a leading dot)."
+    "cli.video": "src/video.zig video_exts (stored there with a leading dot).",
+    "server.image": "internal/httpapi/files.go contentTypeForExt — the types a stored project file is served under (mimeOverrides, else image/<ext>); anything else is application/octet-stream, so an SVG is never served as a document."
   },
   "drift": "No two surfaces recognise the same video set, and none matches `video.extensions`: the browser's own two lists disagree (isVideoFile has `ogg` and no `mpg`/`mpeg`; isVideoUrl the reverse), only the desktop knows `3gp`, only the cli knows `gifv`, and only the desktop and cli know `wmv`/`flv`/`ts`. Every list predates this asset. Wiring a surface to its OWN entry above is behaviour-neutral; pointing it at `video.extensions` changes what it accepts and must be its own, stated change."
 }

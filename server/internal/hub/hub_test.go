@@ -121,7 +121,7 @@ func awaitFeed(t *testing.T, h *Hub, c transport.Conn) {
 	defer close(done)
 	go func() {
 		for {
-			eventbus.PublishProjectEvent(context.Background(), h.bus, protocol.EventUpdated, protocol.ProjectRecord{ID: "p_probe"})
+			eventbus.PublishProjectEvent(context.Background(), h.bus, protocol.EventUpdated, protocol.ProjectRecord{ID: "p_probe_1"})
 			select {
 			case <-done:
 				return
@@ -129,7 +129,7 @@ func awaitFeed(t *testing.T, h *Hub, c transport.Conn) {
 			}
 		}
 	}()
-	readEvent(t, c, "p_probe")
+	readEvent(t, c, "p_probe_1")
 }
 
 // waitFor polls cond up to ~2s so tests don't race the hub's connect/disconnect goroutines.

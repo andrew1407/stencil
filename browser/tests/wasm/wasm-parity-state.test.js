@@ -2,7 +2,7 @@
 // in js/core/abi/coreHandles.js). wasm-parity.test.js pins the pure ops; this one pins the classes that own state,
 // hand-kept twins until they gained an ABI: the JS implementation and the compiled C++ are driven through one
 // script and must agree on every returned event and every observable field, step by step. Node loads the
-// SINGLE_FILE ES module directly.
+// ES glue and its .wasm directly.
 import { test, before } from 'node:test';
 import assert from 'node:assert';
 import { existsSync } from 'node:fs';
@@ -12,13 +12,13 @@ import { core } from '../../js/core/abi/stencilCore.js';
 import { HoldDrawController } from '../../js/core/draw/holdDraw.js';
 
 // Generated artifact (gitignored) — skip rather than fail when it has not been built.
-const MODULE_BUILT = existsSync(fileURLToPath(new URL('../../js/wasm/stencilCore.js', import.meta.url)));
+const MODULE_BUILT = ['stencilCore.js', 'stencilCore.wasm'].every((f) => existsSync(fileURLToPath(new URL(`../../js/wasm/${f}`, import.meta.url))));
 const wtest = MODULE_BUILT ? test : test.skip;
 
 before(async () => {
   if (!MODULE_BUILT) return;
   const ok = await core.init();
-  assert.strictEqual(ok, true, 'wasm core must load in Node (SINGLE_FILE ES module)');
+  assert.strictEqual(ok, true, 'wasm core must load in Node (ES glue + .wasm)');
 });
 
 // One script step = an op name plus its args, applied to both controllers.

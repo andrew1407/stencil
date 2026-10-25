@@ -1,7 +1,7 @@
 // Installing a layout: paste, drop, JSON upload and the silent code path (installLayout —
 // no prompt, no toast).
 import { notify } from '../utils.js';
-import { arriveFrom } from '../ui/motion.js';
+import { arriveFrom } from '../ui/motion/enterLeave.js';
 import { validateLayout, capLayoutPoints } from './layout.js';
 import { CHANGE, changed } from './app/changes.js';
 import { settleReplacedLines } from './line/selection.js';

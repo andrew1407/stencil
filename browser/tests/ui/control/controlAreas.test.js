@@ -26,7 +26,7 @@ for (const id of GATED) doc.getElementById(id).dataset.disabledReason = `no ${id
 
 const line = (y) => ({ points: [{ x: 10, y }, { x: 60, y }], color: '#ff0000', thickness: 2, pointSize: 4, style: 'solid' });
 
-// A real DrawingApp prototype (view seam, editing mixin, gesture flags) over plain collaborators.
+// A real DrawingApp prototype (view seam, editing base, gesture flags) over plain collaborators.
 const makeApp = () => {
   const app = Object.create(DrawingApp.prototype);
   Object.assign(app, createEditorState(), {

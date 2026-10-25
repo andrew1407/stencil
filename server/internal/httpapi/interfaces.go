@@ -29,6 +29,8 @@ type ProjectStore interface {
 type SessionStore interface {
 	auth.SessionResolver
 	CreateSession(ctx context.Context, tokenHash []byte, label string, createdAt, expiresAt int64) (auth.Session, error)
+	DeleteSession(ctx context.Context, id string) error
+	DeleteAllSessions(ctx context.Context) (int, error)
 }
 
 // FileStore is the byte storage the API needs. Nothing here holds a whole file in memory: reads go

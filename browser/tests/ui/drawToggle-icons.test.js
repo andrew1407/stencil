@@ -58,7 +58,7 @@ const pressRect = async ({ drawing, grants }) => {
   const doc = installDom({}, { window: { innerWidth: 800, innerHeight: 600 } });
   doc.register('canvas-viewport', createStubElement('div'));
   try {
-    const { PointerController } = await import('../../js/core/pointer/controller.js');
+    const { PointerController } = await import('../../js/ui/bindings/pointer/controller.js');
     const { Emitter } = await import('../../js/core/emitter.js');
     const { CHANGE } = await import('../../js/core/app/changes.js');
     const log = [];

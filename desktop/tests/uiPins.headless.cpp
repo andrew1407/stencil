@@ -9,6 +9,8 @@
 
 #include <QApplication>
 #include <QCryptographicHash>
+#include <QRegularExpression>
+#include <QStandardPaths>
 #include <QDir>
 #include <QFile>
 #include <QImage>
@@ -28,7 +30,13 @@ namespace {
     QStringList lines;
     for (const bool dark : {false, true})
       for (const AccentPreset& a : accentPresets()) {
-        const QByteArray qss = buildStylesheet(dark, a.key).toUtf8();
+        // Comments out: a reworded note is no rule change, so it moves no hash; nor does the
+        // user's cache folder the generated caret images live in.
+        const QByteArray qss = buildStylesheet(dark, a.key)
+                                   .remove(QRegularExpression(QStringLiteral("/\\*[\\s\\S]*?\\*/")))
+                                   .replace(QStandardPaths::writableLocation(QStandardPaths::CacheLocation),
+                                            QStringLiteral("<cache>"))
+                                   .toUtf8();
         const QString sum = QString::fromLatin1(
             QCryptographicHash::hash(qss, QCryptographicHash::Sha256).toHex());
         lines << QStringLiteral("%1|%2  %3").arg(dark ? "dark" : "light", a.key, sum);

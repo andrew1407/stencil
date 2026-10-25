@@ -29,7 +29,7 @@ class MainWindowGuiTest : public QObject {
              qPrintable(err));
     // One result at once, then none for the rest of the case: only the close may send another.
     win->remoteSync->setResultTiming(50, 600000);
-    win->parts.projects.openServerProject(mock.url(), QStringLiteral("p1"));
+    win->projectHost.flows.openServerProject(mock.url(), QStringLiteral("p1"));
     QTRY_VERIFY(win->canvas->hasImage());
     QCOMPARE(mock.originalGets, 1);
     const qint64 pictureKey = win->canvas->getOriginalImage().cacheKey();
@@ -124,7 +124,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(stencil::test::connectNow(*win->ensureConnections(), mock.url(), QString(), err),
              qPrintable(err));
     win->remoteSync->setResultTiming(50, 600000);
-    win->parts.projects.openServerProject(mock.url(), QStringLiteral("p2"));
+    win->projectHost.flows.openServerProject(mock.url(), QStringLiteral("p2"));
     QTRY_VERIFY(win->canvas->hasImage());
     const qint64 pictureKey = win->canvas->getOriginalImage().cacheKey();
     win->canvas->commitLines({lineAt(20)});

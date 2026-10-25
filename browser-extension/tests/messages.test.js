@@ -26,6 +26,7 @@ test('every channel is a distinct, namespaced, lower-kebab string', () => {
 // channel names its mirror declares; the values must be the table's, to the byte.
 const MIRRORS = [
   ['content/ctxTarget.js', ['WAKE', 'CTX'], []],
+  ['offscreen/clipboard.js', ['OFFSCREEN_COPY'], []],
   ['content/pageApiBridge.js',
     ['PAGE_SET_FILTERS', 'PAGE_REQUEST_SYNC'],
     ['PAGE_API', 'PAGE_FILTERS', 'PAGE_PINS', 'PAGE_EDITED', 'PAGE_HL_COLOR']],

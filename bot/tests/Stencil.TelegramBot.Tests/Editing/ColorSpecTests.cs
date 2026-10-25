@@ -33,8 +33,9 @@ public sealed class ColorSpecTests : IDisposable
     }
 
     [Fact]
-    public void Should_Embed_The_Canonical_148_Names_In_The_Table() =>
-        Assert.Equal(148, ColorSpec.KnownNames.Count);
+    public void Should_Embed_Every_Canonical_Name_In_The_Table() =>
+        Assert.Equal(SharedFixtures.Load(SharedFixtures.PathOf("common", "config", "colorNames.json")).RootElement.EnumerateObject().Count(),
+            ColorSpec.KnownNames.Count);
 
     [Theory]
     [InlineData("transparent")]

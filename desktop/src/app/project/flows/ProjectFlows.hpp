@@ -21,7 +21,8 @@ namespace stencil::gui {
     return n == 1 ? QStringLiteral("Project cleared") : QStringLiteral("Projects cleared");
   }
 
-  class MainWindow;
+  class ProjectHost;
+  struct ProjectWindow;
   class OpenInDialog;
   class ProjectsDialog;
 
@@ -30,7 +31,7 @@ namespace stencil::gui {
   // description / keywords windows, the project colour, and handing the session to another app.
   class ProjectFlows {
    public:
-    explicit ProjectFlows(MainWindow& w) : w(w) {}
+    ProjectFlows(ProjectHost& host, ProjectWindow& w) : host(host), w(w) {}
 
     void openProjects();
     void openProjectInNewWindow(const QString& id);
@@ -122,7 +123,8 @@ namespace stencil::gui {
     // The server row's PUT, version-guarded with the meta retries; `saved` overrides "<what> saved".
     void putServerMeta(const QString& serverUrl, const QString& id, const QString& what, MetaPut put,
                        const QString& saved = {}, MetaLanded landed = {});
-    MainWindow& w;
+    ProjectHost& host;
+    ProjectWindow& w;
   };
 
 }  // namespace stencil::gui

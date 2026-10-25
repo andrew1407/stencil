@@ -1,6 +1,7 @@
 // MainWindow GUI e2e — How the draw toggles PAINT: the accent per state, sibling glyphs, readable faces.
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "../../MainWindowPaint.gui.hpp"
+#include "toolbarMetrics.hpp"
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT

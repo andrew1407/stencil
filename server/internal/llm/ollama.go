@@ -18,9 +18,15 @@ type ollamaMessage struct {
 	Images  []string `json:"images,omitempty"` // bare base64, no data: prefix
 }
 
+// ollamaOptions carries num_predict, Ollama's name for max_tokens.
+type ollamaOptions struct {
+	NumPredict int `json:"num_predict,omitempty"`
+}
+
 type ollamaRequest struct {
 	Model    string          `json:"model"`
 	Stream   bool            `json:"stream"`
+	Options  *ollamaOptions  `json:"options,omitempty"`
 	Messages []ollamaMessage `json:"messages"`
 }
 
@@ -36,7 +42,7 @@ type ollamaResponse struct {
 type ollamaMapping struct{}
 
 func (ollamaMapping) chat(ctx context.Context, c *Client, req protocol.LlmChatRequest, model string) (protocol.LlmChatResponse, error) {
-	body := ollamaRequest{Model: model, Stream: false,
+	body := ollamaRequest{Model: model, Stream: false, Options: &ollamaOptions{NumPredict: c.tokens(req.MaxTokens)},
 		Messages: make([]ollamaMessage, 0, 1+len(req.Messages))}
 	if req.System != "" {
 		body.Messages = append(body.Messages, ollamaMessage{Role: "system", Content: req.System})

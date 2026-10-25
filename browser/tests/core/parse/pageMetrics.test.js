@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { formulaContext, getPageDimensions, pixelToPageCoords } from '../../../js/core/parse/pageMetrics.js';
+import { formulaContext, getPageDimensions, pixelToPageCoords, pixelToPageCoordsAll } from '../../../js/core/parse/pageMetrics.js';
 import { FormulaEngine } from '../../../js/core/parse/formulaEngine.js';
 
 // A4 under a landscape 600x400 image, so getPageDimensions swaps to {29.7, 21}.
@@ -77,4 +77,22 @@ test('page dimensions are cached per page and canvas size, and handed out as cop
   app.pageSize = 'custom';
   app.customPageWidth = 10;
   assert.deepStrictEqual(getPageDimensions(app), { width: 10, height: 29.7 }, 'a page change recomputes');
+});
+
+test('every point at once answers as pixelToPageCoords does point by point', () => {
+  const points = [{ x: 300, y: 200 }, { x: 0, y: 0 }, { x: 599, y: 13 }];
+  for (const over of [{}, { formulaX: 'x / y', formulaY: 'PAGE_WIDTH - y' }, { formulaY: 'y*2' },
+    { formulaX: 'PAGE_WIDTHS' }, { formulaX: 'x*2', allowFormulas: false }]) {
+    const app = makeApp(over);
+    const all = pixelToPageCoordsAll(app, points);
+    points.forEach((p, i) => {
+      const one = pixelToPageCoords(app, p.x, p.y);
+      near(all[i].x, one.x, `${JSON.stringify(over)} x${i}`);
+      near(all[i].y, one.y, `${JSON.stringify(over)} y${i}`);
+    });
+  }
+  const calls = [];
+  const one = { applyCtx: (expr, axis, v) => { calls.push(axis); return v; } };
+  pixelToPageCoordsAll(makeApp({ formulaY: 'y*2', formula: one }), points);
+  assert.deepStrictEqual(calls, ['y', 'y', 'y'], 'only the axis with a formula is evaluated');
 });

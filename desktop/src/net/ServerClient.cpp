@@ -123,8 +123,9 @@ namespace stencil::net {
   void ServerClient::requestAsync(const QByteArray& method, const QString& path,
                                   const QByteArray& body, const QString& contentType,
                                   std::function<void(int status, QByteArray body)> done,
-                                  bool retried) {
+                                  bool retried, const QByteArray& ifNoneMatch) {
     QNetworkRequest req = buildRequest(path, contentType);
+    if (!ifNoneMatch.isEmpty()) req.setRawHeader("If-None-Match", ifNoneMatch);
     QNetworkReply* reply = nam->sendCustomRequest(req, method, body);
     capReply(reply);
     // Context object is nam (owned by this client): when the client dies nam goes with it, the
@@ -134,7 +135,7 @@ namespace stencil::net {
                       done = std::move(done)]() mutable {
                        const int status = replyStatus(reply);
                        const QByteArray data = reply->readAll();
-                       if (!isOkStatus(status))
+                       if (!isOkStatus(status) && status != 304)   // a 304 is a revalidation, no error
                          err = restError(method, path, status, data,
                                           reply->error() == QNetworkReply::NoError
                                               ? QString()

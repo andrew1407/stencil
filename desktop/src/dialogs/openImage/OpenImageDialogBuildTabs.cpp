@@ -2,7 +2,7 @@
 #include "OpenImageDialog.hpp"
 #include "openImageDialogParts.hpp"
 #include "../../support/control/UnderlineTabBar.hpp"
-#include "guiHelpers.hpp"
+#include "colorSwatch.hpp"
 #include "colorDrag.hpp"
 #include "../../support/control/dblReset.hpp"
 #include <QLineEdit>

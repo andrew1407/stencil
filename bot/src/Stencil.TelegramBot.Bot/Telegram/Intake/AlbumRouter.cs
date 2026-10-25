@@ -73,11 +73,8 @@ public sealed class AlbumRouter
                 {
                     await _media.ApplyCaptionOrRenderAsync(userId, chatId, caption, ct);
                 }
-                // A caption run can render more than once; the last render is this photo's result.
-                if (captured.Count > 0)
-                {
-                    results.Add(captured[^1]);
-                }
+                // The capture keeps only a caption run's last render: this photo's result.
+                results.AddRange(captured);
             }, ct);
         }
         await _handlers.SendRenderAlbumAsync(chatId, results, ct);

@@ -96,7 +96,7 @@ namespace stencil::gui {
                                   QTimer::singleShot(0, &w, [this, scope] {
                                     CopyRequest req;
                                     req.what = scope;
-                                    w.parts.projectCopy.offer(req);
+                                    w.projectHost.copy.offer(req);
                                   });
                                 });
     menu.addAction(w.acts.fullscreen);

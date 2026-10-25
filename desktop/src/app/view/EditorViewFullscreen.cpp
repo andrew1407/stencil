@@ -1,6 +1,6 @@
 #include "MainWindow.hpp"
 #include "EditorView.hpp"
-#include "mainWindowHelpers.hpp"
+#include "toolbarMetrics.hpp"
 #include "iconSet.hpp"
 #include "SelectionPanel.hpp"
 #include "../../support/control/reveal/controlReveal.hpp"

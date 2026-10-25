@@ -56,14 +56,13 @@ pub fn promptTurn(session: *Session, io: std.Io, arg: []const u8) !bool {
     key.dropExpired(session, io, cfg); // §5: an expired key never rides a request
 
     // stencil-server: resolve the endpoint + bearer, preferring a live /connect token.
-    var server_url: []u8 = &.{};
-    defer if (server_url.len != 0) gpa.free(server_url);
-    var server_token: []const u8 = "";
-    if (cfg.provider == .stencil_server) {
-        const auth = (try resolveServerAuth(session, cfg)) orelse return false; // message printed
-        server_url = auth.url;
-        server_token = auth.token;
-    }
+    const auth: ?config.ServerAuth = if (cfg.provider == .stencil_server)
+        (try resolveServerAuth(session, cfg)) orelse return false // message printed
+    else
+        null;
+    defer if (auth) |x| x.deinit(gpa);
+    const server_url: []const u8 = if (auth) |x| x.url else "";
+    const server_token: []const u8 = if (auth) |x| x.token else "";
 
     // §7 auto-continuation: a plan that LOADED a picture but drew no layout could not have traced it
     // (the attachment rode along before it existed) — re-send the turn ONCE with the new image in hand.
@@ -100,10 +99,11 @@ pub fn promptTurn(session: *Session, io: std.Io, arg: []const u8) !bool {
             att_b64.deinit(gpa);
         }
         if (session.attachments.items.len > 1) {
+            try att_b64.ensureTotalCapacity(gpa, session.attachments.items.len); // an encoded one is always held
             for (session.attachments.items) |at| {
                 const enc = try attachmentB64(gpa, at, llm.max_image_bytes);
                 if (enc) |e| {
-                    try att_b64.append(gpa, e);
+                    att_b64.appendAssumeCapacity(e);
                 } else {
                     logo.note("'{s}' could not be attached — sending this turn's uploads as one image\n", .{at.label});
                     for (att_b64.items) |x| gpa.free(x);

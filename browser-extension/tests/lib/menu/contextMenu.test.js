@@ -15,11 +15,12 @@ test('MENU_ITEMS: a "Stencil" parent per group holds every item; Preview nests o
   const bgRoot = MENU_ITEMS.find(i => i.id === MENU.BG_ROOT);
   assert.ok(bgRoot && bgRoot.title === 'Stencil' && !bgRoot.parentId);
   assert.deepEqual(MENU_ITEMS.filter(i => !i.parentId).map(i => i.id), [MENU.ROOT, MENU.BG_ROOT]);
-  // Distinct parents used: the two roots, the three "Open in editor ▸" group parents, and
-  // the Preview submenu parent.
+  // Distinct parents used: the two roots, the three "Open in editor ▸" group parents, the three
+  // "Copy Stencil link ▸" parents, and the Preview submenu parent.
   const parents = [...new Set(MENU_ITEMS.filter(i => i.parentId).map(i => i.parentId))].sort();
   assert.deepEqual(parents,
-    [MENU.OPEN_PARENT, MENU.FRAME_OPEN_PARENT, MENU.BG_OPEN_PARENT, MENU.PREVIEW_PARENT, MENU.ROOT, MENU.BG_ROOT].sort());
+    [MENU.OPEN_PARENT, MENU.FRAME_OPEN_PARENT, MENU.BG_OPEN_PARENT, MENU.LINK_PARENT, MENU.FRAME_LINK_PARENT,
+      MENU.BG_LINK_PARENT, MENU.PREVIEW_PARENT, MENU.ROOT, MENU.BG_ROOT].sort());
   // previewParent hangs off root; its 6 actions hang off it.
   assert.equal(MENU_ITEMS.find(i => i.id === MENU.PREVIEW_PARENT).parentId, MENU.ROOT);
   assert.equal(MENU_ITEMS.filter(i => i.parentId === MENU.PREVIEW_PARENT).length, 6);
@@ -53,16 +54,17 @@ test('MENU_ITEMS: a "Stencil" parent per group holds every item; Preview nests o
 
 test('MENU_ITEMS: dynamic background/link group hangs off its OWN root, default-hidden', () => {
   const bg = MENU_ITEMS.filter(i => DYNAMIC_ITEMS.includes(i.id));
-  // Its own root + the "Open in editor ▸" parent + 5 nested open variants + crop + pin = 9.
-  assert.equal(bg.length, 9);
-  assert.equal(DYNAMIC_ITEMS.length, 9);
+  // Its own root + the "Open in editor ▸" parent + 5 nested open variants + crop + pin, and the
+  // "Copy Stencil link ▸" parent with its 2 links = 12.
+  assert.equal(bg.length, 12);
+  assert.equal(DYNAMIC_ITEMS.length, 12);
   // The group's ROOT is part of the group — revealed and hidden with its children, which
   // is what makes an empty "Stencil ▸" submenu impossible.
   assert.ok(DYNAMIC_ITEMS.includes(MENU.BG_ROOT));
   // Each hangs off that root (or the bg "Open" parent), on 'all', so the group CAN show
   // on a background div…
   assert.ok(bg.every(i => (!i.parentId && i.id === MENU.BG_ROOT)
-    || i.parentId === MENU.BG_ROOT || i.parentId === MENU.BG_OPEN_PARENT));
+    || i.parentId === MENU.BG_ROOT || i.parentId === MENU.BG_OPEN_PARENT || i.parentId === MENU.BG_LINK_PARENT));
   assert.ok(bg.every(i => i.contexts.includes('all')));
   // …and every item carries its own visible:false, so the worker reveals them together.
   assert.ok(bg.every(i => i.visible === false));

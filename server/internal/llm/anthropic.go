@@ -66,13 +66,8 @@ type anthropicMapping struct{}
 // chat translates one protocol chat turn to the Anthropic Messages API and
 // back. The request's MaxTokens is clamped to the server cap.
 func (anthropicMapping) chat(ctx context.Context, c *Client, req protocol.LlmChatRequest, model string) (protocol.LlmChatResponse, error) {
-	maxTokens := req.MaxTokens
-	if maxTokens <= 0 || maxTokens > c.maxTokens {
-		maxTokens = c.maxTokens
-	}
-
 	body := anthropicRequest{
-		Model: model, MaxTokens: maxTokens, System: req.System,
+		Model: model, MaxTokens: c.tokens(req.MaxTokens), System: req.System,
 		Messages: make([]anthropicMessage, 0, len(req.Messages)),
 	}
 	for _, m := range req.Messages {

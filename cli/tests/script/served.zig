@@ -13,6 +13,7 @@ pub const Served = struct {
     port: u16,
     files: []const File,
     thread: std.Thread = undefined,
+    stopping: std.atomic.Value(bool) = .init(false),
 
     pub fn start(files: []const File) !*Served {
         const a = testing.allocator;
@@ -32,10 +33,12 @@ pub const Served = struct {
 
     pub fn stop(self: *Served) void {
         const a = testing.allocator;
-        // Only shutdown wakes a thread blocked in accept on Linux; close alone leaves it asleep.
-        (std.Io.net.Stream{ .socket = self.listener.socket }).shutdown(self.io, .both) catch {};
-        self.listener.deinit(self.io);
+        self.stopping.store(true, .release);
+        // One loopback dial wakes the accept on every OS: Windows refuses shutdown on a listener.
+        const wake = std.Io.net.IpAddress.parse("127.0.0.1", self.port) catch unreachable;
+        if (wake.connect(self.io, .{ .mode = .stream })) |s| s.close(self.io) else |_| {}
         self.thread.join();
+        self.listener.deinit(self.io);
         self.threaded.deinit();
         a.destroy(self.threaded);
         a.destroy(self);
@@ -49,6 +52,7 @@ pub const Served = struct {
     fn serve(self: *Served) void {
         while (true) {
             const stream = self.listener.accept(self.io) catch return;
+            if (self.stopping.load(.acquire)) return stream.close(self.io);
             self.answer(stream);
             stream.close(self.io);
         }

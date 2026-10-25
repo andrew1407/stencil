@@ -55,15 +55,10 @@ class CanonicalConstantsDriftTests(unittest.TestCase):
 
 
 # Canonical LLM system-prompt asset + the build-time copy llm.py loads at import.
-_CANON_PROMPT = _CONSTANTS.parent / "llm" / "systemPrompt.json"
 _DATA_PROMPT = _PKG_ROOT / "pystencil" / "_data" / "systemPrompt.json"
 
 
 class SystemPromptAssetDriftTests(unittest.TestCase):
-  def test_data_copy_is_byte_identical_to_canonical(self):
-    """pystencil/_data/systemPrompt.json == browser's canonical asset, byte-for-byte."""
-    self.assertEqual(_DATA_PROMPT.read_bytes(), _CANON_PROMPT.read_bytes())
-
   def test_head_and_tail_shape(self):
     """Length + boundary pins on the loaded asset (llm-contract.md §4)."""
     asset = json.loads(_DATA_PROMPT.read_text(encoding="utf-8"))
@@ -86,15 +81,10 @@ class SystemPromptAssetDriftTests(unittest.TestCase):
 
 
 # Canonical LLM providers asset + the build-time copy the llm and server packages load at import.
-_CANON_PROVIDERS = _CONSTANTS.parent / "llm" / "providers.json"
 _DATA_PROVIDERS = _PKG_ROOT / "pystencil" / "_data" / "providers.json"
 
 
 class ProvidersAssetDriftTests(unittest.TestCase):
-  def test_data_copy_is_byte_identical_to_canonical(self):
-    """pystencil/_data/providers.json == browser's canonical asset, byte-for-byte."""
-    self.assertEqual(_DATA_PROVIDERS.read_bytes(), _CANON_PROVIDERS.read_bytes())
-
   def test_constants_derive_from_the_asset(self):
     """PROVIDERS / DEFAULT_BASE_URLS / _LLM_TIMEOUT come from the asset."""
     from pystencil.llm import DEFAULT_BASE_URLS, PROVIDERS
@@ -114,15 +104,10 @@ class ProvidersAssetDriftTests(unittest.TestCase):
 
 
 # Canonical LLM op registry + the build-time copy core validates against and llm/ reads.
-_CANON_REGISTRY = _CONSTANTS.parent / "llm" / "opRegistry.json"
 _DATA_REGISTRY = _PKG_ROOT / "pystencil" / "_data" / "opRegistry.json"
 
 
 class OpRegistryAssetDriftTests(unittest.TestCase):
-  def test_data_copy_is_byte_identical_to_canonical(self):
-    """pystencil/_data/opRegistry.json == browser's canonical registry, byte-for-byte."""
-    self.assertEqual(_DATA_REGISTRY.read_bytes(), _CANON_REGISTRY.read_bytes())
-
   def test_validator_tables_derive_from_the_asset(self):
     """Limits, membership, flags and the forbidden list come from the asset."""
     from pystencil.llm import FORBIDDEN_OPS, MAX_ACTIONS, MAX_ASK_OPTIONS, OP_REGISTRY
@@ -195,29 +180,33 @@ class OpRegistryAssetDriftTests(unittest.TestCase):
     self.assertIn("\n" + CONSOLE_SETTINGS_PROMPT + CONSOLE_SPLICE_ANCHOR, CONSOLE_SYSTEM_PROMPT)
 
 
-# Canonical SSRF address table + the build-time copy _net.py loads at import.
-_CANON_RANGES = _CONSTANTS.parent / "net" / "blockedRanges.json"
-_DATA_RANGES = _PKG_ROOT / "pystencil" / "_data" / "blockedRanges.json"
-
-
-class BlockedRangesAssetDriftTests(unittest.TestCase):
-  def test_data_copy_is_byte_identical_to_canonical(self):
-    """pystencil/_data/blockedRanges.json == browser's canonical table, byte-for-byte."""
-    self.assertEqual(_DATA_RANGES.read_bytes(), _CANON_RANGES.read_bytes())
-
-
-_DATA_LAUNCH = _PKG_ROOT / "pystencil" / "_data" / "launchQuery.json"
-_CANON_LAUNCH = _CONSTANTS.parent / "launchQuery.json"
-
-
 class LaunchQueryDriftTests(unittest.TestCase):
-  def test_data_copy_is_byte_identical_to_canonical(self):
-    """pystencil/_data/launchQuery.json == common/config/launchQuery.json, byte-for-byte."""
-    self.assertEqual(_DATA_LAUNCH.read_bytes(), _CANON_LAUNCH.read_bytes())
-
   def test_script_cap_matches_constants(self):
     with open(_CONSTANTS, encoding="utf-8") as fh:
       self.assertEqual(SCRIPT_MAX_CHARS, json.load(fh)["LAUNCH"]["scriptMaxChars"])
+
+
+# The package regenerates _data/ on import, so a byte compare there is tautological: what is pinned
+# is that sync() writes every table, and puts back one that drifted.
+class SyncDataTests(unittest.TestCase):
+  def test_sync_writes_every_table_and_restores_a_drifted_one(self):
+    import importlib.util
+    import tempfile
+    spec = importlib.util.spec_from_file_location("pystencil_build_data", _PKG_ROOT / "build_data.py")
+    build_data = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(build_data)
+    common = _CONSTANTS.parent
+    with tempfile.TemporaryDirectory() as tmp:
+      data = Path(tmp) / "_data"
+      build_data.sync(common, data)
+      for rel in build_data.FILES:
+        self.assertEqual((data / Path(rel).name).read_bytes(), (common / rel).read_bytes(), rel)
+      drifted = data / "providers.json"
+      drifted.write_bytes(b"{}")
+      build_data.sync(common, data)
+      self.assertEqual(drifted.read_bytes(), (common / "llm" / "providers.json").read_bytes())
+    for rel in build_data.FILES:
+      self.assertTrue((_PKG_ROOT / "pystencil" / "_data" / Path(rel).name).exists(), rel)
 
 
 if __name__ == "__main__":

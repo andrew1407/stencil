@@ -112,6 +112,7 @@ const Probe = struct {
 
     fn init(self: *Probe, text: []const u8, dims: ?Dims) !void {
         self.* = .{ .arena = .init(testing.allocator), .script = try scriptCore.Script.parse(text) };
+        errdefer self.deinit();
         const v = try cropAction(self.arena.allocator(), self.script, 1, dims);
         self.spec = v.object.get("spec").?.object;
     }

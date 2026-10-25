@@ -50,6 +50,22 @@ public sealed partial class CommandHandlers
         {
             await progress.StopAsync();
         }
+        try
+        {
+            await sendScrapedAsync(chatId, result, ct);
+        }
+        finally
+        {
+            _editing.Discard(result);
+        }
+        await _bot.SendMessage(
+            chatId,
+            Replies.Tag(Replies.Tone.SUCCESS, Replies.ScrapedFiles(result.Files.Count, host)),
+            cancellationToken: ct);
+    }
+
+    private async Task sendScrapedAsync(long chatId, ScrapeResult result, CancellationToken ct)
+    {
         foreach (ScrapedFile file in result.Files)
         {
             string name = Path.GetFileName(file.Path);
@@ -65,10 +81,6 @@ public sealed partial class CommandHandlers
                 await _bot.SendDocument(chatId, document, caption: name, cancellationToken: ct);
             }
         }
-        await _bot.SendMessage(
-            chatId,
-            Replies.Tag(Replies.Tone.SUCCESS, Replies.ScrapedFiles(result.Files.Count, host)),
-            cancellationToken: ct);
     }
 
     // A bare integer is the item count, everything else a key=value option.

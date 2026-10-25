@@ -10,8 +10,8 @@ import (
 	"stencil/server/internal/protocol"
 )
 
-// requireRedis returns a live bus or skips the test when REDIS_URL is unset or
-// unreachable, mirroring the self-skipping e2e convention used by mcp/.
+// requireRedis returns a live bus, skips when REDIS_URL is unset, and fails when it is set
+// but unreachable, so a broken service container is never a green skip.
 func requireRedis(t *testing.T) eventbus.Bus {
 	t.Helper()
 	url := os.Getenv("REDIS_URL")
@@ -20,7 +20,7 @@ func requireRedis(t *testing.T) eventbus.Bus {
 	}
 	b, err := New(context.Background(), url)
 	if err != nil {
-		t.Skipf("Redis unreachable (%v); skipping", err)
+		t.Fatalf("REDIS_URL is set but Redis is unreachable: %v", err)
 	}
 	return b
 }

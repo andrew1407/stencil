@@ -20,6 +20,10 @@ export const PROVIDER_BASE_URLS = Object.fromEntries(
   Object.entries(PROVIDERS_ASSET.providers).map(([id, p]) => [id, p.defaultBaseUrl || '']),
 );
 
+// What a settings form shows for a provider (providers.json `settings`); `none` shows nothing.
+const NO_ROWS = Object.freeze({ key: null, endpoint: null, endpointNote: false });
+export const settingsRows = (provider) => PROVIDERS_ASSET.providers[provider]?.settings ?? NO_ROWS;
+
 // Endpoint keys are http(s) ONLY, by the one rule in core/parse/validation.js.
 export const URL_KEYS = Object.freeze(['baseUrl', 'serverUrl']);
 export const isHttpUrl = (v) => validateHttpUrl(v).ok;

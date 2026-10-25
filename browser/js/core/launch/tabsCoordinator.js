@@ -7,6 +7,10 @@ import EVENTS from '../../../../common/config/events.json' with { type: 'json' }
 
 const CHANNEL_NAME = 'stencil_projects';
 const READY_TIMEOUT_MS = 400;
+// The channel has no coordinator to notice a crashed tab, so every tab pings: a peer silent for
+// MISSES rounds of PING_MS (~30 s) is forgotten, as projectsWorker.js drops a silent port.
+const PING_MS = 10_000;
+const MISSES = 3;
 
 export class TabsCoordinator {
   #worker = null;
@@ -23,6 +27,7 @@ export class TabsCoordinator {
   #resolvedReady = false;
 
   #peers = new PeerRoster();
+  #pinger = null;
 
   constructor() {
     this.#readyPromise = new Promise(resolve => { this.#readyResolve = resolve; });
@@ -104,6 +109,7 @@ export class TabsCoordinator {
   }
 
   #onWorkerMessage(data) {
+    if (data.type === MSG.PING) return this.#post({ type: MSG.PONG, activeId: this.#activeId, incognito: this.#incognito });
     if (data.type === MSG.TABCOUNT) {
       this.#lastTabCount = { count: data.count, youAreOnly: !!data.youAreOnly };
       this.#emitTabCount();
@@ -129,7 +135,7 @@ export class TabsCoordinator {
     this.#channel.onmessage = e => this.#onChannelMessage(e.data || {});
 
     // Roll call: peers reply with HERE; after a short window count/youAreOnly is estimated.
-    const hello = () => this.#channel.postMessage({ type: MSG.HELLO, peerId: this.#peerId, activeId: this.#activeId, incognito: this.#incognito });
+    const hello = () => this.#channel.postMessage({ type: MSG.HELLO, ...this.#state() });
     hello();
     setTimeout(() => {
       this.#lastTabCount = this.#peers.tabCount();
@@ -138,34 +144,47 @@ export class TabsCoordinator {
       this.#resolveReady();
     }, READY_TIMEOUT_MS - 50);
 
+    this.#ping(true);
     this.#onPageLifecycle(() => {
+      this.#ping(false);
       try {
         this.#channel.postMessage({ type: MSG.BYE, peerId: this.#peerId });
       } catch {
         /* channel already closed — peers time us out anyway */
       }
-    }, hello);
+    }, () => { hello(); this.#ping(true); });
     return true;
   }
+
+  // The ping round runs while the page is shown: a bfcache stay stops it, the restore starts it.
+  #ping(on) {
+    clearInterval(this.#pinger);
+    this.#pinger = on ? setInterval(() => {
+      if (this.#peers.sweep(this.#peerId, MISSES)) this.#rosterChanged();
+      this.#channel.postMessage({ type: MSG.PING, ...this.#state() });
+    }, PING_MS) : null;
+  }
+
+  #state() { return { peerId: this.#peerId, activeId: this.#activeId, incognito: this.#incognito }; }
 
   #onChannelMessage(data) {
     const { type, peerId } = data;
     if (peerId === this.#peerId) return;
-    if (type === MSG.HELLO) {
+    if (type === MSG.HELLO || type === MSG.HERE) {
       this.#peers.see(peerId);
       if (data.activeId != null) this.#peers.setActive(peerId, data.activeId);
       this.#peers.setIncognito(peerId, data.incognito);
-      this.#channel.postMessage({ type: MSG.HERE, peerId: this.#peerId, activeId: this.#activeId, incognito: this.#incognito });
-      this.#recountChannel();
-      this.#emitIncognitoFromMap();
+      if (type === MSG.HELLO) this.#channel.postMessage({ type: MSG.HERE, ...this.#state() });
+      this.#rosterChanged();
       return;
     }
-    if (type === MSG.HERE) {
-      this.#peers.see(peerId);
-      if (data.activeId != null) this.#peers.setActive(peerId, data.activeId);
+    // A peer forgotten while frozen comes back with the state its PING or PONG carries.
+    if (type === MSG.PING || type === MSG.PONG) {
+      const back = this.#peers.see(peerId);
+      this.#peers.setActive(peerId, data.activeId);
       this.#peers.setIncognito(peerId, data.incognito);
-      this.#recountChannel();
-      this.#emitIncognitoFromMap();
+      if (type === MSG.PING) this.#channel.postMessage({ type: MSG.PONG, ...this.#state() });
+      if (back) this.#rosterChanged();
       return;
     }
     if (type === MSG.ACTIVE) {
@@ -182,15 +201,11 @@ export class TabsCoordinator {
     }
     if (type === MSG.PROJECTS_CHANGED) return this.#emitProjectsChanged(data);
     if (type === MSG.ACCENT) return this.#emitAccent(data.key);
-    if (type === MSG.BYE) {
-      this.#peers.forget(peerId);
-      this.#recountChannel();
-      this.#emitIncognitoFromMap();
-      return;
-    }
+    if (type === MSG.BYE) { this.#peers.forget(peerId); this.#rosterChanged(); }
   }
 
   #emitIncognitoFromMap() { this.#emitIncognitoPeers(this.#peers.incognitoSessions()); }
+  #rosterChanged() { this.#recountChannel(); this.#emitIncognitoFromMap(); }
 
   #recountChannel() {
     this.#lastTabCount = this.#peers.tabCount();

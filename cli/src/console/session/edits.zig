@@ -44,10 +44,15 @@ pub fn setFilter(self: *Session, mode: []const u8, color: []const u8) !void {
     const cur = self.state();
     var next = try cur.dupe(self.gpa);
     errdefer next.deinit(self.gpa);
+    const new_mode = try self.gpa.dupe(u8, mode);
+    const new_color = self.gpa.dupe(u8, color) catch |e| {
+        self.gpa.free(new_mode);
+        return e;
+    };
     if (next.filter_mode.len != 0) self.gpa.free(next.filter_mode);
     if (next.filter_color.len != 0) self.gpa.free(next.filter_color);
-    next.filter_mode = try self.gpa.dupe(u8, mode);
-    next.filter_color = try self.gpa.dupe(u8, color);
+    next.filter_mode = new_mode;
+    next.filter_color = new_color;
     const changed = !std.mem.eql(u8, cur.filter_mode, mode) or !std.mem.eql(u8, cur.filter_color, color);
     try self.pushState(next);
     self.filter_dirty = self.filter_dirty or changed;

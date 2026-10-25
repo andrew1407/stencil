@@ -7,7 +7,7 @@ const testing = std.testing;
 const scopes = [_][]const u8{ "cli/src", "cli/tests" };
 
 /// Raise it when the suite grows a lot; additions must never trip it, a collapse must.
-const test_floor = 365;
+const test_floor = 640;
 
 fn countTests(bytes: []const u8) usize {
     var n: usize = 0;

@@ -181,7 +181,7 @@ class MainWindowGuiTest : public QObject {
     win.parts.sourceOpener.createBlankImage(QColor("#ffffff"), 400, 300);
     win.canvas->setScale(2.5);
     QCOMPARE(win.canvas->getScale(), 2.5);
-    win.parts.projects.applyBlankColor(QColor("#0000ff"));
+    win.projectHost.flows.applyBlankColor(QColor("#0000ff"));
     QCOMPARE(win.canvas->getScale(), 2.5);
     beat();
   }

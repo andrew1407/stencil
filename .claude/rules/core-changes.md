@@ -22,6 +22,9 @@ near your edit:
 - `cli/build.zig` → the core sources array
 - `pystencil/build.py` → the core sources list
 
+Edit the CMake list, then `node tools/repo/coreLists.mjs --write` rewrites the other two; the
+tools suite runs `--check`, so a list left behind fails there.
+
 Note the ABI asymmetry: the CMake/wasm build compiles the `wasm*Api.cpp` files; the CLI and
 pystencil each append **`cliApi.cpp`** (the `extern "C"` ABI they wrap) instead. Keep only the
 pure `core/*.cpp` modules synced across the three — the api file differs per surface by design.
@@ -66,7 +69,7 @@ reader core has is its own, STL-only, in `core/json/`. See `no-dependencies.md`.
 
 Mind what a call links into wasm: `std::to_chars(double)` adds ~150 KB of Ryu tables and
 iostreams pull in locales. Format a number through `json::jsNumberToString` (JS `String(n)`);
-key a number by its bits. Compare `browser/js/wasm/stencilCore.js` before and after a core change.
+key a number by its bits. Compare `browser/js/wasm/stencilCore.wasm` before and after a core change.
 
 ## 5. Never throw
 

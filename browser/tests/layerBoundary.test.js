@@ -90,15 +90,15 @@ const measure = (files, re, keepStrings = false) => {
 // Rule 1 — js/core is DOM-free: these files still reach for the DOM (the view paints, the storage
 // adapter reads localStorage's window, the coordinators listen on window). Nothing may join them.
 const CORE_DOM_ALLOWANCE = {
-  'core/settings/accents.js': 6, 'core/image/blankImage.js': 1, 'core/drawingApp.js': 15,
-  'core/export/service.js': 3, 'core/launch/extensionBridge.js': 2, 'core/settings/hotkeys.js': 4,
+  'core/settings/accents.js': 1, 'core/image/blankImage.js': 1, 'core/drawingApp.js': 9,
+  'core/export/service.js': 2, 'core/launch/extensionBridge.js': 2, 'core/settings/hotkeys.js': 4,
   'core/image/filterCanvas.js': 1, 'core/image/model.js': 2, 'core/image/settle.js': 1,
-  'core/pointer/inputController.js': 7, 'core/launch/controller.js': 4, 'core/layoutInstall.js': 1,
-  'core/line/selection.js': 1, 'core/pointer/controller.js': 5, 'core/project/fileIO.js': 2,
+  'core/launch/controller.js': 4, 'core/layoutInstall.js': 1,
+  'core/line/selection.js': 1, 'core/project/fileIO.js': 2,
   'core/project/filePicker.js': 6, 'core/project/meta/projectMeta.js': 1, 'core/project/serverTransfer.js': 1, 'core/project/transferController.js': 2,
   'core/storage/quotaWriter.js': 1, 'core/remote/stencilSync.js': 2, 'core/storage/storage.js': 1,
   'core/launch/tabsCoordinator.js': 3, 'core/export/videoFrame.js': 1,
-  'core/zoom/viewportSync.js': 6, 'core/zoom/animation.js': 2, 'core/zoom/pan.js': 1,
+  'core/zoom/animation.js': 2, 'core/zoom/pan.js': 1,
 };
 
 test('js/core touches no document/window beyond the frozen allowance', () => {
@@ -138,7 +138,8 @@ const UI_ID_ALLOWANCE = {
   'ui/bindings/dropPaste.js': 1, 'ui/bindings/controls/formula.js': 1, 'ui/bindings/keys/hotkeyActions.js': 9,
   'ui/bindings/index.js': 1, 'ui/bindings/controls/pageAndDisplay.js': 8, 'ui/bindings/controls/projectColorButton.js': 3,
   'ui/bindings/controls/projectNameField.js': 6, 'ui/bindings/viewport/scrollPersist.js': 1, 'ui/bindings/selectionPanel.js': 10,
-  'ui/bindings/viewport/smoothZoom.js': 1, 'ui/bindings/controls/styleControls.js': 13, 'ui/bindings/theme.js': 1,
+  'ui/bindings/viewport/smoothZoom.js': 1, 'ui/bindings/viewport/viewportSync.js': 2,
+  'ui/bindings/pointer/controller.js': 1, 'ui/bindings/pointer/inputController.js': 1, 'ui/app/shell.js': 3, 'ui/bindings/controls/styleControls.js': 13, 'ui/bindings/theme.js': 1,
   'ui/bindings/controls/toolbarButtons.js': 20, 'ui/bindings/viewport/zoom.js': 2, 'ui/chat/row/chatCards.js': 1, 'ui/chat/panel.js': 22,
   'ui/modal/confirmModal.js': 9, 'ui/connect/modal.js': 19, 'ui/contextMenu/contextMenu.js': 3, 'ui/control/state.js': 16,
   'ui/modal/cropModal.js': 11, 'ui/ctx/actions.js': 22, 'ui/ctx/assistant.js': 6, 'ui/ctx/assistantChat.js': 15,
@@ -150,7 +151,7 @@ const UI_ID_ALLOWANCE = {
   'ui/meta/projectMetaModal.js': 7, 'ui/projects/window/projectTitle.js': 10, 'ui/projects/list/batchActions.js': 1, 'ui/projects/list/selection.js': 8,
   'ui/projects/window/projectsModal.js': 13, 'ui/script/editor.js': 11, 'ui/script/modal.js': 9, 'ui/panel/selectionPanel.js': 16,
   'ui/canvas/serverLayoutPaint.js': 3, 'ui/settings/settingMirrors.js': 1, 'ui/settings/modal.js': 5, 'ui/toolbar/toolbar.js': 7,
-  'ui/panel/unitDisplay.js': 5, 'ui/visuals/modal.js': 18, 'ui/visuals/voiceRow.js': 1, 'ui/visuals/notifyRow.js': 1,
+  'ui/panel/unitDisplay.js': 5, 'ui/visuals/modal.js': 18, 'ui/visuals/rows.js': 1, 'ui/visuals/notifyRow.js': 1,
 };
 
 test('js/ui reaches the document by id only in the frozen allowance', () => {

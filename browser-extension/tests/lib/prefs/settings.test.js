@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { installChromeStub } from '../../helpers/chromeStub.js';
-import { getSettings, DEFAULT_EDITOR_URL } from '../../../src/lib/prefs/settings.js';
+import { getSettings, DEFAULT_EDITOR_URL, isSharedOrigin } from '../../../src/lib/prefs/settings.js';
 
 const settingsWith = async (sync) => {
   const stub = installChromeStub({ sync });
@@ -54,4 +54,27 @@ test('the options page saves the typed URL verbatim (blank stays blank) and says
   assert.doesNotMatch(src('general.js'), /\|\|\s*DEFAULT_EDITOR_URL/);
   assert.match(src('general.js'), /checked = editorPageApiToggle/);
   assert.match(src('options.html'), /Off until you set the <strong>Editor URL<\/strong> above yourself/);
+});
+
+// Where a copied "Copy Stencil link" points: the published app unless the user typed an http(s) address.
+test('the share link URL: the published app by default, the user\'s own http(s) address when set', async () => {
+  const { DEFAULT_SHARE_URL } = await import('../../../src/lib/prefs/settings.js');
+  assert.equal(DEFAULT_SHARE_URL, 'https://andrew1407.github.io/stencil/');
+  const fresh = await settingsWith({});
+  assert.deepEqual([fresh.shareUrl, fresh.shareUrlSet], [DEFAULT_SHARE_URL, false]);
+  for (const typed of ['http://localhost:8080/', 'https://stencil.example.org/app/', 'http://192.168.1.20:3000']) {
+    const s = await settingsWith({ shareUrl: ` ${typed} ` });
+    assert.deepEqual([s.shareUrl, s.shareUrlSet], [typed, true], typed);
+  }
+  for (const bad of ['', 'ftp://x/', 'javascript:alert(1)', 'not a url']) {
+    const s = await settingsWith({ shareUrl: bad });
+    assert.deepEqual([s.shareUrl, s.shareUrlSet], [DEFAULT_SHARE_URL, false], bad);
+  }
+});
+
+test('an editor under a path shares its origin; one at the root, or no URL, does not', () => {
+  for (const url of ['https://andrew1407.github.io/stencil/', 'https://host.example/apps/stencil/index.html']) assert.ok(isSharedOrigin(url), url);
+  for (const url of ['http://localhost:8080/', 'https://stencil.example', 'https://stencil.example/index.html', '', 'not a url', 'file:///x/']) {
+    assert.ok(!isSharedOrigin(url), url);
+  }
 });

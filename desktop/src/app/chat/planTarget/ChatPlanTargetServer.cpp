@@ -15,7 +15,7 @@
 
 namespace stencil::gui {
   bool ChatPlanTarget::disconnectServer(const QString& server, QString* err) {
-    const QStringList live = w.remote.connections ? w.remote.connections->urls() : QStringList();
+    const QStringList live = w.remote.conns() ? w.remote.conns()->urls() : QStringList();
     const QString url = llm::resolveServerRef(server, live);
     if (url.isEmpty()) {
       if (err)
@@ -23,7 +23,7 @@ namespace stencil::gui {
                    .arg(server);
       return false;
     }
-    w.remote.connections->disconnectFrom(url);
+    w.remote.conns()->disconnectFrom(url);
     w.notify->info(QStringLiteral("Disconnected from %1").arg(url));
     return true;
   }
@@ -43,7 +43,7 @@ namespace stencil::gui {
                                                      QString* note) const {
     std::vector<const Project*> exact, prefixed;
     const std::string want = name.toStdString();
-    for (const auto& p : w.projectList) {
+    for (const auto& p : w.projectHost.projectList) {
       if (p.meta.name == want) exact.push_back(&p);
       else if (QString::fromStdString(p.meta.name)
                    .startsWith(name, Qt::CaseInsensitive))
@@ -66,7 +66,7 @@ namespace stencil::gui {
                                           QString* note) {
     QString id, nm;
     if (current) {
-      if (w.activeProjectId.isEmpty()) {
+      if (w.projectHost.activeProjectId.isEmpty()) {
         if (!w.canvas->hasImage()) {
           *note = QStringLiteral("no saved project is open right now");
           return true;
@@ -81,12 +81,12 @@ namespace stencil::gui {
           *note = QStringLiteral("removal canceled");
           return true;
         }
-        w.parts.projects.resetToBlankEditor();
+        w.projectHost.flows.resetToBlankEditor();
         w.notify->success("Editor cleared");
         return true;
       }
-      id = w.activeProjectId;
-      nm = support::shortName(w.activeProjectName());
+      id = w.projectHost.activeProjectId;
+      nm = support::shortName(w.projectHost.activeProjectName());
     } else {
       const Project* pick = resolveLocalProject(name, note);
       if (!pick) return true;  // *note says why
@@ -102,22 +102,22 @@ namespace stencil::gui {
       *note = QStringLiteral("removal canceled");
       return true;
     }
-    w.parts.projects.eraseLocalProject(id);
+    w.projectHost.flows.eraseLocalProject(id);
     SharedState::instance().saveProjects(&w);
     w.refreshActions();
-    SiblingWindows::refreshDockMenu(w.projectList);
+    SiblingWindows::refreshDockMenu(w.projectHost.projectList);
     w.notify->success(clearedToast(1));
     return true;
   }
   // §10 renameProject: the commitProjectName path, pre-validated so a duplicate surfaces the store's reason.
   bool ChatPlanTarget::renameActiveProject(const QString& name, QString* note) {
     const bool remote = !w.remote.session->getLink().id.isEmpty();
-    if (!remote && w.activeProjectId.isEmpty()) {
+    if (!remote && w.projectHost.activeProjectId.isEmpty()) {
       *note = QStringLiteral("no active saved project to rename");
       return true;
     }
     if (!remote) {
-      const auto check = w.checkProjectName(name, w.activeProjectId);
+      const auto check = w.projectHost.checkProjectName(name, w.projectHost.activeProjectId);
       if (!check.ok) {
         *note = QString::fromStdString(check.reason);
         return true;
@@ -128,11 +128,11 @@ namespace stencil::gui {
     return true;
   }
   bool ChatPlanTarget::setProjectColor(const QString& color, QString* note) {
-    if (w.remote.session->getLink().id.isEmpty() && w.activeProjectId.isEmpty()) {
+    if (w.remote.session->getLink().id.isEmpty() && w.projectHost.activeProjectId.isEmpty()) {
       *note = QStringLiteral("no active project — open or save one first");
       return true;
     }
-    w.parts.projects.setActiveProjectColor(color);
+    w.projectHost.flows.setActiveProjectColor(color);
     return true;
   }
 }  // namespace stencil::gui

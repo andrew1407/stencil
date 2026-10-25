@@ -7,7 +7,8 @@ namespace stencil::net {
   void ServerClient::deleteProjectAsync(const QString& id, std::function<void(bool)> done) {
     requestAsync("DELETE", QString("/projects/%1").arg(id), {}, {},
                  [done = std::move(done)](int status, QByteArray) {
-                   if (!isOkStatus(status)) {
+                   // A project already gone (a peer deleted it first) is deleted: the server says 404.
+                   if (!isOkStatus(status) && status != 404) {
                      done(false);
                      return;
                    }

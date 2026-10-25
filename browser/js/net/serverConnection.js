@@ -146,7 +146,11 @@ export class ServerConnection {
 
   async updateProject(id, body) { return this.tagRemote(await this.#req('PUT', `/projects/${encodeURIComponent(id)}`, { body })); }
 
-  async deleteProject(id) { return this.#req('DELETE', `/projects/${encodeURIComponent(id)}`); }
+  // A project already gone (a peer deleted it first) is deleted: the server answers that 404.
+  async deleteProject(id) {
+    try { return await this.#req('DELETE', `/projects/${encodeURIComponent(id)}`); }
+    catch (err) { if (err?.status === 404) return null; throw err; }
+  }
 
   // Upload raw image bytes; the server is codec-free so dimensions are passed in.
   async putFile(id, kind, bytes, { ext = 'png', w = 0, h = 0 } = {}) {
@@ -183,6 +187,7 @@ export class ServerConnection {
 
   #openEvents() {
     if (!this.#WS) return; // no WebSocket (e.g. some test envs) — REST still works
+    if (this.#closing) return;   // a redial's handshake that settled after close(): nothing owns this socket
     try {
       const ws = new this.#WS(wsUrl(this.url));
       this.#events = ws;

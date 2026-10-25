@@ -2,9 +2,10 @@
 #include "DockChrome.hpp"
 #include "../../support/modal/modalReveal.hpp"   // support::motionReduced()
 #include "mainWindowShared.hpp"
-#include "mainWindowHelpers.hpp"
+#include "toolbarMetrics.hpp"
+#include "windowMotion.hpp"
 #include "SelectionPanel.hpp"
-#include "guiHelpers.hpp"
+#include "iconInline.hpp"
 #include "ChatDock.hpp"
 
 #include <QVBoxLayout>

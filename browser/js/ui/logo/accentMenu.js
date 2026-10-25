@@ -1,7 +1,10 @@
 import { isTypingInFocus } from '../../utils.js';
 import { fillAccentMenu, markSelected } from '../accent/picker.js';
 import { createModalOpenGesture } from '../tip/popover.js';
-import { surfaceIn, surfaceOut, rectCenter, motionMs, motionReduced, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../motion.js';
+import { motionMs, motionReduced } from '../motion/motionPrefs.js';
+import { SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../motion/surface/motion.js';
+import { surfaceIn, surfaceOut } from '../motion/surface/surfaces.js';
+import { rectCenter } from '../motion/control/tips.js';
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';
 import { attachMenuScrollbar } from '../control/menuScrollbar.js';
 import { growFrom } from '../control/dropdownMenu.js';

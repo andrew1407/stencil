@@ -38,13 +38,13 @@ namespace stencil::gui {
       s.text = QStringLiteral("image: (none) — upload, paste, or create one first");
       return s;
     }
-    s.name = w.projectBaseName();
+    s.name = w.projectHost.projectBaseName();
     const QString ext = w.canvas->imageExt();
     if (!ext.isEmpty() && !s.name.endsWith(QLatin1Char('.') + ext, Qt::CaseInsensitive)) s.name += QLatin1Char('.') + ext;
-    s.color = w.parts.projects.projectNameColor();
+    s.color = w.projectHost.flows.projectNameColor();
     const QString fmt = w.pageSizeValue();
     const core::PageSize page = w.currentPageDimensions();
-    const bool temporary = w.incognito || (w.activeProjectId.isEmpty() && w.remote.session->getLink().id.isEmpty());
+    const bool temporary = w.projectHost.incognito || (w.projectHost.activeProjectId.isEmpty() && w.remote.session->getLink().id.isEmpty());
     // The pristine picture is the history's floor (step -1), so it counts as state 1.
     const int steps = w.canvas->historySize() + 1;
     const int at = w.canvas->historyStep() + 2;
@@ -149,16 +149,16 @@ namespace stencil::gui {
     ChatPlanTarget(w).setDefaultLineStyle(a);
     return {};
   }
-  QString ConsoleHost::projectColor() const { return orDefault(w.parts.projects.activeProjectColor(), "(default)"); }
+  QString ConsoleHost::projectColor() const { return orDefault(w.projectHost.flows.activeProjectColor(), "(default)"); }
   QString ConsoleHost::setProjectColor(const QString& color) {
-    if (w.activeProjectId.isEmpty() && w.remote.session->getLink().id.isEmpty()) return QStringLiteral("save the project first");
+    if (w.projectHost.activeProjectId.isEmpty() && w.remote.session->getLink().id.isEmpty()) return QStringLiteral("save the project first");
     if (color.isEmpty()) {
-      w.parts.projects.setActiveProjectColor(QString());
+      w.projectHost.flows.setActiveProjectColor(QString());
       return {};
     }
-    const std::optional<QString> hex = w.parts.projects.normalizeProjectColor(color);
+    const std::optional<QString> hex = w.projectHost.flows.normalizeProjectColor(color);
     if (!hex) return QStringLiteral("project-color takes '#hex', a name, or 'clear'");
-    w.parts.projects.setActiveProjectColor(*hex);
+    w.projectHost.flows.setActiveProjectColor(*hex);
     return {};
   }
 

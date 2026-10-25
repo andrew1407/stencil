@@ -2,13 +2,14 @@
 // extension): the llm-contract.md §5 defaults table (first run shows ollama at localhost:11434;
 // openai-compat pre-fills localhost:1234/v1; stencil-server resolves to a configured connection) and
 // the JSON round-trip of the persisted llmProvider/llmBaseUrl/llmModel/llmApiKey/llmServerUrl keys
-// (+ the windowState dock blob), through settingsToJson/settingsFromJson — no disk involved.
+// (+ the windowState dock blob), through settingsToJson/settingsFromJson, and where the key lands on disk.
 #include "fileStore.hpp"
 #include "llmSettings.hpp"
 
 #include <QCoreApplication>
 #include <QFile>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
 #include <cstdio>
 
@@ -167,8 +168,42 @@ int main(int argc, char** argv) {
     check(trimmed.first().toObject().value("text") == "t8", "the most recent 32 survive");
   }
 
-  // settings.json holds llmApiKey in the clear, so it must not be group/world readable. POSIX-only: Qt
-  // maps QFile::permissions() onto ACLs on Windows.
+  // The openai-compat key is written to secrets.json, never settings.json; one an older settings.json
+  // still holds is read, then moved by the next save.
+  std::printf("key at rest:\n");
+  {
+    const Settings before = fileStore::loadSettings();
+    Settings s = before;
+    s.llmApiKey = "sk-at-rest";
+    fileStore::saveSettings(s);
+    auto fileHas = [](const QString& path, const char* needle) {
+      QFile f(path);
+      return f.open(QIODevice::ReadOnly) && f.readAll().contains(needle);
+    };
+    check(!fileHas(fileStore::settingsPath(), "sk-at-rest"), "settings.json carries no key");
+    check(fileStore::loadSecrets().value("llmApiKey").toString() == "sk-at-rest", "secrets.json does");
+    check(fileStore::loadSettings().llmApiKey == "sk-at-rest", "…and loading reads it back");
+
+    QJsonObject legacy = fileStore::settingsToJson(before);
+    legacy["llmApiKey"] = "sk-legacy";
+    QJsonObject secrets = fileStore::loadSecrets();
+    secrets.remove("llmApiKey");
+    fileStore::saveSecrets(secrets);
+    QFile f(fileStore::settingsPath());
+    check(f.open(QIODevice::WriteOnly | QIODevice::Truncate) && f.write(QJsonDocument(legacy).toJson()) > 0,
+          "an older settings.json with the key in it");
+    f.close();
+    const Settings migrated = fileStore::loadSettings();
+    check(migrated.llmApiKey == "sk-legacy", "the legacy key is still read");
+    fileStore::saveSettings(migrated);
+    check(!fileHas(fileStore::settingsPath(), "sk-legacy") &&
+              fileStore::loadSecrets().value("llmApiKey").toString() == "sk-legacy",
+          "the next save moves it into secrets.json");
+    fileStore::saveSettings(before);
+  }
+
+  // settings.json and secrets.json are owner-only: the one says what the user set, the other holds
+  // the key in the clear. POSIX-only: Qt maps QFile::permissions() onto ACLs on Windows.
 #ifdef Q_OS_UNIX
   std::printf("settings file permissions:\n");
   {
@@ -180,7 +215,10 @@ int main(int argc, char** argv) {
           "the owner can still read and write it");
     check(!(perms & (QFile::ReadGroup | QFile::WriteGroup | QFile::ReadOther |
                      QFile::WriteOther)),
-          "group and other have no access (llmApiKey is plaintext)");
+          "group and other have no access");
+    const QFile::Permissions sp = QFile(fileStore::secretsPath()).permissions();
+    check(!(sp & (QFile::ReadGroup | QFile::WriteGroup | QFile::ReadOther | QFile::WriteOther)),
+          "nor to secrets.json, which holds the key");
   }
 #endif
 

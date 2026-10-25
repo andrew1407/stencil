@@ -34,3 +34,27 @@ func TestMiddlewareBoundsTheLookup(t *testing.T) {
 		}
 	}
 }
+
+// errResolver answers every lookup with err.
+type errResolver struct{ err error }
+
+func (e errResolver) ResolveToken(context.Context, []byte) (Session, error) { return Session{}, e.err }
+
+// A lookup the store could not answer is 503 with Retry-After — a client keeps its credential —
+// while a token the store does not know stays 401.
+func TestMiddlewareTellsAStoreFailureFromABadToken(t *testing.T) {
+	for _, tc := range []struct {
+		err   error
+		code  int
+		retry string
+	}{{context.DeadlineExceeded, http.StatusServiceUnavailable, RetryAfterSeconds}, {ErrInvalidToken, http.StatusUnauthorized, ""}} {
+		h := Middleware(errResolver{tc.err}, time.Second)(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {}))
+		req := httptest.NewRequest(http.MethodGet, "/projects", nil)
+		req.Header.Set("Authorization", "Bearer tok")
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if rec.Code != tc.code || rec.Header().Get("Retry-After") != tc.retry {
+			t.Fatalf("%v: code %d Retry-After %q, want %d %q", tc.err, rec.Code, rec.Header().Get("Retry-After"), tc.code, tc.retry)
+		}
+	}
+}

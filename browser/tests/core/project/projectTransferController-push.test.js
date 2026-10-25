@@ -51,3 +51,23 @@ test('pushProjectFieldToServer is a no-op for a project with no server link', as
   await ctrl.pushProjectFieldToServer('p1', { color: '#123456' }, 'fail');
   assert.equal(conn.calls.length, 0);
 });
+
+test('a local write of the colour, keywords or description never reaches the server; a plain one does', async () => {
+  const conn = makeConn('https://srv.example', {
+    updateProject: async (id, fields) => { conn.calls.push(['updateProject', id, fields]); return { id, version: 3 }; },
+  });
+  const { ctrl, host, store } = makeRig({ conn });
+  const meta = (fields) => ({ id: 'p1', ...fields });
+  Object.assign(store, { setColor: (id, color) => meta({ color }), setKeywords: (id, keywords) => meta({ keywords }),
+    setDescription: (id, description) => meta({ description }) });
+  host.activeProjectId = 'p1';
+  host.remoteLink = { address: conn.url, remoteId: 'srv-9', version: 2 };
+  ctrl.setProjectColor('p1', '#123456', { local: true });
+  ctrl.setProjectKeywords('p1', ['a'], { local: true });
+  ctrl.setProjectDescription('p1', 'mine', { local: true });
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(conn.calls.filter(c => c[0] === 'updateProject').length, 0);
+  ctrl.setProjectDescription('p1', 'shared');
+  await new Promise((r) => setTimeout(r, 0));
+  assert.deepEqual(conn.calls.filter(c => c[0] === 'updateProject').map(c => c[2].description), ['shared']);
+});

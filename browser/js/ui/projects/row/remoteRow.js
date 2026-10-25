@@ -1,14 +1,15 @@
 import { icon } from '../../icons.js';
 import { escapeHtml } from '../../base.js';
 import { notify, shortName } from '../../../utils.js';
-import { leaveThenRemove, rowLeaveDust, ITEM_DUST_MS } from '../../motion.js';
+import { leaveThenRemove } from '../../motion/enterLeave.js';
+import { rowLeaveDust, ITEM_DUST_MS } from '../../motion/surface/tiles.js';
 import { clearedToast } from '../../../core/project/transferController.js';
 import { copyMenuItem, afterRowCopy } from './copyItem.js';
 
 // Thumbnail blobs keyed `serverUrl|id|version`, so the many re-renders (search keystrokes,
 // live events, peer pings) share one fetch per version. Twin: ProjectsDialog::remoteThumbs_.
 const remoteThumbCache = new Map();
-const remoteThumbBlob = (conn, meta) => {
+export const remoteThumbBlob = (conn, meta) => {
   const id = `${meta.serverUrl}|${meta.id}`;
   const key = `${id}|${meta.version ?? ''}`;
   let p = remoteThumbCache.get(key);
@@ -18,8 +19,8 @@ const remoteThumbBlob = (conn, meta) => {
       if (k.startsWith(`${id}|`)) remoteThumbCache.delete(k);
     // Only files the record says exist, preferring the edited `result`. With neither, this
     // resolves null and makes NO request — no 404 spam for files the server hasn't got.
-    const hasResult = !!meta.resultPath;
-    const hasOriginal = !!meta.originalPath;
+    const hasResult = !!meta.hasResult;
+    const hasOriginal = !!meta.hasImage;
     if (hasResult)
       p = conn.fetchFile(meta.id, 'result')
         .catch(() => (hasOriginal ? conn.fetchFile(meta.id, 'original') : null))

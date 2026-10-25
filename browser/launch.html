@@ -188,8 +188,9 @@
         try { await navigator.clipboard.writeText(url); copyBtn.querySelector('span').textContent = 'Copied!'; }
         catch { copyBtn.querySelector('span').textContent = 'Copy failed'; }
       });
-      // Auto-forward once; the manual button stays as the fallback.
-      location.href = url;
+      // Auto-forward once, top-level only: framed, a host page could fire the OS handler unasked.
+      // The manual button stays as the fallback.
+      if (window.top === window) location.href = url;
     })();
   </script>
 </body>

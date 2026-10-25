@@ -1,7 +1,7 @@
 const std = @import("std");
 
 // Source list for the shared C++ core — the CLI recompiles it rather than linking core's CMake
-// static library. KEEP IN SYNC with STENCIL_CORE_SOURCES in ../core/CMakeLists.txt.
+// static library. Held to STENCIL_CORE_SOURCES in ../core/CMakeLists.txt by tools/repo/coreLists.mjs.
 const core_sources = [_][]const u8{
     "geometry/pointMath.cpp",
     "geometry/hitTest.cpp",
@@ -168,9 +168,16 @@ pub fn build(b: *std.Build) void {
     wireNative(b, test_mod, stb);
     // The 16x12 sample every surface's tests share; read at run time from ../common/samples too.
     test_mod.addAnonymousImport("sample.png", .{ .root_source_file = b.path("../common/samples/sample.png") });
+    // `-Dclipboard-live` compiles in the live system-clipboard tests (they need a desktop session and
+    // replace what the clipboard holds), and reruns them every time: the session is no cache input.
+    const clipboard_live = b.option(bool, "clipboard-live", "Also run the live system-clipboard tests") orelse false;
+    const test_options = b.addOptions();
+    test_options.addOption(bool, "clipboard_live", clipboard_live);
+    test_mod.addOptions("test_options", test_options);
 
     const unit_tests = b.addTest(.{ .root_module = test_mod });
     const run_tests = b.addRunArtifact(unit_tests);
+    run_tests.has_side_effects = clipboard_live;
     const test_step = b.step("test", "Run the stencil CLI unit + integration tests");
     test_step.dependOn(&run_tests.step);
 

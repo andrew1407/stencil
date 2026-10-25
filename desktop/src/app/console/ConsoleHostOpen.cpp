@@ -51,7 +51,7 @@ namespace stencil::gui {
   }  // namespace
 
   QString ConsoleHost::localProjectId(const QString& ref) const {
-    for (const Project& p : w.projectList)
+    for (const Project& p : w.projectHost.projectList)
       if (QString::fromStdString(p.meta.id) == ref || QString::compare(QString::fromStdString(p.meta.name), ref, Qt::CaseInsensitive) == 0)
         return QString::fromStdString(p.meta.id);
     return {};
@@ -65,7 +65,7 @@ namespace stencil::gui {
     const auto landed = [done, ref](bool ok, const QString& err) {
       done(ok ? ConsoleOutput::plain(QStringLiteral("loaded ") + ref) : ConsoleOutput::error(err));
     };
-    if (isWebUrl(ref)) return ChatPlanTarget(w).openUrlThen(ref, w.incognito, landed);
+    if (isWebUrl(ref)) return ChatPlanTarget(w).openUrlThen(ref, w.projectHost.incognito, landed);
     if (!QFileInfo::exists(support::expandHomePath(ref)))
       return done(ConsoleOutput::error(QStringLiteral("no file at %1 — give a path or an http(s) URL").arg(ref)));
     ChatPlanTarget(w).openFileThen(ref, landed);
@@ -76,19 +76,19 @@ namespace stencil::gui {
     if (isWebUrl(ref) || QFileInfo::exists(support::expandHomePath(ref))) return upload(ref, std::move(done));
     const QString id = localProjectId(ref);
     if (!id.isEmpty()) {
-      const QString name = support::shortName(QString::fromStdString(w.findProject(id.toStdString())->meta.name));
-      const bool known = w.loadProjectIntoCanvas(id, true, [done, name](bool ok) {
+      const QString name = support::shortName(QString::fromStdString(w.projectHost.findProject(id.toStdString())->meta.name));
+      const bool known = w.projectHost.loadProjectIntoCanvas(id, true, [done, name](bool ok) {
         done(ok ? ConsoleOutput::plain(QStringLiteral("opened ") + name) : ConsoleOutput::error(QStringLiteral("could not open ") + name));
       });
       if (!known) done(ConsoleOutput::error(QStringLiteral("could not open ") + name));
       return;
     }
-    if (!w.remote.connections)
+    if (!w.remote.conns())
       return done(ConsoleOutput::error(QStringLiteral("no project called '%1' — '/projects' lists them").arg(ref)));
-    w.remote.connections->sharedProjectsAsync([this, ref, done](QVector<stencil::net::ServerProject> all) {
+    w.remote.conns()->sharedProjectsAsync([this, ref, done](QVector<stencil::net::ServerProject> all) {
       const auto* p = matchServerProject(all, ref, QString());
       if (!p) return done(ConsoleOutput::error(QStringLiteral("no project called '%1' — '/projects' lists them").arg(ref)));
-      w.parts.projects.openServerProject(p->serverUrl, p->id);
+      w.projectHost.flows.openServerProject(p->serverUrl, p->id);
       done(ConsoleOutput::plain(QStringLiteral("opening %1 from %2").arg(p->name, p->serverUrl)));
     });
   }
@@ -96,7 +96,7 @@ namespace stencil::gui {
   QString ConsoleHost::openInNewWindow(const QString& ref) {
     const QString id = localProjectId(ref);
     if (id.isEmpty()) return QStringLiteral("no saved project called '%1' — 'ls' lists them").arg(ref);
-    w.parts.projects.openProjectInNewWindow(id);
+    w.projectHost.flows.openProjectInNewWindow(id);
     return {};
   }
 
@@ -105,9 +105,9 @@ namespace stencil::gui {
 
   QVector<QStringList> ConsoleHost::localProjectCells(bool longForm) const {
     QVector<QStringList> rows;
-    for (const Project& p : w.projectList) {
+    for (const Project& p : w.projectHost.projectList) {
       const QString id = QString::fromStdString(p.meta.id);
-      QStringList row{(id == w.activeProjectId ? QStringLiteral("* ") : QStringLiteral("  ")) + orDefault(QString::fromStdString(p.meta.name), "Untitled"),
+      QStringList row{(id == w.projectHost.activeProjectId ? QStringLiteral("* ") : QStringLiteral("  ")) + orDefault(QString::fromStdString(p.meta.name), "Untitled"),
                       QStringLiteral("local")};
       if (longForm)
         row << (p.meta.imageW > 0 ? QStringLiteral("%1x%2").arg(p.meta.imageW).arg(p.meta.imageH) : QString())
@@ -119,8 +119,8 @@ namespace stencil::gui {
 
   void ConsoleHost::projectsThen(const QString& serverUrl, bool longForm, std::function<void(QStringList)> done) {
     QVector<QStringList> rows = serverUrl.isEmpty() ? localProjectCells(longForm) : QVector<QStringList>{};
-    if (!w.remote.connections) return done(padColumns(rows));
-    w.remote.connections->sharedProjectsAsync([serverUrl, longForm, rows, done](QVector<stencil::net::ServerProject> all) mutable {
+    if (!w.remote.conns()) return done(padColumns(rows));
+    w.remote.conns()->sharedProjectsAsync([serverUrl, longForm, rows, done](QVector<stencil::net::ServerProject> all) mutable {
       for (const auto& p : all) {
         if (!serverUrl.isEmpty() && p.serverUrl != serverUrl) continue;
         QStringList row{QStringLiteral("  ") + orDefault(p.name, "Untitled"), QStringLiteral("server ") + p.serverUrl};
@@ -133,8 +133,8 @@ namespace stencil::gui {
 
   QStringList ConsoleHost::connectionsRows() const {
     QStringList out;
-    if (w.remote.connections)
-      for (const stencil::net::ServerClient* c : w.remote.connections->getClients()) out << QStringLiteral("  ") + c->getBase();
+    if (w.remote.conns())
+      for (const stencil::net::ServerClient* c : w.remote.conns()->getClients()) out << QStringLiteral("  ") + c->getBase();
     return out.isEmpty() ? QStringList{QStringLiteral("(no server connections)")} : out;
   }
 
@@ -147,25 +147,25 @@ namespace stencil::gui {
   }
 
   QString ConsoleHost::disconnect(const QString& url) {
-    if (!w.remote.connections || w.remote.connections->getClients().isEmpty()) return QStringLiteral("no server connections");
-    if (!url.isEmpty() && !w.remote.connections->find(url)) return QStringLiteral("not connected to %1").arg(url);
-    w.remote.connections->disconnectFrom(url);
+    if (!w.remote.conns() || w.remote.conns()->getClients().isEmpty()) return QStringLiteral("no server connections");
+    if (!url.isEmpty() && !w.remote.conns()->find(url)) return QStringLiteral("not connected to %1").arg(url);
+    w.remote.conns()->disconnectFrom(url);
     return {};
   }
 
   void ConsoleHost::fetchThen(const QString& name, const QString& serverUrl, support::ConsoleDone done) {
-    if (!w.remote.connections) return done(ConsoleOutput::error(QStringLiteral("no server connections — '/connect <url>' first")));
-    w.remote.connections->sharedProjectsAsync([this, name, serverUrl, done](QVector<stencil::net::ServerProject> all) {
+    if (!w.remote.conns()) return done(ConsoleOutput::error(QStringLiteral("no server connections — '/connect <url>' first")));
+    w.remote.conns()->sharedProjectsAsync([this, name, serverUrl, done](QVector<stencil::net::ServerProject> all) {
       const auto* p = matchServerProject(all, name, serverUrl);
       if (!p) return done(ConsoleOutput::error(QStringLiteral("no server project called '%1'").arg(name)));
-      w.parts.projects.openServerProject(p->serverUrl, p->id);
+      w.projectHost.flows.openServerProject(p->serverUrl, p->id);
       done(ConsoleOutput::plain(QStringLiteral("fetched %1 from %2").arg(p->name, p->serverUrl)));
     });
   }
 
   void ConsoleHost::browser(bool incognito, support::ConsoleDone done) {
     QString err;
-    const QString url = w.parts.projects.browserLaunchUrl(incognito, &err);
+    const QString url = w.projectHost.flows.browserLaunchUrl(incognito, &err);
     if (url.isEmpty()) return done(ConsoleOutput::error(err));
     QDesktopServices::openUrl(QUrl(url));
     done(ConsoleOutput::plain(QStringLiteral("opened in the browser")));

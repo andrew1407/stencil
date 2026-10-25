@@ -20,16 +20,16 @@ class MainWindowGuiTest : public QObject {
     b->setAttribute(Qt::WA_DeleteOnClose);
     b->show();
     QVERIFY(QTest::qWaitForWindowExposed(b.data()));
-    QCOMPARE(&a->projectList, &b->projectList);
-    QCOMPARE(&a->projectList, &stencil::gui::SharedState::instance().getProjects());
+    QCOMPARE(&a->projectHost.projectList, &b->projectHost.projectList);
+    QCOMPARE(&a->projectHost.projectList, &stencil::gui::SharedState::instance().getProjects());
 
     // A creates a project, then B writes the registry: both rows are in the file.
     QImage img(40, 30, QImage::Format_RGB32);
     img.fill(Qt::darkCyan);
-    const int before = static_cast<int>(a->projectList.size());
+    const int before = static_cast<int>(a->projectHost.projectList.size());
     const QString fromA = a->parts.chatAppliers.addImageProjectEntry(img, "from-a");
     QVERIFY(!fromA.isEmpty());
-    QCOMPARE(static_cast<int>(b->projectList.size()), before + 1);
+    QCOMPARE(static_cast<int>(b->projectHost.projectList.size()), before + 1);
     const QString fromB = b->parts.chatAppliers.addImageProjectEntry(img, "from-b");
     QVERIFY(!fromB.isEmpty());
     stencil::gui::fileStore::flushWrites();

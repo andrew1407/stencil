@@ -1,7 +1,7 @@
 #include "MainWindow.hpp"
 #include "windowSheets.hpp"
 #include "ThemePainter.hpp"
-#include "mainWindowHelpers.hpp"
+#include "toolbarMetrics.hpp"
 #include "CanvasWidget.hpp"
 #include "../../support/theme/faceSwap.hpp"
 

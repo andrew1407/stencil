@@ -2,6 +2,8 @@ package httpapi
 
 import (
 	"context"
+	_ "embed"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"path"
@@ -188,22 +190,41 @@ func writeStoreFileErr(rw http.ResponseWriter, err error) {
 	}
 }
 
+// A stored file's type, from common/config/mediaTypes.json `surfaces.server.image` (copy pinned by
+// mediatypes_test.go): `mimeOverrides`, else image/<ext>; else octet-stream, so an SVG never runs.
+//
+//go:generate go run ../tools/syncassets ../../../common/config/mediaTypes.json assets/mediaTypes.json
+//go:embed assets/mediaTypes.json
+var mediaTypesAsset []byte
+
+var servedTypes = loadServedTypes()
+
+func loadServedTypes() map[string]string {
+	var asset struct {
+		MimeOverrides map[string]string `json:"mimeOverrides"`
+		Surfaces      struct {
+			Server struct {
+				Image []string `json:"image"`
+			} `json:"server"`
+		} `json:"surfaces"`
+	}
+	if err := json.Unmarshal(mediaTypesAsset, &asset); err != nil || len(asset.Surfaces.Server.Image) == 0 {
+		panic("httpapi: assets/mediaTypes.json has no surfaces.server.image list")
+	}
+	types := map[string]string{"json": "application/json"}
+	for _, ext := range asset.Surfaces.Server.Image {
+		types[ext] = "image/" + ext
+		if t, ok := asset.MimeOverrides[ext]; ok {
+			types[ext] = t
+		}
+	}
+	return types
+}
+
 // contentTypeForExt maps a file extension to a content type without decoding.
 func contentTypeForExt(ext string) string {
-	switch strings.ToLower(strings.TrimPrefix(ext, ".")) {
-	case "png":
-		return "image/png"
-	case "jpg", "jpeg":
-		return "image/jpeg"
-	case "webp":
-		return "image/webp"
-	case "gif":
-		return "image/gif"
-	case "bmp":
-		return "image/bmp"
-	case "json":
-		return "application/json"
-	default:
-		return "application/octet-stream"
+	if t, ok := servedTypes[strings.ToLower(strings.TrimPrefix(ext, "."))]; ok {
+		return t
 	}
+	return "application/octet-stream"
 }

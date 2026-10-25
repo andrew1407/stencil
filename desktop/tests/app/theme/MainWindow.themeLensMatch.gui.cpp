@@ -34,8 +34,10 @@ class MainWindowGuiTest : public QObject {
     s.themeMode = mode;
     win.applySettings(s, /*persist=*/true);
   }
-  // Pending layouts run and toasts (on a clock of their own) go, so only the theme can differ.
+  // Pending layouts run, toasts go and the canvas bars' fade lands (each on a clock of its own),
+  // so only the theme can differ.
   static void quiet(MainWindow& win) {
+    if (QTimer* fade = win.parts.view.scrollbarHideTimer; fade && fade->isActive()) fade->start(0);
     QTest::qWait(60);
     for (const QString& name : {QStringLiteral("toast"), QStringLiteral("toastShine")})
       for (QWidget* toast : win.findChildren<QWidget*>(name)) toast->hide();

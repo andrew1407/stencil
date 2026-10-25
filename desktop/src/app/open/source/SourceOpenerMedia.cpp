@@ -2,7 +2,7 @@
 #include "SourceOpener.hpp"
 #include "PlanAwait.hpp"
 #include "fetchGuard.hpp"
-#include "mainWindowHelpers.hpp"
+#include "fileBytes.hpp"
 #include "displayName.hpp"
 #include "../../../support/localPath.hpp"
 #include "CanvasWidget.hpp"
@@ -30,24 +30,25 @@ namespace stencil::gui {
     w.mediaLoader = new MediaLoader(&w);
     QObject::connect(w.mediaLoader, &MediaLoader::loaded, &w,
                      [this](const QImage& image, const QString& localPath) {
-                       if (w.canvas->pictureGeneration() != w.docSource.mediaLoad) return;   // a newer load won
+                       if (w.canvas->pictureGeneration() != w.projectHost.docSource.mediaLoad) return;   // a newer load won
                        onLaunchImageLoaded(image, localPath);
                      });
     QObject::connect(w.mediaLoader, &MediaLoader::failed, &w, [this](const QString& msg) {
-      w.docSource.pendingLaunchLayout.clear();
-      w.docSource.pendingLaunchLayoutJson.clear();
-      w.docSource.pendingProvSource.clear();
-      w.docSource.pendingProvResource.clear();
-      w.docSource.pendingServerTarget.clear();
+      w.projectHost.docSource.pendingLaunchLayout.clear();
+      w.projectHost.docSource.pendingLaunchLayoutJson.clear();
+      w.projectHost.docSource.pendingProvSource.clear();
+      w.projectHost.docSource.pendingProvResource.clear();
+      w.projectHost.docSource.pendingServerTarget.clear();
       w.notify->error(msg);
     });
   }
 
   // A data: source (a browser hand-off, a dragged bitmap) is just another candidate here.
   void SourceOpener::openImageSource(const QString& src, int frame,
-                                   const QStringList& fallbacks) {
+                                   const QStringList& fallbacks, bool strict) {
     ensureMediaLoader();
-    w.docSource.mediaLoad = w.canvas->beginPictureLoad();
+    w.mediaLoader->setStrictFetch(strict);
+    w.projectHost.docSource.mediaLoad = w.canvas->beginPictureLoad();
     if (fallbacks.isEmpty()) w.mediaLoader->load(src, frame);
     else w.mediaLoader->loadFirstOf(QStringList{src} + fallbacks, frame);
   }
@@ -58,7 +59,7 @@ namespace stencil::gui {
     const QString ext = QFileInfo(path).suffix().toLower();
     QByteArray bytes;
     if (!ext.isEmpty()) readFileBytes(path, bytes);
-    w.docSource.setBytes(bytes, ext);   // empty bytes ⇒ buildStencilBytes re-encodes from pixels
+    w.projectHost.docSource.setBytes(bytes, ext);   // empty bytes ⇒ buildStencilBytes re-encodes from pixels
   }
 
   // §10 openFile: dispatched by extension as /upload does in the console.
@@ -87,7 +88,7 @@ namespace stencil::gui {
       return done(true, QString());
     }
     w.notify->info(QStringLiteral("Opening %1").arg(support::shortName(path)));
-    chatLoadSourceThen(path, w.incognito, 0, [done](bool ok, const QString& why) {
+    chatLoadSourceThen(path, w.projectHost.incognito, 0, [done](bool ok, const QString& why) {
       done(ok, ok ? QString() : QStringLiteral("openFile: %1").arg(why));
     });
   }
@@ -126,15 +127,15 @@ namespace stencil::gui {
           return;
         }
       }
-      w.activeProjectId.clear();  // pasted image is a fresh editor (a new project)
+      w.projectHost.activeProjectId.clear();  // pasted image is a fresh editor (a new project)
       w.canvas->loadFromImage(img);
       w.playImageArrival();
-      w.docSource.setBytes({}, {});  // clipboard pixels have no encoded source → re-encode on bundle
-      w.docSource.currentSource.clear();
-      w.docSource.currentResource.clear();
+      w.projectHost.docSource.setBytes({}, {});  // clipboard pixels have no encoded source → re-encode on bundle
+      w.projectHost.docSource.currentSource.clear();
+      w.projectHost.docSource.currentResource.clear();
       w.refreshActions();
       w.notify->success("Image pasted from clipboard");
-      w.adoptCanvasAsLocalProject();
+      w.projectHost.adoptCanvasAsLocalProject();
       return;
     }
     w.dataExport->pasteLayout();

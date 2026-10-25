@@ -6,7 +6,7 @@ import { closeOpenModal } from '../modal/registry.js';
 import { OFF_TOAST } from '../webcore/rules.js';
 import { PRESS_SLOP_PX } from '../tip/popover.js';
 import { storedMotionMode } from '../motion/motionPrefs.js';
-import { originOf } from '../motion.js';
+import { originOf } from '../motion/surface/themeSwapPlay.js';
 import { waitForImage } from '../../core/image/loadFlow.js';
 import { STAGE, HOLD_MS, TOAST_TEXT, effectOf, resolveShow, heartLine } from './stageRules.js';
 import { openLogoStage, logoStageAllowed, closeLogoStage, currentLogoStage, markOrigin } from './stage.js';

@@ -1,7 +1,7 @@
 package hub
 
-// Throttle for the hello handshake. AcceptWS skips origin checks (the bearer token in the hello frame is
-// the auth), so a hello spends a per-IP token before auth.Verify and refunds it when the token was good.
+// Throttle for the hello handshake. The bearer token in the hello frame is the auth, so a hello spends a
+// per-IP token before auth.Verify and refunds it when the token was good.
 
 import (
 	"context"
@@ -27,6 +27,11 @@ type helloGuard struct {
 
 // Option configures a Hub at construction time (New).
 type Option func(*Hub)
+
+// WithOriginCheck refuses a WebSocket upgrade whose Origin ok rejects (TCP carries no Origin).
+func WithOriginCheck(ok func(origin string) bool) Option {
+	return func(h *Hub) { h.originOK = ok }
+}
 
 // WithHelloLimit meters failed hello verifications at perMin per client IP (0 = unlimited). trusted names
 // the proxies whose X-Forwarded-For is believed for WebSocket handshakes.
@@ -71,6 +76,12 @@ func (h *Hub) checkHello(ctx context.Context, conn transport.Conn, hello protoco
 	vctx, cancel := context.WithTimeout(ctx, h.tune.OpTimeout)
 	defer cancel()
 	sess, err := auth.Verify(vctx, h.resolver, hello.Token, clock.NowMs())
+	if errors.Is(err, auth.ErrLookupFailed) {
+		// The store failed, not the token: no charge, and nothing a client reads as "signed out".
+		h.hello.rate.Refund(ip)
+		refuseHello(ctx, conn, protocol.CodeInternal, "the session store did not answer; retry")
+		return auth.Session{}, err
+	}
 	if err != nil {
 		refuseHello(ctx, conn, protocol.CodeUnauthorized, "invalid token")
 		return auth.Session{}, err

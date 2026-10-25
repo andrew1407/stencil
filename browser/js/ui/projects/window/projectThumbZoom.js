@@ -1,7 +1,6 @@
 import { placeNearCursor, onWindowResize } from '../../../utils.js';
-import {
-  surfaceIn, surfaceOut, settleSurface, rectCenter, TIP_DUST_IN_MS, TIP_DUST_OUT_MS,
-} from '../../motion.js';
+import { surfaceIn, surfaceOut, settleSurface } from '../../motion/surface/surfaces.js';
+import { rectCenter, TIP_DUST_IN_MS, TIP_DUST_OUT_MS } from '../../motion/control/tips.js';
 
 // Magnified hover preview for project-row thumbnails: one reused floating element and the
 // Alt-doubling state every row shares.

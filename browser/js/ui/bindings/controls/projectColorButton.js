@@ -1,4 +1,6 @@
-import { surfaceIn, surfaceOut, rectCenter, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../../motion.js';
+import { SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../../motion/surface/motion.js';
+import { surfaceIn, surfaceOut } from '../../motion/surface/surfaces.js';
+import { rectCenter } from '../../motion/control/tips.js';
 import { icon } from '../../icons.js';
 import { normalizeHex } from '../../../core/settings/accents.js';
 import { previewProjectColor } from '../../projects/window/projectTitle.js';

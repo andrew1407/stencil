@@ -12,6 +12,7 @@ const msg = @import("../../../app/messages.zig");
 const handlers = @import("../../handlers.zig");
 const media = @import("../media.zig");
 const llmPrompt = @import("../../llmPrompt.zig");
+const llm_cfg = @import("../../../llm.zig");
 const remoteEvents = @import("../../remoteEvents.zig");
 const ui = @import("../../ui.zig");
 const Session = @import("../../session.zig").Session;
@@ -31,7 +32,7 @@ fn connectArg(a: std.mem.Allocator, url: []const u8, token: []const u8) ![]const
 /// Connected to `origin` (dialled with the link's token when not yet): the client's base, or null once told.
 fn ensureConnected(session: *Session, io: std.Io, a: std.mem.Allocator, origin: []const u8, token: []const u8) !?[]const u8 {
     const base = try server_urls.normalizeBase(a, origin);
-    if (session.findServer(base) == null) try handlers.doConnect(session, io, try connectArg(a, origin, token));
+    if (session.findServer(base) == null) try handlers.doConnectFromLink(session, io, try connectArg(a, origin, token));
     if (session.findServer(base) == null) {
         logo.err(msg.launch_server_needs_connection, .{base});
         return null;
@@ -68,22 +69,48 @@ fn openPicture(session: *Session, io: std.Io, a: std.mem.Allocator, q: uri.Launc
     }
 }
 
+/// `scheme://host[:port]` of an http(s) URL, the whole string when it has no "://".
+fn originOf(url: []const u8) []const u8 {
+    const t = llm_cfg.trimUrl(url);
+    const after = (std.mem.indexOf(u8, t, "://") orelse return t) + 3;
+    const end = std.mem.indexOfAnyPos(u8, t, after, "/?#") orelse t.len;
+    return t[0..end];
+}
+
+fn sameOrigin(a: []const u8, b: []const u8) bool {
+    return std.ascii.eqlIgnoreCase(originOf(a), originOf(b));
+}
+
+/// A secret belongs to the endpoint it was given for (launch-uri.md §2): a link that moves the
+/// base URL drops the API key unless it brings its own, and one that moves the server drops its token.
 fn applyLlm(session: *Session, io: std.Io, a: std.mem.Allocator, llm: uri.Llm) !void {
+    const cfg = try session.llmConfig(io);
+    const was_base = try a.dupe(u8, cfg.base_url);
+    const was_server = try a.dupe(u8, cfg.server_url);
     const words = [_]struct { word: []const u8, value: ?[]const u8 }{
         .{ .word = "provider", .value = llm.provider }, .{ .word = "url", .value = llm.base_url },
         .{ .word = "model", .value = llm.model },       .{ .word = "server", .value = llm.server_url },
         .{ .word = "key", .value = llm.api_key },
     };
     for (words) |w| if (w.value) |v| try llmPrompt.doLlm(session, io, try std.fmt.allocPrint(a, "{s} {s}", .{ w.word, v }));
+    if (llm.api_key == null and cfg.api_key.len != 0 and !sameOrigin(was_base, cfg.base_url)) {
+        cfg.forgetKey(session.gpa);
+        logo.note(msg.launch_llm_secret_dropped, .{ cfg.base_url, "API key" });
+    }
+    if (cfg.server_token.len != 0 and !sameOrigin(was_server, cfg.server_url)) {
+        cfg.forgetServerToken(session.gpa);
+        logo.note(msg.launch_llm_secret_dropped, .{ cfg.server_url, "server token" });
+    }
 }
 
-fn applyProjectFields(session: *Session, io: std.Io, q: uri.LaunchUri) !void {
+fn applyProjectFields(session: *Session, q: uri.LaunchUri) !void {
     if (q.description == null and q.keywords == null and q.color == null and q.expire == null) return;
     if (session.remote_id == null) return logo.note(msg.launch_needs_server_project, .{"description, keywords, colour and expiry"});
     if (q.description) |d| try handlers.doProjectDescription(session, d);
     if (q.keywords) |k| try handlers.doKeywordsAdd(session, k);
     if (q.color) |c| try handlers.doProjectColor(session, c);
-    if (q.expire) |e| try handlers.doExpire(session, io, e);
+    // One pasted link must not expire a project its collaborators share (launch-uri.md §2).
+    if (q.expire != null) logo.note(msg.launch_left_out, .{"the expiry (a link never expires a server project)"});
 }
 
 /// False when the URL is a plain picture after all, so `/open` fetches it as one.
@@ -101,7 +128,7 @@ pub fn open(session: *Session, io: std.Io, arg: []const u8) !bool {
     if (q.theme != null or q.settings.len > 0) logo.note(msg.launch_left_out, .{"the look and editor settings"});
     if (q.chat_open or q.chat_dock != null) logo.note(msg.launch_left_out, .{"the chat panel"});
     if (q.script.len > 0) logo.note(msg.launch_left_out, .{"the script"});
-    for (q.connect) |c| try handlers.doConnect(session, io, try connectArg(a, c.url, c.token));
+    for (q.connect) |c| try handlers.doConnectFromLink(session, io, try connectArg(a, c.url, c.token));
     try applyLlm(session, io, a, q.llm);
     try openPicture(session, io, a, q);
     if (q.layout) |l| {
@@ -110,6 +137,6 @@ pub fn open(session: *Session, io: std.Io, arg: []const u8) !bool {
         } else if (handlers.runAction(session, io, .{ .kind = .layout, .arg = l.text() })) remoteEvents.markDirty(session);
     }
     if (q.name) |n| if (session.hasImage()) session.setLabel(n) catch {};
-    try applyProjectFields(session, io, q);
+    try applyProjectFields(session, q);
     return true;
 }

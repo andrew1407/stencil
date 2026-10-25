@@ -73,6 +73,7 @@ export function beginSegmentDrag(app, nearSeg, x, y) {
     origPt1: { x: line.points[nearSeg.ptIdx1].x, y: line.points[nearSeg.ptIdx1].y },
     origPt2: { x: line.points[nearSeg.ptIdx2].x, y: line.points[nearSeg.ptIdx2].y },
     origPoints: line.points.map(p => ({ x: p.x, y: p.y })),
+    shifted: false,   // the line holds a Shift translation, not its snapshot
   };
 }
 
@@ -113,9 +114,15 @@ export function dragMove(app, clientX, clientY, shiftKey) {
     const dy = y - ds.startY;
     if (shiftKey) {
       line.points.forEach((p, i) => { p.x = ds.origPoints[i].x + dx; p.y = ds.origPoints[i].y + dy; });
+      ds.shifted = true;
       if (app.coordLineIdx === ds.lineIdx) app.coordTable.refreshRows(line.points, ds.lineIdx);
     } else {
-      line.points.forEach((p, i) => { p.x = ds.origPoints[i].x; p.y = ds.origPoints[i].y; });
+      // Only the endpoints move, so the rest goes back to the snapshot once, as Shift lifts.
+      if (ds.shifted) {
+        line.points.forEach((p, i) => { p.x = ds.origPoints[i].x; p.y = ds.origPoints[i].y; });
+        ds.shifted = false;
+        if (app.coordLineIdx === ds.lineIdx) app.coordTable.refreshRows(line.points, ds.lineIdx);
+      }
       line.points[ds.ptIdx1].x = ds.origPt1.x + dx;
       line.points[ds.ptIdx1].y = ds.origPt1.y + dy;
       line.points[ds.ptIdx2].x = ds.origPt2.x + dx;

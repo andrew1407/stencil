@@ -98,10 +98,7 @@ export const mountDropZones = (accent = '#7c3aed', editor = false, mode = 'syste
     return '';
   };
 
-  const show = () => {
-    host.style.pointerEvents = 'auto';
-    host.style.opacity = '1';
-  };
+  const show = () => { host.style.pointerEvents = 'auto'; host.style.opacity = '1'; };
   const highlight = (key) => {
     for (const k in cells) cells[k].classList.toggle('over', k === key);
   };
@@ -156,6 +153,7 @@ export const mountDropZones = (accent = '#7c3aed', editor = false, mode = 'syste
   window.addEventListener('drop', onDrop, true);
   window.addEventListener('dragleave', onLeave, true);
   window.addEventListener('keydown', onKey, true);
+  host.addEventListener('stencil-teardown', remove);
   // A popup drag whose window closed before its dragend could DISARM would strand the overlay.
   const timer = setTimeout(remove, 12_000);
 
@@ -165,6 +163,9 @@ export const mountDropZones = (accent = '#7c3aed', editor = false, mode = 'syste
 
 // Injected on DROPZONES_DISARM; self-contained for the same reason as mountDropZones.
 export const unmountDropZones = () => {
-  document.getElementById('stencil-ext-dropzones')?.remove();
+  const host = document.getElementById('stencil-ext-dropzones');
+  // Its own remove() unhooks the window listeners and the 12 s timer, not just the node.
+  host?.dispatchEvent(new Event('stencil-teardown'));
+  host?.remove();
   window.__stencilDropZones = false;
 };

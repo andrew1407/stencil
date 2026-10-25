@@ -1,7 +1,7 @@
 import { setVal, setRadioGroup } from '../../utils.js';
 import { icon } from '../icons.js';
 import { setChecked, swapCheckGlyph } from '../control/swap.js';
-import { revealControls } from '../motion.js';
+import { revealControls } from '../motion/control/revealControls.js';
 
 // ── How a setting shows on screen ────────────────────────────────
 // SettingsController owns the model and WHEN a setting changes; these own the elements it

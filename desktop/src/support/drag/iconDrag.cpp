@@ -41,6 +41,14 @@ namespace stencil::support {
         ghostWanted = machine.hooks.ghost;
       }
 
+      // A source destroyed mid-drag (its row rebuilt) sees no release: its overlays and the
+      // app-wide count go here. No cancel hook runs, as its owner may be going too.
+      ~IconDragFilter() override {
+        if (!counted) return;
+        end();
+        settle();
+      }
+
       bool active() const { return machine.active(); }
 
      protected:

@@ -1,10 +1,12 @@
 // js/core/abi/coreMarshal.js over a fake core whose heap can run out: a 0 from _malloc throws
-// instead of aliasing the heap's start, a failed scratch grow is not cached, and a wasm op the
-// heap cannot serve is answered by its JS twin.
+// instead of aliasing the heap's start, a failed scratch grow is not cached, a wasm op the
+// heap cannot serve is answered by its JS twin, and an op or handle that fails midway frees what it took.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createMarshal, heapAlloc, heapAllocAll, guardHeapOps, withJsFallback, CoreHeapError }
   from '../../../js/core/abi/coreMarshal.js';
+import { buildPageOps } from '../../../js/core/abi/corePageOps.js';
+import { buildStateOps } from '../../../js/core/abi/coreHandles.js';
 
 // A heap of `capacity` bytes; every live block is tracked so a leak shows.
 const fakeCore = (capacity) => {
@@ -76,4 +78,38 @@ test('a heap failure retires the guarded ops, and a bound call is answered by it
   assert.equal(withJsFallback(() => null, twin)(2), 'js:2');
   assert.equal(withJsFallback(() => ops.ok, twin)(3), 'wasm');
   assert.throws(() => withJsFallback(() => ops.bug, twin)(4), TypeError, 'a real bug still surfaces');
+});
+
+// Every cwrap'd export answers a fresh handle (create) or 0, recording the creates and destroys.
+const withExports = (core) => {
+  const live = new Set();
+  let next = 1;
+  core.handles = live;
+  core.getValue = () => 0;
+  core.cwrap = (name) => (name.endsWith('_create') ? () => { live.add(next); return next++; }
+    : name.endsWith('_destroy') ? (h) => { live.delete(h); } : () => 0);
+  core.ccall = () => 0;
+  return core;
+};
+
+test('boundingBoxCenter frees what it took when the heap runs out between its two buffers', () => {
+  const core = withExports(fakeCore(40));   // room for the points (32 bytes) or the out slot (16), not both
+  const ops = buildPageOps(core, createMarshal(core));
+  assert.throws(() => ops.boundingBoxCenter([{ x: 0, y: 0 }, { x: 2, y: 2 }]), CoreHeapError);
+  assert.equal(core.live.size, 0, 'nothing leaks');
+  core.capacity = 64;
+  assert.deepEqual(ops.boundingBoxCenter([{ x: 0, y: 0 }]), { x: 0, y: 0 });
+  assert.equal(core.live.size, 0);
+});
+
+test('a state handle whose out slot fails takes no core handle; destroy frees both', () => {
+  const core = withExports(fakeCore(0));
+  const { HoldDrawController, HistoryStack } = buildStateOps(core);
+  for (const Klass of [HoldDrawController, HistoryStack]) assert.throws(() => new Klass(), CoreHeapError);
+  assert.equal(core.handles.size, 0, 'no handle orphaned by the failed constructor');
+  core.capacity = 64;
+  const made = [new HoldDrawController(), new HistoryStack()];
+  for (const h of made) { h.destroy(); h.destroy(); }
+  assert.equal(core.handles.size, 0);
+  assert.equal(core.live.size, 0);
 });

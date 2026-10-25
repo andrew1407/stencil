@@ -49,6 +49,8 @@ namespace stencil::gui {
   }
 
   // §10 openUrl: the SAME async path as the dialog's "open here", answered once the picture lands.
+  void ChatPlanTarget::setStrictSources(bool on) { w.parts.sourceOpener.strictSources = on; }
+
   void ChatPlanTarget::openUrlThen(const QString& url, bool incognito, llm::OpDone done) {
     // Say what happened in OUR words — a silent download reads as "nothing happened".
     w.notify->info(QStringLiteral("Opening %1%2")
@@ -70,7 +72,7 @@ namespace stencil::gui {
   // §10 @frame: the block's own source reloaded AT that frame, so it becomes the working image.
   void ChatPlanTarget::openSourceFrameThen(const QString& spec, int frame, llm::OpDone done) {
     if (spec.isEmpty()) return done(false, QStringLiteral("frame: this block names no source"));
-    w.parts.sourceOpener.chatLoadSourceThen(spec, w.incognito, frame,
+    w.parts.sourceOpener.chatLoadSourceThen(spec, w.projectHost.incognito, frame,
                                             [done](bool ok, const QString& why) {
                                               done(ok, ok ? QString() : QStringLiteral("frame: %1").arg(why));
                                             });

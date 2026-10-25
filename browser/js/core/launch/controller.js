@@ -1,14 +1,16 @@
 // External launch: `#stencil=<encodeURIComponent(JSON)>` and the extension bridge.
 // Schema/precedence live in deepLink.js (normalizeLaunchPayload).
 import { notify, shortName } from '../../utils.js';
-import { normalizeLaunchPayload, LAUNCH_DATA_URL_MAX } from './deepLink.js';
+import { normalizeLaunchPayload, LAUNCH_DATA_URL_MAX, readOpenProjectId } from './deepLink.js';
+import { parseLaunchQuery } from './query.js';
 import { waitForImage, loadImageFromFile } from '../image/loadFlow.js';
 import { normalizePageSize } from '../settings/units.js';
 import { normalizeUrl } from '../../net/urlRules.js';
 import { loadSavedServers } from '../../net/connectionStore.js';
 import { timeoutSignal } from '../../net/abortable.js';
+import { guardedFetch } from '../../net/fetchGuard.js';
 import { readBlobCapped } from '../../net/cappedBody.js';
-import { revealControls } from '../../ui/motion.js';
+import { revealControls } from '../../ui/motion/control/revealControls.js';
 import { newEditor, replaceProjectImage } from './openFlow.js';
 import constants from '../../../../common/config/constants.json' with { type: 'json' };
 
@@ -36,7 +38,7 @@ export const importInlineImage = (app, launch, { mode = 'new' } = {}) => {
 // `src` launches carry an http(s) image URL instead of inline bytes; the host must allow CORS.
   const imageUrl = launch.kind === 'src' ? launch.src : launch.dataUrl;
   if (launch.kind === 'src' && !opts.source) opts.source = launch.src;
-  return fetch(imageUrl, { signal: timeoutSignal(), ...(launch.kind === 'src' ? { mode: 'cors' } : null) })
+  return guardedFetch(imageUrl, { signal: timeoutSignal(), ...(launch.kind === 'src' ? { mode: 'cors' } : null) })
     .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return readBlobCapped(r); })
     .then(blob => {
       const file = new File([blob], name, { type: blob.type || 'image/png' });
@@ -48,6 +50,17 @@ export const importInlineImage = (app, launch, { mode = 'new' } = {}) => {
 // A .stc rides the fragment as a top-level `script`, OUTSIDE the normalized
 // shape: the shared codec ignores unknown keys (pinned cross-surface), so desktop and bot stay put.
 export const MAX_LAUNCH_SCRIPT = constants.LAUNCH.scriptMaxChars;
+
+// What the page's URL hands the editor at boot: the launch query; a "?open=<id>", which a query
+// naming a picture overrides; and whether a `#stencil=` hand-off (or the query) opens a session.
+export const readLaunchState = (search, hash) => {
+  const launchQuery = parseLaunchQuery(search, hash);
+  return {
+    launchQuery,
+    pendingOpenProjectId: launchQuery?.picture ? null : readOpenProjectId(search),
+    hasExternalLaunch: (hash || '').startsWith('#stencil=') || !!launchQuery?.opensSession,
+  };
+};
 
 const enterIncognito = (app) => {
   if (app.storage.incognito) return;
@@ -161,8 +174,12 @@ export const ensureLaunchConnection = async (app, rawUrl, { token = '', intent =
     { title: intent.title, confirmLabel: 'Connect', confirmIcon: 'link' }))) {
     return null;
   }
+  // A link never replaces a saved credential: a differing token connects for this session only.
+  const differs = saved && token && token !== saved.token;
   try {
-    await app.connections.connect({ url, token: token || (saved && saved.token) || '' });
+    await app.connections.connect(differs
+      ? { url, token, saved: { token: saved.token || '', kind: saved.kind || '' } }
+      : { url, token: token || (saved && saved.token) || '' });
   } catch (err) {
 // The normal connect error path: toast, then the connect modal for a token / URL fix.
     notify(`Could not connect to ${url} — ${err.message}`, 'fail');

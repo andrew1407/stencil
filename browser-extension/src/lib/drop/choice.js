@@ -4,7 +4,9 @@
 // `mode` is the panel's already-resolved Appearance choice, never prefers-color-scheme.
 export const mountDropChoice = (accent = '#7c3aed', mode = 'system') => new Promise((resolve) => {
   const ID = 'stencil-ext-dropchoice';
-  document.getElementById(ID)?.remove();
+  // A replaced chooser answers 'cancel' and unhooks its key listener, so its caller never hangs.
+  const prior = document.getElementById(ID);
+  if (prior) { prior.dispatchEvent(new Event('stencil-teardown')); prior.remove(); }
   const host = document.createElement('div');
   host.id = ID;
   host.style.cssText = 'position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.38);';
@@ -45,6 +47,7 @@ export const mountDropChoice = (accent = '#7c3aed', mode = 'system') => new Prom
   card.append(msg, btns);
   root.append(style, card);
   host.addEventListener('mousedown', (e) => { if (e.target === host) done('cancel'); });
+  host.addEventListener('stencil-teardown', () => done('cancel'));
   window.addEventListener('keydown', onKey, true);
   (document.body || document.documentElement).appendChild(host);
 });

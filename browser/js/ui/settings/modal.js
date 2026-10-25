@@ -3,7 +3,7 @@ import { notify, comboFromEvent, formatCombo } from '../../utils.js';
 import { hotkeys } from '../../core/settings/hotkeys.js';
 import { icon } from '../icons.js';
 import { keysHtml } from '../tip/content.js';
-import { markIn } from '../motion.js';
+import { markIn } from '../motion/surface/marks.js';
 import HOTKEY_DEFS from '../../../../common/config/hotkeysConfig.json' with { type: 'json' };
 // ── Component: settings modal (hotkey editor) ───────────────────
 export class StencilSettingsModal extends StencilElement {

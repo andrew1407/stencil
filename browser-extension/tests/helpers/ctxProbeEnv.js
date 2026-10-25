@@ -51,6 +51,11 @@ export const probe = ({ videos = [], stack = [], canvas = null } = {}) => {
   const document = {
     documentElement: el('html'),
     addEventListener: (t, fn, opts) => { (listeners[t] ||= []).push(fn); (options[t] ||= []).push(opts); },
+    removeEventListener: (t, fn) => {
+      const i = (listeners[t] || []).indexOf(fn);
+      if (i >= 0) { listeners[t].splice(i, 1); options[t].splice(i, 1); }
+    },
+    dispatchEvent: (ev) => { for (const fn of [...(listeners[ev.type] || [])]) fn(ev); return true; },
     querySelectorAll: (sel) => (sel === 'video' ? videos : []),
     elementsFromPoint: () => stack,
     createElement: () => canvas || { getContext: () => ({ drawImage() {} }), toDataURL: () => 'data:image/jpeg;base64,FRAME' },
@@ -66,13 +71,15 @@ export const probe = ({ videos = [], stack = [], canvas = null } = {}) => {
     MutationObserver: class { constructor() { cost.observers++; } observe() {} },
     setTimeout: (fn, ms) => { timers.set(nextTimer, { fn, ms }); return nextTimer++; },
     clearTimeout: (id) => { timers.delete(id); },
-    chrome: { runtime: { sendMessage: (m, cb) => { sent.push(m); if (cb) cb(); }, lastError: null } },
+    Event: class { constructor(type) { this.type = type; } },
+    chrome: { runtime: { id: 'stencil-ext', sendMessage: (m, cb) => { sent.push(m); if (cb) cb(); }, lastError: null } },
   };
   sandbox.window.document = document;
   // topRect walks out through the frame chain, so a video has to know its window.
   for (const v of videos) v.ownerDocument = { defaultView: sandbox.window };
   vm.createContext(sandbox);
-  for (const src of SOURCES) vm.runInContext(src, sandbox);
+  const load = () => { for (const src of SOURCES) vm.runInContext(src, sandbox); };
+  load();
   const fire = (type, ev) => { for (const fn of listeners[type] || []) fn(ev); };
   // The dwell: whatever is still armed fires, as if the pointer had come to rest.
   const rest = () => { for (const [id, { fn }] of [...timers]) { timers.delete(id); fn(); } };
@@ -84,5 +91,5 @@ export const probe = ({ videos = [], stack = [], canvas = null } = {}) => {
     return JSON.parse(JSON.stringify({ data: msg.data ?? null }));
   };
   const ctxSent = () => sent.filter((m) => m.type === MSG.CTX);
-  return { sent, fire, rest, resolve, listeners, options, timers, cost, ctxSent, sandbox };
+  return { sent, fire, rest, resolve, listeners, options, timers, cost, ctxSent, sandbox, load };
 };

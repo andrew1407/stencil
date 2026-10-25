@@ -4,6 +4,8 @@ export interface MenuItem { id: string; parentId?: string; title: string; contex
 export declare const MENU_ITEMS: MenuItem[];
 export declare const DYNAMIC_ITEMS: string[];
 export declare const PIN_ITEMS: string[];
+export declare const LINK_ITEMS: string[];
+export declare const INCOGNITO_LINK_ITEMS: string[];
 export declare const PREVIEW_ITEMS: string[];
 export declare const STATIC_DESKTOP_ITEMS: string[];
 export declare const pinItemTitle: (pinned: boolean, kind?: 'image' | 'video') => string;

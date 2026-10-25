@@ -111,8 +111,8 @@ class MainWindowGuiTest : public QObject {
     // validates against the persisted registry).
     const QString base =
         QStringLiteral("chat view src %1").arg(QDateTime::currentMSecsSinceEpoch());
-    win.createLocalProject(base, /*announce=*/false);
-    QVERIFY(!win.activeProjectId.isEmpty());
+    win.projectHost.createLocalProject(base, /*announce=*/false);
+    QVERIFY(!win.projectHost.activeProjectId.isEmpty());
 
     win.settings.llmProvider = "ollama";
     win.settings.llmBaseUrl = "http://localhost:11434";
@@ -140,9 +140,9 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(std::abs(win.canvas->getScale() - 1.5) < 1e-9);
     QCOMPARE(win.canvas->getImage().size(), sizeBefore);
     // The rename went through the real registry path.
-    QCOMPARE(win.activeProjectName(), renamed);
+    QCOMPARE(win.projectHost.activeProjectName(), renamed);
     bool inRegistry = false;
-    for (const auto& p : win.projectList)
+    for (const auto& p : win.projectHost.projectList)
       if (p.meta.name == renamed.toStdString()) inRegistry = true;
     QVERIFY2(inRegistry, "the renamed project is in the persisted registry");
     // The turn resolved as ONE assistant bubble with the plan's reply.
@@ -151,10 +151,10 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(dock);
     QTRY_VERIFY(assistantBubbleTexts(dock).contains(QStringLiteral("View set")));
     // Leave the shared registry tidy for the other cases.
-    const QString id = win.activeProjectId;
+    const QString id = win.projectHost.activeProjectId;
     win.parts.styleControls.setCompareModeUi(QStringLiteral("none"));
-    win.parts.projects.eraseLocalProject(id);
-    stencil::gui::fileStore::saveProjects(win.projectList);
+    win.projectHost.flows.eraseLocalProject(id);
+    stencil::gui::fileStore::saveProjects(win.projectHost.projectList);
     beat();
   }
 

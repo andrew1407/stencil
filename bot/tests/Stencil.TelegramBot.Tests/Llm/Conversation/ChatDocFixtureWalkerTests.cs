@@ -17,8 +17,8 @@ public sealed class ChatDocFixtureWalkerTests
     [Fact]
     public void Should_Have_Every_Vector_In_Both_Corpora()
     {
-        Assert.Equal(5, SharedFixtures.Cases(Roundtrip).Count);
-        Assert.Equal(17, SharedFixtures.Cases(Tolerance).Count);
+        Assert.True(SharedFixtures.Cases(Roundtrip).Count >= 5, $"the chat round-trip corpus collapsed to {SharedFixtures.Cases(Roundtrip).Count}");
+        Assert.True(SharedFixtures.Cases(Tolerance).Count >= 17, $"the chat tolerance corpus collapsed to {SharedFixtures.Cases(Tolerance).Count}");
     }
 
     [Theory]

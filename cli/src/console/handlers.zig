@@ -39,6 +39,7 @@ pub const doFormat = pageFormula.doFormat;
 
 // server connections (handlers/connections.zig)
 pub const doConnect = connections.doConnect;
+pub const doConnectFromLink = connections.doConnectFromLink;
 pub const doDisconnect = connections.doDisconnect;
 pub const doReconnect = connections.doReconnect;
 pub const ConnFilter = connections.ConnFilter;

@@ -98,3 +98,27 @@ test('a late page reply after the timeout is dropped, not answered twice', async
   assert.equal(replies.length, 1);
   assert.equal(replies[0].ok, false);
 });
+
+// An extension reload orphans the copy in an open editor tab: chrome.runtime.id is gone.
+const bound = (listeners) => Object.values(listeners).reduce((n, fns) => n + fns.length, 0);
+
+test('an orphaned bridge stands down at its next event, freeing its listeners and its guard', async () => {
+  const { listeners, dispatch, win } = setupEnv({ swResponse: { ok: true } });
+  await loadBridge();
+  assert.ok(bound(listeners) > 0);
+  globalThis.chrome.runtime.id = undefined;
+  dispatch({ source: 'anything' });
+  assert.equal(bound(listeners), 0);
+  assert.equal(win.__stencilEditorBridge, undefined);
+});
+
+test('the reloaded bridge sends the orphan away and binds in its place; a live one stays', async () => {
+  const { listeners } = setupEnv({ swResponse: { ok: true } });
+  await loadBridge();
+  const before = bound(listeners);
+  await loadBridge();
+  assert.equal(bound(listeners), before, 'a live copy keeps the guard: no second set');
+  globalThis.chrome.runtime.id = undefined;
+  await loadBridge();   // the same isolated world: the old guard would have kept it out
+  assert.equal(bound(listeners), before, 'the orphan\'s set is gone, the new copy\'s is bound');
+});

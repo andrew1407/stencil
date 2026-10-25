@@ -48,6 +48,7 @@ pub extern fn stencil_cli_scriptDiagAt(h: c_int, i: c_int, sev: [*c]c_int, line:
 pub extern fn stencil_cli_scriptDiagRelated(h: c_int, i: c_int, line: [*c]c_int, col: [*c]c_int, len: [*c]c_int) c_int;
 pub extern fn stencil_cli_scriptTokenCount(h: c_int) c_int;
 pub extern fn stencil_cli_scriptTokenAt(h: c_int, i: c_int, kind: [*c]c_int, line: [*c]c_int, col: [*c]c_int, len: [*c]c_int) c_int;
+pub extern fn stencil_cli_scriptTokens(h: c_int, out: [*c]c_int, cap: c_int) c_int;
 pub extern fn stencil_cli_scriptBlockCount(h: c_int) c_int;
 pub extern fn stencil_cli_scriptBlockAt(h: c_int, i: c_int, kind: [*c]c_int, frame: [*c]c_int, opStart: [*c]c_int, opCount: [*c]c_int) [*c]const u8;
 pub extern fn stencil_cli_scriptOpCount(h: c_int) c_int;

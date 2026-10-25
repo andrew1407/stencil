@@ -1,8 +1,7 @@
 #include "MainWindow.hpp"
 #include "DocumentPersistence.hpp"
-#include "mainWindowHelpers.hpp"
+#include "fileBytes.hpp"
 #include "CanvasWidget.hpp"
-#include "guiHelpers.hpp"  // showSaveDialog
 #include "lineUnion.hpp"
 #include "../../support/modal/modalChrome.hpp"  // confirmModal — the browser-styled question
 #include "Notifications.hpp"
@@ -20,7 +19,7 @@ namespace stencil::gui {
       w.notify->error("Load an image first");
       return;
     }
-    const QString suggested = w.projectBaseName() + ".stencil";
+    const QString suggested = w.projectHost.projectBaseName() + ".stencil";
     const QString path = showSaveDialog(&w, "Save project", suggested,
                                         "Stencil project (*.stencil)");
     if (path.isEmpty()) return;

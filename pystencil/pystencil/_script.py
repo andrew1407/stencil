@@ -159,16 +159,13 @@ def _read_related(lib, handle: int, count: int) -> tuple:
 
 
 def _read_tokens(lib, handle: int) -> Tokens:
-  out = list()
-  kind, line, col, length = (ctypes.c_int() for _ in range(4))
-  for i in range(max(0, lib.stencil_cli_scriptTokenCount(handle))):
-    if not lib.stencil_cli_scriptTokenAt(
-      handle, i, ctypes.byref(kind), ctypes.byref(line), ctypes.byref(col),
-      ctypes.byref(length),
-    ):
-      continue
-    out.append(Token(TOKEN_KINDS[kind.value], line.value, col.value, length.value))
-  return tuple(out)
+  n = max(0, lib.stencil_cli_scriptTokenCount(handle))
+  quads = (ctypes.c_int * (4 * n or 1))()
+  got = max(0, lib.stencil_cli_scriptTokens(handle, quads, n))
+  return tuple(
+    Token(TOKEN_KINDS[quads[k]], quads[k + 1], quads[k + 2], quads[k + 3])
+    for k in range(0, 4 * got, 4)
+  )
 
 
 def _read_blocks(lib, handle: int) -> Blocks:

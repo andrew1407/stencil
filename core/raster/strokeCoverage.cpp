@@ -163,7 +163,9 @@ namespace stencil::core::coverage {
                 [](const Segment& l, const Segment& r) { return l.top < r.top; });
       int last = 0;
       for (const Segment& s : segs) last = std::max(last, s.bottom);
-      std::vector<double> cov(static_cast<std::size_t>(w), 0.0);  // this row's coverage
+      // Zero between rows and calls (every touched column is reset below): a line pays for its extent.
+      static thread_local std::vector<double> cov;
+      cov.resize(std::max(cov.size(), static_cast<std::size_t>(w)), 0.0);
       std::vector<std::size_t> active;
       std::vector<Span> touched, core;
       const bool solidCore = dash == nullptr && pen.rIn > 0.0;
@@ -209,7 +211,6 @@ namespace stencil::core::coverage {
         }
       }
     }
-
   }  // namespace
 
   void strokePolyline(std::uint8_t* buf, int w, int h, const std::vector<Point>& pts,

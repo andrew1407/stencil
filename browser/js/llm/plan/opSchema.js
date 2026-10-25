@@ -2,7 +2,7 @@
 // The generic half of every op validator, table-driven from config/llm/opRegistry.json: profile
 // membership, unknown-field rejection, required keys, types, enums, ranges, string caps, token
 // grammars and the cross-field presence rules. Surfaces keep only their normalizers, executors
-// and native `rules`. Pure. Byte-pinned to browser-extension/src/llm/op/schema.js.
+// and native `rules`. Pure. Byte-pinned to browser-extension/src/llm/plan/schema.js.
 
 import { RULES, SURFACE_RULES, SchemaError, bad, child, isFiniteNum, isInt, isObj, item, label, own, pickFields,
   quoteList, where } from './opSchemaBase.js';

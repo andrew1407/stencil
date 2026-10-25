@@ -19,6 +19,15 @@ const sniffer = @import("sniff.zig");
 const page = @import("html.zig");
 const filters = @import("filter.zig");
 const Media = filters.Media;
+
+/// The §3 stderr lines mcp and bot parse; common/fixtures/cli/scrape.json holds their shapes.
+pub const line = struct {
+    pub const start = "scraping {s}…\n";
+    pub const wrote_sized = "wrote {s} ({d}x{d} px · source {s})\n";
+    pub const wrote = "wrote {s} (source {s})\n";
+    pub const no_media = "no media matched at {s}\n";
+    pub const summary = "scraped {d} file(s) from {s} into {s}\n";
+};
 const NameMatcher = filters.NameMatcher;
 const categoryPass = filters.categoryPass;
 const dimensionPass = filters.dimensionPass;
@@ -82,7 +91,7 @@ pub fn runImpl(gpa: std.mem.Allocator, io: std.Io, opts: args.Options, deps: Dep
 
     // Announce the scrape up front: the page fetch and the downloads take a while. It carries none of the
     // parsed prefixes (`wrote `/`scraped `/`error:`), so the mcp and bot adapters ignore it.
-    deps.emit(arena, "scraping {s}…\n", .{site});
+    deps.emit(arena, line.start, .{site});
 
     const html = try deps.fetch(arena, io, site, false); // net prints its own error on failure
     if (html.len > MAX_HTML) {
@@ -111,8 +120,6 @@ pub fn runImpl(gpa: std.mem.Allocator, io: std.Io, opts: args.Options, deps: Dep
     // A candidate ready to write. `bytes == null` means measurement could not fetch it: it still occupies
     // its window slot (unknown size passes the filter, as in pystencil) and the write loop re-fetches it.
     const Ready = struct { media: Media, bytes: ?[]const u8, dims: ?Sniff };
-    var ready: std.ArrayList(Ready) = .empty;
-    defer ready.deinit(arena);
 
     // A dimension filter must measure every candidate before the window can be cut; without one only the
     // window is fetched. These URLs came from page content, so loopback is allowed only on the named host.
@@ -120,25 +127,51 @@ pub fn runImpl(gpa: std.mem.Allocator, io: std.Io, opts: args.Options, deps: Dep
     const to_fetch = if (dim_active) candidates.items else window(Media, candidates.items, opts.group, count);
     const jobs = try arena.alloc(fetchPool.Job, to_fetch.len);
     for (to_fetch, jobs) |m, *j| j.* = .{ .url = m.url, .strict = subStrict(m.url, host) };
-    var batch = try fetchPool.fetchAll(gpa, io, deps.ctx, deps.fetchFn, jobs);
-    defer batch.deinit();
+    var ready: std.ArrayList(Ready) = try .initCapacity(arena, to_fetch.len);
+    defer ready.deinit(arena);
 
-    var passed: std.ArrayList(Ready) = .empty; // dimension-passers, before the window is cut
+    var passed: std.ArrayList(Ready) = try .initCapacity(arena, to_fetch.len); // dimension-passers, before the window is cut
     defer passed.deinit(arena);
-    for (to_fetch, batch.results) |m, got| {
-        const bytes = got.bytes orelse {
-            // A measurement failure is silent (parity with pystencil's best-effort _measure_item): the item keeps
-            // its window slot as unknown-size and the write loop re-fetches. Unmeasured, there is no second pass.
-            if (dim_active) try passed.append(arena, .{ .media = m, .bytes = null, .dims = null }) //
-            else deps.err(arena, "could not fetch {s} ({s})\n", .{ m.url, @errorName(got.err.?) });
-            continue;
-        };
-        const dims = sniff(bytes);
-        if (!dim_active) try ready.append(arena, .{ .media = m, .bytes = bytes, .dims = dims }) //
-        else if (dimensionPass(dims, min_w, max_w, min_h, max_h))
-            try passed.append(arena, .{ .media = m, .bytes = bytes, .dims = dims });
+    // Measured a pool's width at a time, keeping the sizes only: a gallery's bodies are never all resident,
+    // and the window's winners come back through the write loop's re-fetch.
+    const step = if (dim_active) fetchPool.max_workers else @max(jobs.len, 1);
+    var batches: std.ArrayList(fetchPool.Batch) = try .initCapacity(arena, jobs.len / step + 2); // so a fetched batch is always held
+    defer {
+        for (batches.items) |*b| b.deinit();
+        batches.deinit(arena);
     }
-    if (dim_active) for (window(Ready, passed.items, opts.group, count)) |it| try ready.append(arena, it);
+    var at: usize = 0;
+    while (at < jobs.len) : (at += step) {
+        const end = @min(at + step, jobs.len);
+        var batch = try fetchPool.fetchAll(gpa, io, deps.ctx, deps.fetchFn, jobs[at..end]);
+        for (to_fetch[at..end], batch.results) |m, got| {
+            const bytes = got.bytes orelse {
+                // A measurement failure is silent (parity with pystencil's best-effort _measure_item): the item keeps
+                // its window slot as unknown-size and the write loop re-fetches. Unmeasured, there is no second pass.
+                if (dim_active) passed.appendAssumeCapacity(.{ .media = m, .bytes = null, .dims = null }) //
+                else deps.err(arena, "could not fetch {s} ({s})\n", .{ m.url, @errorName(got.err.?) });
+                continue;
+            };
+            const dims = sniff(bytes);
+            if (!dim_active) ready.appendAssumeCapacity(.{ .media = m, .bytes = bytes, .dims = dims }) //
+            else if (dimensionPass(dims, min_w, max_w, min_h, max_h))
+                passed.appendAssumeCapacity(.{ .media = m, .bytes = null, .dims = dims });
+        }
+        if (dim_active) batch.deinit() else batches.appendAssumeCapacity(batch);
+    }
+    if (dim_active) {
+        for (window(Ready, passed.items, opts.group, count)) |it| try ready.append(arena, it);
+        // The winners measured, fetched again together; one that fails now takes the write loop's retry.
+        var again: std.ArrayList(fetchPool.Job) = .empty;
+        var slots: std.ArrayList(usize) = .empty;
+        for (ready.items, 0..) |it, i| if (it.dims != null) {
+            try again.append(arena, .{ .url = it.media.url, .strict = subStrict(it.media.url, host) });
+            try slots.append(arena, i);
+        };
+        batches.appendAssumeCapacity(try fetchPool.fetchAll(gpa, io, deps.ctx, deps.fetchFn, again.items));
+        const batch = batches.items[batches.items.len - 1];
+        for (slots.items, batch.results) |i, got| ready.items[i].bytes = got.bytes;
+    }
 
     if (ready.items.len != 0 and !std.mem.eql(u8, dir, ".")) {
         deps.mkdir(io, dir) catch |e| {
@@ -151,8 +184,8 @@ pub fn runImpl(gpa: std.mem.Allocator, io: std.Io, opts: args.Options, deps: Dep
     defer used.deinit();
     var written: usize = 0;
     for (ready.items, 0..) |it, idx| {
-        // Re-fetch items whose measurement fetch failed (bytes == null); a second failure is
-        // the non-fatal per-item error, matching pystencil's download pass.
+        // Re-fetch items with no body yet (bytes == null); a failure here is the non-fatal
+        // per-item error, matching pystencil's download pass.
         var dims = it.dims;
         const bytes = it.bytes orelse blk: {
             const b = deps.fetch(arena, io, it.media.url, subStrict(it.media.url, host)) catch |e| {
@@ -178,16 +211,16 @@ pub fn runImpl(gpa: std.mem.Allocator, io: std.Io, opts: args.Options, deps: Dep
             continue;
         };
         if (dims) |d| {
-            deps.emit(arena, "wrote {s} ({d}x{d} px · source {s})\n", .{ path, d.width, d.height, host });
+            deps.emit(arena, line.wrote_sized, .{ path, d.width, d.height, host });
         } else {
-            deps.emit(arena, "wrote {s} (source {s})\n", .{ path, host });
+            deps.emit(arena, line.wrote, .{ path, host });
         }
         written += 1;
     }
 
     if (written == 0) {
-        deps.err(arena, "no media matched at {s}\n", .{site});
+        deps.err(arena, line.no_media, .{site});
         return error.NoMediaMatched;
     }
-    deps.emit(arena, "scraped {d} file(s) from {s} into {s}\n", .{ written, host, dir });
+    deps.emit(arena, line.summary, .{ written, host, dir });
 }

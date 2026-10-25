@@ -20,7 +20,8 @@ export declare const spawnStageCount: (intensity: number, dt: number, rnd?: () =
 
 /** A grain's drawn place: the style's drift `f` (styleFrame's sx/sy) pushed out of the mark
  *  instead of down the screen, its sway turned to follow the edge. */
-export declare const driftedStageMote: (m: StageMote, f: { sx: number; sy: number }) => StagePoint;
+export declare const driftedStageMote: (m: StageMote, f: { sx: number; sy: number },
+  into?: StagePoint) => StagePoint;
 
 export interface StageCloud {
   readonly live: number;

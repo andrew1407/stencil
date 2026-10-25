@@ -5,7 +5,9 @@ import { canvasCoords } from '../../core/pointer/canvasCoords.js';
 
 // Shared by mousemove and the Shift/Ctrl key-refresh. `immediate` skips the reveal delay: a
 // modifier changing what is shown for the SAME hover is a live update, not a fresh hover.
-export function decideHover(tip, clientX, clientY, x, y, mods, immediate = false) {
+// `lineAt`: the caller's findLineAt(x, y) for this same cursor, when it already has one; `pointAt`:
+// null when the caller already knows no point is under it, so the scan is skipped.
+export function decideHover(tip, clientX, clientY, x, y, mods, immediate = false, lineAt = undefined, pointAt = undefined) {
   if (mods.altKey) {
     tip.hide();
     return;
@@ -19,7 +21,7 @@ export function decideHover(tip, clientX, clientY, x, y, mods, immediate = false
     else tip.hide();
     return;
   }
-  const point = tip.app.findNearestPoint(x, y);
+  const point = pointAt === undefined ? tip.app.findNearestPoint(x, y) : pointAt;
   if (point) {
     // The POINT's own coordinates decide: one just across the divider from the
     // pointer is not visible, however close the cursor is to it.
@@ -29,7 +31,7 @@ export function decideHover(tip, clientX, clientY, x, y, mods, immediate = false
     } else tip.hide();
     return;
   }
-  const lineIdx = tip.app.findLineAt(x, y);
+  const lineIdx = lineAt ?? tip.app.findLineAt(x, y);
   // A line is hit-tested AT the cursor, so the cursor is the part of it being pointed
   // at — a line straddling the divider answers for its visible half only.
   if (lineIdx !== -1 && visible(x, y)) {

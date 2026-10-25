@@ -6,9 +6,9 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import {
-  REWRITES, NO_SIBLINGS, PRE_PAINT_TAG, MANIFEST_LINK, FAVICON_HREF,
+  REWRITES, FALLBACKS, NO_SIBLINGS, PRE_PAINT_TAG, MANIFEST_LINK, FAVICON_HREF, MODULEPRELOAD_BLOCK,
 } from '../tools/singleFilePatterns.js';
 
 const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
@@ -23,6 +23,7 @@ for (const [file, patterns] of Object.entries(REWRITES)) {
 
 test('single-file build: the index.html rewrites leave no sibling references', () => {
   const out = read('index.html')
+    .replace(MODULEPRELOAD_BLOCK, '')
     .replace(MANIFEST_LINK, '')
     .replace(PRE_PAINT_TAG, '<script>/* inlined */</script>')
     .replace(FAVICON_HREF, 'href="data:image/svg+xml,inlined"');
@@ -39,11 +40,19 @@ test('single-file build: index.html loads nothing the single-file build ignores'
     'css/theme.css',                                                                 // vite: the stylesheets
     'js/prePaintTheme.js', '../common/icons/favicon.svg', 'manifest.webmanifest',    // vite.config.js: inlined or dropped
   ]);
-  const refs = [...read('index.html').matchAll(/(?:src|href)="([^"]+)"/g)]
+  const refs = [...read('index.html').replace(MODULEPRELOAD_BLOCK, '').matchAll(/(?:src|href)="([^"]+)"/g)]
     .map(m => m[1])
     .filter(v => !/^(?:https?:|data:|#|\/)/.test(v));
   for (const ref of refs) {
     if (/^css\/(?:layout|components|animations|webcore)\//.test(ref)) continue;   // the split stylesheets — vite folds them all in
     assert.ok(handled.has(ref), `index.html loads "${ref}", which the single-file build does not handle — teach vite.config.js about it`);
   }
+});
+
+test('single-file build: every fallback names a loader that exists, and vite.config.js picks by that name', () => {
+  for (const file of Object.keys(FALLBACKS)) {
+    assert.ok(existsSync(new URL(`../${file}`, import.meta.url)), `FALLBACKS names ${file}, which is gone — a moved loader must move its key`);
+  }
+  assert.doesNotMatch(read('vite.config.js'), /endsWith\(['"][^'"]*\/[^'"]*\.js['"]\)/,
+    'vite.config.js matches a loader by a literal path — key it in FALLBACKS so a move breaks this test, not the build');
 });

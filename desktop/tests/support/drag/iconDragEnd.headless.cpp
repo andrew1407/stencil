@@ -1,6 +1,6 @@
 // A drag's end as fullscreen needs it (support/drag/iconDrag) and the ghost's shining rim
 // (dragOverlays): afterIconDrag waits for the drop; a source hidden mid-drag (a folding fullscreen
-// row) still drops where it is released.
+// row) still drops where it is released, and one destroyed mid-drag ends the drag.
 #include "iconDragParts.hpp"
 #include "dragOverlays.hpp"
 
@@ -39,6 +39,23 @@ int main(int argc, char** argv) {
   check(log == (QStringList{QStringLiteral("drop"), QStringLiteral("after")}),
         "a source hidden mid-drag still drops where released, then the waiting work runs");
   check(!anyIconDragActive() && !iconDragActive(button), "…and the drag is over");
+
+  // A source destroyed mid-drag (its row rebuilt under the pointer) takes its drag with it.
+  log.clear();
+  const qsizetype widgetsBefore = window.findChildren<QWidget*>().size();
+  auto* doomed = new QPushButton(QStringLiteral("Fit"), &window);
+  doomed->setGeometry(100, 20, 60, 28);
+  doomed->show();
+  installIconDrag(doomed, IconDragHooks{});
+  press(doomed, in);
+  drag(doomed, doomed->mapFrom(&window, QPoint(260, 200)));
+  afterIconDrag([&] { log << QStringLiteral("after"); });
+  delete doomed;
+  app.processEvents();
+  check(window.findChildren<QWidget*>().size() == widgetsBefore,
+        "a source deleted mid-drag leaves no ghost or source mark behind");
+  check(!anyIconDragActive() && log == QStringList{QStringLiteral("after")},
+        "…and the drag ends, so the work waiting on it runs");
 
   return failures ? 1 : 0;
 }

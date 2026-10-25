@@ -36,7 +36,7 @@ export class Storage {
   #syncTimer = null;
   #commit = null;
 
-  save() {
+  save({ viewOnly = false } = {}) {
     const blocked = saveBlockedReason(this);
     if (blocked) {
       if (!this.#tempStatusTimer) {
@@ -46,7 +46,7 @@ export class Storage {
       return;
     }
 
-    this.#commit = writeActiveProject(this);
+    this.#commit = writeActiveProject(this, { viewOnly });
     this.scheduleSyncBroadcast();
     this.app.stencilSync?.onEdit();
   }

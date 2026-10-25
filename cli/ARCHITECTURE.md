@@ -40,7 +40,7 @@ or import nothing reads.
 | Path | Holds | Rule |
 |---|---|---|
 | `build.zig`, `build.zig.zon` | the build and the pinned stb dependency | the core file list matches `STENCIL_CORE_SOURCES` |
-| `src/main.zig`, `help.txt`, `app/` | the entry point, `--help`, the presentation ring, the report sink and the source lints | the console's strings and skins are named in `app/messages.zig` and `app/skin/`, pinned in `tests/pins/`; a one-shot line is spelled at its call through `app/report.zig` and pinned by `CONTRACT.md` and `testdata/` |
+| `src/main.zig`, `help.txt`, `app/` | the entry point, `--help`, the presentation ring, the report sink and the source lints | the console's strings and skins are named in `app/messages.zig` and `app/skin/`, pinned in `tests/pins/`; a one-shot line is spelled at its call through `app/report.zig` and pinned by `CONTRACT.md` and `common/fixtures/cli/` |
 | `src/args.zig` + `params/` | `Options` + `Mode` and the argv loop; `params/uri.zig` reads a launch URI (`contracts/launch/launch-uri.md`) over the words of `params/uriKeys.zig`, and `params/uriExpand.zig` turns one into the flags it stands for | the flag surface is `CONTRACT.md`; `tests/help_flags_test.zig` scans every parser file; the words are pinned to `common/config/launchQuery.json` and the parser to `common/fixtures/deepLink/launchQuery.json` |
 | `src/pipeline.zig` + `pipeline/` | the one-shot orchestration | headless; reports through `report.zig` |
 | `src/script.zig` + `script/` | the `.stc` modes, including emit for another surface (`emit/`) | the core owns the language; this owns files, pixels and output |
@@ -50,14 +50,13 @@ or import nothing reads.
 | `src/console.zig` + `console/` | the REPL: session, `commands` (+ `commands/verbs.zig`), `handlers/` (`handlers/apps/` opens the other apps), `remoteEvents/` (the server feed and the linked `.stencil` file), `render/`, `screen/` (the TUI) | grammar is parsed in `commands.zig` and executed in `handlers/`; a model's or server's text prints through `render/inert.zig`; an app is started through `safety/child.zig`'s detached launch |
 | `src/line_edit/` | the raw-mode line editor and the hidden secret read | TTY only; piped stdin takes the plain reader |
 | `src/clipboard.zig` + `clipboard/` | `/paste` + `/copy` over the per-OS shell helpers | |
-| `src/llm.zig` + `llm/` | the provider `Config`, the embedded `providers.json`, `wire/` (one mapping per provider), the transport, `opplan/` and `--plan-check` | the validator is core's; nothing here re-checks a key; a key is never printed and is zeroed when dropped |
+| `src/llm.zig` + `llm/` | the provider `Config`, the embedded `providers.json`, `wire/` (one mapping per provider), the transport, `plan/` and `--plan-check` | the validator is core's; nothing here re-checks a key; a key is never printed and is zeroed when dropped |
 | `src/scrape.zig` + `scrape/` | `--source-site` and `regex_shim.c` for `--source-name` | adapter-only, no `core/` involvement |
 | `src/project.zig` + `project/` | the `.stencil` codec and session bridge; the one-shot front, `--prompt` included | |
 | `src/server/` | the collaboration-server client and `tokens.zig`, which credential a URL is dialled with | follows `server/internal/protocol`; a token is never printed |
 | `src/inspect.zig` + `inspect/` | `--probe`, the project report modes and `--merge-lines` | one JSON document on stdout, only on success |
 | `src/bench/` | the opt-in `zig build bench` | ratio assertions only |
 | `tests/` | suites and rigs, `config/*_drift_test.zig` cross-checks, `pins/` text goldens, `fixtures/` | a suite sits in the folder of the `src/` area it covers; `test_root.zig` names every `*_test.zig`, and `tests/test_registration_test.zig` fails on one it does not |
-| `testdata/` | the stderr goldens `mcp/` and `bot/` replay | one set of goldens for all three suites |
 | `scripts/tui_smoke.py` | the manual pseudo-terminal smoke check for the TUI | not in CI |
 
 ## Entities
@@ -91,8 +90,8 @@ classDiagram
 | `Session` (`console/session.zig`) | The console's working document: original, undo stack, view, servers, LLM `Config`, attachments, chat | The console or the one-shot front, for the process | Holds `EditState`, `Client`, `EditConn`, `Config` |
 | `EditState` (`console/session/state.zig`) | One undoable snapshot: rotation, crop, filter, lines JSON | `Session.history`, capped | The browser layout model is canonical |
 | `Command` (`console/commands.zig`) | A parsed console line, yielding a `Verb` or a transform | One dispatch | Routed into `handlers/` |
-| `Plan` (`llm/opplan/model.zig`) | A validated op plan: reply, actions, variants, ask, warnings | Its own arena, one turn | `common/config/llm/opRegistry.json` is canonical |
-| `Action` (`llm/opplan/model.zig`) | One normalized op, one union variant per registered op | Its `Plan`'s arena | Pinned 1:1 onto the registry at comptime |
+| `Plan` (`llm/plan/model.zig`) | A validated op plan: reply, actions, variants, ask, warnings | Its own arena, one turn | `common/config/llm/opRegistry.json` is canonical |
+| `Action` (`llm/plan/model.zig`) | One normalized op, one union variant per registered op | Its `Plan`'s arena | Pinned 1:1 onto the registry at comptime |
 | `Project` (`project/shape.zig`) | A parsed `.stencil` document: metadata, encoded original, layout, chat | Its own arena | The browser's `.stencil` writer is canonical |
 | `Client` (`server/rest.zig`) | One server connection: origin, session token, what the credential proved to be | `Session.servers` or one one-shot run | Re-mints once on a stale session |
 | `EditConn` (`server/edit.zig`) | The read-only NDJSON events subscription on the raw-TCP edit port | `Session.events`, while a project is synced | `pullAction` decides what a peer's edit means |
@@ -218,7 +217,7 @@ server rejection (`server/http.zig`, set and read on the caller), stb's allocato
 | `app/logo/deferred.zig` held prints | any thread that does not own the human channel | the held queue | a spinlock; no callback runs inside it | past 1 MiB a print is dropped; the owner lands the rest at its next flush |
 | `console/screen/terminal.zig` signal handlers | the interrupted thread, in signal context | the borrowed terminal state | only `write` and `raise`, which are async-signal-safe | TERM, HUP, INT and QUIT restore the terminal and re-raise under `SA_RESETHAND`; WINCH writes one byte to a non-blocking pipe |
 | `server/edit.zig` `EditConn` | the console thread, at each prompt boundary | its frame buffer | single owner; `poll` never blocks | a line past `max_frame_bytes` (16 MiB, the server's frame cap) closes the feed with a note; one boundary handles at most `max_events_per_poll` (64) events, the rest wait for the next |
-| once-parsed tables (`app/theme.zig`, `llm/opplan/guards.zig`) | the first thread to read | a static table | atomic state, the losers spin until it is ready | parsed once, never freed |
+| once-parsed tables (`app/theme.zig`, `llm/plan/guards.zig`) | the first thread to read | a static table | atomic state, the losers spin until it is ready | parsed once, never freed |
 
 ## Rules
 
@@ -242,7 +241,7 @@ server rejection (`server/http.zig`, set and read on the caller), stb's allocato
    `core/cApi.zig` is pinned to `core/cliApi.h` the same way, and the logo raster to core's
    `logoBanner`.
 4. **The stderr grammar is a contract.** `wrote {path} ({w}x{h})`, `error: …`, `note: …` and the
-   scrape lines are parsed by mcp and bot and pinned by `CONTRACT.md`, `testdata/` and both
+   scrape lines are parsed by mcp and bot and pinned by `CONTRACT.md`, `common/fixtures/cli/` and both
    adapters' fixtures.
 5. **Security guards are singular**: one fetch guard (`net.zig`), one output confinement
    (`safety/confine.zig`), one prose sanitizer (`safety/sanitize.zig`), one child spawner
@@ -251,6 +250,14 @@ server rejection (`server/http.zig`, set and read on the caller), stb's allocato
    judges a name's resolved addresses and lets `std.http.Client` resolve it again
    (`net/host.zig` `hostResolvesToBlocked`), so a host that rebinds between the two lookups
    is not caught.
+6. **Every allocation has one owner on every path.** A value a callee takes only on success
+   (`pushState`, a list append) is freed by the caller when that call fails, and an `errdefer`
+   is the only free on an error path. A `server.Client` is passed by pointer, never copied,
+   because a re-mint swaps its token in place. A slice borrowed from a connection is duped
+   before anything that can free it runs, such as a plan's disconnect or a re-mint. A core
+   handle is destroyed by `defer` in the scope that made it, except `llm/opSchema.zig`'s
+   schema, which lives for the process. The code under test runs on `std.testing.allocator`,
+   and only fixtures live in an arena.
 
 ## Tests
 
@@ -263,6 +270,8 @@ the cli covers its typed mapping and messages, pinned over the whole corpus by
 effect's frames on a fake terminal and clock. Every network or disk seam takes an in-memory
 fake, so the suite runs offline; `--prompt` runs end to end against a loopback mock. The
 video path takes a spawn seam, so a refused host is proved never to reach ffmpeg; a child's
-deadline is proved on a real `sleep`. `test`
+deadline is proved on a real `sleep`. The clipboard is the one live seam: `tests/console/clipboard_live_test.zig`
+copies an image and a text through the real tools and back, compiled in only under the
+`clipboard-live` build option, which CI sets under X11 and a headless Wayland. `test`
 depends on `fmt`, so every Zig file is `zig fmt` clean. Benchmarks assert only ratios, never a
 wall-clock.

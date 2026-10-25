@@ -21,6 +21,7 @@ pub const MockIo = struct {
     files: std.StringHashMap([]const u8),
     lines: std.ArrayListUnmanaged([]const u8) = .empty,
     dirs: std.ArrayListUnmanaged([]const u8) = .empty,
+    fetched: std.atomic.Value(usize) = .init(0), // fetches made, from any pool thread
 
     pub fn init(a: std.mem.Allocator) MockIo {
         return .{
@@ -40,6 +41,7 @@ pub const MockIo = struct {
     }
     fn fetchFn(ptr: *anyopaque, a: std.mem.Allocator, _: std.Io, url: []const u8, _: bool) anyerror![]u8 {
         const self: *MockIo = @ptrCast(@alignCast(ptr));
+        _ = self.fetched.fetchAdd(1, .monotonic);
         const v = self.fetches.get(url) orelse return error.HttpFailed;
         return a.dupe(u8, v);
     }

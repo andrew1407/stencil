@@ -2,7 +2,7 @@
 // the "…" menu behind it, and the drop cue that covers the input rather than pushing it around.
 #include "ChatDock.hpp"
 #include "chatDockShared.hpp"
-#include "../../../support/guiHelpers.hpp"
+#include "menuIconColumn.hpp"
 #include "chatWidgets.hpp"
 
 #include "../../../support/menu/menuReveal.hpp"

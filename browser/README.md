@@ -25,12 +25,12 @@ ADDR=0.0.0.0 PORT=3000 npm run serve   # bind all interfaces (LAN access)
 Any other static file server works too.
 
 **WebAssembly core.** The app runs the shared C++ core via wasm, but that module
-(`js/wasm/stencilCore.js`) is a generated artifact that isn't committed — on a fresh checkout
+(`js/wasm/stencilCore.js` and the `stencilCore.wasm` beside it) is a generated artifact that isn't committed — on a fresh checkout
 the app transparently uses its behavior-identical JS fallback. To run the real wasm path,
 build it once (needs Emscripten on `PATH` — see [`../core/WASM.md`](../core/WASM.md)):
 
 ```bash
-npm run build-wasm   # builds core/ → js/wasm/stencilCore.js
+npm run build-wasm   # builds core/ → js/wasm/stencilCore.js + stencilCore.wasm
 ```
 
 ### Single-file build
@@ -68,6 +68,13 @@ with nginx. Build **from the repo root** (the wasm step needs `core/`):
 docker build -f browser/Dockerfile -t stencil-browser .
 docker run --rm -p 8080:80 stencil-browser   # -> http://localhost:8080
 ```
+
+The image gzips every text asset, and every file revalidates on each load (an unchanged one answers
+`304`), so a deploy is live at once. The image's `sw.js` is stamped with its build, so an installed
+app opens from its own cache and offers a newer build with a "click to reload" toast. The app is
+hundreds of small modules, so put the container behind a TLS terminator that speaks HTTP/2 (or
+mount a certificate and use the commented `listen 443 ssl; http2 on;` lines in `nginx.conf`): over
+plain HTTP/1.1 every module waits its turn on six connections.
 
 ## Using the editor
 

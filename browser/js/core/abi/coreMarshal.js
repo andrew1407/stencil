@@ -34,16 +34,20 @@ export const withJsFallback = (getFn, jsRef) => (...args) => {
 export const createMarshal = (core) => {
   const F64 = 8, I64 = 8, I32 = 4;
 
-  // A CropRect {x,y,width,height} from a 4-double out pointer.
-  const readRect = out => ({
-    x: core.getValue(out, 'double'),
-    y: core.getValue(out + F64, 'double'),
-    width: core.getValue(out + 2 * F64, 'double'),
-    height: core.getValue(out + 3 * F64, 'double')
-  });
+  // ONE out slot of OUT_DOUBLES for the small answers (a crop rect, a zoom), kept for the core's
+  // life: a _malloc/_free per pointer move churned the heap. `at(i)` reads a fresh HEAPF64 view.
+  const OUT_DOUBLES = 8;
+  let outSlot = 0;
+  const withF64Out = fill => {
+    outSlot ||= heapAlloc(core, OUT_DOUBLES * F64);
+    fill(outSlot);
+    const heap = core.HEAPF64, base = outSlot / F64;
+    return i => heap[base + i];
+  };
+  // A CropRect {x,y,width,height} from the slot's first four doubles.
   const withRectOut = fill => {
-    const out = heapAlloc(core, 4 * F64);
-    try { fill(out); return readRect(out); } finally { core._free(out); }
+    const at = withF64Out(fill);
+    return { x: at(0), y: at(1), width: at(2), height: at(3) };
   };
 
   // {x,y}[] → a malloc'd flat f64 buffer. Caller frees.
@@ -85,5 +89,11 @@ export const createMarshal = (core) => {
     return scratch.ptr;
   };
 
-  return { F64, I64, I32, withRectOut, allocPoints, withCString, pixelScratch };
+  // Freed with the picture: the allocator takes it back for other calls (a wasm heap never shrinks).
+  const releasePixelScratch = () => {
+    if (scratch.ptr) core._free(scratch.ptr);
+    scratch = { ptr: 0, bytes: 0 };
+  };
+
+  return { F64, I64, I32, withF64Out, withRectOut, allocPoints, withCString, pixelScratch, releasePixelScratch };
 };

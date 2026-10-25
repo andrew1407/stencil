@@ -2,7 +2,8 @@
 // It is ALSO the hover-zoom source (projectsModal magnifies it ~1.67x), so it is sized for
 // that, not for the 56px row — and one is kept per project, so it stays a JPEG and stays
 // modest. The pixel work is worker/imageRaster.js (halving + encode).
-import { downscaleInline, downscaleToDataUrl } from '../../worker/imageTasks.js';
+import { downscaleInline, imageWorkerUsable, resultThumbnail } from '../../worker/imageTasks.js';
+import { restingJob } from '../draw/restingPaint.js';
 import { PROJECT_ACTION } from '../../worker/messages.js';
 
 const THUMB_MAX_PX = 480;
@@ -26,11 +27,12 @@ export const makeThumbnail = (app) => {
   }
 };
 
-// The same render through the image worker (inline when it is unavailable).
+// The same pixels composed in the image worker from a resting snapshot (inline when it is unavailable).
 export const renderThumbnail = async (app) => {
   try {
-    const src = source(app);
-    return src ? await downscaleToDataUrl(src, src.width, src.height, OPTS) : null;
+    if (!app.image) return null;
+    if (!imageWorkerUsable()) return makeThumbnail(app);
+    return await resultThumbnail(restingJob(app), OPTS, () => makeThumbnail(app));
   } catch {
     return null;
   }

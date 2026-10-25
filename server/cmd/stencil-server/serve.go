@@ -42,7 +42,9 @@ func newHTTPServer(cfg config.Config, api *httpapi.API, h *hub.Hub, tlsConf *tls
 		_, _ = rw.Write([]byte("ok"))
 	})
 	// WS conns are hijacked on upgrade, so the read/write timeouts never cut a live feed.
+	// MaxHeaderBytes is 64 KiB: a bearer, an Origin and cookies fit many times over.
 	return &http.Server{
+		MaxHeaderBytes:    64 << 10,
 		Addr:              cfg.ListenAddr,
 		Handler:           httpapi.CORS(cfg.CORSOrigins)(mux),
 		ReadHeaderTimeout: cfg.HTTP.ReadHeaderTimeout,

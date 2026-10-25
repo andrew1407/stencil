@@ -1,6 +1,7 @@
 import { icon } from '../../icons.js';
 import { notify, shortName } from '../../../utils.js';
-import { leaveThenRemove, rowLeaveDust, ITEM_DUST_MS } from '../../motion.js';
+import { leaveThenRemove } from '../../motion/enterLeave.js';
+import { rowLeaveDust, ITEM_DUST_MS } from '../../motion/surface/tiles.js';
 import { createOpenGesture } from '../../../core/project/openGesture.js';
 import { beginRowRename } from './rename.js';
 import { clearedToast } from '../../../core/project/transferController.js';

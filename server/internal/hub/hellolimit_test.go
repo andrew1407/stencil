@@ -165,3 +165,23 @@ func TestHelloBudgetKeysOnTheForwardedClientOnlyWhenTrusted(t *testing.T) {
 		})
 	}
 }
+
+// failingResolver is a store that cannot answer: every lookup errors without saying "invalid".
+type failingResolver struct{ *testutil.MemStore }
+
+func (failingResolver) ResolveToken(context.Context, []byte) (auth.Session, error) {
+	return auth.Session{}, context.DeadlineExceeded
+}
+
+// A store failure is not a bad token: the hello is refused as internal, never as unauthorized, and the
+// failed lookup is refunded, so a database blip throttles nobody's later handshakes.
+func TestAStoreFailureRefusesTheHelloWithoutChargingIt(t *testing.T) {
+	h := New(context.Background(), eventbus.NewInProc(), failingResolver{testutil.NewMemStore()}, WithHelloLimit(2, nil))
+	t.Cleanup(h.Close)
+	addr := startTCP(t, h)
+	for i := 0; i < 5; i++ { // more than the burst of 2
+		if code := helloOnce(t, addr, goodToken); code != protocol.CodeInternal {
+			t.Fatalf("attempt %d: code %q, want %q", i+1, code, protocol.CodeInternal)
+		}
+	}
+}

@@ -8,6 +8,7 @@ import (
 
 	"stencil/server/internal/auth"
 	"stencil/server/internal/clock"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/testutil"
 )
@@ -82,4 +83,37 @@ func TestExpireAtZeroNeverFires(t *testing.T) {
 		t.Fatal("a never-expiring token hung up")
 	case <-time.After(50 * time.Millisecond):
 	}
+}
+
+// A revocation on the bus hangs up that session's live feeds with the reason, and only theirs; a
+// revocation of "" hangs up every authenticated one.
+func TestARevokedSessionsFeedsAreHungUp(t *testing.T) {
+	h := newTestHub(t)
+	st := h.resolver.(*testutil.MemStore)
+	addr := startTCP(t, h)
+	other, err := st.CreateSession(context.Background(), auth.HashToken("other"), "t", 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mine := joinFeed(t, h, addr)
+	c, err := testutil.DialTCP(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { c.Close(0, "") })
+	send(t, c, protocol.WSMessage{Type: protocol.WSHello, Token: "other"})
+	awaitFeed(t, h, c)
+
+	eventbus.PublishSessionRevoked(context.Background(), h.bus, other.ID)
+	if got := readUntil(t, c, protocol.WSError); got.Code != protocol.CodeUnauthorized || got.Message != tokenRevokedNotice.Message {
+		t.Fatalf("last frame %+v, want the revocation notice", got)
+	}
+	expectClosed(t, c, "revoked session")
+	awaitFeed(t, h, mine) // another session's feed keeps flowing
+
+	eventbus.PublishSessionRevoked(context.Background(), h.bus, "")
+	if got := readUntil(t, mine, protocol.WSError); got.Message != tokenRevokedNotice.Message {
+		t.Fatalf("revoke-all: last frame %+v", got)
+	}
+	waitFor(t, func() bool { return liveConnCount(h) == 0 })
 }

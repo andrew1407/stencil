@@ -1,0 +1,301 @@
+{
+  "name": "assistant-chat",
+  "root": "#sec-assistant",
+  "nodes": [
+    {
+      "path": ":root",
+      "tag": "div",
+      "classes": "fsection",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(255, 255, 255)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "13px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "flex-direction": "column"
+      }
+    },
+    {
+      "path": ":root/div[1]",
+      "tag": "div",
+      "classes": "section-head",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "13px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/svg[1]",
+      "tag": "svg",
+      "classes": "chev",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "13px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[1]",
+      "tag": "span",
+      "classes": "dlbl",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "11px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+      },
+      "text": "Assistant chat"
+    },
+    {
+      "path": ":root/div[2]",
+      "tag": "div",
+      "classes": "section-body",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "13px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "flex-direction": "column"
+      }
+    },
+    {
+      "path": ":root/div[2]/div[1]",
+      "tag": "div",
+      "classes": "chat-transcript",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "13px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "flex-direction": "column",
+        "overflow": "hidden auto"
+      }
+    },
+    {
+      "path": ":root/div[2]/div[1]/div[1]",
+      "tag": "div",
+      "classes": "chat-empty reveal-entering reveal-item",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "13px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+      }
+    },
+    {
+      "path": ":root/div[2]/div[1]/div[1]/button[1]",
+      "tag": "button",
+      "classes": "chat-suggest",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "14px",
+        "font-size": "11px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "text-align": "center"
+      },
+      "text": "Which of these has a cat?"
+    },
+    {
+      "path": ":root/div[2]/div[1]/div[1]/button[2]",
+      "tag": "button",
+      "classes": "chat-suggest",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "14px",
+        "font-size": "11px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "text-align": "center"
+      },
+      "text": "Find the largest image"
+    },
+    {
+      "path": ":root/div[2]/div[1]/div[1]/button[3]",
+      "tag": "button",
+      "classes": "chat-suggest",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "14px",
+        "font-size": "11px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "text-align": "center"
+      },
+      "text": "Open the first photo in the editor"
+    },
+    {
+      "path": ":root/div[2]/div[1]/div[1]/button[4]",
+      "tag": "button",
+      "classes": "chat-suggest",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "14px",
+        "font-size": "11px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "text-align": "center"
+      },
+      "text": "Describe the chart"
+    },
+    {
+      "path": ":root/div[2]/div[2]",
+      "tag": "div",
+      "classes": "chat-jumps",
+      "style": {
+        "display": "block",
+        "position": "relative",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "13px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "z-index": "2"
+      }
+    },
+    {
+      "path": ":root/div[2]/div[4]",
+      "tag": "div",
+      "classes": "chat-composer",
+      "style": {
+        "display": "flex",
+        "position": "relative",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "13px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "align-items": "flex-end"
+      }
+    },
+    {
+      "path": ":root/div[2]/div[4]/textarea[1]",
+      "tag": "textarea",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "8px",
+        "font-size": "12px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+      }
+    },
+    {
+      "path": ":root/div[2]/div[4]/button[1]",
+      "tag": "button",
+      "classes": "chat-send",
+      "style": {
+        "display": "flex",
+        "color": "rgb(255, 255, 255)",
+        "background-color": "rgb(124, 58, 237)",
+        "border-color": "rgb(255, 255, 255)",
+        "border-radius": "8px",
+        "font-size": "13.3px",
+        "font-family": "Arial",
+        "text-align": "center",
+        "justify-content": "center",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[2]/div[4]/button[1]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-send",
+      "style": {
+        "display": "block",
+        "color": "rgb(255, 255, 255)",
+        "border-color": "rgb(255, 255, 255)",
+        "font-size": "13.3px",
+        "font-family": "Arial",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[2]/div[4]/span[1]",
+      "tag": "span",
+      "classes": "chat-more-wrap",
+      "style": {
+        "display": "flex",
+        "position": "relative",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "13px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+      }
+    },
+    {
+      "path": ":root/div[2]/div[4]/span[1]/button[1]",
+      "tag": "button",
+      "classes": "chat-clear",
+      "style": {
+        "display": "flex",
+        "position": "relative",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "8px",
+        "font-size": "13.3px",
+        "font-family": "Arial",
+        "text-align": "center",
+        "justify-content": "center",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[2]/div[4]/span[1]/button[1]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-dots",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "13.3px",
+        "font-family": "Arial",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[2]/div[4]/span[1]/button[1]/span[1]",
+      "tag": "span",
+      "classes": "bad chat-status-dot",
+      "style": {
+        "display": "block",
+        "position": "absolute",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(214, 41, 62)",
+        "border-color": "rgba(255, 255, 255, 0.63)",
+        "border-width": "1px",
+        "border-radius": "50%",
+        "font-size": "13.3px",
+        "font-family": "Arial",
+        "text-align": "center"
+      }
+    }
+  ]
+}

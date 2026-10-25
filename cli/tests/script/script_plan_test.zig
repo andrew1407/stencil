@@ -5,7 +5,7 @@ const std = @import("std");
 const testing = std.testing;
 
 const opSchema = @import("../../src/llm/opSchema.zig");
-const opplan = @import("../../src/llm/opplan.zig");
+const opplan = @import("../../src/llm/plan.zig");
 const image = @import("../../src/media/image.zig");
 const plan = @import("../../src/script/plan.zig");
 const run = @import("../../src/script/run.zig");

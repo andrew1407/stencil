@@ -83,6 +83,8 @@ namespace stencil::llm {
     virtual void connectServerThen(const QString& server, OpDone done);
     virtual void extractFramesThen(const QVector<int>& indices, OpDone done);
     virtual void openUrlThen(const QString& url, bool incognito, OpDone done);
+    // A script a link delivered fetches its web sources strict (loopback refused too) until turned off.
+    virtual void setStrictSources(bool) {}
     virtual void openFileThen(const QString& path, OpDone done);
     virtual void openSourceFrameThen(const QString& spec, int frame, OpDone done);
     virtual void openProjectNamedThen(const QString& name, bool last, OpDone done);   // ok + err = a note

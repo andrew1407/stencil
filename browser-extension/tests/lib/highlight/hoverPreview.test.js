@@ -3,7 +3,7 @@
 // tiny-memo machinery, driven with stub elements.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { previewPosition, previewWorthwhile, createHoverPreview } from '../../../src/lib/highlight/hoverPreview.js';
+import { previewPosition, previewWorthwhile, createHoverPreview, PREVIEW_MEMO_LIMIT } from '../../../src/lib/highlight/hoverPreview.js';
 
 const tick = (ms = 5) => new Promise((r) => setTimeout(r, ms));
 
@@ -204,4 +204,19 @@ test('a load reporting thumbnail-sized dimensions hides the card and memos the s
   await row.fire('mouseenter');
   await tick();
   assert.equal(previewEl.hidden, true);
+});
+
+// A side panel outlives every page it lists, so the memo of fetched bytes holds the newest only.
+test('the byte memo keeps the newest PREVIEW_MEMO_LIMIT sources and drops the oldest', async () => {
+  const { hp } = build();
+  const row = stubEl();
+  for (let i = 0; i <= PREVIEW_MEMO_LIMIT; i++) {
+    hp.bind(row, { src: `http://x/${i}.png`, w: 0, h: 0 });
+    await row.fire('mouseenter');
+    await tick(1);
+    row.handlers = {};
+  }
+  assert.equal(hp.cache.size, PREVIEW_MEMO_LIMIT);
+  assert.equal(hp.cache.has('http://x/0.png'), false);
+  assert.equal(hp.cache.has(`http://x/${PREVIEW_MEMO_LIMIT}.png`), true);
 });

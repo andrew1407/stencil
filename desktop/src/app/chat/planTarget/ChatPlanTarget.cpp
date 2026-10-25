@@ -2,7 +2,7 @@
 
 #include "MainWindow.hpp"
 #include "ChatSessionController.hpp"
-#include "mainWindowHelpers.hpp"
+#include "naturalPage.hpp"
 #include "../../../canvas/CanvasWidget.hpp"
 #include "../../../model/imageTurn.hpp"
 #include "../../../support/theme/theme.hpp"
@@ -164,7 +164,7 @@ namespace stencil::gui {
     if (lines >= 0 && w.acts.showLines) w.acts.showLines->setChecked(lines == 1);
   }
   // §10 clear: no confirmation — a modal would stall the turn.
-  void ChatPlanTarget::clearImage() { w.parts.projects.resetToBlankEditor(); }
+  void ChatPlanTarget::clearImage() { w.projectHost.flows.resetToBlankEditor(); }
   // §10 compare: the shared setter the toolbar combo and the View submenu drive.
   bool ChatPlanTarget::setCompare(const QString& mode, double split, QString*) {
     w.parts.styleControls.setCompareModeUi(mode);
@@ -178,7 +178,7 @@ namespace stencil::gui {
   }
   // §10 blankColor: blanks only (note+skip otherwise), keeps every drawn line.
   bool ChatPlanTarget::setBlankColor(const QString& color, QString* note) {
-    if (w.docSource.blankColor.isEmpty() || !w.canvas->hasImage()) {
+    if (w.projectHost.docSource.blankColor.isEmpty() || !w.canvas->hasImage()) {
       *note = QStringLiteral("only a blank project's background can be recoloured");
       return true;
     }
@@ -190,7 +190,7 @@ namespace stencil::gui {
       *note = QStringLiteral("unknown colour \"%1\"").arg(color);
       return true;
     }
-    w.parts.projects.applyBlankColor(c);
+    w.projectHost.flows.applyBlankColor(c);
     return true;
   }
 }  // namespace stencil::gui

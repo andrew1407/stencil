@@ -1,7 +1,7 @@
 // The .stencil project file: save, open, pick and delete. File System Access pickers where
 // they exist (keeping the handle for live sync), else a download / transient <input>.
 import { notify, shortName } from '../../utils.js';
-import { arriveFrom } from '../../ui/motion.js';
+import { arriveFrom } from '../../ui/motion/enterLeave.js';
 import { serializeProjectFile, parseProjectFile, projectFileTooLarge, PROJECT_FILE_TOO_LARGE } from './file.js';
 import { projectFileState, applyProjectFile } from './fileIO.js';
 

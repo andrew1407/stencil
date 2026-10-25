@@ -1,9 +1,9 @@
 // DrawingApp's own editing behaviour that needs no DOM: the hit-test defaults, selection and
-// drag starts, the undo history, and the small session answers. Installed onto the app's
-// prototype as they are (delegates.js installMethods); `this` is the app.
+// drag starts, the undo history, and the small session answers. DrawingApp's base class, so
+// `this` is the app.
 
-/** The methods DrawingApp takes on; each one's shape is declared on DrawingApp (drawingApp.d.ts). */
-export declare class EditingMethods {
+/** The methods DrawingApp inherits; each one's shape is declared on DrawingApp (drawingApp.d.ts). */
+export declare class EditingBase {
   openInDesktopAvailable(): boolean;
   openInTelegramAvailable(): boolean;
   openInAvailable(): boolean;

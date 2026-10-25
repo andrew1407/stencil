@@ -14,7 +14,7 @@ int main(int argc, char** argv) {
   QCoreApplication app(argc, argv);
 
   // A floor, not a pin: adding tests never trips it — raise it as the suite grows.
-  const int minTargets = 64;
+  const int minTargets = 270;
   QFile ctestFile(QStringLiteral(STENCIL_CTEST_FILE));
   check(ctestFile.open(QIODevice::ReadOnly), "the generated CTestTestfile.cmake opens");
   const QStringList ctestLines =

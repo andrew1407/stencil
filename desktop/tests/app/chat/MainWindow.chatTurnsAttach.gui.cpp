@@ -122,34 +122,34 @@ class MainWindowGuiTest : public QObject {
     // An unnamed save takes its attachment's name, and a TAKEN name suffixes — so a
     // leftover "shore" in the shared state dir would rename everything asserted below.
     QStringList stale;
-    for (const auto& p : win.projectList) {
+    for (const auto& p : win.projectHost.projectList) {
       const QString name = QString::fromStdString(p.meta.name);
       if (name.startsWith(QStringLiteral("shore")) || name.startsWith(QStringLiteral("second")))
         stale << QString::fromStdString(p.meta.id);
     }
-    for (const QString& id : stale) win.parts.projects.eraseLocalProject(id);
-    const int before = int(win.projectList.size());
+    for (const QString& id : stale) win.projectHost.flows.eraseLocalProject(id);
+    const int before = int(win.projectHost.projectList.size());
     win.chatSession->onChatSend("make the first b&w and the second sepia, then save both");
     QTRY_VERIFY(!dock->isBusy());
     // One project per image, in plan order: the unnamed save took the name of
     // the attachment it was working on, the named one kept its own.
-    QTRY_COMPARE(int(win.projectList.size()), before + 2);
-    QCOMPARE(QString::fromStdString(win.projectList.at(before).meta.name),
+    QTRY_COMPARE(int(win.projectHost.projectList.size()), before + 2);
+    QCOMPARE(QString::fromStdString(win.projectHost.projectList.at(before).meta.name),
              QStringLiteral("shore"));
-    QCOMPARE(QString::fromStdString(win.projectList.at(before + 1).meta.name),
+    QCOMPARE(QString::fromStdString(win.projectHost.projectList.at(before + 1).meta.name),
              QStringLiteral("second"));
-    QVERIFY2(win.projectList.at(before).meta.id != win.projectList.at(before + 1).meta.id,
+    QVERIFY2(win.projectHost.projectList.at(before).meta.id != win.projectHost.projectList.at(before + 1).meta.id,
              "each save must promote to a FRESH project, never overwrite the last");
     // …and each one holds ITS image, not the last one processed.
     QImage firstSaved, secondSaved;
-    QVERIFY(firstSaved.load(win.projectList.at(before).imagePath));
-    QVERIFY(secondSaved.load(win.projectList.at(before + 1).imagePath));
+    QVERIFY(firstSaved.load(win.projectHost.projectList.at(before).imagePath));
+    QVERIFY(secondSaved.load(win.projectHost.projectList.at(before + 1).imagePath));
     QCOMPARE(firstSaved.size(), shore.size());
     QCOMPARE(secondSaved.size(), dunes.size());
     // The LAST processed image stays in the editor, with its own filter.
     QVERIFY(win.canvas->hasImage());
     QCOMPARE(win.settings.imageFilter, QStringLiteral("sepia"));
-    QCOMPARE(win.activeProjectName(), QStringLiteral("second"));
+    QCOMPARE(win.projectHost.activeProjectName(), QStringLiteral("second"));
 
     // A follow-up turn saving image 1 again cannot reuse the taken name: it
     // suffixes instead of losing the save.
@@ -158,8 +158,8 @@ class MainWindowGuiTest : public QObject {
         "{\"op\":\"image\",\"index\":1},{\"op\":\"save\"}]}"));
     win.chatSession->onChatSend("save the first one again");
     QTRY_VERIFY(!dock->isBusy());
-    QTRY_COMPARE(int(win.projectList.size()), before + 3);
-    QCOMPARE(QString::fromStdString(win.projectList.at(before + 2).meta.name),
+    QTRY_COMPARE(int(win.projectHost.projectList.size()), before + 3);
+    QCOMPARE(QString::fromStdString(win.projectHost.projectList.at(before + 2).meta.name),
              QStringLiteral("shore 2"));
     beat();
   }

@@ -54,10 +54,9 @@ namespace stencil::gui {
     // Repaint only the lines whose ring or tint moved (browser canvasMouseMove -> point hover ring).
     const int wasHover = hover.lineIdx, wasOver = hover.overLineIdx;
     if (updateHover(ip.x, ip.y)) {
-      QRect dirty;
-      for (int idx : {wasHover, wasOver, hover.lineIdx, hover.overLineIdx})
-        dirty = dirty.united(lineRect(idx));
-      update(dirty);
+      const QRect rings = hoverDirty(wasHover, wasOver);
+      bounds.ask(rings);
+      update(rings);
     }
 
     applyHoverCursor(ip, event->modifiers());

@@ -42,11 +42,11 @@ namespace stencil::gui {
   void ProjectCopy::readSource(const CopyRequest& req,
                                std::function<void(std::optional<CopySource>, QString)> done) {
     if (!req.serverUrl.isEmpty()) return readServerRow(req, std::move(done));
-    if (req.id.isEmpty() || req.id == w.activeProjectId) {
+    if (req.id.isEmpty() || req.id == host.activeProjectId) {
       if (!w.canvas->hasImage()) return done(std::nullopt, QStringLiteral("there is no image to copy"));
       return done(liveSource(), QString());
     }
-    const Project* pr = w.findProject(req.id.toStdString());
+    const Project* pr = host.findProject(req.id.toStdString());
     if (!pr) return done(std::nullopt, QStringLiteral("project not found"));
     CopySource src;
     src.meta = pr->meta;
@@ -69,9 +69,9 @@ namespace stencil::gui {
 
   void ProjectCopy::readServerRow(const CopyRequest& req,
                                   std::function<void(std::optional<CopySource>, QString)> done) {
-    stencil::net::ServerClient* c = w.remote.connections ? w.remote.connections->find(req.serverUrl) : nullptr;
+    stencil::net::ServerClient* c = w.remote.conns() ? w.remote.conns()->find(req.serverUrl) : nullptr;
     if (!c) return done(std::nullopt, QStringLiteral("not connected to %1").arg(req.serverUrl));
-    QPointer<MainWindow> self(&w);
+    QPointer<QWidget> self(w.window);
     const bool wantChat = req.what == support::COPY_PROJECT;
     c->getProjectAsync(req.id, [self, c, req, wantChat, done](bool ok, stencil::net::ServerProject p, QJsonObject layout) {
       if (!self) return;
@@ -99,15 +99,15 @@ namespace stencil::gui {
   // The live editor under its saved row's meta, with what is on screen now (browser liveProjectSnapshot).
   CopySource ProjectCopy::liveSource() {
     CopySource src;
-    const Project* pr = w.activeProjectId.isEmpty() ? nullptr : w.findProject(w.activeProjectId.toStdString());
+    const Project* pr = host.activeProjectId.isEmpty() ? nullptr : host.findProject(host.activeProjectId.toStdString());
     const auto& link = w.remote.session->getLink();
     if (pr) src.meta = pr->meta;
     else src.meta.color = link.color.toStdString();
     src.meta.name = liveName().toStdString();
-    if (!w.docSource.currentSource.isEmpty()) src.meta.source = w.docSource.currentSource.toStdString();
-    if (!w.docSource.currentResource.isEmpty()) src.meta.resource = w.docSource.currentResource.toStdString();
-    src.meta.blank = !w.docSource.blankColor.isEmpty();
-    src.meta.blankColor = w.docSource.blankColor.toStdString();
+    if (!host.docSource.currentSource.isEmpty()) src.meta.source = host.docSource.currentSource.toStdString();
+    if (!host.docSource.currentResource.isEmpty()) src.meta.resource = host.docSource.currentResource.toStdString();
+    src.meta.blank = !host.docSource.blankColor.isEmpty();
+    src.meta.blankColor = host.docSource.blankColor.toStdString();
     w.parts.view.stampCanvasMeta(src.meta);
     src.imagePath = w.canvas->getImagePath();
     src.image = w.canvas->getOriginalImage();
@@ -121,7 +121,7 @@ namespace stencil::gui {
   }
 
   QString ProjectCopy::liveName() {
-    const Project* pr = w.activeProjectId.isEmpty() ? nullptr : w.findProject(w.activeProjectId.toStdString());
+    const Project* pr = host.activeProjectId.isEmpty() ? nullptr : host.findProject(host.activeProjectId.toStdString());
     if (pr) return QString::fromStdString(pr->meta.name);
     const QString linked = w.remote.session->getLink().name;
     if (!linked.isEmpty()) return linked;
@@ -136,8 +136,8 @@ namespace stencil::gui {
       *server = from.serverUrl;
       return from.name.isEmpty() ? QStringLiteral("Untitled") : from.name;
     }
-    if (!from.id.isEmpty() && from.id != w.activeProjectId) {
-      const Project* pr = w.findProject(from.id.toStdString());
+    if (!from.id.isEmpty() && from.id != host.activeProjectId) {
+      const Project* pr = host.findProject(from.id.toStdString());
       return pr ? QString::fromStdString(pr->meta.name) : QStringLiteral("Untitled");
     }
     const auto& link = w.remote.session->getLink();

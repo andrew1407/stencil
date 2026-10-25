@@ -158,3 +158,12 @@ test('removeSiteEntries drops every pin for one site, returning the same ref whe
   // No pin for that site → identical reference (callers skip a needless write).
   assert.equal(removeSiteEntries(list, 'https://none.com'), list);
 });
+
+test('a full list makes the pinning site give up its own oldest, never another site\'s', () => {
+  let list = [];
+  for (let i = 0; i < 400; i++) list = addPinEntry(list, pin('https://user.example', `https://cdn/u${i}.png`, { t: i }));
+  for (let i = 0; i < 300; i++) list = addPinEntry(list, pin('https://spam.example', `https://spam/${i}.png`, { t: 1000 + i }));
+  assert.equal(list.length, 500);
+  assert.equal(list.filter((e) => e.site === 'https://user.example').length, 400, 'every user pin survives');
+  assert.equal(list[0].source, 'https://spam/299.png');
+});

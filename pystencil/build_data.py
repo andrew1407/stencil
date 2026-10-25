@@ -1,7 +1,7 @@
 """Copy the shared tables pystencil reads at import from common/config into pystencil/_data/.
 
 They are never checked in: importing the package and build.py refresh them, and
-tests/test_canonical_drift.py pins each copy against its common/config original.
+tests/test_canonical_drift.py pins that a sync writes each one and restores a drifted copy.
 """
 
 from __future__ import annotations

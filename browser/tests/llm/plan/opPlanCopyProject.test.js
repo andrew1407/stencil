@@ -1,4 +1,4 @@
-// §10 copyProject (js/llm/plan/projectExecutors.js): its shape, the defaults it runs with, the
+// §10 copyProject (js/llm/plan/opExecutors.js): its shape, the defaults it runs with, the
 // capability it reaches, and the real capability's notes (js/llm/adapters/project.js).
 import { test } from 'node:test';
 import assert from 'node:assert';

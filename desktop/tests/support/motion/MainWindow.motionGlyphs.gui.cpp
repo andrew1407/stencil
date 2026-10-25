@@ -92,8 +92,8 @@ class MainWindowGuiTest : public QObject {
           win.parts.sourceOpener.createBlankImageFromDialog(QColor("#3366cc"), 320, 240);
           break;
         case REOPENED_PROJECT:
-          QVERIFY2(!win.activeProjectId.isEmpty(), "the loaded image was adopted as a project");
-          QVERIFY2(win.loadProjectIntoCanvas(win.activeProjectId), name);
+          QVERIFY2(!win.projectHost.activeProjectId.isEmpty(), "the loaded image was adopted as a project");
+          QVERIFY2(win.projectHost.loadProjectIntoCanvas(win.projectHost.activeProjectId), name);
           break;
       }
       QTRY_VERIFY2_WITH_TIMEOUT(canvas->hasImage(), name, 5000);
@@ -127,7 +127,7 @@ class MainWindowGuiTest : public QObject {
         QTRY_VERIFY2_WITH_TIMEOUT(win.findChild<QWidget*>(DUST) == nullptr, name,
                                   stencil::gui::DisintegrateOverlay::DUST_MS + 2000);
         bool landed = false;
-        QVERIFY2(win.loadProjectIntoCanvas(win.activeProjectId, /*animate=*/false,
+        QVERIFY2(win.projectHost.loadProjectIntoCanvas(win.projectHost.activeProjectId, /*animate=*/false,
                                            [&landed](bool ok) { landed = ok; }), name);
         QTRY_VERIFY2_WITH_TIMEOUT(landed, name, 5000);   // the rebind decodes off the GUI thread
         settle([&] { return win.findChild<QWidget*>(DUST) != nullptr; }, 150);

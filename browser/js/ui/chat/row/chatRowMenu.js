@@ -1,5 +1,7 @@
 // Right-click menu on transcript rows: the menu itself.
-import { SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS, menuPopOrigin, surfaceIn, surfaceOut } from '../../motion.js';
+import { menuPopOrigin } from '../../motion/flip.js';
+import { SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../../motion/surface/motion.js';
+import { surfaceIn, surfaceOut } from '../../motion/surface/surfaces.js';
 import { chatRowMenuItems, copyChatText, selectionCoversRow } from './chatRowMenuModel.js';
 import { icon } from '../../icons.js';
 import { notify } from '../../../utils.js';

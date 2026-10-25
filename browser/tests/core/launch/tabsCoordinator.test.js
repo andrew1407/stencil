@@ -1,4 +1,4 @@
-import { test, beforeEach, afterEach } from 'node:test';
+import { test, beforeEach, afterEach, mock } from 'node:test';
 import assert from 'node:assert';
 import { MSG } from '../../../js/worker/messages.js';
 import { TabsCoordinator } from '../../../js/core/launch/tabsCoordinator.js';
@@ -127,6 +127,13 @@ test('outgoing broadcastAccent posts an ACCENT control message to the worker', (
   assert.deepEqual(port().sent, [{ type: MSG.ACCENT, key: 'amber' }]);
 });
 
+test('a worker PING is answered with a PONG carrying the tab\'s state', () => {
+  const tabs = new TabsCoordinator();
+  tabs.reportActive('p2');
+  port().deliver({ type: MSG.PING });
+  assert.deepEqual(port().sent.at(-1), { type: MSG.PONG, activeId: 'p2', incognito: null });
+});
+
 test('a cancelled unload keeps the tab counted: nothing is said on beforeunload', () => {
   new TabsCoordinator();
   assert.equal(globalThis.window.listeners.beforeunload, undefined);
@@ -146,12 +153,21 @@ test('pagehide says BYE; a bfcache restore says HELLO again with the tab\'s stat
   assert.deepEqual(port().sent.at(-1), { type: MSG.HELLO, activeId: 'p1', incognito: null });
 });
 
-test('the BroadcastChannel roll-call: BYE on pagehide, the roll-call again on a bfcache restore', () => {
+// The channel transport over a mock channel and mock timers (its ping round is an interval).
+class MockChannel { constructor() { this.sent = []; MockChannel.last = this; } postMessage(m) { this.sent.push(m); } }
+const onChannel = (fn) => {
   delete globalThis.SharedWorker;
   const savedChannel = globalThis.BroadcastChannel;
-  class MockChannel { constructor() { this.sent = []; MockChannel.last = this; } postMessage(m) { this.sent.push(m); } }
   globalThis.BroadcastChannel = MockChannel;
-  try {
+  mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  try { fn(); } finally {
+    mock.timers.reset();
+    if (savedChannel === undefined) delete globalThis.BroadcastChannel; else globalThis.BroadcastChannel = savedChannel;
+  }
+};
+
+test('the BroadcastChannel roll-call: BYE on pagehide, the roll-call again on a bfcache restore', () => onChannel(() => {
+  {
     new TabsCoordinator();
     const sent = MockChannel.last.sent;
     assert.equal(sent[0].type, MSG.HELLO);
@@ -160,7 +176,33 @@ test('the BroadcastChannel roll-call: BYE on pagehide, the roll-call again on a 
     assert.deepEqual(sent.at(-1), { type: MSG.BYE, peerId: sent[0].peerId });
     fire('pageshow', { persisted: true });
     assert.deepEqual(sent.at(-1), sent[0]);
-  } finally {
-    if (savedChannel === undefined) delete globalThis.BroadcastChannel; else globalThis.BroadcastChannel = savedChannel;
   }
-});
+}));
+
+test('on the channel a crashed peer is forgotten after its missed pings; a thawed one comes back', () => onChannel(() => {
+  const tabs = new TabsCoordinator();
+  let count = null;
+  tabs.onTabCount((c) => { count = c.count; });
+  const channel = MockChannel.last;
+  const hear = (data) => channel.onmessage({ data });
+  hear({ type: MSG.HELLO, peerId: 'crashed', activeId: 'p1', incognito: null });
+  hear({ type: MSG.HELLO, peerId: 'alive', activeId: null, incognito: null });
+  assert.equal(count, 3);
+  for (let i = 0; i < 4; i++) {
+    mock.timers.tick(10_000);
+    hear({ type: MSG.PONG, peerId: 'alive', activeId: null, incognito: null });
+  }
+  assert.equal(channel.sent.at(-1).type, MSG.PING, 'each round pings the peers');
+  assert.equal(count, 2, 'the silent peer left the count; the answering one stayed');
+  let peers = null;
+  tabs.onPeers((ids) => { peers = ids; });
+  hear({ type: MSG.PING, peerId: 'crashed', activeId: 'p1', incognito: null });
+  assert.equal(count, 3, 'its queued ping on thaw brings it back');
+  assert.deepEqual(peers, ['p1']);
+  assert.equal(channel.sent.at(-1).type, MSG.PONG, '…and is answered');
+  // A bfcache stay stops the round: no ping goes out while the page is hidden.
+  fire('pagehide');
+  const sent = channel.sent.length;
+  mock.timers.tick(60_000);
+  assert.equal(channel.sent.length, sent);
+}));

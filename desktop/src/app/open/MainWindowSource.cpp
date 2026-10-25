@@ -3,6 +3,8 @@
 #include "Notifications.hpp"
 #include "../../support/rowWork.hpp"
 #include "launchOptions.hpp"
+#include "mainWindowShared.hpp"
+#include "naturalPage.hpp"
 #include "webScheme.hpp"
 
 #include <QFileInfo>
@@ -64,7 +66,7 @@ namespace stencil::gui {
     }
     // A launch URI's connections come first, queued so each handshake runs on the event loop.
     for (const launchUri::Connect& c : opts.connect)
-      QTimer::singleShot(0, this, [this, c] { parts.projects.connectLaunch(c.url, c.token); });
+      QTimer::singleShot(0, this, [this, c] { projectHost.flows.connectLaunch(c.url, c.token); });
 
     // Taken before any load starts, so a linked script can tell when that picture has landed.
     const qint64 pictureBefore = canvas->getOriginalImage().cacheKey();
@@ -73,7 +75,7 @@ namespace stencil::gui {
 
     // Priority: --project > stencil:// server reference > --src > positional file.
     if (!opts.project.isEmpty()) {
-      if (!parts.projects.openProjectByName(opts.project))
+      if (!projectHost.flows.openProjectByName(opts.project))
         notify->error(QString("No project named \"%1\"").arg(opts.project));
     } else if (!opts.serverUrl.isEmpty() && !opts.serverProjectId.isEmpty()) {
       // Queued so the connect + download run after show().
@@ -81,28 +83,29 @@ namespace stencil::gui {
       const bool incog = opts.incognito;
       const qint64 version = opts.serverVersion;
       QTimer::singleShot(0, this, [this, url, id, incog, version] {
-        parts.projects.openServerLaunch(url, id, incog, version);
+        projectHost.flows.openServerLaunch(url, id, incog, version);
       });
     } else if (!opts.src.isEmpty()) {
-      docSource.pendingLaunchLayout = opts.layout;  // applied after the image loads
-      docSource.pendingLaunchLayoutJson = opts.layoutJson;
+      projectHost.docSource.pendingLaunchLayout = opts.layout;  // applied after the image loads
+      projectHost.docSource.pendingLaunchStrict = opts.layoutFromLink;
+      projectHost.docSource.pendingLaunchLayoutJson = opts.layoutJson;
       // Quick-crop override from the "Open in new window" handoff; consumed by applyQuickCrop().
       if (opts.hasCropOverride)
-        docSource.pendingCrop =
+        projectHost.docSource.pendingCrop =
             opts.cropToPage
                 ? QuickCropOpts{QuickCropOpts::Mode::PAGE, opts.cropAlbum, opts.cropPage,
                                 {opts.cropX, opts.cropY, opts.cropW, opts.cropH}}
                 : QuickCropOpts::none();
       // A picture named by URL keeps that URL as the project's source; a local path has none.
-      if (net::fetchGuard::isWebScheme(opts.src)) docSource.pendingProvSource = opts.src;
-      parts.sourceOpener.openImageSource(opts.src, opts.frame, opts.srcFallbacks);
+      if (net::fetchGuard::isWebScheme(opts.src)) projectHost.docSource.pendingProvSource = opts.src;
+      parts.sourceOpener.openImageSource(opts.src, opts.frame, opts.srcFallbacks, opts.srcFromLink);
     } else if (!opts.file.isEmpty()) {
-      docSource.pendingLaunchLayout = opts.layout;
+      projectHost.docSource.pendingLaunchLayout = opts.layout;
       openPathFromOS(opts.file, opts.frame);
     }
 
     // Queued so it runs after a primary load has been kicked off.
-    if (opts.projects) QTimer::singleShot(0, this, [this] { parts.projects.openProjects(); });
+    if (opts.projects) QTimer::singleShot(0, this, [this] { projectHost.flows.openProjects(); });
 
     if (opts.scriptDropped)
       notify->error(QString("The script in the link was longer than %1 characters, so it was left out")
@@ -119,6 +122,32 @@ namespace stencil::gui {
       return;
     }
     applyLaunchOptions(opts);
+  }
+
+  // Shared by openServerProject and the "Open in…" hand-off so both restore the exact session.
+  void MainWindow::loadImageWithLayout(const QImage& img, const QJsonObject& layout,
+                                       const QByteArray& bytes, const QString& ext) {
+    // Untouched source bytes for a lossless .stencil re-bundle (empty ⇒ re-encode).
+    projectHost.docSource.setBytes(bytes, ext);
+    projectHost.flows.adoptServerLayoutMeta(layout);
+    const core::PageSize page = naturalPageCm(pageSizeValue(),
+                                              settings.customPageWidth,
+                                              settings.customPageHeight);
+    canvas->setPageCm(page.width, page.height);
+    // Mirror and rotation apply before the crop (the crop lives in rotated-original space).
+    int lw = 0, lh = 0;
+    core::CropRect crop;
+    int rot = 0;
+    bool mirrored = false;
+    core::Lines lines = fileStore::parseLayoutJson(layout, lw, lh, &crop, &rot, &mirrored);
+    // An empty layout resets to "none" + the default tint, so a prior filter never bleeds in; it
+    // lands before the picture, so the stack the load starts carries it.
+    QString filter, tint;
+    parseLayoutFilter(layout, settings.filterColor, filter, tint);
+    applyTintColor(QColor(tint), /*asUndoStep=*/false);
+    applyImageFilter(filter, false);
+    canvas->loadFromImage(img, crop, rot, mirrored);
+    if (!lines.empty()) canvas->setLines(lines);
   }
 
 }  // namespace stencil::gui

@@ -5,7 +5,7 @@
 #include <QToolButton>
 #include "ChatSessionController.hpp"
 #include "ToastStack.hpp"
-#include "mainWindowHelpers.hpp"
+#include "toolbarMetrics.hpp"
 #include "CanvasWidget.hpp"
 #include "../../support/dockGrip.hpp"
 #include "DropZonesOverlay.hpp"
@@ -151,7 +151,7 @@ namespace stencil::gui {
     if (tools.pointColorBtn) updateColorSwatch(tools.pointColorBtn, parts.styleControls.effectiveDefaultPointColor());
     if (tools.filterColorBtn) updateColorSwatch(tools.filterColorBtn, tools.filterColorValue);
     if (nameBar.blankColorBtn && nameBar.blankColorBtn->isVisible()) {
-      const QColor blank(docSource.blankColor);
+      const QColor blank(projectHost.docSource.blankColor);
       updateColorSwatch(nameBar.blankColorBtn, blank.isValid() ? blank : QColor("#ffffff"));
     }
     if (chatDock) chatDock->restyleIcons(themePalette(dark, settings.accentColor));

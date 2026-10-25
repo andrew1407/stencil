@@ -4,7 +4,7 @@
 use rmcp::transport::stdio;
 use rmcp::ServiceExt;
 use stencil_mcp::config::Config;
-use stencil_mcp::opplan;
+use stencil_mcp::plan;
 use stencil_mcp::pipeline::ProcessRunner;
 use stencil_mcp::server::StencilServer;
 
@@ -26,7 +26,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 async fn serve(config: Config) -> Result<(), Box<dyn std::error::Error>> {
     // Plans are judged by the CLI's own registry copy; a skewed one is refused per call.
     tokio::spawn(async {
-        if let Some(warning) = opplan::registry_skew(&ProcessRunner).await {
+        if let Some(warning) = plan::registry_skew(&ProcessRunner).await {
             eprintln!("stencil-mcp: warning: {warning}");
         }
     });

@@ -50,6 +50,7 @@ export const stubEl = (tag = 'div', opts = {}) => {
     removeAttribute: (k) => { delete attrs[k]; },
     addEventListener: (t, fn) => { (handlers[t] ||= []).push(fn); },
     removeEventListener: (t, fn) => { handlers[t] = (handlers[t] || []).filter((f) => f !== fn); },
+    dispatchEvent: (ev) => { for (const fn of [...(handlers[ev.type] || [])]) fn(ev); return true; },
     getBoundingClientRect: () => el.rect,
     querySelector: () => null,
     querySelectorAll: () => [],

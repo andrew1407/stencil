@@ -68,6 +68,12 @@ screencast paints no cursor; the Qt capture paints its own into each frame. Iden
 merge, and every GIF opens on `gif.firstMs` of its first picture and rests `gif.lastMs` on its
 last (`config/shared.json`), so a reader always has time to see the result.
 
+The extension's side-panel clips film the panel and the demo site at once and set them side by
+side. A tab behind another streams its whole window with the emulated viewport in its top-left
+corner, so each half is cut to its own viewport before they meet. Chrome draws a drag's image
+outside the page, as it does the cursor, so the drawn pointer carries the image the dragged row
+hands to `setDragImage`, photographed on a clear page before the clip starts.
+
 ## The collaboration server
 
 The server shots connect to the URL `server.url` names (`config/<app>.json` may give an app its
@@ -129,5 +135,11 @@ it) or `--server <url>` with `STENCIL_DOCS_BOT_SERVER_TOKEN` in the env.
   reaches an image.
 - Easter eggs stay secret: no shot or walkthrough shows a logo show, a skin, a secret word or
   CLI mode.
+- Chrome draws its right-click menu natively, where no screenshot reaches, so the extension's
+  context-menu shots draw it over the demo site in macOS menu metrics: Chrome's own items and
+  their order from `config/browserExtension.json` `chromeMenu` (Chrome's labels, which the
+  extension cannot read), the Stencil entry from the worker's own menu table
+  (`browser-extension/src/lib/menu/contextMenu.js`, `visibleMenu`), so a renamed or moved item
+  changes the shot on the next run.
 - Keep a capture in step with its app: a moved control or a renamed id is fixed here, never
   by editing an image.

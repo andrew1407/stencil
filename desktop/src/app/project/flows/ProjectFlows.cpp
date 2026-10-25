@@ -4,7 +4,8 @@
 #include "SharedState.hpp"
 #include "SiblingWindows.hpp"
 #include "MainWindow.hpp"
-#include "mainWindowHelpers.hpp"
+#include "naturalPage.hpp"
+#include "stamps.hpp"
 #include "ProjectTitleController.hpp"
 #include "displayName.hpp"
 #include "CanvasWidget.hpp"
@@ -18,21 +19,21 @@ namespace stencil::gui {
 
   void ProjectFlows::openProjects() {
     // Expiry sweep (one week).
-    w.projectsStore.clearAll();
+    host.projectsStore.clearAll();
     std::vector<core::ProjectMeta> metas;
-    for (const auto& pr : w.projectList) metas.push_back(pr.meta);
-    w.projectsStore.load(metas);
-    const auto expired = w.projectsStore.sweepExpired(nowMs());
+    for (const auto& pr : host.projectList) metas.push_back(pr.meta);
+    host.projectsStore.load(metas);
+    const auto expired = host.projectsStore.sweepExpired(nowMs());
     if (!expired.empty()) {
-      w.projectList.erase(
-          std::remove_if(w.projectList.begin(), w.projectList.end(),
+      host.projectList.erase(
+          std::remove_if(host.projectList.begin(), host.projectList.end(),
                          [&](const Project& p) {
                            return std::find(expired.begin(), expired.end(),
                                             p.meta.id) != expired.end();
                          }),
-          w.projectList.end());
+          host.projectList.end());
       // Not gated by incognito: other saved projects, not the incognito editor's content.
-      SharedState::instance().saveProjects(&w);
+      SharedState::instance().saveProjects(w.window);
     }
 
     // Cached thumbnails show at once; the rest arrive row by row, the open project's among them.
@@ -45,9 +46,9 @@ namespace stencil::gui {
     look.pageHeightCm = page.height;
     QHash<QString, QPixmap> thumbs;
     std::vector<projectThumbs::Source> missing;
-    for (const auto& pr : w.projectList) {
+    for (const auto& pr : host.projectList) {
       const QString id = QString::fromStdString(pr.meta.id);
-      if (id == w.activeProjectId && w.canvas->hasImage()) {
+      if (id == host.activeProjectId && w.canvas->hasImage()) {
         missing.push_back({id, w.canvas->getImagePath(), w.canvas->getOriginalImage(), w.canvas->allLines(),
                            w.canvas->getCropRect(), w.canvas->getRotationQuarters(), QString(),
                            w.canvas->getMirrored()});
@@ -59,16 +60,16 @@ namespace stencil::gui {
       if (!hit.isNull()) thumbs.insert(id, hit);
       else missing.push_back({id, pr.imagePath, QImage(), pr.lines, pr.cropRect, pr.rotationQuarters, key, pr.mirrored});
     }
-    ProjectsDialog dlg(w.projectList, nowMs(), w.remote.connections, thumbs,
-                       &w, w.activeProjectId, accentPrimary(w.settings.accentColor));
+    ProjectsDialog dlg(host.projectList, nowMs(), w.remote.conns(), thumbs,
+                       w.window, host.activeProjectId, accentPrimary(w.settings.accentColor));
     projectThumbs::build(&dlg, std::move(missing), look,
                          [&dlg](const QString& id, const QPixmap& thumb) { dlg.setLocalThumb(id, thumb); });
     // No project open: the list pins this window as "Temporary (unsaved)". Re-asked per removal — deleting the OPEN project
     // resets this window to a blank editor — and it travels WITH the list so the batch bar and row repaint together.
     const auto unsavedSession = [this] {
-      return w.activeProjectId.isEmpty() && w.remote.session->getLink().id.isEmpty();
+      return host.activeProjectId.isEmpty() && w.remote.session->getLink().id.isEmpty();
     };
-    dlg.setTemporary(unsavedSession(), w.incognito);
+    dlg.setTemporary(unsavedSession(), host.incognito);
     wireProjectsDrag(dlg, unsavedSession);   // the zones, and Close for the open project
     wireProjectsRequests(dlg, unsavedSession);
     if (w.execMaybePopover(dlg) != QDialog::Accepted) return;
@@ -76,13 +77,13 @@ namespace stencil::gui {
     typedef ProjectsDialog::Action Action;
     // Open is already confirmed IN-DIALOG (ProjectsDialog::finishOpen).
     if (dlg.getAction() == Action::OPEN) {
-      w.loadProjectIntoCanvas(dlg.getSelectedId());
+      host.loadProjectIntoCanvas(dlg.getSelectedId());
     } else if (dlg.getAction() == Action::OPEN_REMOTE) {
       openServerProject(dlg.getSelectedServerUrl(), dlg.getSelectedId());
     } else if (dlg.getAction() == Action::OPEN_IN_NEW_WINDOW) {
       openProjectInNewWindow(dlg.getSelectedId());
     } else if (dlg.getAction() == Action::MOVE_TO_SERVER) {
-      if (w.projectOpenInOtherWindow(dlg.getSelectedId())) {
+      if (host.projectOpenInOtherWindow(dlg.getSelectedId())) {
         w.notify->error("That project is open in another window — close it there first");
         return;
       }
@@ -106,18 +107,18 @@ namespace stencil::gui {
       const int total = static_cast<int>(items.size());
       if (total == 0) {
         w.refreshActions();
-        SiblingWindows::refreshDockMenu(w.projectList);
+        SiblingWindows::refreshDockMenu(host.projectList);
         w.notify->success(QStringLiteral("Made 0 local copy(ies)"));
       } else {
         auto remaining = std::make_shared<int>(total);
-        QPointer<MainWindow> self(&w);
+        QPointer<QWidget> self(w.window);
         for (const auto& pr : items) {
           w.projectTransfer->importServerProjectToLocal(
               pr.second, pr.first, /*removeFromServer=*/false, QString(),
               [this, self, remaining, total](bool, QString) {
                 if (--*remaining == 0 && self) {
                   w.refreshActions();
-                  SiblingWindows::refreshDockMenu(w.projectList);
+                  SiblingWindows::refreshDockMenu(host.projectList);
                   w.notify->success(QString("Made %1 local copy(ies)").arg(total));
                 }
               });
@@ -128,10 +129,10 @@ namespace stencil::gui {
       const QString cid = dlg.getSelectedId();
       const QString csrv = dlg.getSelectedServerUrl();
       const QString ccol = dlg.getSelectedColor();
-      QPointer<MainWindow> self(&w);
+      QPointer<QWidget> self(w.window);
       setProjectColorById(cid, csrv, ccol, [this, self, cid, csrv, ccol](bool ok) {
         if (!self || !ok) return;
-        if (csrv.isEmpty() && w.activeProjectId == cid) {
+        if (csrv.isEmpty() && host.activeProjectId == cid) {
           w.projectTitle->updateProjectTitle();
         } else if (!csrv.isEmpty() && w.remote.session->getLink().id == cid
                    && w.remote.session->getLink().address == csrv) {
@@ -142,8 +143,8 @@ namespace stencil::gui {
     } else if (dlg.getAction() == Action::RENAME) {
       renameProjectById(dlg.getSelectedId(), dlg.getNewName());
     } else if (dlg.getAction() == Action::NEW) {
-      if (w.incognito) {  // an explicit promotion out of incognito, not an app-side write
-        const QString promoted = w.promoteIncognitoToLocal(dlg.getNewName());
+      if (host.incognito) {  // an explicit promotion out of incognito, not an app-side write
+        const QString promoted = host.promoteIncognitoToLocal(dlg.getNewName());
         w.notify->success(promoted.isEmpty()
                              ? QStringLiteral("Nothing to save yet")
                              : QStringLiteral("Left incognito — saved \"%1\"")

@@ -5,7 +5,7 @@
 import { setTimeout as sleep } from 'node:timers/promises';
 import { test, expect } from '@playwright/test';
 import { APP_URL, SITE_URL } from '../../helpers/config.js';
-import { launchExtension } from '../../helpers/extension.js';
+import { inClosedShadow, launchExtension } from '../../helpers/extension.js';
 
 const FIXTURE_URL = SITE_URL + '__e2e__/page-with-image.html';
 const SIDEPANEL = 'src/sidepanel/sidepanel.html';
@@ -79,19 +79,26 @@ test.describe('extension popup + side panel UI', () => {
     // Exactly four flat actions — no Download / Pin / Open in… / submenus here.
     expect(await ui.locator('#action-menu > .submenu').count()).toBe(0);
     expect(await ui.locator('#action-menu > button:not(.drag-item)').count()).toBe(0);
+    // The overlay's shadow root is closed, so its frames are read over CDP (none while it is absent).
+    const modalFrames = async () => (await inClosedShadow(host, 'stencil-ext-modal', function () {
+      return [...this.querySelectorAll('iframe')].map((f) => f.getAttribute('src') || '');
+    })) ?? [];
     // Nothing has happened yet: the menu opened on hover, not on a drop.
-    expect(await host.locator('iframe').count()).toBe(0);
+    expect(await modalFrames()).toEqual([]);
 
     // ── Releasing over "Open in editor" performs the row hand-off on the dragged
-    //    media: the in-page editor modal, carrying the `#stencil=` launch payload. ──
+    //    media: the in-page editor modal, posted the `#stencil=` launch payload once ready
+    //    (its src carries none: the host page reads a frame src back). ──
+    await host.addInitScript(() => addEventListener('message', (e) => {
+      if (e.data?.source === 'stencil-extension' && e.data.type === 'handoff') window.__handoff = e.data.hash;
+    }));
     await fireDrag('drop', '#action-menu .drag-item[data-action="editor"]');
-    const frame = host.locator('iframe').first();
-    await expect(frame).toBeAttached({ timeout: 15_000 });
-    await expect.poll(async () => (await frame.getAttribute('src')) || '', { timeout: 10_000 })
-      .toContain('#stencil=');
-    const src = await frame.getAttribute('src');
-    const launch = JSON.parse(decodeURIComponent(src.slice(src.indexOf('#stencil=') + '#stencil='.length)));
-    expect(src.startsWith(APP_URL)).toBeTruthy();
+    const frameSrc = async () => (await modalFrames())[0] || '';
+    await expect.poll(frameSrc, { timeout: 15_000 }).toBe(APP_URL + '#stencil-await');
+    const editor = host.frames().find((f) => f.parentFrame() && f.url().startsWith(APP_URL));
+    await editor.waitForFunction(() => !!window.__handoff, null, { timeout: 15_000 });
+    const hash = await editor.evaluate(() => window.__handoff);
+    const launch = JSON.parse(decodeURIComponent(hash.slice('#stencil='.length)));
     expect(launch.dataUrl).toMatch(/^data:image\//);
     expect(launch.name).toBe('pixel.png');
     expect(launch.source).toBe(dropped);          // provenance = the dragged media URL
@@ -106,15 +113,12 @@ test.describe('extension popup + side panel UI', () => {
     await fireDrag('dragover', 'header .logo', slow);
     await expect(items).toHaveCount(4, { timeout: 5_000 });
     await fireDrag('drop', '#action-menu .drag-item[data-action="crop"]', slow);
-    const cropFrame = host.locator('iframe').first();
-    await expect(cropFrame).toBeAttached({ timeout: 15_000 });
-    await expect.poll(async () => (await cropFrame.getAttribute('src')) || '', { timeout: 10_000 })
-      .toContain('/src/crop/crop.html');
+    await expect.poll(frameSrc, { timeout: 15_000 }).toContain('/src/crop/crop.html');
     expect(cropTabs()).toBe(0);
     await ui.waitForTimeout(4_000);               // past the watchdog that used to fire
     expect(cropTabs()).toBe(0);                   // still no duplicate crop
-    expect(await host.locator('iframe').count()).toBe(1);
-    await expect(cropFrame).toBeAttached();       // …and the modal is still standing
+    expect((await modalFrames()).length).toBe(1);   // …and the modal is still standing
+    expect(await frameSrc()).toContain('/src/crop/crop.html');
 
     // ── Releasing OUTSIDE the menu closes it and does nothing. ──
     await host.evaluate(() => document.getElementById('stencil-ext-modal')?.remove());
@@ -125,7 +129,7 @@ test.describe('extension popup + side panel UI', () => {
     await expect(ui.locator('#action-menu')).toBeHidden();
     await expect(ui.locator('header .logo')).not.toHaveClass(/drop-over/);
     await ui.waitForTimeout(500);
-    expect(await host.locator('iframe').count()).toBe(0);   // nothing new was launched
+    expect(await modalFrames()).toEqual([]);   // nothing new was launched
     expect(cropTabs()).toBe(0);
 
     await Promise.all([host.close(), ui.close()]);
@@ -140,31 +144,40 @@ test.describe('extension popup + side panel UI', () => {
     await ui.evaluate(() => document.getElementById('rescan').click());
     await ui.waitForFunction(() => document.querySelectorAll('.row').length > 0, null, { timeout: 15_000 });
 
-    // Read the shell from inside its shadow root (it is isolated from the host page).
-    const shell = () => host.evaluate(() => {
-      const h = document.getElementById('stencil-ext-modal');
-      if (!h) return null;
-      const q = (s) => h.shadowRoot.querySelector(s);
-      return {
-        theme: h.getAttribute('data-stencil-theme'),
-        bar: getComputedStyle(q('.bar')).backgroundColor,
-        barText: getComputedStyle(q('.bar')).color,
-        panel: getComputedStyle(q('.panel')).backgroundColor,
-        btn: getComputedStyle(q('.bar button')).backgroundColor,
-        btnText: getComputedStyle(q('.bar button')).color,
-      };
-    });
+    // Read the shell from inside its closed shadow root (isolated from the host page).
+    const shell = async () => {
+      const theme = await host.evaluate(() => document.getElementById('stencil-ext-modal')?.getAttribute('data-stencil-theme') ?? null);
+      if (theme == null) return null;
+      const inside = await inClosedShadow(host, 'stencil-ext-modal', function () {
+        const q = (s) => this.querySelector(s);
+        return {
+          bar: getComputedStyle(q('.bar')).backgroundColor,
+          barText: getComputedStyle(q('.bar')).color,
+          panel: getComputedStyle(q('.panel')).backgroundColor,
+          btn: getComputedStyle(q('.bar button')).backgroundColor,
+          btnText: getComputedStyle(q('.bar button')).color,
+        };
+      });
+      return inside && { theme, ...inside };
+    };
 
-    const buttonCaughtUp = () => host.evaluate(() => {
-      const h = document.getElementById('stencil-ext-modal');
-      if (!h) return false;
-      const shellVar = (name) => {
-        const n = parseInt(getComputedStyle(h).getPropertyValue(name).trim().slice(1), 16);
-        return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
-      };
-      const cs = getComputedStyle(h.shadowRoot.querySelector('.bar button'));
-      return cs.backgroundColor === shellVar('--st-panel2') && cs.color === shellVar('--st-text');
-    });
+    const buttonCaughtUp = async () => {
+      const vars = await host.evaluate(() => {
+        const h = document.getElementById('stencil-ext-modal');
+        if (!h) return null;
+        const shellVar = (name) => {
+          const n = parseInt(getComputedStyle(h).getPropertyValue(name).trim().slice(1), 16);
+          return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
+        };
+        return { panel2: shellVar('--st-panel2'), text: shellVar('--st-text') };
+      });
+      if (!vars) return false;
+      const cs = await inClosedShadow(host, 'stencil-ext-modal', function () {
+        const b = getComputedStyle(this.querySelector('.bar button'));
+        return { bg: b.backgroundColor, color: b.color };
+      });
+      return !!cs && cs.bg === vars.panel2 && cs.color === vars.text;
+    };
 
     const seen = {};
     for (const mode of ['dark', 'light']) {

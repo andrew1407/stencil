@@ -88,7 +88,7 @@ func TestBackingServiceSizingKeys(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.DBMaxConns != 0 || cfg.DBMinConns != 0 || cfg.DBStatementTimeout != 0 ||
+	if cfg.DBMaxConns != 0 || cfg.DBMinConns != 0 || cfg.DBStatementTimeout != cfg.OpTimeout ||
 		cfg.Redis != (RedisOptions{SubscribeTimeout: 5 * time.Second}) {
 		t.Fatalf("sizing defaults: %+v", cfg)
 	}

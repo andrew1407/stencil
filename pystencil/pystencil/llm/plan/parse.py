@@ -1,5 +1,5 @@
 """Op-plan parsing (contract §1/§2/§3): core/opplan's result typed into :class:`OpPlan`, in
-core's §1 words. Twin of the cli's ``src/llm/opplan/validate.zig``.
+core's §1 words. Twin of the cli's ``src/llm/plan/validate.zig``.
 """
 
 from __future__ import annotations

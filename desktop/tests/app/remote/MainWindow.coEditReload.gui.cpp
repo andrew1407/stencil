@@ -34,7 +34,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(stencil::test::connectNow(*win->ensureConnections(), mock.url(), QString(), err),
              qPrintable(err));
     win->remoteSync->setResultTiming(50, 600000);
-    win->parts.projects.openServerProject(mock.url(), QStringLiteral("p1"));
+    win->projectHost.flows.openServerProject(mock.url(), QStringLiteral("p1"));
     QTRY_VERIFY(win->canvas->hasImage());
     win->canvas->commitLines({lineAt(20)});
     QTRY_COMPARE(mock.puts, 1);
@@ -86,9 +86,9 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(stencil::test::connectNow(*win->ensureConnections(), mock.url(), QString(), err),
              qPrintable(err));
     mock.holdOriginals = true;
-    win->parts.projects.openServerProject(mock.url(), QStringLiteral("p1"));
+    win->projectHost.flows.openServerProject(mock.url(), QStringLiteral("p1"));
     QTRY_COMPARE(int(mock.heldOriginals.size()), 1);
-    win->parts.projects.openServerProject(mock.url(), QStringLiteral("p2"));
+    win->projectHost.flows.openServerProject(mock.url(), QStringLiteral("p2"));
     QTRY_COMPARE(int(mock.heldOriginals.size()), 2);
     const auto answer = [&mock](int i) {
       const auto held = mock.heldOriginals.at(i);

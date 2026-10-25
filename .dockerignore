@@ -16,6 +16,14 @@ cli/zig-cache
 cli/.zig-cache
 cli/zig-pkg
 browser/js/wasm
+browser/node_modules
+browser/tests
+browser/tools
+# …except the deploy stamp the image runs on sw.js, and the module walker it reads.
+!browser/tools/swStamp.js
+!browser/tools/graphManifest.js
+browser/stencil.html
+**/*.d.ts
 
 # Parts not used by the browser or CLI images
 desktop

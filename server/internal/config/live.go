@@ -12,6 +12,7 @@ import (
 // LiveOptions sizes the live connections and the sockets under them.
 type LiveOptions struct {
 	MaxConnsPerIP int           // MAX_CONNECTIONS_PER_IP: live WS/TCP connections one client IP may hold; 0 = unlimited
+	MaxConns      int           // MAX_CONNECTIONS: live WS/TCP connections the whole server may hold; 0 = unlimited
 	HelloTimeout  time.Duration // HELLO_TIMEOUT_SECONDS: how long a fresh connection may take to say hello
 	NoticeTimeout time.Duration // HUB_NOTICE_TIMEOUT_SECONDS: one goodbye write (shutdown, token expiry)
 	BusSubBuffer  int           // BUS_SUB_BUFFER: deliveries queued per bus subscriber before one drops
@@ -24,6 +25,7 @@ type LiveOptions struct {
 
 const (
 	defaultMaxConnsPerIP = 64 // every shipped client holds one feed, so this is many clients behind one NAT
+	defaultMaxConns      = 10000
 	defaultHelloTimeout  = 10 * time.Second
 	defaultNoticeTimeout = time.Second
 	defaultBusSubBuffer  = eventbus.DefaultSubBuffer
@@ -38,6 +40,9 @@ func loadLive(get getter, cfg *Config) error {
 	live := &cfg.Live
 	var err error
 	if live.MaxConnsPerIP, err = positiveInt(get, "MAX_CONNECTIONS_PER_IP", defaultMaxConnsPerIP, 0); err != nil {
+		return err
+	}
+	if live.MaxConns, err = positiveInt(get, "MAX_CONNECTIONS", defaultMaxConns, 0); err != nil {
 		return err
 	}
 	if live.BusSubBuffer, err = positiveInt(get, "BUS_SUB_BUFFER", defaultBusSubBuffer, 1); err != nil {

@@ -1,12 +1,13 @@
 // eventFilter chain, the popover gestures. Order and verdicts: MainWindowEvents.cpp.
 #include "MainWindow.hpp"
 #include "WindowEvents.hpp"
-#include "mainWindowHelpers.hpp"   // hasTypedContentInside
+#include "popupGuards.hpp"
 #include "comboAltPeek.hpp"   // a selector list the popover opened is still the popover
 #include "ChatDock.hpp"
 #include <QComboBox>
 #include <QDialog>
 #include <QPushButton>
+#include <QToolButton>
 
 namespace stencil::gui {
 

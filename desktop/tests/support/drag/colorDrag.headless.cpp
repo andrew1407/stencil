@@ -139,5 +139,17 @@ int main(int argc, char** argv) {
   dragOnto(table->viewport(), plainCell, chipB, mid);
   check(!log.join(',').contains("b:"), "a press on a cell holding no swatch drags nothing");
 
+  // The source's row rebuilt mid-drag: its chip and the targets' glows go with it.
+  const qsizetype widgetsBefore = window.findChildren<QWidget*>().size();
+  mouse(cellChip, QEvent::MouseButtonPress, chipMid, Qt::LeftButton);
+  mouse(cellChip, QEvent::MouseMove, chipMid + QPoint(0, uiTimings().pressSlopPx + 3), Qt::LeftButton);
+  check(glows(window) > 0, "a cell chip's drag is live");
+  table->removeCellWidget(2, 1);   // as a rebuilt row drops its cell widgets
+  QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+  QApplication::processEvents();
+  check(glows(window) == 0 && window.findChildren<QWidget*>().size() == widgetsBefore - 2,
+        "a source deleted mid-drag leaves no colour chip or glow behind");
+  check(!anyIconDragActive(), "…and no drag stays live app-wide");
+
   return failures ? 1 : 0;
 }

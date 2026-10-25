@@ -59,6 +59,7 @@ struct MockServer {
   int sessionStatus = 0;     // non-zero: GET /auth/session answers this (404 = an older server)
   QByteArray redirectTo;     // non-empty: every non-mint request answers 302 to this URL
   qint64 claimLength = 0;    // non-zero: a non-mint answer claims this Content-Length
+  QByteArray notModified;    // non-empty: a request carrying `If-None-Match: <this>` answers 304
   int tokenRequests = 0;
   int requests = 0;
   QList<QByteArray> lines;   // each request line, in arrival order
@@ -82,6 +83,12 @@ struct MockServer {
                                  ? (head.contains("Bearer " + goodBearer) ? 200 : 401)
                                  : projectsStatus;
           const QByteArray body = mint ? "{\"token\":\"" + mintToken + "\"}" : QByteArray("[]");
+          if (!notModified.isEmpty() && head.contains("If-None-Match: " + notModified)) {
+            s->write("HTTP/1.1 304 Not Modified\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+            s->flush();
+            s->disconnectFromHost();
+            return;
+          }
           const bool moved = !mint && !redirectTo.isEmpty();
           const qint64 length = !mint && claimLength ? claimLength : body.size();
           s->write("HTTP/1.1 " + QByteArray::number(moved ? 302 : status) + " X\r\n" +
@@ -105,5 +112,7 @@ struct MockServer {
   void checkRemintAndExpiry(MockServer& mock);
   void checkInvites(MockServer& mock);
   void checkAdminRow(MockServer& mock, MockServer& mock2);
+  void checkSessionOnly(MockServer& mock);
+  void checkRevalidation(MockServer& mock);
 
 }  // namespace serverauth

@@ -74,17 +74,17 @@ jobs:
           # surface embeds, copies, serves or tests against it.
           cfg='^common/'
           # Tests pin parity against sibling trees (browser ↔ desktop/src and both extensions'
-          # icons; browser-extension ↔ browser/js + css; vscode-extension ↔ browser/js/core/script*),
-          # so those count as inputs too.
-          flag browser     "^browser/|^browser-extension/(src|icons)/|^desktop/src/|^vscode-extension/icons/|$cfg"
+          # icons; browser-extension ↔ browser/js + css; vscode-extension ↔ browser/js/core/script*;
+          # core ↔ browser/js/core both ways), so those count as inputs too.
+          flag browser     "^browser/|^core/|^browser-extension/(src|icons)/|^desktop/src/|^vscode-extension/icons/|$cfg"
           flag single_file "^browser/|$cfg"
           flag browser_extension "^browser-extension/|^browser/(js|css)/|$cfg"
-          flag vscode_extension "^vscode-extension/|^browser/js/core/script|$cfg"
-          flag core        "^core/|$cfg"
+          flag vscode_extension "^vscode-extension/|^browser/js/core/script|^browser/js/console/stencilApi\.d\.ts$|^browser/js/core/launch/|$cfg"
+          flag core        "^core/|^browser/js/core/|$cfg"
           flag desktop     "^desktop/|^core/|^browser/js/|$cfg"
           flag wasm        "^core/|^browser/|$cfg"
-          flag cli         "^cli/|^core/|$cfg"
-          flag pystencil   "^pystencil/|^core/|$cfg"
+          flag cli         "^cli/|^core/|^pystencil/pystencil/_net\.py$|$cfg"
+          flag pystencil   "^pystencil/|^core/|^cli/src/media/|$cfg"
           flag mcp         "^mcp/|^cli/|^core/|$cfg"
           flag server      "^server/|$cfg"
           flag bot         "^bot/|^cli/|^core/|$cfg"
@@ -265,11 +265,22 @@ jobs:
       CCACHE_MAXSIZE: 800M
     steps:
       - uses: actions/checkout@v5
-      - name: Install toolchain (g++, cmake, Qt6)
+      - name: Install toolchain (g++, cmake, Ninja, ccache)
         run: |
           sudo apt-get update
-          sudo apt-get install -y g++ cmake ninja-build ccache qt6-base-dev qt6-multimedia-dev
-      # The heaviest job in this workflow: the app plus 66 test binaries over the core.
+          sudo apt-get install -y g++ cmake ninja-build ccache
+      # The Qt the packages ship (desktop-packages.yml), not the distro's 6.4: the GUI areas pin
+      # pixels and behaviour that differ across Qt releases.
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.12.*'
+          # aqtinstall 3.3.0 cannot read Qt 6.12's per-compiler Windows repository; this commit can.
+          aqtsource: git+https://github.com/miurahr/aqtinstall.git@076e1659807d0b362a3ed684d54c2e9c775eb9c7
+          py7zrversion: '==1.1.4'
+          modules: qtimageformats qtmultimedia
+          cache: true
+      # The heaviest job in this workflow: the app plus every ctest target over the core.
       # A bigger cache than the core job's, since it holds all of that.
       - name: Restore the compiler cache
         uses: actions/cache@v5
@@ -279,7 +290,7 @@ jobs:
           restore-keys: ccache-ci-desktop-
       - name: Configure
         working-directory: desktop
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSTENCIL_REQUIRE_QT=ON -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_PREFIX_PATH="${{ env.QT_ROOT_DIR }}"
       - name: Build (core + GUI)
         working-directory: desktop
         run: ccache --zero-stats && cmake --build build -j 4
@@ -287,7 +298,7 @@ jobs:
         run: ccache --show-stats
       - name: Run C++ tests
         working-directory: desktop
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build --output-on-failure --no-tests=error -j 2
 
   # WebAssembly: build the core fresh with emcc and run the parity test against it —
   # fails if core/JS-fallback behavior diverges. emsdk is pinned + cached.
@@ -322,14 +333,19 @@ jobs:
         # js/wasm/ holds only the gitignored artifact, so it's absent on checkout.
         run: |
           mkdir -p browser/js/wasm
-          cp core/build-wasm/stencil_core.js browser/js/wasm/stencilCore.js
+          cp core/build-wasm/stencilCore.js core/build-wasm/stencilCore.wasm browser/js/wasm/
       - name: Set up Node.js
         uses: actions/setup-node@v5
         with:
           node-version: '22'
       - name: Parity test against the freshly built module
         working-directory: browser
-        run: node --test tests/wasm/*.test.js
+        # A spec that self-skipped here never saw the module it exists to check.
+        shell: bash
+        run: |
+          set -o pipefail
+          node --test --test-reporter=tap tests/wasm/*.test.js | tee "$RUNNER_TEMP/wasm.tap"
+          grep -qx '# skipped 0' "$RUNNER_TEMP/wasm.tap"
 
   # CLI: Zig tool that recompiles the core + stb_image (Zig ships its own clang, no system toolchain).
   cli:
@@ -352,6 +368,23 @@ jobs:
       - name: Test
         working-directory: cli
         run: zig build test --summary all
+      # The shipped binaries are optimised (ReleaseSmall packages, a ReleaseFast image), so the suite also
+      # runs optimised: a miscompile the Debug run cannot see fails here.
+      - name: Test (ReleaseSafe)
+        working-directory: cli
+        run: zig build test -Doptimize=ReleaseSafe --summary all
+      # The system clipboard for real: X11 through xclip (wl-clipboard installed but no compositor),
+      # then Wayland on a headless sway, which has the seat wl-clipboard needs (weston's has none).
+      - name: Test (live clipboard, X11 and Wayland)
+        working-directory: cli
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb xauth xclip wl-clipboard sway
+          xvfb-run -a zig build test -Dclipboard-live --summary all
+          export XDG_RUNTIME_DIR="$(mktemp -d)" WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_LIBINPUT_NO_DEVICES=1
+          sway -c /dev/null & sway_pid=$!
+          for _ in $(seq 50); do ls "$XDG_RUNTIME_DIR"/wayland-? >/dev/null 2>&1 && break; sleep 0.1; done
+          WAYLAND_DISPLAY="$(basename "$(ls "$XDG_RUNTIME_DIR"/wayland-? | head -1)")" DISPLAY= zig build test -Dclipboard-live --summary all
+          kill "$sway_pid"
 
   # pystencil: stdlib-only Python package that recompiles the core over ctypes (like the CLI).
   # Tests build the shared lib on demand via build.py, which only needs a C++17 compiler (`c++`).
@@ -391,7 +424,9 @@ jobs:
         working-directory: cli
         run: zig build
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: '1.99.1'   # mcp/rust-toolchain.toml
       - name: Build
         working-directory: mcp
         run: cargo build --locked --verbose
@@ -501,6 +536,8 @@ jobs:
         run: xvfb-run -a npm test
         env:
           E2E_STACK: '1'
+          # The UI pins' platform-stable half (e2e/pins/common/) binds here; a state without one fails.
+          E2E_REQUIRE_PINS: '1'
       - name: Upload Playwright report on failure
         if: failure()
         uses: actions/upload-artifact@v6

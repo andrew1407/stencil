@@ -4,7 +4,6 @@
 #include "../../support/motion/DisintegrateOverlay.hpp"  // disconnected rows come apart
 #include "../../support/motion/DissolveEffect.hpp"       // scroll-edge grain dissolve
 #include "../../support/theme/filterFade.hpp"           // filtered-out rows fade + collapse
-#include "../../support/guiHelpers.hpp"           // confirmYesNo()
 #include "../../support/modal/modalChrome.hpp"          // the browser modal shell
 #include "../../support/modal/modalReveal.hpp"          // motionReduced()
 #include "../../support/control/reveal/controlReveal.hpp"     // the batch bar comes and goes as sand

@@ -146,10 +146,17 @@ func (s *Store) SetFile(ctx context.Context, id string, f StoredFile) (protocol.
 	return rec, nil
 }
 
-// DeleteProject removes a project row. Missing rows are not an error.
+// DeleteProject removes a project row; ErrNotFound when no row had that id, so nothing is announced
+// for an id that names no project.
 func (s *Store) DeleteProject(ctx context.Context, id string) error {
-	_, err := s.pool.Exec(ctx, `DELETE FROM projects WHERE id = $1`, id)
-	return err
+	tag, err := s.pool.Exec(ctx, `DELETE FROM projects WHERE id = $1`, id)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 // DeleteExpiredProjects removes and returns up to limit projects past a non-zero expiry (expires_at in

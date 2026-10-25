@@ -43,7 +43,14 @@ namespace stencil::net {
     return true;
   }
 
+  void LiveFeed::setLive(bool on) {
+    if (live == on) return;
+    live = on;
+    emit liveChanged(on);
+  }
+
   void LiveFeed::unsubscribe() {
+    setLive(false);
     if (retry) retry->stop();
     if (sock) {
       sock->disconnect(this);  // silence our slots during teardown (no reconnect)
@@ -82,6 +89,7 @@ namespace stencil::net {
         {QLatin1String("clientId"), clientId},
     };
     sock->write(QJsonDocument(hello).toJson(QJsonDocument::Compact) + '\n');
+    setLive(true);
   }
 
   void LiveFeed::onReadyRead() {
@@ -105,7 +113,9 @@ namespace stencil::net {
       const QJsonDocument doc = QJsonDocument::fromJson(line);
       if (!doc.isObject()) continue;  // skip welcome/synced/other frames
       const QJsonObject o = doc.object();
-      if (o.value(QLatin1String("type")).toString() != QLatin1String("project-event")) continue;
+      const QString type = o.value(QLatin1String("type")).toString();
+      if (type == QLatin1String("error")) setLive(false);   // a refused hello; the close follows
+      if (type != QLatin1String("project-event")) continue;
       const QJsonObject proj = o.value(QLatin1String("project")).toObject();
       const QString id = proj.value(QLatin1String("id")).toString();
       if (id.isEmpty()) continue;
@@ -117,6 +127,7 @@ namespace stencil::net {
   }
 
   void LiveFeed::onError() {
+    setLive(false);
     // One reconnect per drop; unsubscribe() clears base so this stops.
     if (base.isEmpty()) return;
     if (!retry) {

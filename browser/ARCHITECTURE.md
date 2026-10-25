@@ -54,7 +54,7 @@ feed a ui area subscribes to (`core/app/changes.js`) and the app's view seam (`V
 | `js/config/` | the operator's `openInConfig` and its example | operator config, fetched beside its module; never shared, never committed |
 | `../common/` | the shared tables (`config/`), corpora (`fixtures/`), the logo (`icons/`) | served next to `browser/`; imported by relative path, never a root URL, so a subpath deploy works |
 | `js/utils.js` + `js/utils/` | DOM, geometry, color, hotkey helpers | one import point; pure |
-| `js/core/` | `DrawingApp` and its collaborators, one folder per feature (`abi/` the wasm singleton, `app/` the mixin, change feed and seam) | **no DOM access** beyond the frozen `CORE_DOM_ALLOWANCE` in `tests/layerBoundary.test.js` — it runs under `node --test` |
+| `js/core/` | `DrawingApp` and its collaborators, one folder per feature (`abi/` the wasm singleton, `app/` the editing base, change feed and seam) | **no DOM access** beyond the frozen `CORE_DOM_ALLOWANCE` in `tests/layerBoundary.test.js` — it runs under `node --test` |
 | `js/core/script/` (+ `script.js`, `scriptHandles.js`) | the `.stc` engine: lex → parse → templates → lower, plus `dump` | one file per `core/script/*.cpp`; pure — it resolves ops but calls no facade |
 | `js/eventBus/` | `appBus.js`, the app-wide event channel | channel names come from `config/events.json` |
 | `js/net/` | the fetch guard, abortable fetch, the capped body read, the connection store + manager, remote sync | a URL the user or a page names goes through `guardedFetch` (`fetchGuard.js`: http(s)/data:/blob: only, the 30 s `NETWORK.fetchTimeoutMs` deadline); the launch `src` image and a dragged image URL are CORS fetches under the same deadline. `ServerConnection` wraps `globalThis.fetch` itself (`redirect: 'manual'`, the same deadline), and so does the LLM client (`llm/http.js`: `redirect: 'error'`, a turn ended by its Stop signal, a probe by the `providers.json` probe timeout). Every server, provider or fetched-image body is read through `cappedBody.js` (64 MiB; a provider reply 8 MiB) |
@@ -64,10 +64,10 @@ feed a ui area subscribes to (`core/app/changes.js`) and the app's view seam (`V
 | `js/core/format/` | the console logo banner rows (`logoBanner.js`, ports `core/format/logoBanner.cpp`) | wasm-backed with the JS fallback, like every core twin |
 | `js/ui/console/` | the console window: markup, the typewriter reveal, the view, the prompt input and the `aside` modal | opens beside whatever is up and is closed by nothing but its own close; every line is `textContent`, never `innerHTML` |
 | `js/ui/cli/` | CLI mode: the stage over the page, the banner, the accent recolour (`recolour.js`), the status line and its peeks, the CLI-only commands and the skins (`skin/`, over `config/console/skins.json` and `fx.json`; `skin/restyle.js` re-dresses every run in the accent as the Zig console's restyle does) | a view over the live editor through the same interpreter; its stylesheet carries no `transition` or `animation`; a skin dresses the stage and writes no store |
-| `js/ui/` | string-returning components composed by `layout()`, one folder per region; `bindings/` wires controls to the app, `control/` holds the control areas | a region answers its parent by event and the app by the bus; it may import `net/` and `llm/` (left of it in the layer order) for the connection and assistant controls it renders |
+| `js/ui/` | string-returning components composed by `layout()`, one folder per region; `bindings/` wires controls, the pointer and touch input (`bindings/pointer/`) and the viewport to the app, `control/` holds the control areas | a region answers its parent by event and the app by the bus; it may import `net/` and `llm/` (left of it in the layer order) for the connection and assistant controls it renders |
 | `js/worker/` | the cross-tab projects sync worker and the image worker | a worker filter is bit-identical to the main-thread one |
-| `js/wasm/` | the generated `stencilCore.js` | gitignored; built by `npm run build-wasm` / CI |
-| `sw.js`, `manifest.webmanifest`, `launch.html`, `vite.config.js` | the PWA shell, the `stencil://` bounce page, the optional single-file build | nothing in the app may depend on the build; the runtime cache keeps one entry per page path and stays under `MAX_ENTRIES`, the shell never pruned |
+| `js/wasm/` | the generated `stencilCore.js` glue and its `stencilCore.wasm` | gitignored; built by `npm run build-wasm` / CI |
+| `sw.js`, `manifest.webmanifest`, `launch.html`, `vite.config.js` | the PWA shell, the `stencil://` bounce page, the optional single-file build | nothing in the app may depend on the build; the tracked `sw.js` is network-first, its runtime cache one entry per page path under `MAX_ENTRIES`, the shell never pruned; a deploy stamps it (`tools/swStamp.js`: every file a page can load, a VERSION of their bytes), and that build is served cache-first from one cache while a newer one waits for the page's update toast (`js/pwa.js`); with the wasm core built, the same stamp fills `index.html`'s `wasm-preload` block, so the core downloads beside the module graph |
 | `tools/` | the static server, the single-file build and its self-check | dev only |
 | `tests/` | `node --test` suites mirroring `js/`, and the structural lints | never loads wasm — always the JS fallback |
 
@@ -141,7 +141,7 @@ classDiagram
 | `ProjectMeta` | One registry row: name, expiry, optional server link (`core/project/store/projectsStore.js`) | The `localStorage` registry behind `ProjectsStore`; expiry ports `core/state/ProjectsStore.cpp` | `RemoteLink` |
 | `RemoteLink` | The editor's link to a server project; `version` is the save-back guard (`core/remote/syncController.js`) | `DrawingApp.remoteLink` for a server-linked session | `ProjectMeta`, `ServerConnection` |
 | `ServerConnection` | One connected server: session token, REST surface, `/ws` feed (`net/serverConnection.js`); its `RemoteProjectRecord` is the server's `protocol.Project` | Created by `ConnectionManager.connect`, closed on disconnect | `ConnectionManager`, `RemoteLink` |
-| `ConnectionManager` | The servers one session is connected to plus the expired-credential set; `snapshot()` is what `net/connectionStore.js` persists | Created lazily by the facade, one per app | `ServerConnection` |
+| `ConnectionManager` | The servers one session is connected to plus the expired-credential set; `snapshot()`, merged over the saved set by `mergeSaved` (a saved server not reached stays, one the user disconnected goes), is what `net/connectionStore.js` persists | Created lazily by the facade, one per app | `ServerConnection` |
 | `Stencil` | The frozen `window.stencil` facade (`console/stencilApi.js`): settings, `Line` / `Point` / `Project` handles, `chat`, `llm` | `createStencil(app)` once at boot | Wraps `DrawingApp`; the executor's only target |
 | `ConsoleInterpreter` | One typed console line to its handler (`console/shell/interpreter.js`): echo, parse, the secret words in CLI mode, the table lookup, the run, the history and the Tab completions | One per console window and one per CLI stage, for as long as it is up | `Stencil`, the `commands.json` table, the host that prints |
 | `OpPlan` | A validated model reply (`llm/plan/parser.js`) | Returned by `parseOpPlan` for one turn | `PlanAction`, `PlanVariant`, `PlanAsk` |
@@ -155,33 +155,32 @@ classDiagram
 | Pattern | Where | Notes |
 |---|---|---|
 | Facade over core | `createStencil(app)` in `console/stencilApi.js`, installed as `window.stencil` | Frozen; every entry point reaches the core through it |
-| Mediator | `DrawingApp` (`core/drawingApp.js`) | Each collaborator (`Renderer`, `Storage`, `HistoryStack`, …) reaches others only through the app; `core/app/delegates.js` installs the mixin (`core/app/editing.js`) and `VIEW_SEAM` |
+| Mediator | `DrawingApp` (`core/drawingApp.js`) | Each collaborator (`Renderer`, `Storage`, `HistoryStack`, …) reaches others only through the app; it extends its DOM-free editing base (`core/app/editing.js`), and `core/app/delegates.js` installs `VIEW_SEAM` |
 | Memento | `HistoryStack.push` / `undo` / `redo` behind `saveHistory()` and `restoreHistoryStep()` | Every undoable edit is one memento, applied and reverted by one code path; a crop or turn step is re-derived from the original by `ImageModel.restoreView` |
 | Strategy | The provider `wire` in `llm/client.js` (`config/llm/providers.json`); `FilterMode` in `core.applyFilterRGBA`; the filter painters in `core/image/filterCanvas.js` over a cached base (`core/draw/baseLayer.js`); the `NotificationSink`s in `ui/shell/notifySinks.js` | Selected by table lookup |
 | Observer | `app.changes` (an `Emitter`, `core/emitter.js`) over the channels of `core/app/changes.js`; `TabsCoordinator`, `ServerConnection.onEvent`; `eventBus/appBus.js` over `config/events.json`; `ui/domWatch.js`, the one page-wide subtree observer | The `stencil:*` window events are the contract the extension's content scripts read |
 | Composite | `StencilElement` (`ui/base.js`): light-DOM custom elements whose `inner()` markup `layout()` concatenates | `$(id)` is scoped to the element's subtree, `emit()` replies upward; light DOM because the extension consumes these modules inside its own shadow roots |
 | Repository | `ProjectsStore` over a `StorageBackend` (`projectsBackend.js`, IndexedDB); `net/connectionStore.js`; `llm/chat/store.js` | Callers see a synchronous `localStorage`-shaped contract; another tab's write reaches this tab through `refresh(id)` |
-| Layered canvas | `core/draw/stageLayers.js` behind `Renderer`: `#canvas` the picture, `#canvas-overlay` the lines and handles | The picture repaints only when its source or size changes, the overlay every frame; an export or result repaints through `core/draw/restingPaint.js` |
 | Chain of Responsibility | Any URL: scheme → `timeoutSignal()` (`net/fetchGuard.js`). Every `ServerConnection` request: `normalizeUrl` → `isInsecureRemote` → `timeoutSignal()` → `isAuthStatus` / `isExpiredSession` → `readJsonCapped` | The one browser fetch guard: a `file:` URL never reaches `fetch`, nothing leaves without a deadline, a refused credential lands in `expired` |
 | Adapter | `llm/adapters/` (the `ChatCapabilities` bag), `core/launch/extensionBridge.js`, `core/launch/deepLink.js`, `core/launch/query.js` with `console/launchQuery.js` | Each translates an outside request into the core functions the toolbar calls |
 | State machine | `HoldDrawController` (`core/draw/holdDraw.js`): idle → armed → drawing → idle, or armed → aborted | The host injects time and coordinates; wasm-backed via `coreHandles.js` |
 | State | `DrawingApp.gesture` (`core/pointer/gesture.js`), one drag kind or none | The `is*` drag flags are accessors over it, so two can never both be set |
 | Interpreter | `FormulaEngine` (`core/parse/formulaEngine.js`), recursive descent over `core/parse/formulaContext.js` | Ports `core/parse/formulaParser.cpp`; never `eval` |
 | Interpreter + runner | `core/script/` lowers a `.stc` to an op stream; `console/scriptRunner.js` executes it | The parser never touches the editor and the runner never re-parses; op-plan caps guard model output, not the user's script |
-| Session override | `setMotionOverride` (`ui/motion/motionPrefs.js`), `setIconSkin` (`ui/icons.js`), `setFaviconArt` (`core/settings/accents.js`), set by `ui/webcore/toggle.js` | Read by everything, written to no store |
-| Gate | `cliModeGate` (`console/shell/gate.js`), asked by every facade member that would open a window, move the chat, go fullscreen or change a look or motion setting (`GATED_SETTINGS`) | One refusal, one message, while CLI mode is on; an edit, the theme, a project switch and a connection pass |
 | Command table | `commandOf` / `completions` (`console/shell/table.js`) over `config/console/commands.json`, dispatching into `createHandlers` | A row and its handler are proved to match both ways; a `cliMode` row answers only inside CLI mode |
-| Double-click reset | `installDblReset` (`ui/control/dblReset.js`), one capture listener on `document` | A control returns to its default and fires `change`; a logo drop resets through the same table, number and formula fields included |
 | Gesture machines | `createIconDrag` (`ui/drag/iconDrag.js`), `createDragPick` (`ui/control/dropdownMenu.js`), `createDragMenu` (`ui/projects/list/dragMenu.js`), `wireColorDrag` (`ui/drag/colorDrag.js`), `wireAltPeek` (`ui/tip/altPeek.js`) | A pure machine under thin DOM wiring; a drag acts only on release, and a release back on its source or Escape changes nothing; the ghost's rim shines in the accent while it follows the pointer (`css/animations/icon/drag.css`); the fullscreen strip's cloned toolbar is wired again (`wireCloneDrags`) and stays up until the drop (`afterIconDrag`) |
-| View preview | `previewFill` and `previewClean` on `Renderer` (`core/draw/renderer.js`) | The view alone paints a trial while no app field moves; a commit goes through each control's own setter |
-| Page copy | `buildPageCopy` (`ui/accent/themeCopy.js`) in a shadow tree, shown by the theme lens (`ui/drag/themeLens.js`) | An inert still copy of the page under its own sheets; `COPY_ATTR` (`ui/base.js`) keeps its regions from wiring |
 
 ## Design
 
-- **Boot.** `js/index.js` awaits `core.init()` (`js/core/abi/stencilCore.js`, the wasm module and
-  its typed wrappers) and `initProjectsBackend()`, constructs `DrawingApp`, installs
-  `window.stencil`, wires chat persistence, and `publishReady(app)` hands every `<stencil-*>`
-  element the app.
+- **Boot.** `js/index.js` starts `core.init()` (`js/core/abi/stencilCore.js`, the wasm module and
+  its typed wrappers; a deploy preloads its glue and binary from `index.html`) and
+  `initProjectsBackend()` as its module evaluates, and mounts the layout
+  then, veiled (transparent, untouchable, the `.container` reveal held) so it lays out while both
+  settle; at `load` it awaits both, constructs `DrawingApp`, installs `window.stencil`, wires chat
+  persistence, `publishReady(app)` hands every `<stencil-*>` element the app, and the veil lifts in
+  that same task, so the first frame shown is the wired app. The marks `boot:graph`,
+  `boot:mounted` and `boot:ready` time the three steps. In the extension's editor modal the
+  classic `prePaintTheme.js` posts the `ready` liveness ping from `<head>`.
 - **An edit.** A pointer or touch event reaches `InputController` / `PointerController`, which
   call the core functions the facade calls, and hits only what is drawn
   (`core/pointer/markHits.js`). `saveHistory()` pushes a memento, `Renderer` repaints the overlay
@@ -195,7 +194,10 @@ classDiagram
   step each — its name (`renameLine`) and its eye (`setLineHidden`) too. A hidden line keeps its
   index and its row but is neither drawn, exported nor hit: the hit-tests skip it in place
   (`core/draw/hitTest.js`, as core's), the paints skip it. A line set replaced whole resets the selection (`settleReplacedLines`); a turn, flip,
-  undo or redo keeps it on the lines that still exist (`keepLineSelection`).
+  undo or redo keeps it on the lines that still exist (`keepLineSelection`). Either table past
+  `VIRTUAL_ROWS` is a `RowWindow` (`ui/panel/rowWindow.js`): the rows its scroller shows between
+  spacer rows of the rest's height, each row on its own stripe, the points table's columns held at
+  the whole list's widths by an unseen sizing row; a short table lists every row.
 - **Save and sync.** An edit's trailing save runs `ProjectsStore.upsert` through the quota
   ladder (`core/storage/quotaWriter.js`: shed a data-URL source's text, sweep expired projects,
   evict the oldest other project, compress the image, then lines only), and the upsert writes the
@@ -256,7 +258,9 @@ classDiagram
   keeps chats in IndexedDB and on the server's `chat` file instead.
 - **Deep links.** `js/core/launch/deepLink.js` normalizes the inbound `#stencil=` fragment and
   builds the outbound `stencil://` and Telegram `?start=` links; `applyExternalLaunch`
-  (`core/launch/controller.js`) loads the fragment and strips it. A `.stc` in a launch opens in
+  (`core/launch/controller.js`) loads the fragment and strips it. In the extension's modal frame
+  the fragment arrives by `postMessage` from the parent (`prePaintTheme.js`, on `#stencil-await`),
+  so the host page never sees it; `index.js` waits for it, bounded, before the app constructs. A `.stc` in a launch opens in
   the Script window and never runs (`core/launch/desktopLink.js` carries it on `stencil://`).
 - **The launch query.** `core/launch/query.js` reads the `?key=value` pairs of the page URL and
   the same pairs in a `#` fragment into one `LaunchQuery` (`contracts/launch/launch-uri.md`; the
@@ -298,6 +302,31 @@ classDiagram
 - **Single-file build.** `vite.config.js` carries its rules inline (no plugins);
   `tools/assertSelfContained.js` re-reads the output, and `tests/singleFileBuild.test.js`
   fails `npm test` if a loader outruns `tools/singleFilePatterns.js`.
+- **Module preload.** `index.html` carries a generated `<link rel="modulepreload">` block, the
+  static import graph of `js/index.js` breadth first (`tools/preloadList.js` over
+  `tools/graphManifest.js`), so an HTTP/2 load requests the graph at once instead of a depth at
+  a time; `tests/modulePreload.test.js` fails on a stale block, and the single-file build drops it.
+- **Layered canvas.** `core/draw/stageLayers.js` behind `Renderer`: `#canvas` the picture,
+  `#canvas-overlay` the lines and handles — the picture repaints only when its source or size
+  changes, the overlay every frame, its marks blitted from `core/draw/marksCache.js` while every
+  value they are painted from holds; an export or result repaints through
+  `core/draw/restingPaint.js`.
+- **Session override.** `setMotionOverride` (`ui/motion/motionPrefs.js`), `setIconSkin`
+  (`ui/icons.js`), `setFaviconArt` (`core/settings/accents.js`), set by `ui/webcore/toggle.js` —
+  read by everything, written to no store.
+- **Gate.** `cliModeGate` (`console/shell/gate.js`), asked by every facade member that would open a
+  window, move the chat, go fullscreen or change a look or motion setting (`GATED_SETTINGS`) — one
+  refusal, one message, while CLI mode is on; an edit, the theme, a project switch and a connection
+  pass.
+- **Double-click reset.** `installDblReset` (`ui/control/dblReset.js`), one capture listener on
+  `document` — a control returns to its default and fires `change`; a logo drop resets through the
+  same table, number and formula fields included.
+- **View preview.** `previewFill` and `previewClean` on `Renderer` (`core/draw/renderer.js`) — the
+  view alone paints a trial while no app field moves; a commit goes through each control's own
+  setter.
+- **Page copy.** `buildPageCopy` (`ui/accent/themeCopy.js`) in a shadow tree, shown by the theme
+  lens (`ui/drag/themeLens.js`) — an inert still copy of the page under its own sheets; `COPY_ATTR`
+  (`ui/base.js`) keeps its regions from wiring.
 
 ## Concurrency
 
@@ -312,8 +341,8 @@ debounced saves and the IndexedDB and server writes they start.
 
 | Owner | Runs on | Shares | Guard | On overflow or teardown |
 |---|---|---|---|---|
-| Image worker (`worker/imageTasks.js`) | a module Worker, own wasm instance | transferred bitmaps; the id → promise map | one id per request | an error rejects every pending request and retires the worker; renders run inline from then on |
-| Cross-tab router (`projectsWorker.js` / `tabsCoordinator.js`) | SharedWorker, else BroadcastChannel | each port's active project id; `projectsChanged` pings | messages only, no storage; BYE on `pagehide`, never on a cancellable `beforeunload`, and a bfcache restore says HELLO again | a closed port leaves the tab count; a port that said BYE is re-added by its HELLO; no coordinator means one tab |
+| Image worker (`worker/imageTasks.js`) | a module Worker, own wasm instance | transferred bitmaps; the id → promise map | one id per request | an error rejects every pending request and retires the worker; renders run inline from then on; a message that never left drops its id and closes its transferred bitmaps |
+| Cross-tab router (`projectsWorker.js` / `tabsCoordinator.js`) | SharedWorker, else BroadcastChannel | each port's active project id; `projectsChanged` pings | messages only, no storage; BYE on `pagehide`, never on a cancellable `beforeunload`, and a bfcache restore says HELLO again | a closed port leaves the tab count; a port that misses three 10 s pings (a crashed tab) is dropped and the ping timer stops with the last port; a port that said BYE is re-added by its HELLO, a dropped one by its PONG; on the BroadcastChannel every shown tab pings the same way and forgets a peer silent for three rounds, which its next PING or PONG brings back; no coordinator means one tab |
 | Trailing project save (`Storage.saveSoon`) | main-thread timer, 400 ms trailing | the active project's keys and registry row | one timer; a burst saves once | flushed at once on a project switch, `beforeunload`, `pagehide` and a hidden `visibilitychange` |
 | IndexedDB write-through mirror (`projectsBackend.js`) | IndexedDB transactions | the in-memory mirror and the stored keys | reads served from the mirror; each key's latest write outcome kept; a write settles when its transaction commits | a failed write keeps the mirror; `confirmCommit` resumes the quota ladder (a newer save supersedes it) or removes the orphaned registry row |
 | Cross-tab save ping (`Storage.scheduleSyncBroadcast`) | main-thread timer, 400 ms | the `UPDATED` message | sent once the last save's commit resolves | a failed or superseded commit sends nothing |
@@ -321,7 +350,7 @@ debounced saves and the IndexedDB and server writes they start.
 | Co-edit layout push (`RemoteSyncController`) | main thread; the serial `#writes` promise queue | `RemoteLink.version` and the server project | 350 ms trailing debounce capped at 1.5 s; one server write at a time; a 409 merges and retries up to `MAX_TRIES` (6); a reply is dropped once the editor left the project it started on (`detach()` on a switch, and `sameLink` after every await) | never converged: reload from the server; a push landing mid-reload is deferred and runs first when the reload settles |
 | Result upload (`ResultUploader`) | the same `#writes` queue | the `result` file and the link version | `COEDIT.resultIdleMs` idle, `resultMinGapMs` gap; the link adopts only the bump its own write produced | flushed on a switch or unload; cancelled when the project is deleted |
 | Peer project-event pull (`reloadRemoteActive`) | main thread, outside `#writes` | the editor's lines and the link version | adopted only for a newer version than the link, not mid-stroke, and outside the 150 ms echo window of our own save (an event inside it is asked once more after it); one reload at a time; an event behind a pending push waits for it, so the push's 409 merge keeps the unpushed local line | an event mid-reload or behind a push collapses into one follow-up pass, skipped when the push merged past it and the picture is unchanged |
-| Live events feed (`ServerConnection`, `net/redial.js`) | main-thread timers | the connection's status and session token | overlapping `connect()` calls for one URL join one handshake (`ConnectionManager`); an unexpected close re-runs the handshake after 1 s, doubling to 30 s, one retry scheduled at a time | a refused credential stops the retries (`expired`), a disconnect cancels them; the reopened feed says `feed-resumed`, and the editor re-reads its linked project as if a peer's event had arrived |
+| Live events feed (`ServerConnection`, `net/redial.js`) | main-thread timers | the connection's status and session token | overlapping `connect()` calls for one URL join one handshake (`ConnectionManager`); an unexpected close re-runs the handshake after 1 s, doubling to 30 s, one retry scheduled at a time | a refused credential stops the retries (`expired`), a disconnect cancels them, and a handshake still running when it lands opens no socket; the reopened feed says `feed-resumed`, and the editor re-reads its linked project as if a peer's event had arrived |
 | Server writers outside the queue | `project/meta/projectMetaOps.js` (field sets), `image/settle.js` (original replace), `llm/chat/persistence.js` (the `chat` file) | the server project | a field set re-reads the version on 409, 4 attempts; the original replace then saves through the queue; the chat file is versionless and best-effort | a failure is a notice; the link moves only while it still names that project |
 | Chat turn (the one `ChatController` per app) | main thread | history, attachments, the transcript log | the controller refuses a second `send` while one runs; the panel, the context menu, `stencil.prompt` and voice check `chatTurnInFlight()` first | a refused turn logs nothing and says the assistant is answering; Stop aborts the running one |
 | `HeldSessionKey` (`llm/sessionKey.js`) | this tab's sessionStorage | the Anthropic key and its `expiresAt` | read at each request, its TTL checked at use | an expired record is dropped on read; it goes with the tab |
@@ -333,14 +362,15 @@ debounced saves and the IndexedDB and server writes they start.
    LLM plan — all reach the same core functions and collaborators; the facade is typed in
    `stencilApi.d.ts`. A core function is imported by its caller, never forwarded through the
    app (`tests/core/app/delegates.test.js` holds the retired forwarders as an enumerated
-   denylist); only the view seam, the mixin and the gesture flags are installed on `DrawingApp`.
+   denylist); only the view seam and the gesture flags are installed on `DrawingApp`, over its editing base.
 2. **wasm with a fallback.** Each module that calls the core keeps its JS body as the
    fallback and the two match op-for-op (`tests/wasm/wasm-parity.test.js`). A value the core
    owns is read from it, never mirrored: the fallback twin is its one JS home, and `ui/` reads
    it through the core module that names it (the page table through `core/settings/units.js`).
    No `eval` / `new Function` anywhere. A `_malloc` that answers 0 throws a `CoreHeapError`
    (`core/abi/coreMarshal.js`): the call is answered by its JS twin and the core retires to JS for
-   the session. Every load refuses a picture past `LIMITS.imageMaxSide` / `imageMaxPixels` before
+   the session, and every buffer the call already took is freed on the way out; a state handle
+   takes its heap slot before its core handle, so a failed constructor leaves neither. Every load refuses a picture past `LIMITS.imageMaxSide` / `imageMaxPixels` before
    it is drawn (`core/image/decodeLimit.js`).
 3. **`common/` is canonical.** A value another surface needs is a table in `common/config/`, never a
    literal in code.
@@ -351,6 +381,8 @@ debounced saves and the IndexedDB and server writes they start.
 5. **Typed boundary.** Every public module has a sibling `.d.ts`, beyond the frozen
    `NO_SHAPE_YET` list in `tests/dts.test.js`. A shape file with no module
    behind it declares types only, and what a module installs on `DrawingApp` merges into the class (`AppCollaborators`).
+   A declared function takes its module's parameters (`tests/dtsArity.test.js`): optional extras
+   may follow them, none may be missing.
 6. **An edit names what changed.** The core signals channels on `app.changes`, never a
    control; a control area follows the channels its inputs move on, and a narrow flush leaves
    every control where the full sweep would.
@@ -380,15 +412,23 @@ debounced saves and the IndexedDB and server writes they start.
    through the facade, every edit is one of the editor's own steps, and leaving restores
    nothing but the page it covered. While it is on, the facade refuses what the terminal
    covers — windows, the chat, fullscreen, the look and motion settings — from the one gate.
+13. **What opens, closes what it took.** A popup's `window` listeners and frame tracker go with
+   its close, and a re-open while open re-wires rather than stacks them (`showMenu`); a mirror a
+   copy hangs on a live control is unbound before the next copy binds (the fullscreen strip); a
+   capture's `<video>` is emptied when it settles; a worker `ImageBitmap` is closed once neither
+   the frame nor the filter cache holds it, except one `now()` handed to a resting job, which the
+   GC reclaims.
 
 ## Tests
 
 Every suite in `tests/` runs offline under `node --test` on the JS fallback: Node never loads
 wasm. The DOM, `fetch`, the storages and speech are stubbed once in `tests/helpers/`; a test
 drives the real core functions over a partial app rather than stubbing a method the app does
-not own. The `wasm-parity*` suites run the JS reference and the generated `js/wasm/stencilCore.js`
+not own. The `wasm-parity*` suites run the JS reference and the generated `js/wasm/stencilCore.js` (and its `.wasm`)
 through one script; they self-skip without it, and CI builds it.
-The op-plan validator stays out of wasm: no `abi/opplanShared.inc` name is in `EXPORTED_FUNCTIONS`
+The teardown cases count what a close must give back — the `window` listeners, the live
+controls' mirrors, the sockets, the heap blocks and core handles, the closed bitmaps — over stubs
+that record each one. The op-plan validator stays out of wasm: no `abi/opplanShared.inc` name is in `EXPORTED_FUNCTIONS`
 or the export lists, and the built module carries no `_stencil_opplan*` export.
 
 The console suites run the interpreter over the same partial app, so a `/command` and a

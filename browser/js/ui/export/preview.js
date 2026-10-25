@@ -1,8 +1,8 @@
 // Alt-hover export preview: a thumbnail of exactly what a copy/download variant would
 // produce, following the cursor. It forms from motes streaming out of the row it previews
 // and pours back into it on the short tip clock; a swap under a held Alt replays the gather.
-import { surfaceIn, surfaceOut, settleSurface, rectCenter,
-         TIP_DUST_IN_MS, TIP_DUST_OUT_MS } from '../motion.js';
+import { surfaceIn, surfaceOut, settleSurface } from '../motion/surface/surfaces.js';
+import { rectCenter, TIP_DUST_IN_MS, TIP_DUST_OUT_MS } from '../motion/control/tips.js';
 import { placeNearCursor } from '../../utils.js';
 
 const PREVIEW_MAX = 220; // px, longest edge of the rendered thumbnail

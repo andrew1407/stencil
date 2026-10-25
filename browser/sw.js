@@ -1,8 +1,13 @@
 // ── Service worker: offline app shell + runtime cache ───────────
-// Network-first on every same-origin GET, so the live file always wins and the cache
-// is only the offline fallback — no version bumping needed for freshness. The name is
-// fixed; activate still evicts any other (legacy) cache so old versions clean up.
+// Unstamped (the tracked file, every dev server) it is network-first: the live file always wins and
+// the cache is the offline fallback. A deploy stamps VERSION + PRECACHE (tools/swStamp.js): that
+// build is then served cache-first from one cache, and a newer one waits until the page asks.
+// stamp:start
+const VERSION = '';
+const PRECACHE = [];
+// stamp:end
 const CACHE = 'stencil-v2';
+const DEPLOY = `stencil-${VERSION}`;
 // Runtime entries kept: over twice the app's own files (about 620), so the offline app is never
 // trimmed; past it the entry fetched longest ago goes first, and the shell is never pruned.
 const MAX_ENTRIES = 1500;
@@ -111,19 +116,39 @@ const schedulePrune = (cache) => {
   return done;
 };
 
+// The wasm pair is the one optional member: the JS fallback runs without it.
+const OPTIONAL = /\/wasm\/stencilCore\.(js|wasm)$/;
+const PRECACHED = new Set(PRECACHE.map(u => new URL(u, self.location.href).href));
+
+// A stamped build is fetched whole, bypassing the HTTP cache; any required file missing fails the
+// install, so the deploy already serving stays in charge. It then WAITS: a page running the old
+// build never gets a module of the new one; the page's update prompt sends SKIP_WAITING.
+const precache = async () => {
+  const cache = await caches.open(DEPLOY);
+  await Promise.all(PRECACHE.map(async (u) => {
+    const res = await fetch(new Request(u, { cache: 'reload' })).catch(() => null);
+    if (res && res.ok) return cache.put(new URL(u, self.location.href).href, res);
+    if (!OPTIONAL.test(u)) throw new Error(`precache: ${u} failed`);
+  }));
+};
+
 self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE)
-      // Tolerate a missing optional asset rather than failing the whole install.
-      .then(c => Promise.all(SHELL.map(url => c.add(url).catch(() => {}))))
-      .then(() => self.skipWaiting())
-  );
+  e.waitUntil(VERSION ? precache() : caches.open(CACHE)
+    // Tolerate a missing optional asset rather than failing the whole install.
+    .then(c => Promise.all(SHELL.map(url => c.add(url).catch(() => {}))))
+    .then(() => self.skipWaiting()));
 });
 
+self.addEventListener('message', (e) => {
+  if (e.data?.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
+// One deploy, one cache: the deploy's own and the runtime cache stay, every other goes.
 self.addEventListener('activate', e => {
+  const keep = VERSION ? [DEPLOY, CACHE] : [CACHE];
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => !keep.includes(k)).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -136,6 +161,10 @@ self.addEventListener('fetch', e => {
 
   // A page is the same file whatever its query (`?open=<id>`): one entry per path, not per link.
   const key = req.mode === 'navigate' ? url.origin + url.pathname : req;
+  if (VERSION && PRECACHED.has(req.mode === 'navigate' ? key : url.href)) {
+    e.respondWith(caches.open(DEPLOY).then(c => c.match(key)).then(hit => hit || fetch(req)));
+    return;
+  }
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
     try {

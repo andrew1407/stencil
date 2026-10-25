@@ -1,11 +1,12 @@
-//! Byte-exact goldens for the MCP server's user-facing prose: every `#[tool]` description
-//! and the `ServerHandler::get_info()` instructions, as a client receives them.
-//! Rewrite with `MCP_UPDATE_GOLDENS=1 cargo test`.
+//! The MCP server's user-facing prose, as a client receives it: every `#[tool]` description is
+//! its `toolDescriptions/*.txt` source verbatim, and the `ServerHandler::get_info()` instructions
+//! match their golden (rewrite with `MCP_UPDATE_GOLDENS=1 cargo test`).
 
 use rmcp::ServerHandler;
 use stencil_mcp::server::StencilServer;
 
 const GOLDENS_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/goldens");
+const SOURCES_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/toolDescriptions");
 
 /// Compare against `tests/goldens/{name}`, or rewrite it when `MCP_UPDATE_GOLDENS=1`.
 fn check(name: &str, actual: &str) {
@@ -25,6 +26,13 @@ fn check(name: &str, actual: &str) {
         "golden {name} differs (MCP_UPDATE_GOLDENS=1 to rewrite):\n{}",
         diff(&expected, actual)
     );
+}
+
+/// The registered description is the file its `#[doc = include_str!]` names, unaltered.
+fn same_as_source(name: &str, actual: &str) {
+    let path = format!("{SOURCES_DIR}/{name}");
+    let expected = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("cannot read {path}: {e}"));
+    assert!(expected == actual, "tool description {name} is not its source:\n{}", diff(&expected, actual));
 }
 
 /// The first few differing lines, so a failure names the wording that moved.
@@ -59,48 +67,48 @@ fn description(tool: rmcp::model::Tool) -> String {
 }
 
 #[test]
-fn the_tool_descriptions_match_their_goldens() {
-    check(
+fn the_tool_descriptions_are_their_sources() {
+    same_as_source(
         "stencil_edit.txt",
         &description(StencilServer::stencil_edit_tool_attr()),
     );
-    check(
+    same_as_source(
         "stencil_probe.txt",
         &description(StencilServer::stencil_probe_tool_attr()),
     );
-    check(
+    same_as_source(
         "stencil_prompt.txt",
         &description(StencilServer::stencil_prompt_tool_attr()),
     );
-    check(
+    same_as_source(
         "stencil_script.txt",
         &description(StencilServer::stencil_script_tool_attr()),
     );
-    check(
+    same_as_source(
         "source_site.txt",
         &description(StencilServer::source_site_tool_attr()),
     );
-    check(
+    same_as_source(
         "stencil_script_check.txt",
         &description(StencilServer::stencil_script_check_tool_attr()),
     );
-    check(
+    same_as_source(
         "stencil_script_plan.txt",
         &description(StencilServer::stencil_script_plan_tool_attr()),
     );
-    check(
+    same_as_source(
         "stencil_script_emit.txt",
         &description(StencilServer::stencil_script_emit_tool_attr()),
     );
-    check(
+    same_as_source(
         "stencil_projects.txt",
         &description(StencilServer::stencil_projects_tool_attr()),
     );
-    check(
+    same_as_source(
         "stencil_project_update.txt",
         &description(StencilServer::stencil_project_update_tool_attr()),
     );
-    check(
+    same_as_source(
         "stencil_project_file.txt",
         &description(StencilServer::stencil_project_file_tool_attr()),
     );

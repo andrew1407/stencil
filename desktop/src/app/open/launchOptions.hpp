@@ -51,6 +51,11 @@ namespace stencil::gui {
     // dragged and the page crop centres. Plain doubles: this header stays off the core seam.
     double cropX = 0, cropY = 0, cropW = 0, cropH = 0;
 
+    // Set per field a launch URI supplied: its source and layout URLs are a page's choice, so they
+    // are fetched strict (no loopback), unlike a --src or --layout the user typed.
+    bool srcFromLink = false;
+    bool layoutFromLink = false;
+
     // A bare positional file (OS "Open With"); routed through the drag-and-drop open path. Lower priority than --src.
     QString file;
 

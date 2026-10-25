@@ -1,11 +1,13 @@
 #include "MainWindow.hpp"
 #include "PopoverGestures.hpp"
-#include "mainWindowHelpers.hpp"
+#include "popupGuards.hpp"
 #include "ShortcutsDialog.hpp"
 #include "../../../support/tip/altPeek.hpp"
 #include "../../../support/menu/comboAltPeek.hpp"
 #include "../../../support/motionPrefs.hpp"
 #include "ChatDock.hpp"
+
+#include <QToolButton>
 
 // Alt-peek popovers: the linger poll, the outside-press test and dismissal.
 

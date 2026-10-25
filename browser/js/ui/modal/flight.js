@@ -1,4 +1,7 @@
-import { surfaceIn, surfaceOut, settleSurface, SURFACE_OUT_MS, motionMs, motionReduced, originOf } from '../motion.js';
+import { motionMs, motionReduced } from '../motion/motionPrefs.js';
+import { originOf } from '../motion/surface/themeSwapPlay.js';
+import { SURFACE_OUT_MS } from '../motion/surface/motion.js';
+import { surfaceIn, surfaceOut, settleSurface } from '../motion/surface/surfaces.js';
 
 // A window forms from motes streaming out of the control that opened it and pours back
 // into it. Shared with the confirm dialog, which has no opener button. The `--modal-*` vars

@@ -32,19 +32,20 @@ All keys are documented in [`.env.example`](.env.example):
 | Key | Purpose |
 |---|---|
 | `LISTEN_ADDR`, `TCP_ADDR` | the HTTP/WS and the raw-TCP listen addresses |
-| `DATABASE_URL`, `DB_MAX_CONNS`/`DB_MIN_CONNS`/`DB_STATEMENT_TIMEOUT` | Postgres and its pool sizing (timeout in seconds) |
-| `REDIS_URL`, `REDIS_POOL_SIZE`/`REDIS_DIAL_TIMEOUT`/`REDIS_IO_TIMEOUT`, `REDIS_SUBSCRIBE_TIMEOUT_SECONDS` | optional Redis fan-out, its client sizing, and how long a new subscription waits for Redis to acknowledge it (default 5) |
+| `DATABASE_URL`, `DB_MAX_CONNS`/`DB_MIN_CONNS`/`DB_STATEMENT_TIMEOUT` | Postgres and its pool sizing (timeout in seconds, default `OP_TIMEOUT_SECONDS`; migrations run without it) |
+| `REDIS_URL`, `REDIS_POOL_SIZE`/`REDIS_DIAL_TIMEOUT`/`REDIS_IO_TIMEOUT`, `REDIS_SUBSCRIBE_TIMEOUT_SECONDS` | optional Redis fan-out, its client sizing, and how long a new subscription waits for Redis to acknowledge it (default 5). Outside dev, give Redis a password (`redis://:<password>@host:6379/0`): every frame it relays reaches every client, and the hub forwards only well-formed project events |
 | `FILESTORE_ROOT` | where image bytes land; defaults to the relative `./data/filestore` (the server warns at boot — set an absolute path in production) |
 | `STORAGE_QUOTA_BYTES` | aggregate cap on stored bytes; an upload past it is refused `507`; `0` = unlimited |
 | `STORAGE_QUOTA_PER_OWNER_BYTES` | cap on the bytes one owner session's projects hold together, refused the same way; a project with no owner counts only against the aggregate cap; `0` = unlimited (default) |
 | `STORAGE_QUOTA_PER_SESSION_BYTES` | cap on the bytes one session has uploaded, into any project, refused the same way — see [Storage quotas](#storage-quotas); `0` = unlimited (default) |
 | `ADMIN_TOKEN`, `AUTH_OPEN`, `TOKEN_TTL_HOURS` | token issuance — see [Security](#security) |
-| `CORS_ORIGINS` | allowed browser origins; defaults to loopback only |
+| `CORS_ORIGINS` | allowed browser origins; defaults to loopback only (the server's own origin always reaches its live feed) |
 | `MAX_BODY_BYTES`, `OP_TIMEOUT_SECONDS` | REST body cap and the store timeout (every handler, the token lookup, the hello) |
 | `PROJECT_TTL_HOURS`, `EXPIRY_SWEEP_MINUTES`, `SWEEP_BATCH`/`SWEEP_WORKERS` | project expiration and the sweep's sizing (a batch of at most 500 rows) — see below |
 | `FILESTORE_RECONCILE_MINUTES`, `FILESTORE_TMP_MAX_AGE_MINUTES` | the filestore reconcile pass — see below |
 | `AUTH_RATE_PER_MINUTE`, `WRITE_RATE_PER_MINUTE`, `HELLO_RATE_PER_MINUTE`, `RATE_BUCKET_IDLE_MINUTES` | the abuse buckets, and how long an untouched one is kept (default 10, at least 1) |
 | `MAX_CONNECTIONS_PER_IP` | live WS/TCP connections one client IP may hold at once (default 64); the next is refused `rateLimited`; `0` = unlimited |
+| `MAX_CONNECTIONS` | live WS/TCP connections the whole server may hold (default 10000), refused the same way; `0` = unlimited |
 | `RETRY_AFTER_SECONDS`, `LLM_BUSY_RETRY_AFTER_SECONDS` | the `Retry-After` a rate-limited answer carries (60, and 5 over the LLM in-flight cap) |
 | `PROJECTS_PAGE_SIZE` | rows in a `GET /projects` that names no `?limit=` (default 100); `0` lists every project |
 | `HELLO_TIMEOUT_SECONDS`, `BUS_SUB_BUFFER` | the hello wait, and the events queued per feed before one drops |
@@ -69,7 +70,10 @@ All three are off by default and answer an upload past them with the same `507`
   restart with it off forgets every charge, and bytes stored while it was off are charged to
   no one. Set it the same on every instance.
 
-The admin token cannot upload (it is no session), so it is never charged.
+The admin token cannot upload (it is no session), so it is never charged. A server whose
+`LISTEN_ADDR` other machines can reach logs a boot warning while all three are `0`, and one whose
+`TRUSTED_PROXY_CIDRS` names a range wider than a proxy fleet (shorter than /16, /48 for IPv6, or
+the unspecified address) logs one too; neither stops it from starting.
 
 ### Project expiration
 
@@ -87,15 +91,19 @@ project row owns, and upload temp and staged files older than `FILESTORE_TMP_MAX
 
 ## REST API
 
-All routes except `POST /auth/token` require `Authorization: Bearer <token>`.
+All routes except `POST /auth/token` and the admin's `DELETE /auth/sessions…` require
+`Authorization: Bearer <token>`.
 
 | Method | Path | Purpose |
 |---|---|---|
 | POST | `/auth/token` | issue a token+session (gated by the admin token — set or per-boot generated) |
 | GET | `/auth/session` | the bearer's own session, `{sessionId, expiresAt}`: the cheap token probe (401 for an unknown or expired token, and for the admin token, which is no session) |
+| DELETE | `/auth/session` | revoke the bearer's own session (204) |
+| DELETE | `/auth/sessions/{id}` | revoke one session (admin token; 204, 404 for an unknown id) |
+| DELETE | `/auth/sessions` | revoke every session (admin token; 204) |
 | GET | `/projects` | list project metadata, newest-updated first; `?limit=&after=` paging; `ETag` / `If-None-Match` |
 | POST | `/projects` | create a project (optional `expiresAt`); answers with its metadata |
-| GET | `/projects/{id}` | full project incl. layout, `{project, layout}` |
+| GET | `/projects/{id}` | full project incl. layout, `{project, layout}`, under an `ETag` (`"v<version>"`): `If-None-Match` answers a bodiless `304` while the version holds |
 | PUT | `/projects/{id}` | update name/color/`expiresAt`/layout under a version guard (409 on conflict); answers with the new metadata |
 | DELETE | `/projects/{id}` | delete project + its files |
 | GET | `/projects/{id}/files/{kind}` | download bytes; kind = `original` \| `result` \| `video` \| `variant1`..`variant8` \| `chat` |
@@ -111,23 +119,26 @@ default) when it names none. A full page adds `nextCursor`, an opaque token to s
 and ends on the page with no `nextCursor`. Every page carries an `ETag`; sending it back as
 `If-None-Match` answers `304` with no body while the page is unchanged, which is what a poller
 wants. List rows never carry `layout`, and neither do the bodies of `POST`/`PUT /projects…`
-nor any `project-event`: only `GET /projects/{id}` returns it. The original image is served
+nor any `project-event`: only `GET /projects/{id}` returns it. A `layout` may be at most 48 MiB
+(room for the shared 1M-point limit) and an `expiresAt` must not be negative, else `400`; a
+`DELETE /projects/{id}` that names no project is `404`. The original image is served
 only by `GET /projects/{id}/files/original`; no project body carries its bytes.
 
 `POST /projects` still accepts an `originalContent` field — an inline original as a base64
 image data URL (`data:image/png;base64,…`) — for older library callers. It is stored exactly
 as `POST /projects/{id}/files/original` would store it (same size cap, quotas and
 `originalHash`, the data URL's subtype as its extension, `imageW`/`imageH` as its size), and
-the created project answers with its `originalPath`. Anything that is not a base64 `image/*`
-data URL is refused `400`, and a refused original (a quota, an empty payload) leaves no
-project behind.
+the created project answers with `hasImage` set and its `originalHash`. Anything that is not
+a base64 `image/*` data URL is refused `400`, and a refused original (a quota, an empty
+payload) leaves no project behind.
 
 Every project's metadata — list rows, `GET /projects/{id}`, the create and update answers, a
 `project-event` — carries `originalHash`, the SHA-256 (lowercase hex) of the
 stored original, taken as the upload streams to disk. A new original replaces it and a
 `result` upload leaves it alone, so equal hashes mean the same picture. It is absent while a
 project has no original, and for an original stored before the server recorded it: read that
-as "unknown" and reload the picture.
+as "unknown" and reload the picture. `hasResult` says an edited `result` is stored; where
+the files sit and whose session owns the row never leave the server.
 
 The `video`/`variantN`/`chat` file kinds are filestore-only: the bytes upload and download
 through the same routes, but nothing is written to the project record; they are removed with
@@ -147,7 +158,7 @@ env; the client-side half — picking `stencil-server` in each front-end — is 
 | `ANTHROPIC_API_KEY` | *(empty)* | the older name, honoured **only** when `LLM_PROVIDER=anthropic`; `LLM_API_KEY` wins if both are set |
 | `LLM_MODEL` | `claude-opus-5` | default model when a request names none |
 | `LLM_BASE_URL` | *(per provider)* | upstream base: Anthropic `https://api.anthropic.com`, Ollama `http://localhost:11434`, OpenAI-compatible `http://localhost:1234/v1` |
-| `LLM_MAX_TOKENS` | `32768` | cap; a request's `maxTokens` is clamped to it |
+| `LLM_MAX_TOKENS` | `32768` | cap; a request's `maxTokens` is clamped to it and sent upstream on every provider (`max_tokens`, Ollama's `options.num_predict`) |
 | `LLM_TIMEOUT_SECONDS` | `120` | outbound request timeout |
 | `LLM_RATE_PER_MINUTE` | `30` | per-session `/llm/chat` turns per minute; `0` = unlimited |
 | `LLM_MAX_IN_FLIGHT` | `8` | concurrent upstream calls server-wide; `0` = unlimited |
@@ -190,8 +201,9 @@ clients reconnect. A WS keepalive (30 s ping, 10 s pong timeout) reaps half-open
 
 ## Security
 
-- **Tokens** are 256-bit random values; only their SHA-256 hash is stored, compared in
-  constant time, and checked for expiry (`TOKEN_TTL_HOURS`, default a week). `POST
+- **Tokens** are 256-bit random values; only their SHA-256 hash is stored, looked up by that
+  hash (a caller cannot steer a 256-bit preimage, so the lookup needs no constant-time compare),
+  and checked for expiry (`TOKEN_TTL_HOURS`, default a week). `POST
   /auth/token` is gated by the admin token: `ADMIN_TOKEN` when set, otherwise a random
   per-boot token printed once at startup. **For anything beyond localhost/dev, set
   `ADMIN_TOKEN`** to a stable secret and **set `CORS_ORIGINS`** to an explicit allowlist of
@@ -203,10 +215,18 @@ clients reconnect. A WS keepalive (30 s ping, 10 s pong timeout) reaps half-open
   /auth/token` then mints a token with no bearer at all, and the server prints a loud boot
   warning. `AUTH_RATE_PER_MINUTE` still applies per client IP.
 - **WebSocket/TCP connections** must authenticate with a `hello` token before anything is
-  served. Failed hellos are metered per client IP (`HELLO_RATE_PER_MINUTE`, default 30) —
-  the socket accepts any origin by design, so without that meter a page could try tokens at
-  line rate — the hello is read under a 64 KiB cap, and one client IP holds at most
-  `MAX_CONNECTIONS_PER_IP` connections at once.
+  served. A WebSocket upgrade whose `Origin` is not one `CORS_ORIGINS` admits (loopback when it
+  is unset) or a browser-extension scheme is refused `403` before it takes a slot; a client that
+  sends no `Origin` (the desktop, the CLI) is not a page and passes. Failed hellos are metered per
+  client IP (`HELLO_RATE_PER_MINUTE`, default 30) and a store failure is not charged, the hello is
+  read under a 64 KiB cap, and one client IP holds at most `MAX_CONNECTIONS_PER_IP` connections
+  at once, the server `MAX_CONNECTIONS`; refusals are logged as one count a minute.
+- **Revocation.** `DELETE /auth/session` ends the bearer's own session; the admin token revokes one
+  session (`DELETE /auth/sessions/{id}`) or every session (`DELETE /auth/sessions`, e.g. after
+  rotating `ADMIN_TOKEN`). The token stops resolving at once, and every live feed of that session,
+  on every instance, is told why and hung up.
+- **A store failure is not a bad token.** When the session lookup cannot answer, a request gets
+  `503` with `Retry-After` (never `401`), so a database blip signs nobody out.
 - **Authorization is coarse by design: a valid token grants access to every project** —
   read/write/delete over REST, the events feed over WS/TCP, and any project's persisted `chat`
   transcript. Treat a token as full access to the whole server and issue tokens only to
@@ -244,7 +264,8 @@ go test -run XXX -bench . ./internal/...   # opt-in benchmarks
 ```
 
 The integration tests in `store/` and `redisbus/` **self-skip** when `TEST_DATABASE_URL` /
-`REDIS_URL` are unset or unreachable. The store tests read `TEST_DATABASE_URL`, never
+`REDIS_URL` are unset, and **fail** when one is set but unreachable, so a broken service is never
+a green skip. The store tests read `TEST_DATABASE_URL`, never
 `DATABASE_URL`: their setup **truncates** the named database, so point them at a throwaway
 one:
 

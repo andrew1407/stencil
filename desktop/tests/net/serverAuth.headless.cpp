@@ -20,6 +20,8 @@ int main(int argc, char** argv) {
   serverauth::checkRemintAndExpiry(mock);
   serverauth::checkInvites(mock);
   serverauth::checkAdminRow(mock, mock2);
+  serverauth::checkSessionOnly(mock);
+  serverauth::checkRevalidation(mock);
 
   std::printf(failures ? "FAILURE (%d failures)\n" : "OK\n", failures);
   return failures ? 1 : 0;

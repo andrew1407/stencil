@@ -30,8 +30,18 @@ export const readJSON = (storage, key, fallback) => {
 };
 
 // QuotaExceededError propagates so the DOM adapter can evict + retry.
+// Text already serialised (a layout's lines), spliced in where it stands: the bytes are those of
+// stringifying the value it was taken from. The mark is per session, so no stored string can forge it.
+class RawJson { constructor(text) { this.text = text; } }
+export const rawJson = (text) => new RawJson(text);
+const RAW_MARK = `\u0000raw:${globalThis.crypto?.randomUUID?.() ?? Math.random()}`;
+
 export const writeJSON = (storage, key, value) => {
-  storage.setItem(key, JSON.stringify(value));
+  const raws = [];
+  const text = JSON.stringify(value, (_k, v) => (v instanceof RawJson ? (raws.push(v.text), RAW_MARK) : v));
+  if (!raws.length) return storage.setItem(key, text);
+  const parts = text.split(JSON.stringify(RAW_MARK));
+  storage.setItem(key, parts.reduce((out, part, i) => out + raws[i - 1] + part));
 };
 
 // Only ABSENT fields are filled, so an explicit expiresAt of 0 (keep forever) survives;

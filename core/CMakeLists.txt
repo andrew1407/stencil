@@ -36,7 +36,7 @@ endif()
 
 # Shared core sources (STL only, GUI-free), grouped by concern under core/. Listed once
 # so the static library, the WebAssembly target, and the Zig CLI compile exactly the same
-# files. Keep this list in sync with cli/build.zig, which recompiles these directly.
+# files. tools/repo/coreLists.mjs holds cli/build.zig and pystencil/build.py to this list.
 set(STENCIL_CORE_SOURCES
   geometry/pointMath.cpp
   geometry/hitTest.cpp
@@ -162,6 +162,7 @@ if(STENCIL_CORE_BUILD_TESTS AND NOT EMSCRIPTEN)
     tests/parse/formula.test.cpp
     tests/parse/formulaContext.test.cpp
     tests/abi/scriptApi.test.cpp
+    tests/abi/scriptTokens.test.cpp
     tests/script/script.test.cpp
     tests/script/scriptLower.test.cpp
     tests/script/scriptFixtures.test.cpp
@@ -188,7 +189,9 @@ if(STENCIL_CORE_BUILD_TESTS AND NOT EMSCRIPTEN)
     tests/raster/rowRanges.test.cpp
     tests/raster/downscale.test.cpp
     tests/twinDrift.test.cpp
+    tests/layerLint.test.cpp
     tests/noThrowLint.test.cpp
+    tests/registrationLint.test.cpp
     tests/json/json.test.cpp
     tests/json/jsText.test.cpp
     tests/opplan/opplanFixtures.test.cpp
@@ -231,15 +234,15 @@ endif()
 # ── WebAssembly target — OPTIONAL, Emscripten only ────────────────────────────
 # Only materializes when configured through emcmake (which sets EMSCRIPTEN). A normal
 # native `cmake` build never enters this branch. The browser app loads the resulting
-# stencil_core.js (see WASM.md).
+# stencilCore.js and stencilCore.wasm (see WASM.md).
 if(EMSCRIPTEN)
   add_executable(stencil_wasm ${STENCIL_CORE_SOURCES} wasmApi.cpp wasmCropApi.cpp wasmScriptApi.cpp wasmStateApi.cpp wasmHistoryApi.cpp wasmProjectsApi.cpp wasmOpplanApi.cpp wasmEditApi.cpp)
   target_include_directories(stencil_wasm PRIVATE ${STENCIL_CORE_INCLUDE_DIRS})
-  # Export the extern "C" wrappers + ccall/cwrap helpers; ship an ES6 module.
+  # Size over speed: the hot loops are a few raster passes, and the module is fetched on every cold load.
+  target_compile_options(stencil_wasm PRIVATE -Oz -flto -fno-rtti)
+  # An ES6 glue module plus the stencilCore.wasm beside it, streamed and compiled while it downloads.
   set_target_properties(stencil_wasm PROPERTIES
-    OUTPUT_NAME "stencil_core"
-    # SINGLE_FILE=1 embeds the .wasm as base64 inside the .js so the module loads under
-    # file:// (the browser app is serverless — no fetch()).
-    LINK_FLAGS "-sMODULARIZE=1 -sEXPORT_ES6=1 -sSINGLE_FILE=1 -sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','getValue','setValue','HEAPU8','HEAPF64'] -sALLOW_MEMORY_GROWTH=1 -sEXPORTED_FUNCTIONS=['_stencil_parseHex','_stencil_distToSegment','_stencil_shouldCloseShape','_stencil_pageDimensions','_stencil_pixelToPageRaw','_stencil_pageFormats','_stencil_formulaValidate','_stencil_formulaApply','_stencil_formulaEvaluate','_stencil_formulaValidateCtx','_stencil_formulaApplyCtx','_stencil_parseDuration','_stencil_applyFilterRGBA','_stencil_applyContourRGBA','_stencil_rotatePoints','_stencil_flipPoints','_stencil_boundingBoxCenter','_stencil_clampScale','_stencil_zoomMin','_stencil_zoomMax','_stencil_anchoredZoom','_stencil_rectZoom','_stencil_isAlbumOrientation','_stencil_cropAspect','_stencil_centeredCrop','_stencil_resizeCropFromCorner','_stencil_moveCropClamped','_stencil_scaleCropCentered','_stencil_swapCropOrientation','_stencil_cropResizeScale','_stencil_cropChange','_stencil_rotateCropRectQuarter','_stencil_snapCropRect','_stencil_rotateEditQuarter','_stencil_mirrorEdit','_stencil_mergeLinesKeep','_stencil_logoBanner','_stencil_chainUnchain','_stencil_chainPullOut','_stencil_holdDraw_create','_stencil_holdDraw_destroy','_stencil_holdDraw_state','_stencil_holdDraw_holdDelay','_stencil_holdDraw_setHoldDelay','_stencil_holdDraw_cancel','_stencil_holdDraw_pointerDown','_stencil_holdDraw_pointerMove','_stencil_holdDraw_tick','_stencil_holdDraw_pointerUp','_stencil_history_create','_stencil_history_destroy','_stencil_history_reset','_stencil_history_push','_stencil_history_canUndo','_stencil_history_canRedo','_stencil_history_step','_stencil_history_size','_stencil_history_undo','_stencil_history_redo','_stencil_history_readResult','_stencil_history_resetMemento','_stencil_history_pushMemento','_stencil_history_readView','_stencil_history_readFilter','_stencil_projects_periodMs','_stencil_projects_addPeriod','_stencil_projects_shouldPersist','_stencil_projects_isExpired','_stencil_projects_isExpiringSoon','_stencil_scriptParse','_stencil_scriptDestroy','_stencil_scriptErrorCount','_stencil_scriptDiagCount','_stencil_scriptDiagAt','_stencil_scriptDiagRelated','_stencil_scriptTokenCount','_stencil_scriptTokenAt','_stencil_scriptBlockCount','_stencil_scriptBlockAt','_stencil_scriptOpCount','_stencil_scriptOpAt','_stencil_scriptOpStr','_stencil_scriptOpTokCount','_stencil_scriptOpTok','_stencil_scriptOpNum','_stencil_scriptOpResolve','_stencil_scriptDump','_malloc','_free']")
-  message(STATUS "Emscripten — building stencil_wasm (stencil_core.js/.wasm)")
+    OUTPUT_NAME "stencilCore"
+    LINK_FLAGS "-Oz -flto -sENVIRONMENT=web,worker,node -sMALLOC=emmalloc -sTEXTDECODER=2 -sSUPPORT_LONGJMP=0 -sMODULARIZE=1 -sEXPORT_ES6=1 -sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','getValue','setValue','HEAPU8','HEAPF64'] -sALLOW_MEMORY_GROWTH=1 -sEXPORTED_FUNCTIONS=['_stencil_parseHex','_stencil_distToSegment','_stencil_shouldCloseShape','_stencil_pageDimensions','_stencil_pixelToPageRaw','_stencil_pageFormats','_stencil_formulaValidate','_stencil_formulaApply','_stencil_formulaValidateCtx','_stencil_formulaApplyCtx','_stencil_formulaApplyPoints','_stencil_parseDuration','_stencil_applyFilterRGBA','_stencil_applyContourRGBA','_stencil_rotatePoints','_stencil_flipPoints','_stencil_boundingBoxCenter','_stencil_clampScale','_stencil_zoomMin','_stencil_zoomMax','_stencil_rectZoom','_stencil_isAlbumOrientation','_stencil_cropAspect','_stencil_centeredCrop','_stencil_resizeCropFromCorner','_stencil_moveCropClamped','_stencil_scaleCropCentered','_stencil_swapCropOrientation','_stencil_cropResizeScale','_stencil_cropChange','_stencil_rotateCropRectQuarter','_stencil_snapCropRect','_stencil_rotateEditQuarter','_stencil_mirrorEdit','_stencil_mergeLinesKeep','_stencil_logoBanner','_stencil_chainUnchain','_stencil_chainPullOut','_stencil_holdDraw_create','_stencil_holdDraw_destroy','_stencil_holdDraw_state','_stencil_holdDraw_holdDelay','_stencil_holdDraw_setHoldDelay','_stencil_holdDraw_cancel','_stencil_holdDraw_pointerDown','_stencil_holdDraw_pointerMove','_stencil_holdDraw_tick','_stencil_holdDraw_pointerUp','_stencil_history_create','_stencil_history_destroy','_stencil_history_reset','_stencil_history_push','_stencil_history_canUndo','_stencil_history_canRedo','_stencil_history_step','_stencil_history_size','_stencil_history_undo','_stencil_history_redo','_stencil_history_readResult','_stencil_history_resetMemento','_stencil_history_pushMemento','_stencil_history_readView','_stencil_history_readFilter','_stencil_projects_periodMs','_stencil_projects_addPeriod','_stencil_projects_shouldPersist','_stencil_projects_isExpired','_stencil_projects_isExpiringSoon','_stencil_scriptParse','_stencil_scriptDestroy','_stencil_scriptErrorCount','_stencil_scriptDiagCount','_stencil_scriptDiagAt','_stencil_scriptDiagRelated','_stencil_scriptTokenCount','_stencil_scriptTokens','_stencil_scriptBlockCount','_stencil_scriptBlockAt','_stencil_scriptOpCount','_stencil_scriptOpAt','_stencil_scriptOpStr','_stencil_scriptOpTokCount','_stencil_scriptOpTok','_stencil_scriptOpNum','_stencil_scriptOpResolve','_stencil_scriptDump','_malloc','_free']")
+  message(STATUS "Emscripten — building stencil_wasm (stencilCore.js + stencilCore.wasm)")
 endif()

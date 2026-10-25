@@ -43,10 +43,11 @@ import in `src/`.
 | `src/lib/` | the shared bottom, one folder per feature: the fetch guard (`connection/urlGuard.js`), `stencil.js` (the editor launch), the scanner, pins, connections, menus, drop zones, the ported browser modules, the UI kits | pure where possible and node-tested; a ported file stays byte-identical to its original (`tests/portParity.test.js`) |
 | `src/llm/` | settings, client, the session key, the registry-driven validator, executors, the chat controller | plans validate before any executor runs; the Anthropic key lives in `chrome.storage.session` only |
 | `src/background/` | the service worker: `background.js` is wiring only; `registrars.js` holds the content-script registration and the settings keys that re-run it; `handlers/` holds one module per message group | every function handed to `chrome.scripting.executeScript` stays self-contained (`tests/injectedFuncs.test.js`) |
-| `src/content/` | `ctxResolve.js` + `ctxTarget.js` (the one always-on content script), the `pageApi` files (`window.stencil`), `editorApiMain` + `editorBridge` (editor origin only, `stencil.extension`) | content scripts cannot import modules: a multi-file one is one ordered registration (`CTX_PROBE_FILES`, `PAGE_API_MAIN_FILES`) sharing one namespace object |
+| `src/content/` | `orphan.js` (loaded first in every ISOLATED registration), `ctxResolve.js` + `ctxTarget.js` (the one always-on content script), the `pageApi` files (`window.stencil`), `editorApiMain` + `editorBridge` (editor origin only, `stencil.extension`) | content scripts cannot import modules: a multi-file one is one ordered registration (`CTX_PROBE_FILES`, `PAGE_API_MAIN_FILES`) sharing one namespace object |
 | `src/popup/` | the panel controller (`popup.js`, wiring only), the editor mode, the assistant | the same controller runs the popup, the side panel and the DevTools panel |
 | `src/sidepanel/`, `src/devtools/` | the docked and the DevTools surfaces | reuse `popup.js` and the popup CSS; DevTools targets `inspectedWindow.tabId` |
 | `src/crop/` | the quick-crop tool | the only web-accessible resource |
+| `src/offscreen/` | the offscreen document the worker writes the clipboard through (`background/clipboard.js`, the `offscreen` + `clipboardWrite` permissions) | imports nothing: its one channel is a mirror of `lib/messages.js` (`tests/messages.test.js`) |
 | `src/options/` | one section file per group behind a boot-order-only `options.js`; `secrets/`, the logo shows | the Provider list is built from `config/providers.json`; the shows run on this page only |
 | `tests/` | `node --test` suites, `helpers/` (chrome/DOM stubs), pins | |
 
@@ -98,7 +99,7 @@ classDiagram
 | `CropState` (`crop/handoff.js`) | the quick-crop page's whole mutable state | one per `crop.html` document, seeded from `chrome.storage.session` | `EditorHandoffPayload` |
 | `TargetRecord` (`background/tabState.js`) | what the `ctxTarget.js` probe last resolved under the cursor in one tab | `lastTargetByTab` in the worker, overwritten per probe | the context-menu click handlers (`background/ctxActions.js`) |
 | `StencilMessage` (`lib/messages.js`) | a `chrome.runtime` message tagged by its `MSG` channel | transient; one handler per `type` in `background/handlers/` | `EditorState`, every popup and content module |
-| `OpPlan` (`llm/op/plan.js`) | a validated model reply; `common/config/llm/opRegistry.json` is canonical | per model round inside `ChatController.send` | `ChatMessage`, `ScanEntry` (index-bound), `ExecContext` (`llm/op/executors.js`) |
+| `OpPlan` (`llm/plan/plan.js`) | a validated model reply; `common/config/llm/opRegistry.json` is canonical | per model round inside `ChatController.send` | `ChatMessage`, `ScanEntry` (index-bound), `ExecContext` (`llm/plan/executors.js`) |
 | `ChatMessage` (`llm/client.js`) | one replayed turn with base64 `ChatImage`s | `ChatController.history`, in memory only, trimmed to `HISTORY_LIMIT` | `OpPlan`, `LlmSettings` |
 | `LlmSettings` (`llm/settings.js`) | the explicit provider configuration | `chrome.storage` under `LLM_SETTINGS_KEY`, edited from `options/llm.js` | `StoredConnection`; `createLlmClient` reads it |
 | `HeldSessionKey` (`llm/sessionKey.js`) | the user's own Anthropic key and when it lapses (llm-providers §5) | `chrome.storage.session`, trusted contexts only (`lockSessionKeyArea`), until browser close, extension reload, `ttlMinutes` or Forget | joined to one request by `withSessionKey`; never in `storage.local` |
@@ -116,7 +117,7 @@ classDiagram
 | Adapter | `llm/openActions.js` `translateOpenActions`; `popup/pin/sharedPins.js` `sharedToImage`; `lib/menu/editorTabs.js` `editorRow` | Each maps an outside shape onto one the panel already handles. |
 | MAIN ⇄ ISOLATED bridge | `pageApiMain` ↔ `pageApiBridge`; `editorApiMain` ↔ `editorBridge` (`SRC.EXT_API`/`EXT_API_RES`, `SRC.EXT_REQ`/`EXT_RES`) | Id-correlated `postMessage` envelopes, same window only; the ISOLATED half owns `chrome.*`. |
 | Injected function | `scanPageForImages`, `mountDropZones`, `mountStencilModal`, the probe in `registrars.js` | Handed to `chrome.scripting.executeScript({ func })`; each closes over nothing and carries its own mirror of `MSG`. |
-| Table-driven validator | `llm/op/schema.js` `createSchema` + `llm/op/validate.js` `OP_REGISTRY` / `EXT_VALIDATORS` | The op registry is the schema; per-op code adds only listing-bound rules. |
+| Table-driven validator | `llm/plan/schema.js` `createSchema` + `llm/plan/validate.js` `OP_REGISTRY` / `EXT_VALIDATORS` | The op registry is the schema; per-op code adds only listing-bound rules. |
 | Double-click reset | `installDblReset` (`lib/control/dblReset.js`) | A control returns to its default through `change` |
 | Gesture machines | `wireAltPeek` (`lib/tip/altPeek.js`), `wireDragPick` (`lib/control/dropdownMenu.js`) over ported pure machines | A pure machine under thin DOM wiring; only the release acts |
 
@@ -141,6 +142,11 @@ classDiagram
   that rides in `crop.html?k=` and frames the page through `mountStencilModal`; the page takes
   the entry once (`takeCropHandoff`), and a refused write arrives as `?error=`. There `CropState` is edited, and `buildHandoffPayload` keeps the original
   plus the rect (`apply`) or bakes the region (`cut`).
+- **A copied Stencil link.** A *Copy Stencil link* item resolves the element's source as *Open*
+  does (`srcUrl`, a background's probed URL), `lib/menu/shareLink.js` puts it on the Options share
+  URL as the launch URI's `source` (plus `incognito=true`), `background/clipboard.js` hands it to
+  the one offscreen document, and an injected note in the clicked frame says copied, refused or
+  failed. Only an http(s) source is linked.
 - **An LLM turn.** `popup/assistant/turnRunner.js` drains the attachment tray into
   `ChatController.send`. One round: the `opPrompt` system prompt with the `ScanEntry` listing;
   `LlmClient.chat` over the provider wire (`anthropic` only with the `HeldSessionKey` from
@@ -195,6 +201,8 @@ session-key area is locked — and the per-tab maps refill on the next probe. Ea
 | `pollClock` (`lib/pollClock.js`) | each document | one 8 s interval for every periodic job | the one timer in a document | ticks skip while hidden and run once on `resume`; no jobs, no timer |
 | Bridge legs | worker → tab (`editorRelay.js`), bridge → page (`editorBridge.js`), page → bridge (`editorApiMain.js`) | id-correlated requests | timeouts of 1.5 s, 1.5 s, then 4 s (30 s for the slow calls), each longer than the leg it wraps | a timeout answers `{ ok:false }`; a late answer finds no pending id and is dropped |
 | `ChatController` (`llm/chatController.js`) | the panel document | the replayed history | `state.busy` admits one turn; the send button aborts the running one | a turn that ends with no reply drops its user turn |
+| Content-script copies (`content/orphan.js`) | each ISOLATED script in a tab | its guard flag on `window` and its listeners | one live copy per flag; a reload's re-injected copy says `stencil-ext-orphan` before it claims | a copy whose `chrome.runtime.id` is gone (the extension reloaded) unhooks its listeners and frees its flag at that word or its own next event |
+| In-page overlays (`lib/drop/overlay.js`, `zones.js`, `choice.js`) | the host page, injected by the worker | the page's `window` and `document` listeners | one overlay per host id; a later mount replaces the earlier | `stencil-teardown` on the host unhooks every listener and timer before the node goes; a replaced chooser answers `cancel` |
 
 ## Rules
 
@@ -202,16 +210,20 @@ session-key area is locked — and the per-tab maps refill on the next probe. Ea
    a context click) is fetched only through `lib/connection/urlGuard.js`, which refuses
    non-`http(s)` and the address classes of `common/config/net/blockedRanges.json` (also
    embedded in IPv6 literals); `data:`/`blob:` pass. `guardedFetch` follows no redirect and
-   `readCapped` (`cappedBody.js`) caps every body. `allowSameHostAs` (a scanned page's host) and
-   `allowLoopback` (a URL the user typed) are the two narrow unlocks; neither unlocks the
-   metadata IP. A user-configured endpoint (a server connection's REST client
+   `readCapped` (`cappedBody.js`) caps every body. `allowSameHostAs` (a scanned page's own
+   origin: scheme, host and port) and `allowLoopback` (a URL the user typed) are the two narrow
+   unlocks; neither unlocks the metadata IP. A page-API open fetches `imagesOnly`: a body that is
+   neither `image/*` nor an image signature is refused, since the page could read it back. A user-configured endpoint (a server connection's REST client
    `lib/connection/rest.js`, its `/ws` feed `lib/connection/events.js`, the LLM client
    `llm/http.js`) is dialled directly, since its URL is explicit user configuration and never
    read out of content; those clients follow no redirect and read replies through
    `cappedBody.js`.
 2. **The hand-off is a fragment.** Bytes are fetched here (host permissions bypass page
    CORS), converted to a `data:` URL and passed in the `#stencil=` fragment, which never
-   reaches a server; the editor's `applyExternalLaunch` consumes and strips it.
+   reaches a server; the editor's `applyExternalLaunch` consumes and strips it. The in-page
+   modal's frame is the one exception: a host page reads every frame `src` back through Resource
+   Timing, so it loads on `#stencil-await` and the payload is posted to the editor's origin once
+   the frame says `ready` (`browser/js/prePaintTheme.js` writes it into the fragment).
 3. **Ports stay byte-identical.** Every module `tools/twins.json` copies from the
    browser, `.d.ts` copies included, is pinned byte-equal by `tests/portParity.test.js`; it is edited at
    its original. A module that shares only some declarations is pinned per declaration by
@@ -224,6 +236,8 @@ session-key area is locked — and the per-tab maps refill on the next probe. Ea
    object and postMessages requests to an ISOLATED script that relays them to the worker and
    answers on the same id. "Is this the editor?" is an origin match against the configured
    editor URL (`lib/menu/editorTabs.js` `isEditorTab`), which also scopes the content script.
+   What the page-API bridge tells a page is that page's own: its site's pins and opened-ledger
+   entries, never another site's, and a filter write it accepts is the popup's shape, bounded.
 5. **Imports into an editor go through the editor's own flows** (`loadImageFromFile`,
    `replaceProjectImage`, `projectTransfer.switchToProject`); the extension never touches its
    project registry; "New project" is the fallback whenever the editor's state is unknown.
@@ -247,6 +261,13 @@ session-key area is locked — and the per-tab maps refill on the next probe. Ea
     `src/` module that carries a `.d.ts`, and `tests/dts.test.js` holds the tree to exactly that
     list and every declaration to a real export. A ported module carries its original's `.d.ts`
     as a port; `lib/motion.js`, a re-export barrel, carries none.
+13. **An injected overlay unhooks itself whatever removes it.** The modal, the drop zones and
+    the drop chooser each listen on their own host for `stencil-teardown`; a later mount and
+    `unmountDropZones` dispatch it before removing the node, so no page listener, fallback timer
+    or unanswered chooser outlives the overlay it belonged to.
+14. **Decoded media is released.** Every `ImageBitmap` is closed in a `finally`, every object URL
+    is revoked once read, and a `<video>` made to read one frame is emptied (`src` removed, then
+    `load()`) once it answers. The panel's hover memo holds at most `PREVIEW_MEMO_LIMIT` sources.
 
 ## Tests
 

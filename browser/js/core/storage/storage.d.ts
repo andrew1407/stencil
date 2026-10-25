@@ -23,7 +23,8 @@ export declare class Storage {
   thumbs: ThumbnailScheduler;
   /** Settles once the editor's image is a data URL again (a stored object URL read back). */
   imageReady: Promise<void>;
-  save(): void;
+  /** viewOnly: only the zoom or scroll moved since the last save. */
+  save(opts?: { viewOnly?: boolean }): void;
   /** The debounced cross-tab "this project changed" broadcast; a burst coalesces into one. */
   scheduleSyncBroadcast(): void;
   /** Re-read the active project after another tab saved it (light path when the image is unchanged). */

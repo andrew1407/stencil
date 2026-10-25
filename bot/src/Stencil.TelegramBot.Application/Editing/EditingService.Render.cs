@@ -71,6 +71,22 @@ public sealed partial class EditingService
     // A render the caller has sent or uploaded; the janitor would only sweep it after WorkspaceTtl.
     public void Discard(RenderResult render) => _workspace.Discard(render.Path);
 
+    // A scrape the caller has sent or adopted: its files, then its directory once empty.
+    public void Discard(ScrapeResult scraped)
+    {
+        foreach (ScrapedFile file in scraped.Files)
+        {
+            _workspace.Discard(file.Path);
+        }
+        try
+        {
+            Directory.Delete(scraped.Directory);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+        }
+    }
+
     public StencilLayout BuildLayout(UserSession session) =>
         new()
         {

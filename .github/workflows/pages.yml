@@ -67,7 +67,7 @@ jobs:
       - name: Place the freshly built module in the browser tree
         run: |
           mkdir -p browser/js/wasm
-          cp core/build-wasm/stencil_core.js browser/js/wasm/stencilCore.js
+          cp core/build-wasm/stencilCore.js core/build-wasm/stencilCore.wasm browser/js/wasm/
 
       # ── The single-file copy ──
       - name: Set up Node.js
@@ -81,6 +81,11 @@ jobs:
       - name: Build + verify stencil.html
         working-directory: browser
         run: npm run build
+
+      # The deploy's service worker: this build's files and a VERSION of their bytes, served cache-first;
+      # and index.html's wasm preload hints, the core now built. After the single-file build, which ships neither.
+      - name: Stamp sw.js and index.html
+        run: node browser/tools/swStamp.js --write
 
       # ── The site tree ──
       # Everything the app loads at runtime, and nothing else: no tests, no fixtures, no dev

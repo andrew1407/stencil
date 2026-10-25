@@ -30,6 +30,9 @@ type FileService struct {
 	SessionQuota int64
 	// OpTimeout bounds each store call on its own (OP_TIMEOUT_SECONDS), so a slow body spends none of it.
 	OpTimeout time.Duration
+	// recording holds one project's record-then-commit, so two uploads of a kind cannot leave the row
+	// naming one's bytes while the disk holds the other's.
+	recording keyLock
 }
 
 // NewFiles builds the service.
@@ -105,6 +108,8 @@ func (s *FileService) putRecorded(ctx context.Context, put FilePut, body io.Read
 		file.Hash = hex.EncodeToString(sum.Sum(nil))
 		resp.OriginalHash = file.Hash
 	}
+	unlock := s.recording.lock(put.ID)
+	defer unlock()
 	octx, cancel := withOpTimeout(ctx, s.OpTimeout)
 	rec, err := s.Projects.SetFile(octx, put.ID, file)
 	cancel()

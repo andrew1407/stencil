@@ -7,9 +7,11 @@ import { setPinned, siteOf } from '../../lib/prefs/pins.js';
 import { MSG } from '../../lib/messages.js';
 
 export const pageApiHandlers = {
-  // The in-page editor overlay asks us to open a real tab when its iframe is CSP-blocked.
+  // The in-page editor overlay asks us to open a real tab when its iframe is CSP-blocked: the
+  // editor (http(s)) or one of this extension's own pages, nothing else.
   [MSG.OPEN_TAB]: (msg) => {
-    if (msg.url) chrome.tabs.create({ url: msg.url });
+    const url = String(msg.url || '');
+    if (/^https?:\/\//i.test(url) || url.startsWith(chrome.runtime.getURL(''))) chrome.tabs.create({ url });
   },
   // The DevTools panel's context lacks chrome.runtime.openOptionsPage, so it asks us.
   [MSG.OPEN_OPTIONS]: () => {
@@ -29,7 +31,7 @@ export const pageApiHandlers = {
         // A caller-supplied dataUrl skips fetchAsDataUrl's allowlist — check it here.
         if (msg.dataUrl && !isImageDataUrl(msg.dataUrl)) throw new Error('dataUrl is not an image');
         // Guard context is sender.tab.url — never msg.resource, which the page could forge.
-        const dataUrl = msg.dataUrl || await fetchAsDataUrl(msg.url, { pageUrl: sender.tab?.url || '' });
+        const dataUrl = msg.dataUrl || await fetchAsDataUrl(msg.url, { pageUrl: sender.tab?.url || '', imagesOnly: true });
         const { page, desktopScheme } = await getSettings();
         // Desktop hand-off: the stencil:// scheme URL, instead of the editor tab.
         if (msg.desktop) {
@@ -41,7 +43,7 @@ export const pageApiHandlers = {
         }
         const payload = buildHandoff(
           { name: msg.name || filenameFromUrl(msg.url || 'image'), source: msg.source || msg.url || '' },
-          { dataUrl, page, resource: msg.resource || sender.tab?.url || '', incognito: !!msg.incognito }
+          { dataUrl, page, resource: sender.tab?.url || msg.resource || '', incognito: !!msg.incognito }
         );
         if (msg.newTab) await openEditorTab(payload);
         else await launchEditorModal({ ...payload, tabId: sender.tab?.id });

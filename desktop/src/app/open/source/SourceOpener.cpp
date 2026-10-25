@@ -3,7 +3,8 @@
 #include "SourceOpener.hpp"
 #include "ServerClient.hpp"
 #include "Notifications.hpp"
-#include "mainWindowHelpers.hpp"
+#include "naturalPage.hpp"
+#include "fileBytes.hpp"
 #include "OpenImageDialog.hpp"
 #include "CanvasWidget.hpp"
 #include "IncognitoOverlay.hpp"
@@ -37,10 +38,10 @@ namespace stencil::gui {
             if (done) done(false);
             return;
           }
-          w.docSource.setBytes(*bytes, ext);   // untouched file bytes ⇒ a lossless .stencil bundle
-          w.docSource.currentSource.clear();  // a local file has no source/resource provenance
-          w.docSource.currentResource.clear();
-          w.docSource.blankColor.clear();     // a loaded image is not a blank project
+          w.projectHost.docSource.setBytes(*bytes, ext);   // untouched file bytes ⇒ a lossless .stencil bundle
+          w.projectHost.docSource.currentSource.clear();  // a local file has no source/resource provenance
+          w.projectHost.docSource.currentResource.clear();
+          w.projectHost.docSource.blankColor.clear();     // a loaded image is not a blank project
           w.refreshActions();
           if (done) done(true);
         },
@@ -52,8 +53,8 @@ namespace stencil::gui {
     const auto px = core::defaultBlankSizePx(w.currentPageDimensions());
     OpenImageDialog dlg(&w, canReplaceActive(), px.width, px.height, startBlank,
                         w.settings.pageSize);
-    if (w.remote.connections && !w.incognito) dlg.setServerTargets(w.remote.connections->urls());
-    w.docSource.pendingServerTarget.clear();
+    if (w.remote.conns() && !w.projectHost.incognito) dlg.setServerTargets(w.remote.conns()->urls());
+    w.projectHost.docSource.pendingServerTarget.clear();
     // Raised by neither toolbar half nor the idle card: the canvas stands in for the opener.
     if (!w.pop.dialogAnchor && !w.pop.dialogAnchorRect.isValid())
       w.pop.dialogAnchorRect = canvasAnchorRect(&w);
@@ -70,7 +71,7 @@ namespace stencil::gui {
     if (src.isEmpty()) return;
     const OpenImageDialog::Outcome outcome = dlg.getOutcome();
     // Consumed by adoptCanvasAsLocalProject once the image lands; a new window has no session to hand it to.
-    if (outcome == OpenImageDialog::Outcome::HERE) w.docSource.pendingServerTarget = dlg.serverTarget();
+    if (outcome == OpenImageDialog::Outcome::HERE) w.projectHost.docSource.pendingServerTarget = dlg.serverTarget();
 
     // Preview path: adopt the pixels the dialog already decoded (no re-download/seek) and honour its Crop toggle.
     // Replace keeps its own in-place path; no preview falls back to the async resolve.
@@ -112,20 +113,20 @@ namespace stencil::gui {
   // "Open here" for a URL / local video: openImageHere's reset, but loaded via the async MediaLoader path.
   void SourceOpener::openSourceHere(const QString& src, int frame, bool incognito,
                                   const QStringList& fallbacks) {
-    if (!w.incognito) {
-      if (!w.activeProjectId.isEmpty()) w.saveToActiveProject();
+    if (!w.projectHost.incognito) {
+      if (!w.projectHost.activeProjectId.isEmpty()) w.projectHost.saveToActiveProject();
       else w.saveSessionNow();
     }
-    w.activeProjectId.clear();
-    if (w.incognito != incognito) {
-      w.incognito = incognito;
+    w.projectHost.activeProjectId.clear();
+    if (w.projectHost.incognito != incognito) {
+      w.projectHost.incognito = incognito;
       w.overlays.incognito->setActive(incognito);
       w.acts.incognito->blockSignals(true);
       w.acts.incognito->setChecked(incognito);
       w.acts.incognito->blockSignals(false);
       w.projectTitle->updateProjectTitle();
     }
-    openImageSource(src, frame, fallbacks);  // async; failure is reported by MediaLoader
+    openImageSource(src, frame, fallbacks, strictSources);  // async; failure is reported by MediaLoader
   }
 
   // "Open in new window" for a URL / local video: the source and quick-crop ride the launch options;
@@ -165,13 +166,13 @@ namespace stencil::gui {
                                           bool cropToPage, bool cropAlbum,
                                           const QString& cropPage,
                                           const core::CropRect& cropRect) {
-    if (!w.incognito) {
-      if (!w.activeProjectId.isEmpty()) w.saveToActiveProject();
+    if (!w.projectHost.incognito) {
+      if (!w.projectHost.activeProjectId.isEmpty()) w.projectHost.saveToActiveProject();
       else w.saveSessionNow();
     }
-    w.activeProjectId.clear();
-    if (w.incognito != incognito) {
-      w.incognito = incognito;
+    w.projectHost.activeProjectId.clear();
+    if (w.projectHost.incognito != incognito) {
+      w.projectHost.incognito = incognito;
       w.overlays.incognito->setActive(incognito);
       w.acts.incognito->blockSignals(true);
       w.acts.incognito->setChecked(incognito);
@@ -180,10 +181,10 @@ namespace stencil::gui {
     }
     // Never the default page-aspect auto-crop: what was previewed is what opens.
     if (cropToPage)
-      w.docSource.pendingCrop = {QuickCropOpts::Mode::PAGE, cropAlbum, cropPage, cropRect};
+      w.projectHost.docSource.pendingCrop = {QuickCropOpts::Mode::PAGE, cropAlbum, cropPage, cropRect};
     else
-      w.docSource.pendingCrop = QuickCropOpts::none();
-    w.docSource.pendingProvSource = provSource;
+      w.projectHost.docSource.pendingCrop = QuickCropOpts::none();
+    w.projectHost.docSource.pendingProvSource = provSource;
     onLaunchImageLoaded(image, localPath);
   }
 

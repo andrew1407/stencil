@@ -5,7 +5,7 @@
 #include "windowSheets.hpp"
 #include "ToolbarBuilder.hpp"
 #include "ToastStack.hpp"
-#include "mainWindowHelpers.hpp"
+#include "toolbarMetrics.hpp"
 #include "CanvasWidget.hpp"
 #include "LogoDrag.hpp"
 #include "LogoLineAims.hpp"

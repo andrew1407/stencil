@@ -1,6 +1,6 @@
 // The shared chip-dust recipe: one cloud per row, and the height slide that goes with it.
 #include "chipDust.hpp"
-#include "openImageDialogParts.hpp"
+#include "easeWindowHeight.hpp"
 #include <QAbstractAnimation>
 #include <QEasingCurve>
 #include <QPixmap>
@@ -33,7 +33,7 @@ namespace stencil::gui {
     };
     if (!anim) {
       anim = new QVariantAnimation(owner);
-      anim->setDuration(OI_RESIZE_MS);
+      anim->setDuration(support::WINDOW_RESIZE_MS);
       anim->setEasingCurve(QEasingCurve::OutCubic);
       QVariantAnimation* a = anim;
       QObject::connect(a, &QVariantAnimation::valueChanged, owner,
@@ -46,7 +46,7 @@ namespace stencil::gui {
       });
     }
     anim->stop();
-    anim->setDuration(support::motionMs(OI_RESIZE_MS));
+    anim->setDuration(support::motionMs(support::WINDOW_RESIZE_MS));
     anim->setStartValue(from);
     anim->setEndValue(show ? full : 0);
     // The END state into the layout LAST: setStartValue emits its value straight away, so

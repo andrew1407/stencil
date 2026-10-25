@@ -49,7 +49,7 @@ COPY common/config/ ./common/config/
 RUN cd cli && zig build -Doptimize=ReleaseFast
 
 # ---- Stage 2: build the Rust MCP server ------------------------------------
-FROM rust:slim-bookworm AS server
+FROM rust:1.99.1-slim-bookworm AS server
 WORKDIR /src/mcp
 COPY mcp/ ./
 # Separate stage, separate filesystem: the crate include_str!s the same shared JSON

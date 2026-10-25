@@ -104,7 +104,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(trash && trash->isVisible());
     const QRect pressed(trash->mapToGlobal(QPoint(0, 0)), trash->size());
     const QRect aimed = stencil::gui::emptiedControlRect(&win, trash);
-    win.parts.projects.resetToBlankEditor();
+    win.projectHost.flows.resetToBlankEditor();
     settleLayout(&win, 1200);
     QVERIFY(trash->isVisible());
     const QRect landed(trash->mapToGlobal(QPoint(0, 0)), trash->size());

@@ -68,15 +68,15 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.projectList.push_back(projectOn(QStringLiteral("big"), bigPicture()));
-    win.projectList.push_back(projectOn(QStringLiteral("small"), guiTestImage()));
+    win.projectHost.projectList.push_back(projectOn(QStringLiteral("big"), bigPicture()));
+    win.projectHost.projectList.push_back(projectOn(QStringLiteral("small"), guiTestImage()));
     int bigAnswers = 0, smallAnswers = 0;
     bool bigLanded = true, smallLanded = false;
-    QVERIFY(win.loadProjectIntoCanvas(QStringLiteral("big"), false, [&](bool ok) {
+    QVERIFY(win.projectHost.loadProjectIntoCanvas(QStringLiteral("big"), false, [&](bool ok) {
       ++bigAnswers;
       bigLanded = ok;
     }));
-    QVERIFY(win.loadProjectIntoCanvas(QStringLiteral("small"), false, [&](bool ok) {
+    QVERIFY(win.projectHost.loadProjectIntoCanvas(QStringLiteral("small"), false, [&](bool ok) {
       ++smallAnswers;
       smallLanded = ok;
     }));
@@ -85,7 +85,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(smallLanded);
     QCOMPARE(bigAnswers, 1);
     QVERIFY2(!bigLanded, "the overtaken project still answered as opened");
-    QCOMPARE(win.activeProjectId, QStringLiteral("small"));
+    QCOMPARE(win.projectHost.activeProjectId, QStringLiteral("small"));
     QCOMPARE(win.canvas->getImagePath(), guiTestImage());
     QCOMPARE(win.canvas->getOriginalImage().size(), QSize(240, 160));
   }
@@ -96,9 +96,9 @@ class MainWindowGuiTest : public QObject {
     win->resize(1000, 760);
     win->show();
     QVERIFY(QTest::qWaitForWindowExposed(win));
-    win->projectList.push_back(projectOn(QStringLiteral("big"), bigPicture()));
+    win->projectHost.projectList.push_back(projectOn(QStringLiteral("big"), bigPicture()));
     bool answered = false;
-    QVERIFY(win->loadProjectIntoCanvas(QStringLiteral("big"), true, [&answered](bool) { answered = true; }));
+    QVERIFY(win->projectHost.loadProjectIntoCanvas(QStringLiteral("big"), true, [&answered](bool) { answered = true; }));
     win->openPathFromOS(bigPicture());
     win->close();
     delete win;

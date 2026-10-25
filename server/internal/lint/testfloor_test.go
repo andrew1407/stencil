@@ -15,7 +15,7 @@ import (
 )
 
 // A floor, not a pin: raise it when the suite grows a lot. Additions never trip it.
-const testCountFloor = 235
+const testCountFloor = 305
 
 // skipDirs are never scanned: vendor is third-party, data is runtime output.
 var skipDirs = map[string]bool{"vendor": true, "data": true, "node_modules": true, ".git": true}

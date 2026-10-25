@@ -4,7 +4,7 @@
 #include "chatMenuPanelParts.hpp"
 
 #include "../../support/motion/MenuShimmer.hpp"   // the shared per-row hover sweep
-#include "../../support/guiHelpers.hpp"    // compactIconMenu / fitMenuWidth
+#include "menuIconColumn.hpp"    // compactIconMenu / fitMenuWidth
 #include "../../support/menu/menuReveal.hpp"    // the menu grows out of its trigger
 
 #include <QAction>

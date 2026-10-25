@@ -2,7 +2,8 @@
 // toast for the lot. The selection and the removal hold belong to the list (./list.js).
 // Desktop twin: dialogs/connect/ConnectDialogBatchBar.cpp.
 import { notify } from '../../utils.js';
-import { leaveThenRemove, CONN_DUST_MS, rowLeaveDust } from '../motion.js';
+import { leaveThenRemove } from '../motion/enterLeave.js';
+import { CONN_DUST_MS, rowLeaveDust } from '../motion/surface/tiles.js';
 import { batchNote } from './rules.js';
 
 export function wireConnectBatch(app, { list, mgr, batchBtns }, { selected, doomed, render, updateBatchBar, beginRemoval }) {

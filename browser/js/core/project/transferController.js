@@ -149,11 +149,11 @@ export class ProjectTransferController {
 
   pushProjectFieldToServer(id, fields, failMsg) { return meta.pushProjectFieldToServer(this, id, fields, failMsg); }
 
-  setProjectColor(id, color) { return meta.setProjectColor(this, id, color); }
+  setProjectColor(id, color, opts) { return meta.setProjectColor(this, id, color, opts); }
 
-  setProjectKeywords(id, keywords) { return meta.setProjectKeywords(this, id, keywords); }
+  setProjectKeywords(id, keywords, opts) { return meta.setProjectKeywords(this, id, keywords, opts); }
 
-  setProjectDescription(id, description) { return meta.setProjectDescription(this, id, description); }
+  setProjectDescription(id, description, opts) { return meta.setProjectDescription(this, id, description, opts); }
 
   setProjectBlankColor(id, color) { return meta.setProjectBlankColor(this, id, color); }
 

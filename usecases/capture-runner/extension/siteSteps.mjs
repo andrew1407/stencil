@@ -2,12 +2,26 @@
 // crop and the editor the popup lays over it. Each in-page action closes the popup, as the real
 // one does, so the step reopens it after reloading the site.
 import { settle, waitForAnimations } from '../lib/waits.mjs';
-import { TIMEOUTS, VIEWS, host, runner } from './session.mjs';
+import { TIMEOUTS, VIEWS, app, host, inClosedShadow, runner } from './session.mjs';
 import { clickMenuItem, openFlyout, openRowMenu, popup, reopenPopup } from './popup.mjs';
 
-const modalFrame = () => host.frameLocator('#stencil-ext-modal iframe, iframe');
+// The modal's shell is a closed shadow root that document.getAnimations() never reaches: its frame
+// is found by its page's URL, and ready once `ready` holds inside it and the shell has formed.
+const shellFormed = () => inClosedShadow(host, 'stencil-ext-modal', function formed() {
+  return this.getAnimations().every((a) => a.playState === 'finished' || a.playState === 'idle');
+});
+export const modalFrame = async (part, ready, timeout) => {
+  const until = Date.now() + timeout;
+  for (;;) {
+    const frame = host.frames().find((f) => f !== host.mainFrame() && f.url().includes(part));
+    if (frame && await frame.evaluate(ready).catch(() => false) && await shellFormed()) return frame;
+    if (Date.now() > until) throw new Error(`no frame of ${part} became ready`);
+    await settle(100);
+  }
+};
+export const CROP_PAGE = '/src/crop/crop.html';
 
-const reloadSite = async (ctx, theme) => {
+export const reloadSite = async (ctx, theme) => {
   await host.setViewportSize(VIEWS.site);
   await host.reload();
   await host.locator('figure img').first().waitFor();
@@ -34,10 +48,11 @@ export const makeSiteSteps = ({ image }) => Object.freeze([
     await host.bringToFront();
     await openRowMenu(ui, image);
     await clickMenuItem(ui, 'Crop');
-    await modalFrame().locator('#image[src]').waitFor({ timeout: TIMEOUTS.modalMs });
+    const crop = await modalFrame(CROP_PAGE, () => document.getElementById('image')?.naturalWidth > 0, TIMEOUTS.modalMs);
+    await waitForAnimations(crop);
     // The window stops at 760px tall, so its last controls — the open choice and the button —
     // are reached by scrolling it, as a user does.
-    await modalFrame().locator('body').evaluate(() => {
+    await crop.evaluate(() => {
       const doc = document.scrollingElement;
       doc.scrollTop = doc.scrollHeight;
     });
@@ -52,17 +67,14 @@ export const makeSiteSteps = ({ image }) => Object.freeze([
     await openRowMenu(ui, image);
     await openFlyout(ui, 'Open');
     await clickMenuItem(ui, 'Here', true);
-    const canvas = modalFrame().locator('#canvas');
-    await canvas.waitFor({ timeout: TIMEOUTS.editorMs });
     // Sized, unveiled, and its arrival dust (ui/motion/dust) gone: the picture is on screen.
-    const painted = (c) => c.width > 1 && c.height > 1 && getComputedStyle(c).opacity === '1'
-      && !c.ownerDocument.querySelector('.canvas-dust, .swap-dust');
-    const until = Date.now() + TIMEOUTS.editorMs;
-    while (!(await canvas.evaluate(painted))) {
-      if (Date.now() > until) throw new Error('site-editor-modal: the picture never reached the canvas');
-      await settle(100);
-    }
-    await canvas.evaluate((c) => c.ownerDocument.querySelectorAll('.notify-toast').forEach((t) => t.remove()));
+    const editor = await modalFrame(app.url, () => {
+      const c = document.getElementById('canvas');
+      return !!c && c.width > 1 && c.height > 1 && getComputedStyle(c).opacity === '1'
+        && !document.querySelector('.canvas-dust, .swap-dust');
+    }, TIMEOUTS.editorMs);
+    await waitForAnimations(editor);
+    await editor.evaluate(() => document.querySelectorAll('.notify-toast').forEach((t) => t.remove()));
     await waitForAnimations(host);
     await runner.shot(host, 'site-editor-modal');
     await reloadSite(ctx, theme);

@@ -22,7 +22,7 @@ class MainWindowGuiTest : public QObject {
     const QString id = win.parts.chatAppliers.addImageProjectEntry(img, "name-row");
     QVERIFY(!id.isEmpty());
     bool landed = false;   // the picture decodes off the GUI thread
-    QVERIFY(win.loadProjectIntoCanvas(id, false, [&landed](bool ok) { landed = ok; }));
+    QVERIFY(win.projectHost.loadProjectIntoCanvas(id, false, [&landed](bool ok) { landed = ok; }));
     QTRY_VERIFY_WITH_TIMEOUT(landed, 5000);
     QVERIFY(win.nameBar.field && win.nameBar.edit && win.nameBar.colorBtn);
     QTRY_VERIFY(win.nameBar.colorBtn->isVisible());   // the chips slide in after the bind

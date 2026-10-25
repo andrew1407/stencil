@@ -6,7 +6,6 @@ import { clamp } from '../../utils/math.js';
 import { SCHEMA } from './schema.js';
 import { composeFrame, mapFramePoint } from '../frame.js';
 import { SETTINGS_RUN } from './settingsExecutors.js';
-import { PROJECT_RUN } from './projectExecutors.js';
 
 // ── Browser-side normalizers (the few outputs the generic deep-pick can't express) ──
 // They run on top of normalize(), which already trims `trim` keys and applies defaults.
@@ -97,7 +96,19 @@ const IMAGE_RUN = {
   },
 };
 
-// The §2.1 / §10 halves of the table live next door; one registry is built from all three.
+// The §10 project copy: "Make a copy" through the same core path as the projects menu, the canvas
+// menu and the toolbar; a refused or reduced copy is a note, never a failed plan.
+const PROJECT_RUN = Object.freeze({
+  copyProject: async (a, { copyActiveProject, notes }) => {
+    if (!copyActiveProject) throw new Error('This surface cannot copy projects');
+    const note = await copyActiveProject({
+      what: a.what, open: a.open || 'none', incognito: !!a.incognito, local: !!a.local,
+    });
+    if (note) notes?.push(`copyProject: ${note}`);
+  },
+});
+
+// The §2.1 settings half of the table lives next door; one registry is built from all three.
 const RUN = { ...IMAGE_RUN, ...SETTINGS_RUN, ...PROJECT_RUN };
 
 // The op registry, one entry per whitelisted op (§13), in registry order — which IS the

@@ -12,6 +12,8 @@ export declare const MSG: Readonly<{
   PEERS: 'peers';
   INCOGNITO: 'incognito';
   INCOGNITOS: 'incognitos';
+  PING: 'ping';
+  PONG: 'pong';
 }>;
 
 /** What happened to the project set, carried on a PROJECTS_CHANGED message. */

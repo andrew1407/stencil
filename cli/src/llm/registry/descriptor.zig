@@ -1,7 +1,7 @@
 //! The §13 descriptor shape: an op's capability tag, its record, and the two teeth that
 //! keep the generated prompt honest — the forbidden-op boundary and the bullet censor.
 const std = @import("std");
-const opplan = @import("../opplan.zig");
+const opplan = @import("../plan.zig");
 const opSchema = @import("../opSchema.zig");
 
 const Action = opplan.Action;

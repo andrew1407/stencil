@@ -142,25 +142,25 @@ namespace stencil::gui {
     QObject::connect(w.acts.toolbars, &QAction::toggled, &w, [this](bool on) { w.parts.view.setToolbarsShown(on, true); });
     QObject::connect(w.acts.fullscreen, &QAction::triggered, &w, [this] { w.parts.view.toggleFullscreen(); });
     QObject::connect(w.acts.settings, &QAction::triggered, &w, [this] { w.parts.dialogs.openSettings(); });
-    QObject::connect(w.acts.projects, &QAction::triggered, &w, [this] { w.parts.projects.openProjects(); });
-    QObject::connect(w.acts.connect, &QAction::triggered, &w, [this] { w.parts.projects.openConnections(); });
+    QObject::connect(w.acts.projects, &QAction::triggered, &w, [this] { w.projectHost.flows.openProjects(); });
+    QObject::connect(w.acts.connect, &QAction::triggered, &w, [this] { w.projectHost.flows.openConnections(); });
     QObject::connect(w.acts.links, &QAction::triggered, &w, [this] { w.parts.sourceOpener.openLinks(); });
-    QObject::connect(w.acts.description, &QAction::triggered, &w, [this] { w.parts.projects.openDescription(); });
-    QObject::connect(w.acts.keywords, &QAction::triggered, &w, [this] { w.parts.projects.openKeywords(); });
+    QObject::connect(w.acts.description, &QAction::triggered, &w, [this] { w.projectHost.flows.openDescription(); });
+    QObject::connect(w.acts.keywords, &QAction::triggered, &w, [this] { w.projectHost.flows.openKeywords(); });
     // Shared hotkeysConfig openAssistantSettings.
     w.acts.assistantSettings = newAction("AI Assistant Settings…", w.keys.value("openAssistantSettings", "Alt+Shift+G"));
     w.setActionTip(w.acts.assistantSettings, "AI assistant settings — provider, model & voice");
     QObject::connect(w.acts.assistantSettings, &QAction::triggered, &w, [this] { w.parts.dialogs.openAssistantSettings(); });
-    QObject::connect(w.acts.openIn, &QAction::triggered, &w, [this] { w.parts.projects.openInAnotherApp(); });
-    QObject::connect(w.acts.copyProject, &QAction::triggered, &w, [this] { w.parts.projectCopy.showToolbarMenu(); });
+    QObject::connect(w.acts.openIn, &QAction::triggered, &w, [this] { w.projectHost.flows.openInAnotherApp(); });
+    QObject::connect(w.acts.copyProject, &QAction::triggered, &w, [this] { w.projectHost.copy.showToolbarMenu(); });
     QObject::connect(w.acts.newProject, &QAction::triggered, &w,
-                     [this] { w.parts.projects.newProjectFromCanvas(); });
+                     [this] { w.projectHost.flows.newProjectFromCanvas(); });
     QObject::connect(w.acts.saveProject, &QAction::triggered, &w,
-                     &MainWindow::saveToActiveProject);
+                     [this] { w.projectHost.saveToActiveProject(); });
     QObject::connect(w.acts.clearProject, &QAction::triggered, &w,
-                     [this] { w.parts.projects.clearCurrentProject(); });
+                     [this] { w.projectHost.flows.clearCurrentProject(); });
     QObject::connect(w.acts.closeProject, &QAction::triggered, &w,
-                     [this] { w.parts.projects.closeActiveProject(); });
+                     [this] { w.projectHost.flows.closeActiveProject(); });
     QObject::connect(w.acts.saveSession, &QAction::triggered, &w, [this] {
       w.saveSessionNow();
     });

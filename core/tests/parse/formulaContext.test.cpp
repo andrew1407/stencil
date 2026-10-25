@@ -111,3 +111,17 @@ TEST_CASE("the context-free entry points behave exactly as before") {
   CHECK_FALSE(FormulaParser::evaluate("y", 'x', 1.0).has_value());
   CHECK(FormulaParser::apply("x * 2", 'x', 5.0, true) == doctest::Approx(10.0));
 }
+
+TEST_CASE("applyPoints: each point as apply would answer it, both raw axes in reach") {
+  const std::vector<double> raw = {10, 4, 0, 0, -3.5, 7.25};
+  std::vector<double> xy = raw;
+  FormulaParser::applyPoints("x / y", "PAGE_WIDTHS", xy.data(), 3, a4());
+  for (std::size_t i = 0; i < 3; ++i) {
+    FormulaContext at = a4();
+    at.x = raw[2 * i];
+    at.y = raw[2 * i + 1];
+    const double x = FormulaParser::apply("x / y", 'x', at.x, true, at);
+    CHECK(((xy[2 * i] == x) || (xy[2 * i] != xy[2 * i] && x != x)));
+    CHECK(xy[2 * i + 1] == raw[2 * i + 1]);   // an invalid formula leaves its axis as it was
+  }
+}

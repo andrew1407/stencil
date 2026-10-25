@@ -35,7 +35,7 @@ stencil_headless_test(stencil_connectrow_headless
     ${STENCIL_CONNECTDIALOG_SOURCES} ${STENCIL_SERVERCLIENT_SOURCES} src/net/connectionStore.cpp
     ${STENCIL_FILESTORE_SOURCES}
     src/io/deferredWrite.cpp
-    src/support/guiHelpers.cpp src/support/guiHelpersColor.cpp
+    src/support/pageSizeCombo.cpp src/support/colorSwatch.cpp src/support/icon/iconInline.cpp src/support/cursor/pointerCursor.cpp
     ${STENCIL_THEME_SOURCES}
     src/support/icon/iconSet.cpp src/support/modal/modalReveal.cpp
     src/support/menu/menuReveal.cpp

@@ -3,8 +3,8 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import {
-  CSP_META, PRE_PAINT_TAG, MANIFEST_LINK, FAVICON_HREF,
-  PROJECTS_WORKER_URL, IMAGE_WORKER_URL, WASM_IMPORT, OPEN_IN_CONFIG_URL, NO_SIBLINGS,
+  CSP_META, PRE_PAINT_TAG, MANIFEST_LINK, FAVICON_HREF, MODULEPRELOAD_BLOCK,
+  FALLBACKS, NO_SIBLINGS,
 } from './tools/singleFilePatterns.js';
 
 // `npm run build` only — the app itself stays a no-build ES-module site: this folds the module graph, the
@@ -27,6 +27,7 @@ const prepareHtml = () => ({
     const prePaint = readFileSync(resolve(root, 'js/prePaintTheme.js'), 'utf8');
     const out = code
       .replace(CSP_META, '')
+      .replace(MODULEPRELOAD_BLOCK, '')
       .replace(MANIFEST_LINK, '')
       .replace(PRE_PAINT_TAG, `<script>\n${prePaint}\n</script>`)
       .replace(FAVICON_HREF, `href="${dataUri('../common/icons/favicon.svg')}"`);
@@ -39,36 +40,16 @@ const prepareHtml = () => ({
 });
 
 // Four siblings cannot come along, so their loaders fail fast into the fallbacks the app already has
-// rather than a doomed file:// request: projectsWorker, imageWorker, wasm/stencilCore, openInConfig.json.
+// rather than a doomed file:// request; FALLBACKS keys each rewrite by its path under browser/.
 const useFallbackPaths = () => ({
   name: 'stencil-singlefile-fallbacks',
   enforce: 'pre',
   transform(code, id) {
-    if (id.endsWith('core/launch/tabsCoordinator.js')) {
-      return code.replace(
-        PROJECTS_WORKER_URL,
-        "(() => { throw new Error('single-file build: no module worker'); })()"
-      );
-    }
-    if (id.endsWith('worker/imageTasks.js')) {
-      return code.replace(
-        IMAGE_WORKER_URL,
-        "(() => { throw new Error('single-file build: no module worker'); })()"
-      );
-    }
-    if (id.endsWith('core/stencilCore.js')) {
-      return code.replace(
-        WASM_IMPORT,
-        "Promise.reject(new Error('single-file build: wasm core not bundled'))"
-      );
-    }
-    if (id.endsWith('config/openInConfig.js')) {
-      return code.replace(
-        OPEN_IN_CONFIG_URL,
-        "(() => { throw new Error('single-file build: operator config not bundled'); })()"
-      );
-    }
-    return null;
+    const file = Object.keys(FALLBACKS).find(f => id.endsWith('/' + f));
+    if (!file) return null;
+    const [pattern, replacement] = FALLBACKS[file];
+    if (!pattern.test(code)) this.error(`${file} no longer matches ${pattern}`);
+    return code.replace(pattern, replacement);
   },
 });
 

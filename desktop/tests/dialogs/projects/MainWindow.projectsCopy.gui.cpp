@@ -28,7 +28,7 @@ class MainWindowGuiTest : public QObject {
   static QString copyNow(MainWindow& win, const CopyRequest& req) {
     QString made;
     bool finished = false;
-    win.parts.projectCopy.run(req, [&](bool ok, QString id, QString) {
+    win.projectHost.copy.run(req, [&](bool ok, QString id, QString) {
       finished = true;
       made = ok ? id : QString();
     });
@@ -41,56 +41,56 @@ class MainWindowGuiTest : public QObject {
 
   void scopesCarryWhatTheyNameUnderTheirOwnNames() {
     MainWindow win(nullptr, false);
-    win.projectList.clear();   // the state dir outlives a run: the names below start from nothing
+    win.projectHost.projectList.clear();   // the state dir outlives a run: the names below start from nothing
     CanvasWidget* canvas = loadedWithLine(win);
-    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage() && !win.activeProjectId.isEmpty(), 5000);
-    const QString srcId = win.activeProjectId;
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage() && !win.projectHost.activeProjectId.isEmpty(), 5000);
+    const QString srcId = win.projectHost.activeProjectId;
     {
-      Project* src = win.findProject(srcId.toStdString());
+      Project* src = win.projectHost.findProject(srcId.toStdString());
       src->meta.color = "#123456";
       src->meta.keywords = {"roof"};
     }
-    win.saveToActiveProject();
-    const Project src = *win.findProject(srcId.toStdString());
-    const std::size_t before = win.projectList.size();
+    win.projectHost.saveToActiveProject();
+    const Project src = *win.projectHost.findProject(srcId.toStdString());
+    const std::size_t before = win.projectHost.projectList.size();
 
     CopyRequest req;
     req.id = srcId;
     req.what = scope::COPY_IMAGE;
-    const Project image = *win.findProject(copyNow(win, req).toStdString());
+    const Project image = *win.projectHost.findProject(copyNow(win, req).toStdString());
     QCOMPARE(image.meta.name, src.meta.name + "-copy");
     QVERIFY2(image.lines.empty() && image.meta.color.empty(), "image only is the untouched original");
     QVERIFY2(image.imagePath != src.imagePath && QFileInfo::exists(image.imagePath),
              "a copy owns its image file, never the source's path");
 
     req.what = scope::COPY_LAYOUT;
-    const Project layout = *win.findProject(copyNow(win, req).toStdString());
+    const Project layout = *win.projectHost.findProject(copyNow(win, req).toStdString());
     QCOMPARE(layout.meta.name, src.meta.name + "-copy(1)");
     QCOMPARE(layout.lines.size(), src.lines.size());
     QVERIFY(layout.meta.color.empty());
 
     req.what = scope::COPY_PROJECT;
-    const Project whole = *win.findProject(copyNow(win, req).toStdString());
+    const Project whole = *win.projectHost.findProject(copyNow(win, req).toStdString());
     QCOMPARE(whole.meta.name, src.meta.name + "-copy(2)");
     QCOMPARE(whole.meta.color, src.meta.color);
     QCOMPARE(whole.meta.keywords, src.meta.keywords);
-    QCOMPARE(win.projectList.size(), before + 3);
-    QCOMPARE(win.activeProjectId, srcId);   // nothing was asked to open
+    QCOMPARE(win.projectHost.projectList.size(), before + 3);
+    QCOMPARE(win.projectHost.activeProjectId, srcId);   // nothing was asked to open
   }
 
   void incognitoCopyOpensUnsaved() {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = loadedWithLine(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    const std::size_t before = win.projectList.size();
+    const std::size_t before = win.projectHost.projectList.size();
     CopyRequest req;
     req.what = scope::COPY_LAYOUT;
     req.open = stencil::gui::COPY_OPEN_HERE;
     req.incognito = true;
     QVERIFY(copyNow(win, req).isEmpty());
-    QTRY_VERIFY(win.incognito);
-    QVERIFY(win.activeProjectId.isEmpty());
-    QCOMPARE(win.projectList.size(), before);
+    QTRY_VERIFY(win.projectHost.incognito);
+    QVERIFY(win.projectHost.activeProjectId.isEmpty());
+    QCOMPARE(win.projectHost.projectList.size(), before);
     QTRY_COMPARE(canvas->getLines().size(), std::size_t(1));
   }
 
@@ -138,9 +138,9 @@ class MainWindowGuiTest : public QObject {
   void justCopyLeavesTheEditorWhereItWas() {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = loadedWithLine(win);
-    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage() && !win.activeProjectId.isEmpty(), 5000);
-    const QString srcId = win.activeProjectId;
-    const std::size_t before = win.projectList.size();
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage() && !win.projectHost.activeProjectId.isEmpty(), 5000);
+    const QString srcId = win.projectHost.activeProjectId;
+    const std::size_t before = win.projectHost.projectList.size();
     // The confirmation exec()s its own loop, which still runs this poll.
     QTimer answer;
     QObject::connect(&answer, &QTimer::timeout, [&win, &answer] {
@@ -154,11 +154,11 @@ class MainWindowGuiTest : public QObject {
     QString made;
     CopyRequest req;
     req.what = scope::COPY_LAYOUT;
-    win.parts.projectCopy.offer(req, QRect(), [&made](QString id, CopyOpen) { made = id; });
+    win.projectHost.copy.offer(req, QRect(), [&made](QString id, CopyOpen) { made = id; });
     QTRY_VERIFY_WITH_TIMEOUT(!made.isEmpty(), 5000);
-    QCOMPARE(win.projectList.size(), before + 1);
-    QCOMPARE(win.activeProjectId, srcId);
-    QVERIFY(!win.incognito);
+    QCOMPARE(win.projectHost.projectList.size(), before + 1);
+    QCOMPARE(win.projectHost.activeProjectId, srcId);
+    QVERIFY(!win.projectHost.incognito);
   }
 };
 

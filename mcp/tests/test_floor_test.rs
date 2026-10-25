@@ -7,13 +7,13 @@ use std::path::{Path, PathBuf};
 use serde_json::Value;
 
 /// Raise these when the suite grows a lot. An addition must never trip one; a collapse must.
-const DECLARED_FLOOR: usize = 270;
+const DECLARED_FLOOR: usize = 360;
 const CORPUS_FLOOR: usize = 80;
 
 /// The fixture corpora the `harness = false` walkers expand into one reported case each —
 /// the generated bulk of the suite, which no scan of the sources can see.
 const CORPORA: [&str; 9] = [
-    "cli/testdata/outcome_fixtures.json",
+    "common/fixtures/cli/outcome.json",
     "common/fixtures/imageHeader/cases.json",
     "common/fixtures/llm/sanitizer/cases.json",
     "common/fixtures/layout/payload.json",

@@ -1,5 +1,5 @@
 import { icon, DRAW_MODE_ICON } from '../icons.js';
-import { swapContent, pinWidestFace } from '../motion.js';
+import { swapContent, pinWidestFace } from '../motion/control/fx.js';
 import { composeControlTitle } from '../../utils.js';
 import { hotkeys } from '../../core/settings/hotkeys.js';
 

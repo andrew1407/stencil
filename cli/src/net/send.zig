@@ -6,6 +6,7 @@ const std = @import("std");
 const report = @import("../app/report.zig");
 const fetchPool = @import("fetchPool.zig");
 const pin = @import("pin.zig");
+const shown = @import("shown.zig");
 
 pub const Error = error{ HttpFailed, BlockedHost, TimedOut };
 
@@ -81,10 +82,11 @@ pub fn once(
 
 fn failed(url: []const u8, e: anyerror, muted: ?*const std.atomic.Value(bool)) Error {
     if (muted != null and muted.?.load(.acquire)) return Error.HttpFailed;
+    var sb: shown.Buf = undefined;
     if (e == error.WriteFailed) {
-        report.err("response from {s} exceeds the {d}-byte fetch cap\n", .{ url, MAX_FETCH_BYTES });
+        report.err("response from {s} exceeds the {d}-byte fetch cap\n", .{ shown.of(&sb, url), MAX_FETCH_BYTES });
     } else {
-        report.err("HTTP request failed for {s}: {s}\n", .{ url, @errorName(e) });
+        report.err("HTTP request failed for {s}: {s}\n", .{ shown.of(&sb, url), @errorName(e) });
     }
     return Error.HttpFailed;
 }
@@ -134,6 +136,7 @@ fn abandon(task: *Task, fut: *std.Io.Future(void), timed_out: bool) Result {
     fut.cancel(task.io);
     if (task.out) |res| task.gpa.free(res.body) else |_| {}
     if (!timed_out) return Error.HttpFailed;
-    report.err("no answer from {s} within {d}s\n", .{ task.url, task.opts.timeout_ms / 1000 });
+    var sb: shown.Buf = undefined;
+    report.err("no answer from {s} within {d}s\n", .{ shown.of(&sb, task.url), task.opts.timeout_ms / 1000 });
     return Error.TimedOut;
 }

@@ -32,6 +32,10 @@ func MigrateWith(ctx context.Context, pool *pgxpool.Pool, move MoveOriginal) err
 		return err
 	}
 	return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
+		// A migration may build an index over every row, and waits out another instance's: no statement cap.
+		if _, err := tx.Exec(ctx, `SET LOCAL statement_timeout = 0`); err != nil {
+			return fmt.Errorf("migration statement timeout: %w", err)
+		}
 		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, migrationLock); err != nil {
 			return fmt.Errorf("migration lock: %w", err)
 		}

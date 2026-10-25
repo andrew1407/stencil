@@ -2,7 +2,7 @@
 //! calling agent; assertions run against the real serialized wire shape.
 
 use super::*;
-use crate::opplan::{AskCard, AskOption, OpPlan};
+use crate::plan::{AskCard, AskOption, OpPlan};
 use crate::server::testwire::{payload_of, summary_of};
 use serde_json::{json, Value};
 
@@ -126,7 +126,7 @@ fn an_ask_card_rides_out_last_on_the_summary_and_as_data() {
     assert!(summary.starts_with("Two ways to crop this."));
     assert_eq!(
         summary,
-        format!("Two ways to crop this.{}", crate::opplan::format_ask(&card())),
+        format!("Two ways to crop this.{}", crate::plan::format_ask(&card())),
         "the summary's card must be exactly what format_ask renders"
     );
     assert!(summary.contains("1. Square") && summary.contains("2. Wide"));

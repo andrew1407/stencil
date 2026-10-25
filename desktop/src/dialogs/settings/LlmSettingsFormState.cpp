@@ -20,7 +20,7 @@ namespace stencil::gui {
   LlmSettingsForm::~LlmSettingsForm() = default;
 
   void LlmSettingsForm::focusEntry() {
-    const bool wantsKey = provider->currentData().toString() == QLatin1String("anthropic") &&
+    const bool wantsKey = stencil::llm::llmSettingsRows(provider->currentData().toString()).key == QLatin1String("session") &&
                           stencil::llm::SessionKey::instance().key().isEmpty();
     if (wantsKey) anthropicKey->setFocus();
     else provider->setFocus();
@@ -29,10 +29,12 @@ namespace stencil::gui {
   void LlmSettingsForm::syncRows(const QString& prevProvider) {
     const int hostH0 = window() ? window()->height() : 0;   // before the rows move
     const QString provider = this->provider->currentData().toString();
+    const stencil::llm::LlmSettingsRows rows = stencil::llm::llmSettingsRows(provider);
     const bool off = provider == "none";  // assistant off: every row irrelevant
-    const bool viaServer = provider == "stencil-server";
-    const bool direct = !off && !viaServer;  // called by us over the network
-    const bool keyed = provider == "anthropic";   // the session key, not a stored one
+    const bool viaServer = rows.endpoint == QLatin1String("server");
+    const bool direct = rows.endpoint == QLatin1String("base");  // called by us over the network
+    const bool keyed = rows.key == QLatin1String("session");   // the session key, not a stored one
+    const bool stored = rows.key == QLatin1String("stored");
     if (mode == RowMode::HIDE_ROWS) {
       // Browser parity: irrelevant rows disappear rather than sitting greyed out —
       // each together with its .vs-row hairline.
@@ -42,13 +44,13 @@ namespace stencil::gui {
       };
       showRow(baseUrl, baseUrlDiv, direct);
       showRow(model, modelDiv, !off);
-      showRow(apiKey, apiKeyDiv, provider == "openai-compat");
+      showRow(apiKey, apiKeyDiv, stored);
       showRow(anthropicKey, anthropicKeyDiv, keyed);
       showRow(keyStatusRow, keyStatusDiv, keyed);
       showRow(server, serverDiv, viaServer);
       // The merged note stays (the §12.2 line always applies); only its
       // local-endpoint and session-key lines are provider-conditional.
-      note->setVisible(direct && !keyed);
+      note->setVisible(rows.endpointNote);
       keyNote->setVisible(keyed);
       // A layout caches each child's height in its own item, and hiding one does not clear
       // that — the box would keep the vanished line's space. updateGeometry() re-reports it.
@@ -61,7 +63,7 @@ namespace stencil::gui {
     } else {
       baseUrl->setEnabled(direct);
       model->setEnabled(!off);
-      apiKey->setEnabled(provider == "openai-compat");
+      apiKey->setEnabled(stored);
       anthropicKey->setEnabled(keyed);
       keyStatusRow->setEnabled(keyed);
       server->setEnabled(viaServer);
@@ -102,7 +104,7 @@ namespace stencil::gui {
     stencil::llm::LlmSettings cfg;
     cfg.provider = provider->currentData().toString();
     cfg.baseUrl = baseUrl->text().trimmed();
-    cfg.apiKey = cfg.provider == QLatin1String("anthropic") ? requestKey() : apiKey->text().trimmed();
+    cfg.apiKey = stencil::llm::llmSettingsRows(cfg.provider).key == QLatin1String("session") ? requestKey() : apiKey->text().trimmed();
     cfg.serverUrl = server->currentData().toString();
     client->listModels(cfg, [this](QStringList names) {
       // The current edit text is preserved across repopulation, so a
@@ -151,7 +153,7 @@ namespace stencil::gui {
   void LlmSettingsForm::commitAnthropicKey() {
     const QString typed = anthropicKey->text().trimmed();
     anthropicKey->clear();
-    if (provider->currentData().toString() == QLatin1String("anthropic") && !typed.isEmpty())
+    if (stencil::llm::llmSettingsRows(provider->currentData().toString()).key == QLatin1String("session") && !typed.isEmpty())
       stencil::llm::SessionKey::instance().hold(typed);
   }
 

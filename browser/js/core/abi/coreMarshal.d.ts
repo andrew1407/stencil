@@ -15,7 +15,9 @@ export interface CoreMarshal {
   readonly F64: number;
   readonly I64: number;
   readonly I32: number;
-  /** Runs `fill` against a 4-double out slot and reads it back as a rect. */
+  /** Fills the one kept out slot; `at(i)` reads its i-th double through a fresh HEAPF64 view. */
+  withF64Out(fill: (out: number) => void): (i: number) => number;
+  /** Runs `fill` against the out slot and reads its first four doubles back as a rect. */
   withRectOut(fill: (out: number) => void): CropRect;
   allocPoints(points: readonly XY[]): PointBuffer;
   /** The string crosses on the HEAP, not cwrap's ~64KB stack. */
@@ -23,6 +25,8 @@ export interface CoreMarshal {
   /** The one image-sized buffer, grown on demand; the pointer is reused every call. A failed grow
    * throws a CoreHeapError and caches nothing. */
   pixelScratch(bytes: number): number;
+  /** Frees that buffer; the next pixel op allocates it again. */
+  releasePixelScratch(): void;
 }
 
 /** The core's heap could not grow: `_malloc` answered 0. */

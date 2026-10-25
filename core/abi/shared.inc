@@ -54,7 +54,10 @@ double STENCIL_ABI(formulaApplyCtx, applyFormulaCtx)(const char* expr, int varNa
 // (contourFilter.js) must stay byte-identical. Null data / degenerate dims: no-op.
 void STENCIL_ABI(applyContourRGBA, applyContour)(std::uint8_t* data, int width,
                                                  int height) {
-  applyContourRGBA(data, width, height);
+  // One luma plane per calling thread, kept for the next call up to 16 MiB; a larger one is freed.
+  thread_local std::vector<std::uint8_t> scratch;
+  applyContourRGBA(data, width, height, scratch);
+  if (scratch.capacity() > (std::size_t{16} << 20)) std::vector<std::uint8_t>().swap(scratch);
 }
 
 // A human duration ("days 23", "fortnight", "off") -> *outMs, 0 = keep forever; a 0 return

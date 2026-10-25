@@ -1,7 +1,7 @@
 #include "MainWindow.hpp"
 #include "ChatAppliers.hpp"
 #include "ChatSessionController.hpp"
-#include "mainWindowHelpers.hpp"
+#include "fileBytes.hpp"
 #include "CanvasWidget.hpp"
 #include "displayName.hpp"
 #include "Notifications.hpp"
@@ -16,7 +16,7 @@ namespace stencil::gui {
 
   QString ChatAppliers::uniqueLocalProjectName(const QString& wanted) const {
     std::vector<core::ProjectMeta> metas;
-    for (const auto& p : w.projectList) metas.push_back(p.meta);
+    for (const auto& p : w.projectHost.projectList) metas.push_back(p.meta);
     core::ProjectsStore store;   // local; never disturbs projectsStore
     store.load(metas);
     if (!store.nameExists(wanted.toStdString())) return wanted;
@@ -35,7 +35,7 @@ namespace stencil::gui {
       name = QFileInfo(w.chatSession->chatTurnAttachmentNames.value(active - 1))
                  .completeBaseName()
                  .trimmed();
-    if (name.isEmpty()) name = w.activeProjectName();
+    if (name.isEmpty()) name = w.projectHost.activeProjectName();
     if (name.isEmpty() && w.canvas && w.canvas->hasImage()) name = w.canvas->imageBaseName();
     if (name.isEmpty()) name = QStringLiteral("Untitled");
     return name.left(core::ProjectsStore::MAX_NAME_LENGTH);  // core validateName's cap
@@ -99,15 +99,15 @@ namespace stencil::gui {
       w.notify->success(QStringLiteral("Saved %1").arg(support::shortName(path)));
       return true;
     }
-    if (w.incognito) {   // leaving incognito IS the save the user asked for
-      const QString promoted = w.promoteIncognitoToLocal(chatSaveBaseName(name));
+    if (w.projectHost.incognito) {   // leaving incognito IS the save the user asked for
+      const QString promoted = w.projectHost.promoteIncognitoToLocal(chatSaveBaseName(name));
       w.notify->success(QStringLiteral("Left incognito — saved \"%1\"")
                            .arg(support::shortName(promoted)));
       return true;
     }
     // A FRESH project per save, so each image of a multi-image plan lands as its own.
     const QString unique = uniqueLocalProjectName(chatSaveBaseName(name));
-    w.createLocalProject(unique, /*announce=*/false);
+    w.projectHost.createLocalProject(unique, /*announce=*/false);
     w.notify->success(QStringLiteral("Saved \"%1\"").arg(support::shortName(unique)));
     return true;
   }

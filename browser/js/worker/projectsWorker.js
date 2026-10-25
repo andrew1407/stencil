@@ -5,8 +5,13 @@
 // ids, and relay "projects changed" re-render pings.
 import { MSG } from './messages.js';
 
-// port -> { activeId, incognito }   (incognito = { name, updatedAt } or null)
+// A crashed tab never says BYE: a port silent for MISSES pings in a row is dropped (~30 s).
+const PING_MS = 10_000;
+const MISSES = 3;
+
+// port -> { activeId, incognito, missed }   (incognito = { name, updatedAt } or null)
 const ports = new Map();
+let pinger = null;
 
 const tabcountMsg = () => ({
   type: MSG.TABCOUNT,
@@ -25,7 +30,7 @@ const post = (port, msg) => {
   try {
     port.postMessage(msg);
   } catch {
-    /* port closed (tab gone) — it'll be pruned on its next BYE / failed ping */
+    /* port closed (tab gone) — the sweep drops it once its pings go unanswered */
   }
 };
 const broadcast = (msg, except = null) => {
@@ -47,6 +52,23 @@ const sendIncognitos = () => {
 const drop = port => {
   if (!ports.has(port)) return;
   ports.delete(port);
+  if (ports.size === 0) { clearInterval(pinger); pinger = null; }
+  broadcast(tabcountMsg());
+  broadcast(peersMsg());
+  sendIncognitos();
+};
+
+const sweep = () => {
+  for (const [port, state] of ports) {
+    if (++state.missed > MISSES) drop(port);
+    else post(port, { type: MSG.PING });
+  }
+};
+
+const join = (port, data) => {
+  ports.set(port, { activeId: data.activeId ?? null, incognito: data.incognito || null, missed: 0 });
+  pinger ??= setInterval(sweep, PING_MS);
+  post(port, tabcountMsg());
   broadcast(tabcountMsg());
   broadcast(peersMsg());
   sendIncognitos();
@@ -54,21 +76,25 @@ const drop = port => {
 
 self.onconnect = e => {
   const port = e.ports[0];
-  ports.set(port, { activeId: null, incognito: null });
   port.start();
 
   port.onmessage = ev => {
     const data = ev.data || {};
     const type = data.type;
-    if (type === MSG.HELLO) {
-      // A tab back from the bfcache said BYE already: it rejoins with the state it carries.
-      if (!ports.has(port)) ports.set(port, { activeId: data.activeId ?? null, incognito: data.incognito || null });
+    const known = ports.get(port);
+    if (known) known.missed = 0;
+    // HELLO from a tab back from the bfcache, PONG from one thawed after its port was dropped:
+    // either rejoins with the state it carries. Any other word from a dropped port asks for that.
+    if (type === MSG.HELLO || type === MSG.PONG) {
+      if (!known) return join(port, data);
+      if (type === MSG.PONG) return;
       post(port, tabcountMsg());
       broadcast(tabcountMsg());
       broadcast(peersMsg());
       sendIncognitos();
       return;
     }
+    if (!known && type !== MSG.BYE) post(port, { type: MSG.PING });
     if (type === MSG.ACTIVE) {
       const state = ports.get(port);
       if (state) state.activeId = data.activeId ?? null;

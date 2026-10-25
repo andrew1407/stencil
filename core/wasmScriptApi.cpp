@@ -4,6 +4,7 @@
 #include "HandleTable.hpp"
 #include "scriptProgram.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <mutex>
 #include <utility>

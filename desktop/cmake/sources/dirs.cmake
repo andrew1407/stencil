@@ -69,6 +69,7 @@ set(STENCIL_GUI_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/control
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/control/reveal
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/control/swap
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/support/cursor
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/drag
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/dust
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/icon

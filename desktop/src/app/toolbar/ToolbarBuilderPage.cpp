@@ -1,12 +1,12 @@
 #include "MainWindow.hpp"
 #include "ToolbarBuilder.hpp"
-#include "mainWindowHelpers.hpp"
 #include "numericInput.hpp"
 #include "SearchCombo.hpp"
 #include "../../support/control/WrapRow.hpp"     // rows wrap like the browser's, never overflow into "»"
 
 #include <QCheckBox>
 #include <QLabel>
+#include <QToolButton>
 
 // MainWindow's toolbar assembly: the third row and the style/formula wiring.
 

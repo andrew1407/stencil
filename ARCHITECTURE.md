@@ -124,7 +124,11 @@ and bot reach the op-plan validator through `--plan-check` — and the server's 
 source of truth. `common/config/` holds the data tables (the LLM assets under `llm/`, the SSRF
 address table `net/blockedRanges.json` every fetch guard judges by), `common/fixtures/` the
 conformance corpora, `common/icons/` the brand art, `common/samples/` the shared test picture.
-A table only the browser reads stays in `browser/js/config/`.
+A table only the browser reads stays in `browser/js/config/`. One noun per shared concept on
+every surface: `launch` (the URI and its parser), `plan` (the op plan: `llm/plan/` beside an
+`llm/` client, `plan/` in mcp, core's validator `opplan/`), `server` (the collaboration-server
+client; mcp's `server/` is its own MCP tool server), `remote` (the co-edit sync over it), `net`
+(the fetch guard and transport).
 
 | Mechanism | Surface | Shape |
 |---|---|---|
@@ -181,7 +185,7 @@ only shrink, and the surface's doc names it.
 | pystencil | `_native` + `core` → `image`, `codecs/`, `layout` → `editor/` → `llm/`, `server/`, `sitesource/` → `cli/` | `pystencil/tests/test_layer_boundary.py` |
 | server | `protocol`, `clock`, `ratelimit`, `transport` → `validate`, `auth`, `eventbus`, `llm` → `store`, `filestore`, `redisbus` → `service`, `hub`, `config` → `httpapi` (transport only) → `cmd/` | the import-edge lint in `internal/lint/` |
 | bot | `Domain` → `Application`, `Infrastructure` → `Bot` (dependencies point inward) | project references + `LayerBoundaryTests.cs` |
-| mcp | `llm/` + `llmtransport/` → `pipeline/` → `args/` → `opplan/` → `server/` + tools | `mcp/tests/layer_boundary_test.rs` |
+| mcp | `llm/` + `llmtransport/` → `pipeline/` → `args/` → `plan/` → `server/` + tools | `mcp/tests/layer_boundary_test.rs` |
 | core | value types → `geometry/`, `color/`, `parse/`, `json/` → `raster/`, `page/`, `format/`, `state/`, `script/`, `opplan/` → `abi/` → the two ABIs | convention + the no-throw lint |
 
 Two rules cut across every surface: the pure logic ring (browser `core/`, the desktop's core

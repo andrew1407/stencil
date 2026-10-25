@@ -111,13 +111,14 @@ set(STENCIL_GUI_SOURCES
   ${STENCIL_CLI_SOURCES}
   src/app/events/popover/PopoverGestures.cpp
   src/app/events/popover/PopoverGesturesSideBySide.cpp
-  src/app/project/MainWindowProjectClose.cpp
+  src/app/project/ProjectHostClose.cpp
   src/app/project/flows/ProjectFlowsCrud.cpp
   src/app/project/flows/ProjectFlowsClose.cpp
   src/app/project/flows/ProjectFlowsColor.cpp
-  src/app/project/MainWindowProjectCrud.cpp
-  src/app/project/MainWindowProjectLoad.cpp
-  src/app/project/MainWindowProjectName.cpp
+  src/app/project/ProjectHostCrud.cpp
+  src/app/project/MainWindowProjectSeam.cpp
+  src/app/project/ProjectHostLoad.cpp
+  src/app/project/ProjectHostName.cpp
   src/app/project/ProjectTitleController.cpp
   src/app/project/ProjectTitleControllerEdit.cpp
   src/app/view/MainWindowRefresh.cpp
@@ -189,6 +190,7 @@ set(STENCIL_GUI_SOURCES
   src/app/selection/SelectionPanelRows.cpp
   src/app/selection/SelectionPanelLines.cpp
   src/app/selection/SelectionPanelLineCells.cpp
+  src/app/selection/SelectionPanelLineRow.cpp
   src/app/selection/SelectionPanelState.cpp
   src/app/selection/SelectedLineBar.cpp
   src/app/selection/SelectedLineBarRow.cpp

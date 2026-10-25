@@ -1,5 +1,5 @@
 //! Import-direction lint for mcp/src. `.claude/rules/architecture.md` lists the layers
-//! dependency-free first — `llm` → `pipeline` → `args` → `opplan` → `server/` + tools — so a
+//! dependency-free first — `llm` → `pipeline` → `args` → `plan` → `server/` + tools — so a
 //! module may reach every module to its LEFT in that row and none to its right. Today's
 //! crossings are a frozen allowance.
 
@@ -7,7 +7,7 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const ORDER: [&str; 5] = ["llm", "pipeline", "args", "opplan", "server"];
+const ORDER: [&str; 5] = ["llm", "pipeline", "args", "plan", "server"];
 
 /// Shrink this list; never add to it. Each entry is "file → module" as the scan reports it.
 const ALLOWANCE: [(&str, &str); 2] = [
@@ -116,8 +116,8 @@ fn the_scan_saw_the_whole_tree() {
     let edges = scan(&src_dir());
     assert!(edges.len() > 30, "cross-module references were found: {}", edges.len());
     let has = |f: &str, t: &str| edges.iter().any(|(_, a, b)| a == f && b == t);
-    assert!(has("server", "opplan"), "server → opplan is indexed");
-    assert!(has("opplan", "args"), "opplan → args is indexed");
+    assert!(has("server", "plan"), "server → plan is indexed");
+    assert!(has("plan", "args"), "plan → args is indexed");
     assert!(has("server", "pipeline"), "the crate::{{a, b}} form is indexed");
 }
 

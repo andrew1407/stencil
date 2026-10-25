@@ -9,22 +9,13 @@ const MOTION_MODES = ['particles', 'water', 'fire', 'slide', 'none'];
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
-test('every motion mode has a glyph, and only the modes do', () => {
+// The glyph table is a byte-pinned port (portParity.test.js); browser/tests/ui/motion/motionIcons.test.js
+// holds its drawings, so one smoke here proves the copy loads.
+test('the ported glyph table loads: a glyph per mode, and none for a stale key', () => {
   assert.deepEqual(Object.keys(MOTION_ICONS).sort(), [...MOTION_MODES].sort());
-  for (const m of MOTION_MODES) {
-    const svg = motionModeIcon(m);
-    assert.match(svg, new RegExp(`^<svg class="mm-icon mm-${m}" viewBox="0 0 16 16"`), m);
-    assert.match(svg, /aria-hidden="true"/);
-  }
-  assert.equal(motionModeIcon('sparkles'), '', 'a stale key shows nothing');
-  // The animated parts carry the classes the CSS keys on.
-  assert.match(MOTION_ICONS.none, /<circle[^>]*\/><line class="mm-line"[^>]*x1="12\.05" y1="3\.95" x2="3\.95" y2="12\.05"/, 'the line runs top-right → bottom-left');
-  assert.match(MOTION_ICONS.none, new RegExp(`stroke-dasharray="${NONE_LINE_LEN}"`));
-  assert.ok(Math.abs(Math.hypot(12.05 - 3.95, 12.05 - 3.95) - NONE_LINE_LEN) < 0.1, 'the dash is the line');
-  assert.match(MOTION_ICONS.slide, /<path class="mm-shaft" d="M4\.5 11\.5 L11\.5 4\.5" stroke-dasharray="9\.9"\/><path class="mm-head"/, 'the shaft runs bottom-left → top-right, then the head');
-  assert.match(MOTION_ICONS.water, /class="mm-drop"/);
-  assert.match(MOTION_ICONS.fire, /class="mm-flame"/);
-  assert.equal((MOTION_ICONS.particles.match(/class="mm-mote"/g) || []).length, 5);
+  assert.match(motionModeIcon('none'), /^<svg class="mm-icon mm-none" viewBox="0 0 16 16"/);
+  assert.equal(motionModeIcon('sparkles'), '');
+  assert.ok(NONE_LINE_LEN > 0);
 });
 
 test('the CSS plays each mode on hover, in the direction asked for', () => {

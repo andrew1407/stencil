@@ -79,4 +79,30 @@ test('a segment drag still upgrades to the whole line only while Shift is held',
   dragMove(app, 3, 2, true);
   assert.deepEqual(line.points, [{ x: 3, y: 2 }, { x: 13, y: 2 }, { x: 23, y: 2 }],
     'with Shift the whole line translates from the snapshot');
+
+  const rows = [];
+  app.coordLineIdx = 0;
+  app.coordTable.refreshRows = (pts) => rows.push(pts.length);
+  dragMove(app, 4, 1, false);
+  assert.deepEqual(line.points, [{ x: 4, y: 1 }, { x: 14, y: 1 }, { x: 20, y: 0 }],
+    'Shift released: the rest of the line is back at its snapshot');
+  assert.deepEqual(rows, [3], '…and its coordinate rows say so');
+});
+
+test('a segment move without Shift writes the grabbed endpoints only, not every point', () => {
+  const writes = { n: 0 };
+  const point = (x, y) => {
+    let px = x, py = y;
+    return { get x() { return px; }, set x(v) { writes.n++; px = v; }, get y() { return py; }, set y(v) { writes.n++; py = v; } };
+  };
+  const line = { points: Array.from({ length: 500 }, (_, i) => point(i, 0)) };
+  const app = makeApp([line]);
+  app.isDraggingSegment = true;
+  app.draggingSegment = {
+    lineIdx: 0, ptIdx1: 10, ptIdx2: 11, startX: 0, startY: 0,
+    origPt1: { x: 10, y: 0 }, origPt2: { x: 11, y: 0 },
+    origPoints: line.points.map((p) => ({ x: p.x, y: p.y })), shifted: false,
+  };
+  dragMove(app, 3, 2, false);
+  assert.equal(writes.n, 4);
 });

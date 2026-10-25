@@ -6,13 +6,14 @@
 #include "modalReveal.hpp"
 #include "AssistantSettingsDialog.hpp"
 #include "SettingsDialog.hpp"
-#include "mainWindowHelpers.hpp"
+#include "keySeq.hpp"
 #include "InfoDialog.hpp"
 #include "Notifications.hpp"
 #include "ShortcutsDialog.hpp"
 #include "ChatDock.hpp"
 
 #include <QKeySequence>
+#include <QToolButton>
 #include <functional>
 
 namespace stencil::gui {
@@ -74,7 +75,7 @@ namespace stencil::gui {
     w.keys.bound = w.keys.defaults;
     for (auto it = overrides.begin(); it != overrides.end(); ++it)
       w.keys.bound.insert(it.key(), it.value());
-    if (!w.incognito) fileStore::saveHotkeys(overrides);  // incognito suppresses
+    if (!w.projectHost.incognito) fileStore::saveHotkeys(overrides);  // incognito suppresses
 
     // Warn (still apply) on a duplicate binding, as the browser does; PortableText so equivalent spellings collide.
     QHash<QString, QString> seen;  // normalized seq -> first id using it

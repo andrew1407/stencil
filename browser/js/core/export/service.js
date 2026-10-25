@@ -73,10 +73,11 @@ export class ExportService {
     const mime = mimeMap[ext] || 'image/png';
     const outExt = (ext === 'jpg' || ext === 'jpeg') ? 'jpg' : (mimeMap[ext] ? ext : 'png');
     const suffix = VARIANT_META[variant]?.suffix || '';
-    const link = document.createElement('a');
-    link.download = `${baseName}-drawing${suffix}.${outExt}`;
-    link.href = offscreen.toDataURL(mime);
-    link.click();
+// toBlob encodes off the main thread, where a full-size toDataURL froze it for the encode.
+    offscreen.toBlob((blob) => {
+      if (!blob) { notify('Image encode failed', 'fail'); return; }
+      this.downloadBlob(blob, `${baseName}-drawing${suffix}.${outExt}`);
+    }, mime);
 
 // Only the canonical "current" download writes back to a linked server.
     if (app.remoteLink && variant === 'current') app.remoteSync.saveToServer();

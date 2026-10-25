@@ -1,5 +1,6 @@
 import { StencilElement, hostTag, define } from '../base.js';
-import { surfaceIn, surfaceOut, settleSurface, TIP_SHOW_DELAY_MS } from '../motion.js';
+import { surfaceIn, surfaceOut, settleSurface } from '../motion/surface/surfaces.js';
+import { TIP_SHOW_DELAY_MS } from '../motion/control/tips.js';
 import { cmToUnit, unitLabel } from '../../utils.js';
 import { decideHover, refreshHover, scheduleReveal } from './tooltipHover.js';
 import { tipsHeld, onTipsHeld } from './tipHold.js';
@@ -30,8 +31,8 @@ export class StencilTooltip extends StencilElement {
     if (this.parentElement !== document.body) document.body.appendChild(this);
   }
 
-  applyHover(clientX, clientY, x, y, mods, immediate = false) {
-    decideHover(this, clientX, clientY, x, y, mods, immediate);
+  applyHover(clientX, clientY, x, y, mods, immediate = false, lineAt = undefined, pointAt = undefined) {
+    decideHover(this, clientX, clientY, x, y, mods, immediate, lineAt, pointAt);
   }
 
   refresh(mods) { refreshHover(this, mods); }

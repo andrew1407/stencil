@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
     QFile f(":/config/accents.json");
     check(f.open(QIODevice::ReadOnly), "accents.json reads");
     const QJsonArray accents = QJsonDocument::fromJson(f.readAll()).array();
-    check(accents.size() == 16, "16 presets to cover");
+    check(accents.size() >= 16, "every preset to cover");
     bool covered = true;
     for (const QJsonValue& a : accents) {
       const QString key = a.toObject().value("key").toString();

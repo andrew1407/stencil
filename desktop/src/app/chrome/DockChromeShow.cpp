@@ -3,7 +3,7 @@
 #include "../../support/modal/modalReveal.hpp"   // support::motionReduced()
 #include "mainWindowShared.hpp"
 #include "chatSlideClocks.hpp"
-#include "mainWindowHelpers.hpp"
+#include "windowMotion.hpp"
 #include "SelectionPanel.hpp"
 #include "ChatDock.hpp"
 #include <QGraphicsOpacityEffect>

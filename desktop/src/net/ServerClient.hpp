@@ -1,8 +1,12 @@
 #pragma once
 // REST mirror of server/internal/protocol; live edits ride a raw QTcpSocket NDJSON transport (no WebSocket dependency).
 #include "connectionStore.hpp"
+#include "blockedRanges.hpp"
 #include "httpStatus.hpp"
+#include <QHostAddress>
+#include <QList>
 #include <QByteArray>
+#include <QHash>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QObject>
@@ -71,6 +75,12 @@ namespace stencil::net {
     // blockedRanges `serverTarget` with allowPrivate on a literal host: a user may name a LAN or local
     // server, never a link-local, metadata, unspecified, multicast or reserved address.
     static bool isRefusedTarget(const QString& base);
+    // A server named by a name is judged by every address the name resolved to, as the CLI and the bot judge it.
+    static bool refusesResolved(const QList<QHostAddress>& addresses) {
+      for (const QHostAddress& a : addresses)
+        if (blockedRanges::blocked(a, blockedRanges::Policy::SERVER_TARGET, {false, true})) return true;
+      return false;
+    }
 
     const QString& getBase() const { return base; }
     const QString& getToken() const { return token; }
@@ -97,8 +107,10 @@ namespace stencil::net {
                             bool hasImage, int w, int h,
                             std::function<void(bool ok, QString id, qint64 version)> done,
                             const QJsonObject& extra = QJsonObject());
+    // `knownVersion` >= 0 revalidates: unchanged answers ok with only meta.version set and no layout.
     void getProjectAsync(const QString& id,
-                         std::function<void(bool ok, ServerProject meta, QJsonObject layout)> done);
+                         std::function<void(bool ok, ServerProject meta, QJsonObject layout)> done,
+                         qint64 knownVersion = -1);
     void updateProjectAsync(const QString& id, const QString& name, const QJsonObject& layout,
                             qint64 version,
                             std::function<void(bool ok, qint64 newVersion, bool conflict)> done);
@@ -141,10 +153,11 @@ namespace stencil::net {
     QNetworkRequest buildRequest(const QString& path, const QString& contentType,
                                  const QString& bearer = QString()) const;
     // `retried` marks the one credential re-mint retry, so a refusal never mints twice.
+    // `ifNoneMatch`: an ETag to revalidate against (a 304 answers unchanged); a re-minted retry drops it.
     void requestAsync(const QByteArray& method, const QString& path, const QByteArray& body,
                       const QString& contentType,
                       std::function<void(int status, QByteArray body)> done,
-                      bool retried = false);
+                      bool retried = false, const QByteArray& ifNoneMatch = QByteArray());
     // A 409 arrives as the third `done` arg (conflict).
     void putGuarded(const QString& id, QJsonObject obj, qint64 version,
                     std::function<void(bool, qint64, bool)> done);
@@ -168,6 +181,10 @@ namespace stencil::net {
     void connectToAsync(const QString& url, const QString& token,
                         std::function<void(bool ok, QString err)> done,
                         ServerClient::CredentialKind kindHint = ServerClient::CredentialKind::NONE);
+    // A launch link's token for a saved server: it connects for this session while snapshot()
+    // keeps `saved`, so a link never replaces a saved credential (launch-uri.md §2).
+    void connectSessionOnlyAsync(const QString& url, const QString& token, const SavedServer& saved,
+                                 std::function<void(bool ok, QString err)> done);
     void disconnectFrom(const QString& url = QString());
     // QList::move semantics; emits changed() so the order persists. Browser: ConnectionManager.reorder().
     void reorder(int from, int to);
@@ -194,8 +211,14 @@ namespace stencil::net {
     void changed();
 
    private:
+    // The handshake once the target is judged.
+    void dial(const QString& base, const QString& cred, std::function<void(bool ok, QString err)> done,
+              ServerClient::CredentialKind kindHint);
+
     QVector<ServerClient*> clients;
     QStringList forgotten;
+    // base → the saved credential snapshot() writes in place of a session-only one.
+    QHash<QString, SavedServer> sessionOnly;
     // Held so this manager's destruction takes their nam with them, severing the in-flight callback.
     QVector<ServerClient*> pending;
   };

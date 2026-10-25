@@ -6,8 +6,8 @@ import (
 	"testing"
 )
 
-// requireStore connects to TEST_DATABASE_URL, migrates and truncates, else skips. Deliberately NOT
-// DATABASE_URL: the truncate wipes the named database, and that variable points at the LIVE server's.
+// requireStore connects to TEST_DATABASE_URL, migrates and truncates; skips only when it is unset, so a set but
+// unreachable database fails. Deliberately NOT DATABASE_URL: the truncate wipes the database it names.
 func requireStore(t testing.TB) *Store {
 	t.Helper()
 	url := os.Getenv("TEST_DATABASE_URL")
@@ -17,7 +17,7 @@ func requireStore(t testing.TB) *Store {
 	ctx := context.Background()
 	s, err := New(ctx, url)
 	if err != nil {
-		t.Skipf("Postgres unreachable (%v); skipping", err)
+		t.Fatalf("TEST_DATABASE_URL is set but Postgres is unreachable: %v", err)
 	}
 	if err := Migrate(ctx, s.MigratePool()); err != nil {
 		t.Fatalf("migrate: %v", err)

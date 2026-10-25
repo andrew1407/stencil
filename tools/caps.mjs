@@ -1,6 +1,7 @@
 // The tree's size rules (.claude/rules/architecture.md) as one check: a source, test or stylesheet
-// file stays at or under 230 lines; a non-test folder holds at most 12 direct source units; and a
-// directory's body comments, doc banners aside, stay under a fifth of its lines.
+// file stays at or under 230 lines; a function at or under 80 beyond tools/functionCaps.json; a
+// non-test folder holds at most 12 direct source units; no file is named for a kind beyond
+// tools/kindNames.json; and a directory's body comments, doc banners aside, stay under a fifth of its lines.
 //   node tools/caps.mjs [--check] [path...]   (--check exits 1 on a breach)
 
 import path from 'node:path';
@@ -9,6 +10,9 @@ import { commentsOf } from './commentPaths.mjs';
 import { langFor } from './moveCheck.mjs';
 import { BUILD_OUTPUT } from './docPaths.mjs';
 import { listFiles, readAll, repoRoot } from './repo/io.mjs';
+import { MAX_FUNCTION_LINES, overCap } from './repo/functions.mjs';
+import FUNCTION_CAPS from './functionCaps.json' with { type: 'json' };
+import KIND_NAMES from './kindNames.json' with { type: 'json' };
 
 export const MAX_LINES = 230;
 export const MAX_UNITS = 12;
@@ -22,6 +26,8 @@ const TEST_DIR = /(^|\/)(tests?|__tests__|testdata)(\/|$)/;
 const HEADER = /\.(hpp|h)$/i;
 const BODY = /\.(cpp|cc|c|mm)$/i;
 const PLATFORM = /(Mac|Win|Linux)$/;
+// A split by kind, spelled in the file name: `fooHelpers.hpp`, `shared.js`, `layout-helpers.test.js`.
+export const KIND_NAME = /(?:^|[a-z0-9_-])(?:helpers|shared|common|misc|utils)$/i;
 
 export const lineCount = (text) => (text.length === 0 ? 0 : text.split('\n').length - (text.endsWith('\n') ? 1 : 0));
 
@@ -67,6 +73,40 @@ export const commentLines = (src, lang) => {
   return { body, lines: lineCount(src) };
 };
 
+// A function over the cap is a breach unless tools/functionCaps.json froze it, and then only once it
+// grows past its entry; an entry no longer over the cap is a breach too, so the list only shrinks.
+export const functionBreaches = (files, texts, frozen = FUNCTION_CAPS.functions) => {
+  const out = [];
+  const seen = new Set();
+  files.forEach((f, i) => {
+    if (TEST_DIR.test(path.posix.dirname(f)) || f.endsWith('.d.ts') || f.endsWith('_test.go')) return;
+    for (const { key, lines } of overCap(f, texts[i])) {
+      seen.add(key);
+      if (!(key in frozen)) out.push({ kind: 'function', where: key, value: lines, limit: MAX_FUNCTION_LINES });
+      else if (lines > frozen[key]) out.push({ kind: 'function', where: key, value: lines, limit: `its frozen ${frozen[key]}` });
+    }
+  });
+  const read = new Set(files);
+  for (const key of Object.keys(frozen)) {
+    if (read.has(key.slice(0, key.indexOf('#'))) && !seen.has(key)) out.push({ kind: 'function', where: key, value: 'under the cap', limit: 'drop its tools/functionCaps.json entry' });
+  }
+  return out;
+};
+
+export const kindNamed = (file) => KIND_NAME.test(path.posix.basename(file).replace(/(\.(test|d|gui|headless))?\.[^.]+$/, ''));
+
+// Same ratchet as the function cap: a frozen file may stay, a new one may not, a gone one leaves the list.
+export const kindNameBreaches = (files, frozen = KIND_NAMES.files) => {
+  const listed = new Set(frozen);
+  const out = files.filter((f) => !f.endsWith('.d.ts') && kindNamed(f) && !listed.has(f))
+    .map((f) => ({ kind: 'name', where: f, value: 'a kind name', limit: 'name it for its concern' }));
+  const read = new Set(files);
+  for (const f of frozen) {
+    if (read.has(f) && !kindNamed(f)) out.push({ kind: 'name', where: f, value: 'no longer a kind name', limit: 'drop its tools/kindNames.json entry' });
+  }
+  return out;
+};
+
 export const breaches = async (root, files) => {
   const sources = files.filter(isSource);
   const texts = await readAll(root, sources);
@@ -83,6 +123,8 @@ export const breaches = async (root, files) => {
     const acc = share.get(dir) || { body: 0, lines: 0 };
     share.set(dir, { body: acc.body + body, lines: acc.lines + lines });
   }
+  out.push(...functionBreaches(sources, texts));
+  out.push(...kindNameBreaches(sources));
   for (const { dir, units } of folderUnits(sources)) {
     if (units > MAX_UNITS) out.push({ kind: 'units', where: dir, value: units, limit: MAX_UNITS });
   }

@@ -1,10 +1,12 @@
 // Right-click probe on <all_urls> (also injected into open tabs by the SW): resolves what
 // Stencil can grab under the cursor (ctxResolve.js) and messages the SW. Real <img>/<svg><image>
-// return null (native context covers). Classic script — no import; the guard stops a double injection.
+// return null (native context covers). Classic script — no import; orphan.js's claim stops a double
+// injection and stands down a copy a reload orphaned.
 (() => {
   const R = window.__stencilCtxResolve;
-  if (!R || window.__stencilCtxProbe) return;
-  window.__stencilCtxProbe = true;
+  const life = R && window.__stencilOrphan?.('__stencilCtxProbe', document, () => clearTimeout(dwell));
+  if (!life) return;
+  const { on } = life;
   const { resolveTarget, rememberPoster } = R;
 
   // mirror of lib/messages.js (classic content script — can't import)
@@ -22,7 +24,7 @@
   } catch {
     /* ignore */
   }
-  document.addEventListener('play', (e) => rememberPoster(e.target), true);
+  on('play', (e) => rememberPoster(e.target), true);
 
   // The SW may be asleep / the page navigating — a failed send is fine.
   const send = (data, x, y) => {
@@ -53,18 +55,18 @@
     const { target, clientX: x, clientY: y } = e;
     dwell = setTimeout(() => { dwell = null; report(target, x, y, true); }, DWELL_MS);
   };
-  document.addEventListener('pointerover', arm, true);
+  on('pointerover', arm, true);
   // The pointer may already sit inside an element when this document_idle script arrives.
-  document.addEventListener('pointermove', arm, { capture: true, once: true });
+  on('pointermove', arm, { capture: true, once: true });
   // A right-BUTTON press precedes `contextmenu` on every platform — one last chance to prime.
-  document.addEventListener('mousedown', (e) => {
+  on('mousedown', (e) => {
     if (e.button !== 2) return;
     clearTimeout(dwell);
     report(e.target, e.clientX, e.clientY, true);
   }, true);
 
   // The authoritative resolve: frame capture included, with the exact point for the SW's re-capture.
-  document.addEventListener('contextmenu', (e) => {
+  on('contextmenu', (e) => {
     clearTimeout(dwell);
     report(e.target, e.clientX, e.clientY, false);
   }, true);

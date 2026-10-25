@@ -92,10 +92,7 @@ export const canvasClick = (app, e) => {
     app.focusedPtIdx = nearPt.ptIdx;
     app.coordTable.update(app.lines[nearPt.lineIdx].points, nearPt.lineIdx);
     app.renderer.redraw();
-    const row = app.coordinatesBody.querySelector(`tr[data-pt-idx="${nearPt.ptIdx}"]`);
-    if (row && typeof row.scrollIntoView === 'function') {
-      row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    }
+    app.coordTable.revealRow(nearPt.ptIdx);
     return;
   }
 

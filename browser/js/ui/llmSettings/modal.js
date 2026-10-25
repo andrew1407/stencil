@@ -2,7 +2,7 @@ import { StencilElement, hostTag, define, wireModalShell } from '../base.js';
 import { modalBoxEase } from '../motion/easeBoxHeight.js';
 import { llmSettingsModalInner } from './markup.js';
 import { wireSessionKeyRows } from './keyRows.js';
-import { loadLlmSettings, saveLlmSettings, serverBearerToken, withProvider } from '../../llm/settings.js';
+import { loadLlmSettings, saveLlmSettings, serverBearerToken, withProvider, settingsRows } from '../../llm/settings.js';
 import { listModels, probeProvider } from '../../llm/client.js';
 import { loadSavedServers } from '../../net/connectionStore.js';
 import { visibleChatMoreBtn } from '../chat/view.js';
@@ -32,7 +32,7 @@ export class StencilLlmSettingsModal extends StencilElement {
       onForget: () => { renderStatus(); refreshModels(); publish(EVENTS.llmSettingsChanged); },
     });
     // A probe or a model list is sent with the anthropic key being typed, else the one held.
-    const requestSettings = () => (settings.provider === 'anthropic' ? { ...settings, apiKey: keyRows.requestKey() } : settings);
+    const requestSettings = () => (settingsRows(settings.provider).key === 'session' ? { ...settings, apiKey: keyRows.requestKey() } : settings);
 
 // The working copy: edits live here and reach storage only on Save; every close discards,
 // since onOpen reloads from storage (the desktop dialog's commit/discard model).
@@ -62,7 +62,7 @@ export class StencilLlmSettingsModal extends StencilElement {
         setStatus('error', 'Assistant turned off — nothing is sent anywhere.');
         return;
       }
-      if (settings.provider === 'stencil-server' && !settings.serverUrl) {
+      if (settingsRows(settings.provider).endpoint === 'server' && !settings.serverUrl) {
         setStatus('error', 'No collaboration server configured — assistant turned off.');
         return;
       }
@@ -71,7 +71,7 @@ export class StencilLlmSettingsModal extends StencilElement {
       if (req !== statusReq) return;   // settings changed while probing
       if (probe.ok) {
         let text = probe.detail ? `Connected — ${probe.detail}` : 'Connected';
-        if (settings.provider === 'stencil-server') text = `Connected — via ${probe.url} (${probe.detail || 'server default'})`;
+        if (settingsRows(settings.provider).endpoint === 'server') text = `Connected — via ${probe.url} (${probe.detail || 'server default'})`;
         setStatus('connected', text);
       } else {
         setStatus('error', probe.detail || 'Unreachable');
@@ -84,14 +84,15 @@ export class StencilLlmSettingsModal extends StencilElement {
       modelEl.value = settings.model;
       apiKeyEl.value = settings.apiKey;
       saveChatsEl.checked = settings.saveChats === true;
-      const isServer = settings.provider === 'stencil-server';
+      const rows = settingsRows(settings.provider);
+      const isServer = rows.endpoint === 'server';
       const isOff = settings.provider === 'none';
-      baseUrlRow.style.display = isServer || isOff ? 'none' : '';
+      baseUrlRow.style.display = rows.endpoint === 'base' ? '' : 'none';
       $('chat-model-row').style.display = isOff ? 'none' : '';
-      apiKeyRow.style.display = settings.provider === 'openai-compat' ? '' : 'none';
-      keyRows.show(settings.provider === 'anthropic');
+      apiKeyRow.style.display = rows.key === 'stored' ? '' : 'none';
+      keyRows.show(rows.key === 'session');
       serverRow.style.display = isServer ? '' : 'none';
-      corsNote.style.display = isServer || isOff || settings.provider === 'anthropic' ? 'none' : '';
+      corsNote.style.display = rows.endpointNote ? '' : 'none';
       if (isServer) {
         serverEl.innerHTML = '';
         const urls = serverUrls();
@@ -171,7 +172,7 @@ export class StencilLlmSettingsModal extends StencilElement {
       settings.apiKey = apiKeyEl.value.trim();
       settings.saveChats = saveChatsEl.checked;
       // A key the browser refused to hold keeps the dialog open on the reason.
-      const held = settings.provider !== 'anthropic' || keyRows.commit();
+      const held = settingsRows(settings.provider).key !== 'session' || keyRows.commit();
       persist();
       if (held) shell.close();
     });

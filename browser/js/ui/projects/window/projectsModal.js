@@ -2,12 +2,13 @@ import { StencilElement, hostTag, define, wireModalShell, attachSearchFilter, ro
 import { wireNameEditor, notify, isTouchLike, shortName, anchorPickerInput } from '../../../utils.js';
 import { icon, setSelectAllFace } from '../../icons.js';
 import { SORT_MODES, sortProjectItems } from './projectSort.js';
-import {
-  observeReveal, leaveThenRemove, wipeDurationMs, createFilterAnimator,
-  materialize, filterDelta, rowDustGrid, ROW_ARRIVE_MS, ROW_ARRIVE_DELAY_MS,
-  ITEM_DUST_MS, rowLeaveDust, revealControls, revealBar,
-  SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS, markIn, markOut,
-} from '../../motion.js';
+import { observeReveal } from '../../motion/reveal.js';
+import { leaveThenRemove, wipeDurationMs, createFilterAnimator, filterDelta, ROW_ARRIVE_MS, ROW_ARRIVE_DELAY_MS } from '../../motion/enterLeave.js';
+import { rowDustGrid, ITEM_DUST_MS, rowLeaveDust } from '../../motion/surface/tiles.js';
+import { SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../../motion/surface/motion.js';
+import { markIn, markOut } from '../../motion/surface/marks.js';
+import { revealControls, revealBar } from '../../motion/control/revealControls.js';
+import { materialize } from '../../motion/control/chatFx.js';
 import { normalizeHex } from '../../../core/settings/accents.js';
 import { subscribe, EVENTS } from '../../../eventBus/appBus.js';
 

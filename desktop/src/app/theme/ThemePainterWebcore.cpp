@@ -46,12 +46,12 @@ namespace stencil::gui {
     w.refreshActions();   // …and the faces re-pin to the skin's own type
     if (!on || w.canvas->hasImage()) return on;
     const QString want = support::webcoreConfig().projectName.trimmed().toLower();
-    for (const Project& p : w.projectList) {
+    for (const Project& p : w.projectHost.projectList) {
       const QString id = QString::fromStdString(p.meta.id);
-      if (QString::fromStdString(p.meta.name).trimmed().toLower() != want || w.projectOpenInOtherWindow(id))
+      if (QString::fromStdString(p.meta.name).trimmed().toLower() != want || w.projectHost.projectOpenInOtherWindow(id))
         continue;
-      if (w.incognito) w.acts.incognito->setChecked(false);
-      if (w.loadProjectIntoCanvas(id)) return on;
+      if (w.projectHost.incognito) w.acts.incognito->setChecked(false);
+      if (w.projectHost.loadProjectIntoCanvas(id)) return on;
     }
     webcoreScene();
     return on;
@@ -61,14 +61,14 @@ namespace stencil::gui {
   // the user's own history, and a local project under the skin's name.
   void ThemePainter::webcoreScene() {
     const support::WebcoreConfig& cfg = support::webcoreConfig();
-    if (w.incognito) w.acts.incognito->setChecked(false);
+    if (w.projectHost.incognito) w.acts.incognito->setChecked(false);
     if (w.settings.imageFilter != QLatin1String("none")) w.applyImageFilter("none", /*asUndoStep=*/false);
-    w.activeProjectId.clear();
+    w.projectHost.activeProjectId.clear();
     w.canvas->loadFromImage(support::paintWebcoreImage());
-    w.docSource.setBytes({}, {});
-    w.docSource.currentSource.clear();
-    w.docSource.currentResource.clear();
-    w.docSource.blankColor.clear();
+    w.projectHost.docSource.setBytes({}, {});
+    w.projectHost.docSource.currentSource.clear();
+    w.projectHost.docSource.currentResource.clear();
+    w.projectHost.docSource.blankColor.clear();
     w.canvas->setBlankPage(false);
     const QSize picture = w.canvas->getImage().size();
     core::Lines lines = w.canvas->getLines();
@@ -84,7 +84,7 @@ namespace stencil::gui {
     ChatPlanTarget(w).commitLayoutLines(lines);
     w.refreshActions();
     w.fitToWindow();
-    w.createLocalProject(cfg.projectName, /*announce=*/false);
+    w.projectHost.createLocalProject(cfg.projectName, /*announce=*/false);
   }
 
 }  // namespace stencil::gui

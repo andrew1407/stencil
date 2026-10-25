@@ -1,5 +1,5 @@
 import { setSelectAllFace } from '../../icons.js';
-import { revealControls, revealBar } from '../../motion.js';
+import { revealControls, revealBar } from '../../motion/control/revealControls.js';
 
 // The list's multi-select: the checked set, the select-all pool and the batch bar that flies
 // with them. `selected` is key -> {kind:'local'|'remote', id, serverUrl, isServer, meta};

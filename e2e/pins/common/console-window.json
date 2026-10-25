@@ -1,0 +1,206 @@
+{
+  "name": "console-window",
+  "root": "#console-overlay",
+  "nodes": [
+    {
+      "path": ":root",
+      "tag": "stencil-console-modal",
+      "classes": "app-modal-overlay console-overlay modal-open",
+      "style": {
+        "display": "flex",
+        "position": "fixed",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif",
+        "justify-content": "center",
+        "align-items": "center",
+        "z-index": "100001"
+      }
+    },
+    {
+      "path": ":root/div[1]",
+      "tag": "div",
+      "classes": "app-modal console-modal",
+      "style": {
+        "display": "flex",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(255, 255, 255)",
+        "border-color": "rgb(221, 221, 221)",
+        "border-width": "1px",
+        "border-radius": "10px",
+        "font-size": "16px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "box-shadow": "rgba(0, 0, 0, 0.45) 0px 16px 48px 0px",
+        "flex-direction": "column",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[1]",
+      "tag": "div",
+      "classes": "settings-header",
+      "style": {
+        "display": "flex",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0) rgb(0, 0, 0) rgb(221, 221, 221)",
+        "border-width": "0px 0px 1px",
+        "font-size": "16px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "justify-content": "space-between",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[1]/h2[1]",
+      "tag": "h2",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-weight": "700",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[1]/h2[1]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-terminal",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-weight": "700",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[1]/button[1]",
+      "tag": "button",
+      "classes": "app-modal-close btn-icon-text",
+      "style": {
+        "display": "flex",
+        "position": "relative",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(221, 221, 221)",
+        "border-width": "1px",
+        "border-radius": "12px",
+        "font-size": "13px",
+        "font-family": "Arial",
+        "text-align": "center",
+        "align-items": "center",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[1]/button[1]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-x",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Arial",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[1]/button[1]/span[1]",
+      "tag": "span",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Arial",
+        "text-align": "center"
+      },
+      "text": "Close"
+    },
+    {
+      "path": ":root/div[1]/div[2]",
+      "tag": "div",
+      "classes": "console-body",
+      "style": {
+        "display": "flex",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(240, 240, 240)",
+        "border-color": "rgb(221, 221, 221)",
+        "border-width": "1px",
+        "border-radius": "8px",
+        "font-size": "16px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "flex-direction": "column",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/pre[1]",
+      "tag": "pre",
+      "classes": "console-out",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/pre[1]/span[1]",
+      "tag": "span",
+      "classes": "console-line",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "monospace"
+      },
+      "text": "Console — '/command <args>' (the '/' is optional). '/help' lists commands, Tab completes, Up/Down recall."
+    },
+    {
+      "path": ":root/div[1]/div[2]/div[1]",
+      "tag": "div",
+      "classes": "console-prompt-row",
+      "style": {
+        "display": "flex",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(124, 58, 237) rgb(0, 0, 0) rgb(0, 0, 0)",
+        "border-width": "1px 0px 0px",
+        "font-size": "16px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/div[1]/span[1]",
+      "tag": "span",
+      "classes": "console-prompt",
+      "style": {
+        "display": "block",
+        "color": "rgb(124, 58, 237)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "16px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": ">"
+    },
+    {
+      "path": ":root/div[1]/div[2]/div[1]/input[1]",
+      "tag": "input",
+      "classes": "console-input",
+      "style": {
+        "display": "block",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "overflow": "clip"
+      }
+    }
+  ]
+}

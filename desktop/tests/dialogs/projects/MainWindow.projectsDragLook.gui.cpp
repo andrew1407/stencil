@@ -71,7 +71,7 @@ class MainWindowGuiTest : public QObject {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    const QString open = win.activeProjectId;
+    const QString open = win.projectHost.activeProjectId;
     QImage img(40, 30, QImage::Format_RGB32);
     img.fill(Qt::darkGreen);
     const QString other = win.parts.chatAppliers.addImageProjectEntry(img, "look-other");
@@ -120,7 +120,7 @@ class MainWindowGuiTest : public QObject {
       w.list->onDragEnd();
       w.dlg->reject();
     });
-    win.parts.projects.openProjects();
+    win.projectHost.flows.openProjects();
     QVERIFY2(rowMenu, "the held menu is a row menu");
     QVERIFY2(near(rowFace, accent), qPrintable(QStringLiteral("the hovered row is the accent: %1 vs %2")
                                                    .arg(rowFace.name(), accent.name())));
@@ -177,7 +177,7 @@ class MainWindowGuiTest : public QObject {
         look.gone = !w.more->isVisible();
         w.dlg->reject();
       });
-      win.parts.projects.openProjects();
+      win.projectHost.flows.openProjects();
       return look;
     };
     const Look dust = run(MotionMode::PARTICLES, false);

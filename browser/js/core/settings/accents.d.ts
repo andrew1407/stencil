@@ -28,6 +28,3 @@ export declare const onAccentInk: (hex: unknown) => '#ffffff' | '#1a1a1a';
 export declare const LIGHT_ACCENT_KEYS: string[];
 /** Any CSS colour → '#rrggbb' via a canvas probe; null/'transparent'/unparseable pass through. */
 export declare const toHexColor: <T>(v: T) => T | string;
-/** Repaint the tab favicon and the PWA theme-color to a literal hex; no-op without a DOM. */
-export declare const applyFaviconHex: (hex: string) => void;
-export declare const applyAccentFavicon: (key: string) => void;

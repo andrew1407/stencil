@@ -1,5 +1,6 @@
 // The chat leave clocks.
-import { CHAT_LEAVE_MS, CHIP_LEAVE_MS, ITEM_DUST_MS, leaveThenRemove, scatterGridFor } from '../motion.js';
+import { CHAT_LEAVE_MS, CHIP_LEAVE_MS, leaveThenRemove } from '../motion/enterLeave.js';
+import { ITEM_DUST_MS, scatterGridFor } from '../motion/surface/tiles.js';
 
 
 // `count` rows going at once share one tile budget (motion.js scatterGridFor).

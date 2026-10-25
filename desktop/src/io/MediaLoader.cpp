@@ -144,12 +144,13 @@ namespace stencil::gui {
         return;
       }
       const QString file = localPath.isEmpty() ? url.toLocalFile() : localPath;
-      auto still = std::make_shared<bool>(false);   // written on the pool, read once it has answered
-      decodeThen([file, still] {
+      auto still = std::make_shared<bool>(false), tooLarge = std::make_shared<bool>(false);  // set on the pool
+      decodeThen([file, still, tooLarge] {
         QFile f(file);
         *still = f.open(QIODevice::ReadOnly) && isStillImage(f.read(SIGNATURE_BYTES));
-        return QImage(file);
-      }, [this, still](const QImage& img) {
+        return decodeCappedFile(file, tooLarge.get());
+      }, [this, still, tooLarge](const QImage& img) {
+        if (*tooLarge) return fail(imageTooLargeMessage());
         if (img.isNull() && *still) return fail(unreadableMessage(src));
         if (img.isNull()) return startVideo(url);   // extensionless or misdetected: try the media decoder
         done = true;
@@ -158,22 +159,33 @@ namespace stencil::gui {
       return;
     }
 
-    // Remote URL — refuse an internal target before EITHER branch reaches it.
-    const QString why = guard::blockedReason(url, /*strict=*/false);
-    if (!why.isEmpty()) {
-      fail(QStringLiteral("Could not fetch --src: %1").arg(why));
-      return;
-    }
-    if (video) {
-      startVideo(url);  // QMediaPlayer streams a direct media URL itself
-      return;
-    }
-    // Unknown remote: download and decode it as an image; bytes that fail with no still-image
-    // signature may yet be a video, so the URL is streamed.
+    // Remote URL — the guard, DNS included, judges the host once before EITHER branch reaches it.
     const QUrl u = url;
     const quint64 serial = loadSerial;
-    guard::get(this, u, /*strict=*/false, [this, u, serial](const QByteArray& bytes, const QString& err) {
+    guard::checkAsync(this, u, strictFetch, [this, u, serial, video](const QString& why) {
       if (done || serial != loadSerial) return;   // a newer load owns the loader now
+      if (!why.isEmpty()) return fail(QStringLiteral("Could not fetch --src: %1").arg(why));
+      if (video) return startVideo(u);  // QMediaPlayer streams a direct media URL itself
+      fetchRemoteImage(u);
+    });
+  }
+
+  void MediaLoader::startRemoteVideo(const QUrl& u, const QString& fetchError) {
+    const quint64 serial = loadSerial;
+    guard::checkAsync(this, u, strictFetch, [this, u, serial, fetchError](const QString& why) {
+      if (done || serial != loadSerial) return;
+      if (!why.isEmpty()) return fail(QStringLiteral("Could not fetch --src: %1").arg(why));
+      startVideo(u);
+      if (!player && !fetchError.isEmpty()) fail(QStringLiteral("Could not fetch --src: %1").arg(fetchError));
+    });
+  }
+
+  // Unknown remote: download and decode it as an image; bytes that fail with no still-image
+  // signature may yet be a video, so the URL is streamed — through the guard again.
+  void MediaLoader::fetchRemoteImage(const QUrl& u) {
+    const quint64 serial = loadSerial;
+    guard::get(this, u, strictFetch, [this, u, serial](const QByteArray& bytes, const QString& err) {
+      if (done || serial != loadSerial) return;
       auto notImage = [this, u, err] {
         // A candidate still waiting makes the video probe a stall: the answer has already
         // settled this one (the browser refuses an unaccepted content type and moves on).
@@ -182,12 +194,14 @@ namespace stencil::gui {
                    .arg(err.isEmpty() ? QStringLiteral("that URL is not an image") : err));
           return;
         }
-        startVideo(u);  // not an image (or no bytes): a media stream may still work
-        if (!player && !err.isEmpty()) fail(QStringLiteral("Could not fetch --src: %1").arg(err));
+        startRemoteVideo(u, err);  // not an image (or no bytes): a media stream may still work
       };
       if (!err.isEmpty() || bytes.isEmpty()) return notImage();
       const bool still = isStillImage(bytes.left(SIGNATURE_BYTES));
-      decodeThen([bytes] { return QImage::fromData(bytes); }, [this, notImage, still](const QImage& img) {
+      auto tooLarge = std::make_shared<bool>(false);
+      decodeThen([bytes, tooLarge] { return decodeCapped(bytes, tooLarge.get()); },
+                 [this, notImage, still, tooLarge](const QImage& img) {
+        if (*tooLarge && !hasMoreCandidates()) return fail(imageTooLargeMessage());
         if (img.isNull() && still && !hasMoreCandidates()) return fail(unreadableMessage(src));
         if (img.isNull()) return notImage();
         done = true;

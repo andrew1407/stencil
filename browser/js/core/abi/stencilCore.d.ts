@@ -18,6 +18,8 @@ export interface CoreOps extends LineOps {
   formulaValidateCtx(expr: string, ctx: FormulaContext): boolean;
   formulaApplyCtx(expr: string, varName: string, val: number, allowFormulas: boolean,
     ctx: FormulaContext): number;
+  /** Each raw page point with f(x) and f(y) applied, both raw axes in reach; '' = identity axis. */
+  formulaApplyPoints(exprX: string, exprY: string, raws: readonly XY[], ctx: FormulaContext): XY[];
   /** ms, 0 = keep forever; null when invalid. */
   parseDuration(spec: string | null | undefined): number | null;
   clampScale(scale: number): number;
@@ -37,8 +39,9 @@ export interface CoreOps extends LineOps {
   flipPoints(points: XY[], horizontal: boolean, cx: number, cy: number): void;
   boundingBoxCenter(points: readonly XY[]): XY;
   /** Mutates `data` in place; r/g/b tint the custom mode. */
-  applyFilterRGBA(mode: FilterMode, data: Uint8ClampedArray | Uint8Array, pixelCount: number, r: number, g: number, b: number): void;
-  applyContourRGBA(data: Uint8ClampedArray | Uint8Array, width: number, height: number): void;
+  /** In place; with `inHeap`, the result as a view of the wasm heap instead, valid until the next core call. */
+  applyFilterRGBA(mode: FilterMode, data: Uint8ClampedArray | Uint8Array, pixelCount: number, r: number, g: number, b: number, inHeap?: boolean): Uint8ClampedArray | void;
+  applyContourRGBA(data: Uint8ClampedArray | Uint8Array, width: number, height: number, inHeap?: boolean): Uint8ClampedArray | void;
   isAlbumOrientation(w: number, h: number): boolean;
   cropAspect(pageWidth: number, pageHeight: number, album: boolean): number;
   centeredCrop(imageW: number, imageH: number, aspectWoverH: number): CropRect;
@@ -73,6 +76,8 @@ export interface StencilCore {
    * a CoreHeapError (coreMarshal.js) once; the core has then retired and op() returns null. */
   op<K extends keyof CoreOps>(name: K): CoreOps[K] | null;
   readonly opNames: CoreOpName[];
+  /** Frees the pixel ops' scratch, as a closed picture leaves it unused; a no-op on the JS fallback. */
+  releasePixelScratch(): void;
 }
 
 export declare const core: StencilCore;

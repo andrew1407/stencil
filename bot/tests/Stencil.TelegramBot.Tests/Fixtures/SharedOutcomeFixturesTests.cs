@@ -5,7 +5,7 @@ using Stencil.TelegramBot.Infrastructure.Cli;
 
 namespace Stencil.TelegramBot.Tests.Fixtures;
 
-/// <summary>The shared, language-neutral goldens for the CLI stderr grammar (<c>cli/testdata/outcome_fixtures.json</c>) through <see cref="CliOutcomeParser"/>. The same file is replayed by the Rust MCP server's <c>fixtures_test.rs</c>, so a disagreement between the two parsers reddens one of the suites.</summary>
+/// <summary>The shared, language-neutral goldens for the CLI stderr grammar (<c>common/fixtures/cli/outcome.json</c>) through <see cref="CliOutcomeParser"/>. The same file is replayed by the Rust MCP server's <c>fixtures_test.rs</c>, so a disagreement between the two parsers reddens one of the suites.</summary>
 public sealed class SharedOutcomeFixturesTests
 {
     /// <summary>Locate the shared fixture file relative to THIS test source (compile-time
@@ -15,7 +15,7 @@ public sealed class SharedOutcomeFixturesTests
         string dir = Path.GetDirectoryName(thisFile)!;
         // .../bot/tests/Stencil.TelegramBot.Tests -> repo root is three levels up.
         return Path.GetFullPath(
-            Path.Combine(dir, "..", "..", "..", "..", "cli", "testdata", "outcome_fixtures.json"));
+            Path.Combine(dir, "..", "..", "..", "..", "common", "fixtures", "cli", "outcome.json"));
     }
 
     private static readonly Lazy<JsonDocument> _corpus =

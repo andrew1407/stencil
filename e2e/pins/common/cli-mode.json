@@ -1,0 +1,3234 @@
+{
+  "name": "cli-mode",
+  "root": ".cli-stage",
+  "nodes": [
+    {
+      "path": ":root",
+      "tag": "div",
+      "classes": "cli-stage",
+      "style": {
+        "display": "grid",
+        "position": "fixed",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(255, 255, 255)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "z-index": "100004"
+      }
+    },
+    {
+      "path": ":root/div[1]",
+      "tag": "div",
+      "classes": "cli-header",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]",
+      "tag": "pre",
+      "classes": "cli-banner",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[1]",
+      "tag": "span",
+      "classes": "cli-banner-row",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[1]/span[1]",
+      "tag": "span",
+      "classes": "cli-blank cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[1]/span[2]",
+      "tag": "span",
+      "classes": "cli-blank cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[1]/span[3]",
+      "tag": "span",
+      "classes": "cli-blank cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[1]/span[4]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "╭"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[1]/span[5]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[1]/span[6]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[1]/span[7]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[1]/span[8]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[1]/span[9]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[1]/span[10]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[1]/span[11]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[1]/span[12]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[1]/span[13]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[1]/span[14]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[1]/span[15]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[1]/span[16]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[1]/span[17]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[1]/span[18]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[1]/span[19]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "╮"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[1]/span[20]",
+      "tag": "span",
+      "classes": "cli-blank cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[2]",
+      "tag": "span",
+      "classes": "cli-banner-row",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[2]/span[1]",
+      "tag": "span",
+      "classes": "cli-blank cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[2]/span[2]",
+      "tag": "span",
+      "classes": "cli-blank cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[2]/span[3]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "╱"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[2]/span[4]",
+      "tag": "span",
+      "classes": "cli-cell cli-panel",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[2]/span[5]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[2]/span[6]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[2]/span[7]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[2]/span[8]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[2]/span[9]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[2]/span[10]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[2]/span[11]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[2]/span[12]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[2]/span[13]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[2]/span[14]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[2]/span[15]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[2]/span[16]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[2]/span[17]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[2]/span[18]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[2]/span[19]",
+      "tag": "span",
+      "classes": "cli-cell cli-panel",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[2]/span[20]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "╲"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[3]",
+      "tag": "span",
+      "classes": "cli-banner-row",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[3]/span[1]",
+      "tag": "span",
+      "classes": "cli-blank cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[3]/span[2]",
+      "tag": "span",
+      "classes": "cli-blank cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[3]/span[3]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "│"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[3]/span[4]",
+      "tag": "span",
+      "classes": "cli-cell cli-panel",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[3]/span[5]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[3]/span[6]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[3]/span[7]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[3]/span[8]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "●"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[3]/span[9]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[3]/span[10]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[3]/span[11]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[3]/span[12]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[3]/span[13]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[3]/span[14]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[3]/span[15]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[3]/span[16]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "●"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[3]/span[17]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[3]/span[18]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[3]/span[19]",
+      "tag": "span",
+      "classes": "cli-cell cli-panel",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[3]/span[20]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "│"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[4]",
+      "tag": "span",
+      "classes": "cli-banner-row",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[4]/span[1]",
+      "tag": "span",
+      "classes": "cli-blank cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[4]/span[2]",
+      "tag": "span",
+      "classes": "cli-blank cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[4]/span[3]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "│"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[4]/span[4]",
+      "tag": "span",
+      "classes": "cli-cell cli-panel",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[4]/span[5]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[4]/span[6]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "●"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[4]/span[7]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "╱"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[4]/span[8]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[4]/span[9]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[4]/span[10]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[4]/span[11]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[4]/span[12]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[4]/span[13]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[4]/span[14]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[4]/span[15]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[4]/span[16]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[4]/span[17]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[4]/span[18]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[4]/span[19]",
+      "tag": "span",
+      "classes": "cli-cell cli-panel",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[4]/span[20]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "│"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[5]",
+      "tag": "span",
+      "classes": "cli-banner-row",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[5]/span[1]",
+      "tag": "span",
+      "classes": "cli-blank cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[5]/span[2]",
+      "tag": "span",
+      "classes": "cli-blank cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[5]/span[3]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "│"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[5]/span[4]",
+      "tag": "span",
+      "classes": "cli-cell cli-panel",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[5]/span[5]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[5]/span[6]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[5]/span[7]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "╲"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[5]/span[8]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "●"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[5]/span[9]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[5]/span[10]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[5]/span[11]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[5]/span[12]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[5]/span[13]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[5]/span[14]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[5]/span[15]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "●"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[5]/span[16]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[5]/span[17]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[5]/span[18]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[5]/span[19]",
+      "tag": "span",
+      "classes": "cli-cell cli-panel",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[5]/span[20]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "│"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]",
+      "tag": "span",
+      "classes": "cli-banner-row",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/span[1]",
+      "tag": "span",
+      "classes": "cli-blank cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/span[2]",
+      "tag": "span",
+      "classes": "cli-blank cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/span[3]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "│"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/span[4]",
+      "tag": "span",
+      "classes": "cli-cell cli-panel",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/span[5]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/span[6]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/span[7]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/span[8]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/span[9]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/span[10]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/span[11]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/span[12]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/span[13]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/span[14]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/span[15]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/span[16]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "╲"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/span[17]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "●"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/span[18]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/span[19]",
+      "tag": "span",
+      "classes": "cli-cell cli-panel",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/span[20]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "│"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/b[1]",
+      "tag": "b",
+      "classes": "cli-wordmark",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-weight": "700",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/b[1]/span[1]",
+      "tag": "span",
+      "classes": "cli-letter",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-weight": "700",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "S"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/b[1]/span[2]",
+      "tag": "span",
+      "classes": "cli-letter",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-weight": "700",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/b[1]/span[3]",
+      "tag": "span",
+      "classes": "cli-letter",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-weight": "700",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "T"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/b[1]/span[4]",
+      "tag": "span",
+      "classes": "cli-letter",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-weight": "700",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/b[1]/span[5]",
+      "tag": "span",
+      "classes": "cli-letter",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-weight": "700",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "E"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/b[1]/span[6]",
+      "tag": "span",
+      "classes": "cli-letter",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-weight": "700",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/b[1]/span[7]",
+      "tag": "span",
+      "classes": "cli-letter",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-weight": "700",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "N"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/b[1]/span[8]",
+      "tag": "span",
+      "classes": "cli-letter",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-weight": "700",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/b[1]/span[9]",
+      "tag": "span",
+      "classes": "cli-letter",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-weight": "700",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "C"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/b[1]/span[10]",
+      "tag": "span",
+      "classes": "cli-letter",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-weight": "700",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/b[1]/span[11]",
+      "tag": "span",
+      "classes": "cli-letter",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-weight": "700",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "I"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/b[1]/span[12]",
+      "tag": "span",
+      "classes": "cli-letter",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-weight": "700",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[6]/b[1]/span[13]",
+      "tag": "span",
+      "classes": "cli-letter",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-weight": "700",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "L"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[7]",
+      "tag": "span",
+      "classes": "cli-banner-row",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[7]/span[1]",
+      "tag": "span",
+      "classes": "cli-blank cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[7]/span[2]",
+      "tag": "span",
+      "classes": "cli-blank cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[7]/span[3]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "│"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[7]/span[4]",
+      "tag": "span",
+      "classes": "cli-cell cli-panel",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[7]/span[5]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[7]/span[6]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[7]/span[7]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[7]/span[8]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[7]/span[9]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[7]/span[10]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[7]/span[11]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[7]/span[12]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[7]/span[13]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[7]/span[14]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[7]/span[15]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[7]/span[16]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[7]/span[17]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "╱"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[7]/span[18]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[7]/span[19]",
+      "tag": "span",
+      "classes": "cli-cell cli-panel",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[7]/span[20]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "│"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[8]",
+      "tag": "span",
+      "classes": "cli-banner-row",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[8]/span[1]",
+      "tag": "span",
+      "classes": "cli-blank cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[8]/span[2]",
+      "tag": "span",
+      "classes": "cli-blank cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[8]/span[3]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "│"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[8]/span[4]",
+      "tag": "span",
+      "classes": "cli-cell cli-panel",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[8]/span[5]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[8]/span[6]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[8]/span[7]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "●"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[8]/span[8]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[8]/span[9]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[8]/span[10]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[8]/span[11]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[8]/span[12]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[8]/span[13]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[8]/span[14]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[8]/span[15]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[8]/span[16]",
+      "tag": "span",
+      "classes": "cli-cell cli-mark",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(255, 255, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(255, 255, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      },
+      "text": "●"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[8]/span[17]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[8]/span[18]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[8]/span[19]",
+      "tag": "span",
+      "classes": "cli-cell cli-panel",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[8]/span[20]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "│"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[9]",
+      "tag": "span",
+      "classes": "cli-banner-row",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[9]/span[1]",
+      "tag": "span",
+      "classes": "cli-blank cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[9]/span[2]",
+      "tag": "span",
+      "classes": "cli-blank cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[9]/span[3]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "╲"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[9]/span[4]",
+      "tag": "span",
+      "classes": "cli-cell cli-panel",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[9]/span[5]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[9]/span[6]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[9]/span[7]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[9]/span[8]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[9]/span[9]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[9]/span[10]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[9]/span[11]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[9]/span[12]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[9]/span[13]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[9]/span[14]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[9]/span[15]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[9]/span[16]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[9]/span[17]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[9]/span[18]",
+      "tag": "span",
+      "classes": "cli-art cli-cell",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(58, 63, 75)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[9]/span[19]",
+      "tag": "span",
+      "classes": "cli-cell cli-panel",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[9]/span[20]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "╱"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[10]",
+      "tag": "span",
+      "classes": "cli-banner-row",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[10]/span[1]",
+      "tag": "span",
+      "classes": "cli-blank cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[10]/span[2]",
+      "tag": "span",
+      "classes": "cli-blank cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[10]/span[3]",
+      "tag": "span",
+      "classes": "cli-blank cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[10]/span[4]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "╰"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[10]/span[5]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[10]/span[6]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[10]/span[7]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[10]/span[8]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[10]/span[9]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[10]/span[10]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[10]/span[11]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[10]/span[12]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[10]/span[13]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[10]/span[14]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[10]/span[15]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[10]/span[16]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[10]/span[17]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[10]/span[18]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "─"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[10]/span[19]",
+      "tag": "span",
+      "classes": "cli-accent cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(43, 47, 58)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "╯"
+    },
+    {
+      "path": ":root/div[1]/pre[1]/span[10]/span[20]",
+      "tag": "span",
+      "classes": "cli-blank cli-cell",
+      "style": {
+        "display": "inline",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[1]",
+      "tag": "div",
+      "classes": "cli-status",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[1]/span[1]",
+      "tag": "span",
+      "classes": "cli-status-name",
+      "style": {
+        "display": "inline",
+        "color": "rgb(128, 134, 143)",
+        "border-color": "rgb(128, 134, 143)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "blank-240x170.png"
+    },
+    {
+      "path": ":root/pre[1]",
+      "tag": "pre",
+      "classes": "cli-out",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/pre[1]/span[1]",
+      "tag": "span",
+      "classes": "console-line",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": "Console mode — '/command <args>' (the '/' is optional). Tab completes, Up/Down recall history. '/help' lists commands, '"
+    },
+    {
+      "path": ":root/div[2]",
+      "tag": "div",
+      "classes": "cli-rule",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    },
+    {
+      "path": ":root/div[3]",
+      "tag": "div",
+      "classes": "cli-prompt-row",
+      "style": {
+        "display": "flex",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[3]/span[1]",
+      "tag": "span",
+      "classes": "cli-prompt",
+      "style": {
+        "display": "block",
+        "color": "rgb(124, 58, 237)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      },
+      "text": ">"
+    },
+    {
+      "path": ":root/div[3]/input[1]",
+      "tag": "input",
+      "classes": "cli-input",
+      "style": {
+        "display": "block",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+        "overflow": "clip"
+      }
+    },
+    {
+      "path": ":root/div[4]",
+      "tag": "div",
+      "classes": "cli-rule cli-rule-end",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Menlo, Consolas, \"DejaVu Sans Mono\", monospace"
+      }
+    }
+  ]
+}

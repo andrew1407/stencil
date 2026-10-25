@@ -86,7 +86,7 @@ class MainWindowGuiTest : public QObject {
       }
       rejectModal();
     });
-    win.parts.projects.openProjects();
+    win.projectHost.flows.openProjects();
     QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QStringLiteral("; "))));
   }
 };

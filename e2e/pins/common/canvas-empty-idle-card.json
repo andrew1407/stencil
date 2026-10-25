@@ -1,0 +1,81 @@
+{
+  "name": "canvas-empty-idle-card",
+  "root": "#idle-create-wrap",
+  "nodes": [
+    {
+      "path": ":root",
+      "tag": "div",
+      "classes": "idle-create",
+      "style": {
+        "display": "flex",
+        "position": "absolute",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif",
+        "justify-content": "center",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/button[1]",
+      "tag": "button",
+      "classes": "idle-create-btn",
+      "style": {
+        "display": "flex",
+        "position": "relative",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(233, 236, 239)",
+        "border-color": "color(srgb 0.820196 0.729608 0.975294)",
+        "border-width": "2px",
+        "border-radius": "10px",
+        "font-size": "13px",
+        "font-family": "Arial",
+        "text-align": "center",
+        "flex-direction": "column",
+        "align-items": "center",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/button[1]/span[1]",
+      "tag": "span",
+      "classes": "idle-create-icon",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "32px",
+        "font-family": "Arial",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/button[1]/span[1]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-image",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "32px",
+        "font-family": "Arial",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/button[1]/span[2]",
+      "tag": "span",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Arial",
+        "text-align": "center"
+      },
+      "text": "＋ Blank image"
+    }
+  ]
+}

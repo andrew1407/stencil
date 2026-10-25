@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -15,8 +16,9 @@ type ctxKey int
 
 const sessionKey ctxKey = 0
 
-// Middleware gates a handler behind bearer-token auth, attaching the Session or answering 401. Its store
-// lookup runs on every request, so under lookupTimeout (OP_TIMEOUT_SECONDS; 0 = the request's own).
+// Middleware gates a handler behind bearer-token auth, attaching the Session or answering 401 — or 503
+// when the store could not answer. Its lookup runs on every request, so under lookupTimeout
+// (OP_TIMEOUT_SECONDS; 0 = the request's own).
 func Middleware(resolver SessionResolver, lookupTimeout time.Duration) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
@@ -24,6 +26,10 @@ func Middleware(resolver SessionResolver, lookupTimeout time.Duration) func(http
 			ctx, cancel := clock.WithTimeout(req.Context(), lookupTimeout)
 			sess, err := Verify(ctx, resolver, token, clock.NowMs())
 			cancel()
+			if errors.Is(err, ErrLookupFailed) {
+				writeUnavailable(rw)
+				return
+			}
 			if err != nil {
 				writeUnauthorized(rw)
 				return
@@ -50,6 +56,19 @@ func BearerToken(req *http.Request) string {
 func SessionFromContext(ctx context.Context) (Session, bool) {
 	sess, ok := ctx.Value(sessionKey).(Session)
 	return sess, ok
+}
+
+// RetryAfterSeconds is what a 503 for a failed token lookup asks a client to wait.
+const RetryAfterSeconds = "2"
+
+func writeUnavailable(rw http.ResponseWriter) {
+	rw.Header().Set("Content-Type", "application/json")
+	rw.Header().Set("Retry-After", RetryAfterSeconds)
+	rw.WriteHeader(http.StatusServiceUnavailable)
+	_ = json.NewEncoder(rw).Encode(protocol.ErrorResponse{
+		Code:    protocol.CodeInternal,
+		Message: "the session store did not answer; retry",
+	})
 }
 
 func writeUnauthorized(rw http.ResponseWriter) {

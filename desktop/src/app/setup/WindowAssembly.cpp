@@ -5,7 +5,7 @@
 #include "ArrowPanner.hpp"
 #include "../../support/control/dblReset.hpp"
 #include "CanvasWidget.hpp"
-#include "mainWindowHelpers.hpp"   // CENTRAL_SIDE_MARGIN
+#include "toolbarMetrics.hpp"
 #include "OverlayScrollArea.hpp"
 #include "SelectionPanel.hpp"
 #include "SelectedLineBar.hpp"

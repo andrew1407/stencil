@@ -28,9 +28,7 @@ graph TD
 
 The core seam (`src/model/` plus the files the lint lists) → controllers → `net/`, `io/` →
 `support/` → `canvas/`, `dialogs/`, `llm/` → `app/`. `tests/layerBoundary.headless.cpp` enforces
-it: nothing below `app/` includes an `app/` header beyond its one allowance
-(`dialogs/projects/ProjectsDialog.cpp` reaching `app/mainWindowHelpers.hpp` for the name-chip
-metrics), `dialogs/` never includes `canvas/`, a `core/` header enters the GUI only through
+it: nothing below `app/` includes an `app/` header, `dialogs/` never includes `canvas/`, a `core/` header enters the GUI only through
 `model/` beyond the frozen allowance in `layerBoundary.headless.cpp`, and no header passes `MainWindow.hpp` (or,
 outside `canvas/`, `CanvasWidget.hpp`) on — a header forward-declares them, and only the units that
 reach into them include them. The document state lives in `CanvasScene` (`core::Lines` +
@@ -79,13 +77,16 @@ classDiagram
     MainWindow --> Session : autosaves
     MainWindow --> LaunchOptions : applyLaunchOptions
     MainWindow *-- WindowParts : parts
+    MainWindow *-- ProjectHost : projectHost
+    ProjectHost --> ProjectWindow : reaches the window through
     WindowParts *-- ConsoleHost : console
     ConsoleHost o-- CliStage : stage, on the first entry
     ConsoleHost o-- ConsoleWindow : window, on the first open
     CliStage ..> CommandSpec : resolves its words through
     WindowParts --> MainWindow : each part holds it by reference
-    MainWindow *-- ConnectionManager : remote.connections
-    MainWindow *-- RemoteLink : remote.session link
+    MainWindow *-- RemoteSession : remote.session
+    RemoteSession *-- ConnectionManager : connections
+    RemoteSession *-- RemoteLink : link
     MainWindow *-- ChatSessionController : chatSession
     MainWindow *-- ProjectTitleController : projectTitle
     ChatSessionController o-- ChatMessage : chatHistory
@@ -100,7 +101,8 @@ classDiagram
 
 | Entity | What it is | Owned by / lifetime | Relates to |
 |---|---|---|---|
-| `MainWindow` | The editor window and mediator: settings, the project list, the active project id | `main.cpp`, one per window | Everything, through signals, `Hooks` and its parts |
+| `MainWindow` | The editor window and mediator: settings, the canvas, the docks and the parts | `main.cpp`, one per window | Everything, through signals, `Hooks` and its parts |
+| `ProjectHost` | The project a window holds — the store, the shared project list, the active id, the document source, incognito — and the flows that change it (`ProjectFlows`, `ProjectCopy`) | `MainWindow::projectHost`, window lifetime | The window only through `ProjectWindow`, the seam `MainWindow::projectSeam` binds; another window through `MainWindow::projects()` |
 | `WindowParts` | The parts the window is composed of, one job each: builders, dispatchers and feature parts | `MainWindow::parts`, window lifetime | Each holds the window by reference as its named friend |
 | `ChatSessionController` | One assistant conversation across dock and menu panel: the turn, history and attachments, the `planRunning` gate | `MainWindow::chatSession`, window lifetime | `ChatDock`, `ChatMenuPanel`, `LlmClient`; the window through `Hooks` |
 | `ProjectTitleController` | The project's name as the window wears it: title, name field, chips, rename in place | `MainWindow::projectTitle`, window lifetime | `ProjectNameBar`, `WindowActions`, `RemoteSession`; the window through `Hooks` |
@@ -114,7 +116,7 @@ classDiagram
 | `ScriptDoc` | One parsed `.stc`: tokens, diagnostics, the lowered op stream, and op resolvers to a `core::CropRect` or `core::Line` | The `ScriptEditorWidget` that parsed it, rebuilt per keystroke | `ScriptHighlighter`; `scriptRun` drives `PlanTarget` from its ops |
 | `ScriptBuffer` | The one `.stc` both script hosts edit, and whether a link delivered it (until the user changes it) | Process-wide; never persisted | `ScriptEditorWidget`, `ScriptHost`'s run rules |
 | `LaunchOptions` | Parsed argv or a `stencil://` link | `main.cpp`, consumed once by `applyLaunchOptions` | `MediaLoader`, `openServerLaunch` |
-| `ConnectionManager` | The live `ServerClient`s and the bases the user disconnected; `changed()` persists the live ones plus every saved one not forgotten | `MainWindow::remote`, created lazily | `connectionStore`, `RemoteSession` |
+| `ConnectionManager` | The live `ServerClient`s and the bases the user disconnected; `changed()` persists the live ones plus every saved one not forgotten | `RemoteSession`, created on first use (`ensureConnections`) | `connectionStore`, `RemoteSession` |
 | `ServerClient` | One REST connection: base, bearer token, credential kind, status | `ConnectionManager::clients` | `ServerProject`, `LiveFeed` |
 | `ServerProject` | A server project record, mirroring `server/internal/protocol` `ProjectRecord` | Transient reply value stamped with `serverUrl` | `RemoteLink`, `ProjectsDialog` rows |
 | `RemoteLink` | The server project (address, id, version) bound to the open editor | `RemoteSession::link`, bound on open, unbound on close | `RemoteSyncController` pushes and polls it |
@@ -135,9 +137,8 @@ classDiagram
 | State | `CanvasGesture` (`input/gesture.hpp`), `GestureRoutes` (`input/gestureRoutes`) | One gesture at a time; a move or release is looked up by gesture in one table, never a chain |
 | Mediator | `MainWindow` | Wires canvas, chat, selection panel, remote session and controllers; a controller reaches it only through its `Hooks`, a part through friendship |
 | Parts and dispatchers | `WindowParts`; the builders (`ToolbarBuilder`, `MenuBuilder`, …) and dispatchers (`WindowAssembly`, `WindowEvents`, `ChatPlanTarget`) | A part holds the window by reference as its one `friend` and is unaware of other parts; a flow spanning two goes through a window method; only builders and dispatchers reach a part through the window |
-| State group | `WindowActions`, `ToolbarControls`, `PopoverHost`, `RemoteState`, …, held by value in `MainWindow` | Plain structs with no back-reference, read by name |
 | Memento | `core::EditorHistory` in `CanvasScene`; `PlanTarget::stepHistory` | A stroke, crop, turn or committed filter pushes an `EditorMemento`; a preview or no-op pushes none; a restore rebuilds from the original only when crop or turn differ |
-| Strategy | `LlmClient`'s per-wire `chat*` keyed by `providers.json` `wire`; `CanvasScene::setImageFilter` modes; `MotionMode` → `ParticleStyle`; `NotificationSink` by `Settings.notifyChannel` | Table lookup, no growing `if` chain; a sink that cannot deliver falls back to the toasts |
+| Strategy | `LlmClient`'s per-wire `chat*` keyed by `providers.json` `wire`; `CanvasScene::setImageFilter` modes; `MotionMode` → `ParticleStyle` and its menu glyph (`support/icon/motionIcons.cpp` rows); `NotificationSink` by `Settings.notifyChannel` | Table lookup, no growing `if` chain; a sink that cannot deliver falls back to the toasts |
 | Observer | Qt signals (`CanvasWidget::changed`, `LiveFeed::projectUpdated`, `MediaLoader::loaded`, …) | Async completions run on the GUI thread, bound to an owning context — a pool job's `QFutureWatcher` is a child of its `ctx`, a reply dies with its `QNetworkAccessManager` — so a completion never outlives its owner; a `QPointer` guards only a callback that crosses to another object |
 | Repository | `fileStore`, `connectionStore`, `core::ProjectsStore` | Callers see typed structs, never JSON or paths |
 | Chain of Responsibility | `fetchGuard::checkAsync` → `request` → `get` | The one guard on every untrusted `http(s)` fetch: blocked hosts, resolution, no redirects, byte cap |
@@ -145,25 +146,7 @@ classDiagram
 | Debounced write | `SessionController`, `RemoteSyncController`, `io/deferredWrite`, `StencilFileSync` | Gates (`incognito`, `remoteUnsynced`) are checked at fire time |
 | Guarded write loop | `ServerClient::runGuardedWriteAsync`, `RemoteSession::putVersionGuardedAsync` | Version echoed on PUT; a layout push takes 6 tries, each 409 re-reading and merging (`model::unionLines` over `core::mergeLines`); a meta PUT takes 4, re-reading the version without a merge |
 | Continuation | `executePlanThen`, `runScriptThen` (`app/scriptRun.cpp`) over `PlanTarget`'s `…Then` ops; `PlanAwait` | An op waiting on I/O suspends the run and its answer resumes it at the next op; a window torn down mid-await takes the plan with it |
-| Off-thread decode | `MainWindow::decodeForCanvas` over `support::runOnPool`, checked against `CanvasScene::pictureGeneration`; `MediaLoader::decodeThen` | No user picture decodes on the GUI thread; the pool job touches no GUI object; an overtaken load is dropped |
-| Hosted menu panel | `ChatMenuPanel`, `ScriptMenuPanel`: a `QWidgetAction` in a `StayOpenMenu` | The action owns the panel, so its state outlives the per-right-click menu rebuild |
-| Shared editor widget | `ScriptEditorWidget` in `ScriptDialog` and `ScriptMenuPanel` | Hosts differ only in the `Style` they pass and the buttons around it |
-| Session override | `support/motionPrefs.hpp`, `support/skinPrefs.hpp`, the hooks `support/webcore/look.cpp` installs | Asked by every restyle and animation, written to no file |
-| Golden pin / fixture walker | `uiPins`, `opPlanOracle`; the `*Fixtures` walkers | Pins guard pixels, QSS and typed plan results; walkers prove the shared corpora here |
-| Double-click reset | `DblResetFilter` (`support/control/dblReset.hpp`), opted into by `setResetDefault` or a chip's `setResetHook` | A double-click sets the declared default through the control's own signal path; a logo drop (`resetToDefault`) does too, spins and formula fields included |
-| Deferred click | `support::wireColorChip` (`support/control/dblReset.hpp`) | A colour chip's click waits out the double-click window before its picker opens, so a double-click can reset it |
-| Popup entrance by motion mode | `revealPopup` / `dismissPopup` (`support/menu/menuReveal`), `slidePopupIn` (`support/menu/popupSlide`) | One origin per popup; the motion mode picks particles, a slide or none, and every mode lands on the exact geometry |
-| Alt-peek gesture + glide registry | `AltPeekGesture`, `addGlideHandle` / `glideFrom` (`support/tip/altPeek`); `installComboAltPeek` (`support/menu/comboAltPeek`) | Alt+hover peeks a list open and Alt release closes it; one app-wide filter drives a gesture per `QComboBox`; a registered handle stays open under a peek inside it |
-| Browser-like list scrolling | `SmoothWheel` (`support/scroll/smoothWheel.hpp`), installed by `ReorderableListWidget` | A trackpad moves the list by its own pixels and momentum; a wheel notch eases Chrome's 100px, instant under reduced motion |
-| View-only paint flag | `CanvasScene::setCleanPreview` | Honoured only by the live paint: no render, setting or history step sees it |
-| Silent restyle | `ThemePainter::otherThemeShot` over `PaintedTheme::silent` | The other theme applied, grabbed and restored inside one event-loop turn; nothing reaches the screen or is stored |
-| Control drag | `installIconDrag` (`support/drag/iconDrag`), a pure `IconDragMachine` under a source event filter | Past the press slop the source reads as released and a ghost follows; drop and cancel run on the next turn, so a hook may open a modal; no tooltip shows while a drag is live; the ghost's rim shines in the accent (`support/drag/dragOverlays`); a source hidden mid-drag still drops, and `afterIconDrag` holds fullscreen's reveal until the drop |
-| Colour drag | `installColorDrag`, `installColorDragCells` (`support/drag/colorDrag`) | A control drag carrying an RGBA; the target applies it through its own pick path |
-| Press-drag pick | `SearchComboBox::dragPick` (`support/menu/SearchComboPopup.cpp`) | The list opens on the press and a release on a row picks it; a plain click keeps it open |
-| Drag release menu | `ProjectDragMenu` (`dialogs/projects/list/`) | A held project row shows its menu; only the release takes an item, run once the drag loop has unwound |
 | Command table | `consoleHandlers()` keyed by `CommandSpec::name` (`app/console/consoleCommands`), resolved by `resolveConsoleCommand` over aliases | A row and its handler are proved to match both ways; a `cliMode` row answers only inside CLI mode; an unknown word is one error line |
-| Typewriter reveal | `support::TypewriterReveal` paced by `revealPace(consoleSpeed())` (`support/console/consolePace.hpp`) | Every line arrives whole and shows a growing cut on one timer; a burst sweeps in fewer jumps and pouring output lands at once; the fastest speed is instant |
-| Gate | `ConsoleHost::cliGate`, asked by `ChatPlanTarget::openDialog` and `setChatPlacement` | While CLI mode is on, an op that would open a window or move the chat is noted and skipped, never run under the stage |
 
 ## Design
 
@@ -222,7 +205,9 @@ classDiagram
 - **The selection panel.** Points table and lines list edit their line through the toolbar's
   appliers, one undo step each, and own their delete keys through `ShortcutOverride`. A removal,
   clear, new picture or new layout leaves no stale index in the selection; a turn, flip, undo or
-  redo keeps it on the lines that still exist.
+  redo keeps it on the lines that still exist. The lines list rebuilds only a row whose look or
+  point count changed; past `LAZY_ROWS` either table makes a row's widgets (chips, bin, eye) once
+  it is on screen, and a shorter one every row's.
 - **Open and save `.stencil`.** `openProjectFile` reads, parses and decodes on the pool, fills the
   canvas, creates a local `Project` and links the file. The save writes
   `fileStore::buildProjectFile` over the untouched source bytes (or a PNG re-encode) and links the
@@ -319,6 +304,59 @@ classDiagram
   `stencil://` scheme are registered on macOS (`packaging/MacOSXBundleInfo.plist.in`) and Linux
   (`stencil-mime.xml`, `stencil.desktop`). `packaging/mkicon.cpp`, a Qt host tool, rasterises
   `common/icons/favicon.svg` into `.icns` / `.ico`.
+- **State group.** `WindowActions`, `ToolbarControls`, `PopoverHost`, `RemoteState`, …, held by
+  value in `MainWindow` — plain structs with no back-reference, read by name.
+- **Off-thread decode.** `MainWindow::decodeForCanvas` over `support::runOnPool`, checked against
+  `CanvasScene::pictureGeneration`; `MediaLoader::decodeThen` — no user picture decodes on the GUI
+  thread; the pool job touches no GUI object; an overtaken load is dropped.
+- **Hosted menu panel.** `ChatMenuPanel`, `ScriptMenuPanel`: a `QWidgetAction` in a `StayOpenMenu` —
+  the action owns the panel, so its state outlives the per-right-click menu rebuild.
+- **Shared editor widget.** `ScriptEditorWidget` in `ScriptDialog` and `ScriptMenuPanel` — hosts
+  differ only in the `Style` they pass and the buttons around it.
+- **Session override.** `support/motionPrefs.hpp`, `support/skinPrefs.hpp`, the hooks
+  `support/webcore/look.cpp` installs — asked by every restyle and animation, written to no file.
+- **Golden pin / fixture walker.** `uiPins`, `opPlanOracle`; the `*Fixtures` walkers — pins guard
+  pixels, QSS and typed plan results; walkers prove the shared corpora here.
+- **Double-click reset.** `DblResetFilter` (`support/control/dblReset.hpp`), opted into by
+  `setResetDefault` or a chip's `setResetHook` — a double-click sets the declared default through
+  the control's own signal path; a logo drop (`resetToDefault`) does too, spins and formula fields
+  included.
+- **Deferred click.** `support::wireColorChip` (`support/control/dblReset.hpp`) — a colour chip's
+  click waits out the double-click window before its picker opens, so a double-click can reset it.
+- **Popup entrance by motion mode.** `revealPopup` / `dismissPopup` (`support/menu/menuReveal`),
+  `slidePopupIn` (`support/menu/popupSlide`) — one origin per popup; the motion mode picks
+  particles, a slide or none, and every mode lands on the exact geometry.
+- **Alt-peek gesture + glide registry.** `AltPeekGesture`, `addGlideHandle` / `glideFrom`
+  (`support/tip/altPeek`); `installComboAltPeek` (`support/menu/comboAltPeek`) — alt+hover peeks a
+  list open and Alt release closes it; one app-wide filter drives a gesture per `QComboBox`; a
+  registered handle stays open under a peek inside it.
+- **Browser-like list scrolling.** `SmoothWheel` (`support/scroll/smoothWheel.hpp`), installed by
+  `ReorderableListWidget` — a trackpad moves the list by its own pixels and momentum; a wheel notch
+  eases Chrome's 100px, instant under reduced motion.
+- **View-only paint flag.** `CanvasScene::setCleanPreview` — honoured only by the live paint: no
+  render, setting or history step sees it.
+- **Silent restyle.** `ThemePainter::otherThemeShot` over `PaintedTheme::silent` — the other theme
+  applied, grabbed and restored inside one event-loop turn; nothing reaches the screen or is stored.
+- **Control drag.** `installIconDrag` (`support/drag/iconDrag`), a pure `IconDragMachine` under a
+  source event filter — past the press slop the source reads as released and a ghost follows; drop
+  and cancel run on the next turn, so a hook may open a modal; no tooltip shows while a drag is
+  live; the ghost's rim shines in the accent (`support/drag/dragOverlays`); a source hidden mid-drag
+  still drops, one destroyed mid-drag ends the drag without a drop or a cancel, and `afterIconDrag`
+  holds fullscreen's reveal until the drop.
+- **Colour drag.** `installColorDrag`, `installColorDragCells` (`support/drag/colorDrag`) — a
+  control drag carrying an RGBA; the target applies it through its own pick path; the colour chip
+  and the targets' glows leave with a source destroyed mid-drag.
+- **Press-drag pick.** `SearchComboBox::dragPick` (`support/menu/SearchComboPopup.cpp`) — the list
+  opens on the press and a release on a row picks it; a plain click keeps it open.
+- **Drag release menu.** `ProjectDragMenu` (`dialogs/projects/list/`) — a held project row shows its
+  menu; only the release takes an item, run once the drag loop has unwound.
+- **Typewriter reveal.** `support::TypewriterReveal` paced by `revealPace(consoleSpeed())`
+  (`support/console/consolePace.hpp`) — every line arrives whole and shows a growing cut on one
+  timer; a burst sweeps in fewer jumps and pouring output lands at once; the fastest speed is
+  instant.
+- **Gate.** `ConsoleHost::cliGate`, asked by `ChatPlanTarget::openDialog` and `setChatPlacement` —
+  while CLI mode is on, an op that would open a window or move the chat is noted and skipped, never
+  run under the stage.
 
 ## Concurrency
 
@@ -327,7 +365,8 @@ Everything that touches a `QObject` runs on the GUI thread; the one other execut
 `io/deferredWrite`): the job captures its inputs by value, touches no `QObject`, `QWidget` or
 `QPixmap`, and returns a value that a `QFutureWatcher` parented to `ctx` hands back on the GUI
 thread — never once `ctx` is gone. What runs there is picture decode, PNG encode, a
-`CanvasScene::renderCopy` render (the co-edit result, a plan save) and the JSON writes.
+`CanvasScene::renderCopy` render (the co-edit result, a plan save), the JSON writes and the
+filtered picture of a canvas of 4 MP or more (`CanvasWidget::refreshFilter`).
 `support::forEachSlice` fans row slices out only from the GUI thread; called on a pool thread it
 runs inline, since a job waiting on slices queued behind it would starve the pool. `SessionKey`,
 `Settings`, the palette, icon and thumbnail caches and every `QPixmap` are GUI-thread only. Network
@@ -339,11 +378,12 @@ in-flight layout push and then for the co-edit result, each up to `RESULT_CLOSE_
 | Owner | Runs on | Shares | Guard | On overflow or teardown |
 |---|---|---|---|---|
 | `support::runOnPool` jobs (decode, encode, render copies) | global pool | inputs captured by value; a `renderCopy` scene owned by the job | the watcher is a child of `ctx`; a decode checks `CanvasScene::pictureGeneration` on landing | `ctx` gone: the result is dropped; an overtaken decode answers false |
+| `CanvasWidget::refreshFilter` job | global pool | the picture (an implicitly shared copy), the mode and tint by value | one job at a time (`filterJobRunning`); the answer lands only while the picture's `cacheKey`, mode and tint still match and the filter is dirty | until it lands, the last filtered picture of the same size stands in, else the unfiltered one; a stale answer repaints, which starts the next job |
 | `support::forEachSlice` | GUI thread plus pool slices | the caller's buffers, disjoint row ranges | a `QSemaphore` the caller waits on | off the GUI thread or under `minPer` rows a slice: inline |
 | `io/deferredWrite` | GUI-thread timers, pool writes | the pending-job table (GUI only), the files | `writeGate` serialises writes, a per-path generation skips one a newer write overtook; `countGate` + a wait condition track in-flight jobs | a burst coalesces to one write; `flush()` blocks until the pool is quiet; each write is a `QSaveFile` rename, an owner-only one narrowed before its first byte |
 | `dragPasteboardMac` promise reader | an `NSOperationQueue` thread and the GUI thread | the offered promise, the landed path, `generation` | one `std::mutex` | a bounded wait, then the drop goes on; a file landing after `abandon()` bumped the generation is deleted |
 | `canvasPaintCache`, `scenePaint` buffers | whichever thread paints | nothing | `thread_local` | per thread, freed at thread exit |
-| `net/LiveFeed` | GUI thread (socket slots) | nothing; emits `projectUpdated` | — | a line over 1 MiB, newline or not, drops the socket, whose read buffer is bounded the same; one reconnect after 3 s per drop, the poll as backstop |
+| `net/LiveFeed` | GUI thread (socket slots) | nothing; emits `projectUpdated` and `liveChanged` | — | a line over 1 MiB, newline or not, drops the socket, whose read buffer is bounded the same; one reconnect after 3 s per drop, the poll as backstop |
 | `RemoteSyncController` timers | GUI thread | `RemoteState::reloading` / `pushing`, `planRunning` | push, poll, reload and result each refuse while another holds the canvas; a push waits for the one in flight | feed events coalesce 40 ms into one reload; a push is debounced 350 ms, capped at 1.5 s; a close fires a pending push and waits for it; the result upload is owned by `resultSeq` and cleared when the editor leaves the project |
 | Layout push / meta PUT | GUI thread, async REST chain | the link's version | `runGuardedWriteAsync` | layout: 6 tries, union merge per 409; meta: 4 tries, version re-read, no merge; then a toast |
 | Server reload (`openServerProject`) | GUI thread, async REST chain + pool decode | the canvas | `reloading` held to the landing, owned by `reloadSeq`; a second silent reload is refused | lines drawn meanwhile are union-merged into what lands, then pushed |
@@ -360,9 +400,11 @@ in-flight layout push and then for the co-edit result, each up to `RESULT_CLOSE_
 3. **Requests are REST.** Every read and write of server state is a `QNetworkAccessManager` REST
    request. The one other channel is `net/LiveFeed`: a read-only NDJSON event subscription over plain
    TCP on the REST port + 1, no WebSocket, carrying a project id and version that only trigger a
-   REST re-read; the 2 s poll is its backstop, and the Projects dialog polls while open.
-4. **Secrets.** Connection tokens live in the 0600 `connectionStore`, the openai-compat LLM key in
-   the settings JSON only, the anthropic key in process memory only (`SessionKey`). Every
+   REST re-read; the 2 s poll is its backstop, ten times slower while the feed is live (an event the bus
+   dropped is still caught), and the Projects dialog polls while open.
+4. **Secrets.** Connection tokens and the openai-compat LLM key live in the 0600 `secrets.json`
+   (`connectionStore`, `fileStore::saveSettings`), never in the settings JSON; the anthropic key
+   in process memory only (`SessionKey`). Every
    `QProcess` the app starts runs with `support::scrubbedChildEnv` (no `STENCIL_LLM_*`, no server
    token — `cli/src/safety/child.zig`'s list); a link opened through `QDesktopServices::openUrl` is
    handed to the OS opener (LaunchServices, ShellExecute, `xdg-open`), which the app does not scrub.
@@ -397,6 +439,11 @@ in-flight layout push and then for the co-edit result, each up to `RESULT_CLOSE_
     click or a script op takes, every edit is one of the editor's own steps, and leaving restores
     nothing but the window it covered. While it is on, `ConsoleHost::cliGate` refuses the plan
     ops that would open a window or move the chat under it.
+13. **A memo cache forgets.** A process-wide cache keyed by something the UI varies at will (an
+    accent, a skin, a project's version) is an `LruCache` (`support/LruCache.hpp`) or clears itself
+    past a cap, never a bare `QHash` that grows for the session.
+14. **What a drag puts up, its source takes down.** A drag's overlays, its glows and the app-wide
+    count `anyIconDragActive` reads end with the drop, the cancel, or the source's destruction.
 
 ## Tests
 

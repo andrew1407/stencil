@@ -21,7 +21,7 @@ def _repo_root():
 REPO_ROOT = _repo_root()
 
 # A floor, not a pin: raise it when the suite grows a lot; additions must never trip it.
-TEST_COUNT_FLOOR = 630
+TEST_COUNT_FLOOR = 820
 
 
 def count_cases(suite):

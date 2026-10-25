@@ -239,7 +239,7 @@ empty-`expr` axis clear — are **accepted but execute as inert no-ops with a no
 one-shot run has no persistent formula state to clear; the registry's `formula` entry,
 `divergence`). `save.path` is honored **sandboxed**: the destination is resolved relative to
 the run's `output_dir` (absolute, `..` or `~` paths note-and-fall-back to the usual place; a
-`.stencil` path is a file, anything else a folder) — `mcp/src/opplan/lower/`.
+`.stencil` path is a file, anything else a folder) — `mcp/src/plan/lower/`.
 
 ### Never model-drivable (every surface, by design)
 

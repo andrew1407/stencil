@@ -137,3 +137,30 @@ test "run: --confine-output keeps the destination dir inside the cwd; default al
     try testing.expect(mock.files.get("out/cat.png") != null);
     try testing.expect(mock.files.get("/tmp/stencil_scrape/cat.png") != null);
 }
+
+test "run: a dimension filter measures a gallery in chunks and fetches only the window's winners twice" {
+    var rig: Rig = undefined;
+    const a, const io, const mock = rig.open();
+    defer rig.close();
+
+    var html: std.ArrayList(u8) = .empty;
+    for (0..30) |i| {
+        try html.print(a, "<img src=\"p{d}.png\">", .{i});
+        const url = try std.fmt.allocPrint(a, "http://example.com/p{d}.png", .{i});
+        try mock.serve(url, mkPng(a, if (i % 3 == 0) 200 else 20, 20)); // every third is wide
+    }
+    try mock.serve("http://example.com/", html.items);
+
+    var opts = args.Options{};
+    opts.source_site = "http://example.com/";
+    opts.output = "out";
+    opts.source_min_width = 100;
+    opts.source_count = 2;
+    try runImpl(testing.allocator, io, opts, mock.deps());
+
+    try testing.expectEqual(@as(usize, 2), mock.files.count());
+    try testing.expect(mock.files.get("out/p0.png") != null and mock.files.get("out/p3.png") != null);
+    // The page, each candidate once to measure it, then the two winners for their bodies.
+    try testing.expectEqual(@as(usize, 1 + 30 + 2), mock.fetched.load(.monotonic));
+    try testing.expectEqualStrings("wrote out/p0.png (200x20 px · source example.com)\n", mock.line(1));
+}

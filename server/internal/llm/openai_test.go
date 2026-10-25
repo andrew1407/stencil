@@ -100,3 +100,22 @@ func TestOpenAIErrorSurfacesUpstreamMessage(t *testing.T) {
 		t.Fatalf("upstream message should surface, got %v", err)
 	}
 }
+
+// LLM_MAX_TOKENS is a spend control on this wire too: max_tokens is sent, clamped to the cap.
+func TestOpenAIClampsMaxTokens(t *testing.T) {
+	for _, tc := range []struct{ asked, want int }{{0, 8192}, {100, 100}, {1 << 20, 8192}} {
+		mock := &mockDoer{status: 200, resp: `{"choices":[{"message":{"content":"ok"},"finish_reason":"stop"}]}`}
+		turn := turnWithImage
+		turn.MaxTokens = tc.asked
+		if _, err := providerClient(ProviderOpenAI, "", mock).Chat(context.Background(), turn); err != nil {
+			t.Fatal(err)
+		}
+		var sent struct {
+			MaxTokens int `json:"max_tokens"`
+		}
+		_ = json.Unmarshal(mock.body, &sent)
+		if sent.MaxTokens != tc.want {
+			t.Fatalf("asked %d: max_tokens %d, want %d", tc.asked, sent.MaxTokens, tc.want)
+		}
+	}
+}

@@ -14,7 +14,7 @@ import urllib.request
 from typing import Any
 
 from .._ffi.types import NoneType
-from .._net import _unverified_ssl_context
+from .._net import _server_name_refused, _server_target_refused, _unverified_ssl_context
 from .files import _FileApi
 from .http import ServerError, _http_open, _json_request, _parse_http_error, _set_bearer
 from .projects import _ProjectApi
@@ -37,6 +37,8 @@ class ServerConnection(_ProjectApi, _FileApi):
     self._verify = verify
     self._ssl_ctx = None if verify else _unverified_ssl_context()
     self._mint_lock = threading.Lock()
+    # The resolved host's serverTarget verdict, judged once on the first dial; None = not yet.
+    self._name_refused = None
 
   def _build_request(
     self,
@@ -50,6 +52,8 @@ class ServerConnection(_ProjectApi, _FileApi):
   ) -> urllib.request.Request:
     """`method base+path`, no network: `raw` sends `body` as octet-stream, else a non-None body
     is JSON; the Bearer header is always present."""
+    refused = _server_target_refused(self.base)
+    if refused: raise ServerError("badRequest", refused)
     url = self.base + path
     if query:
       # Stable, urlencoded query string (?ext=png&w=320&h=240).
@@ -66,6 +70,8 @@ class ServerConnection(_ProjectApi, _FileApi):
 
   def _open(self, req: urllib.request.Request, raw: bool = False) -> Any:
     """Parsed JSON, the raw bytes when `raw`, or None for an empty/204 reply; non-2xx is ServerError."""
+    if self._name_refused is None: self._name_refused = _server_name_refused(self.base)
+    if self._name_refused: raise ServerError("badRequest", self._name_refused)
     status, payload = _http_open(req, self._error_from, context=self._ssl_ctx)
     if raw: return payload
     if status == 204 or not payload: return None

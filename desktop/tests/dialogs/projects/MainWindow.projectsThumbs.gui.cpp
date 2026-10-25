@@ -43,7 +43,7 @@ class MainWindowGuiTest : public QObject {
     img.fill(Qt::white);
     const QString id = win.parts.chatAppliers.addImageProjectEntry(img, QStringLiteral("thumb-row"));
     QVERIFY(!id.isEmpty());
-    stencil::gui::Project* pr = win.findProject(id.toStdString());
+    stencil::gui::Project* pr = win.projectHost.findProject(id.toStdString());
     QVERIFY(pr);
     stencil::core::Line line;
     line.points = {{0, 800}, {2400, 800}};
@@ -62,7 +62,7 @@ class MainWindowGuiTest : public QObject {
       arrived = thumbOf(rowOf(list, id));
       closeDialog();
     });
-    win.parts.projects.openProjects();
+    win.projectHost.flows.openProjects();
     QVERIFY2(placeholderFirst, "the row waited for its picture instead of opening at once");
     QVERIFY2(!arrived.isNull(), "the row's picture never arrived");
     QCOMPARE(arrived.size(), QSize(320, 213));
@@ -77,7 +77,7 @@ class MainWindowGuiTest : public QObject {
       cachedAtOnce = !thumbOf(rowOf(list, id)).isNull();
       closeDialog();
     });
-    win.parts.projects.openProjects();
+    win.projectHost.flows.openProjects();
     QVERIFY2(cachedAtOnce, "an unchanged project was composed again instead of served cached");
 
     // An edit changes what the picture shows, so the next open composes it afresh.
@@ -92,7 +92,7 @@ class MainWindowGuiTest : public QObject {
       redone = thumbOf(rowOf(list, id));
       closeDialog();
     });
-    win.parts.projects.openProjects();
+    win.projectHost.flows.openProjects();
     QVERIFY2(!staleServed, "an edited project was served its old picture");
     QVERIFY(!redone.isNull());
     QCOMPARE(redone.toImage().pixelColor(160, 106), QColor(Qt::white));

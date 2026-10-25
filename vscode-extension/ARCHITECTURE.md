@@ -106,7 +106,6 @@ classDiagram
     DiagnosticEntry --> "1" ScriptToken : span
     ExtensionSettings --> CliLocation : cliPath
     CliLocation --> CommandLine : the resolved binary
-    ScriptToken --> "0..1" CommandLine : never
     ExtensionSettings --> LaunchPayload : webUrl, webInlineImages
     ExtensionSettings --> WebSession : webBrowser
     ScriptProgram --> LaunchPayload : script + its local sources
@@ -133,14 +132,10 @@ classDiagram
 | Port (byte-equal copy) | `src/parser/script/` ← `browser/js/core/script/`; `src/config/colorNames.json` | The extension cannot import across subprojects; `tests/parserParity.test.js` pins the copy both directions. |
 | Adapter | `src/diagnostics.js` `parseCheckOutput` + `toDiagnostic` | The CLI's diagnostic lines and the parser's objects both become `vscode.Diagnostic`. |
 | Strategy | `src/diagnostics.js` `collect` | Saved file plus a locatable CLI takes the compiled core; anything else takes the copies. |
-| Table-driven | `src/semanticTokens.js` `KIND_TYPE`; `src/lib/ids.js`; the `HANDLERS` and `LAUNCH_FOR` maps in `src/webCommands.js` | A token kind becomes a legend index, every contributed id has one home, a language id picks its payload. |
 | Chain of Responsibility | `src/lib/spawn/cliLocator.js` (setting → `STENCIL_CLI` → `PATH`), `pythonLocator.js` (→ `STENCIL_PYTHON`) | Each step refuses or answers; no shell is consulted. |
 | Drift test | `src/config/stencilApiVocabulary.json` ← `browser/js/console/stencilApi.d.ts` | The prose is this tree's, the list is not: `tests/lib/vocab/apiVocabulary.test.js` holds members and signatures both ways. |
 | Strategy | `src/webCommands.js`: hand-off vs. console | The fragment shows a script in the user's browser; the debug evaluate runs it and reports. A `.stcjs` has only the second. |
-| Lazy singleton | `src/lib/parserHost.js` | One memoized `import()` loads the copies on the first parse; a rejection is never memoized. |
 | Strategy (table) | `src/lib/spawn/shellQuote.js` `SHELLS` | One row per shell family; `vscode.env.shell` picks it. |
-| Cache | `src/lib/spawn/versionCache.js`, under `programCache.js` and `jsSource.js`; `src/lib/pathSearch.js` | Keyed on what invalidates it — a document's `version`, the whole `PATH`. |
-| Higher-order factory | `src/lib/vocab/vocabularyEntry.js` `makeExplain` | The rendering of a vocabulary entry is written once for both tables. |
 | Facade | `src/extension.js` | One `register(context)` call per feature; no feature knows another exists. |
 
 ## Design
@@ -188,6 +183,15 @@ classDiagram
   `script.js` (which reaches the wasm loader) and `scriptHandles.js`; `src/parser/index.js`
   re-composes lex → parse → lower as `script.js` does without wasm, pinned by
   `tests/parserParity.test.js`.
+- **Table-driven.** `src/semanticTokens.js` `KIND_TYPE`; `src/lib/ids.js`; the `HANDLERS` and
+  `LAUNCH_FOR` maps in `src/webCommands.js` — a token kind becomes a legend index, every contributed
+  id has one home, a language id picks its payload.
+- **Lazy singleton.** `src/lib/parserHost.js` — one memoized `import()` loads the copies on the
+  first parse; a rejection is never memoized.
+- **Cache.** `src/lib/spawn/versionCache.js`, under `programCache.js` and `jsSource.js`;
+  `src/lib/pathSearch.js` — keyed on what invalidates it — a document's `version`, the whole `PATH`.
+- **Higher-order factory.** `src/lib/vocab/vocabularyEntry.js` `makeExplain` — the rendering of a
+  vocabulary entry is written once for both tables.
 
 ## Concurrency
 
@@ -248,10 +252,10 @@ the semantic-token rows and the terminal lines are asserted from the outside;
 shell family, and a stub CLI proves which exit statuses fall back to the copies. The browser
 routes are asserted without a browser: the fragment is decoded back into its payload, and a
 recording debug session shows which expressions a run sends. Cross-surface drift is pinned:
-`parserParity.test.js` holds `src/parser/` byte-equal to `browser/js/core/` both ways,
-`apiVocabulary.test.js` holds the members to `interface Stencil`, and `fixtureWalker.test.js`
-replays `common/fixtures/script/cases.txt` through the copies. `grammar.test.js` compiles every
-grammar regex and checks scopes and the directive list; `tokenClassify.test.js` and
+`parserParity.test.js` holds `src/parser/` byte-equal to `browser/js/core/` both ways, and
+`apiVocabulary.test.js` holds the members to `interface Stencil`; the copies are the browser's
+bytes, so the browser's walk of `common/fixtures/script/cases.txt` is theirs. `grammar.test.js`
+compiles every grammar regex and checks scopes and the directive list; `tokenClassify.test.js` and
 `hover.test.js` run real buffers through the copies; `manifest.test.js` holds `package.json` to
 `src/lib/ids.js` and every module to its `.d.ts`; `layerBoundary.test.js` scans import direction.
 There is no `@vscode/test-electron` suite — it would download a VS Code build, which the

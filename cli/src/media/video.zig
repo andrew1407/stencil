@@ -65,7 +65,6 @@ pub fn extractFrameWith(gpa: std.mem.Allocator, io: std.Io, src: []const u8, fra
             var buf: sanitize.DetailBuf = undefined;
             report.err("ffmpeg: {s}\n", .{sanitize.sanitizeDetail(res.stderr, &buf)});
         }
-        gpa.free(res.stdout);
         return Error.FfmpegFailed;
     }
     return res.stdout;
@@ -173,6 +172,22 @@ test "a blocked video host is refused before ffmpeg is spawned; a local file rea
     try testing.expectError(Error.FfmpegMissing, extractFrameWith(a, io, "clip.mp4", 0, false, Spawns.run));
     try testing.expectEqual(@as(usize, 1), Spawns.count);
     try testing.expect(!Spawns.saw_url);
+}
+
+// An ffmpeg that wrote some bytes, then failed: stdout is freed once, by the errdefer.
+fn failedAfterOutput(gpa: std.mem.Allocator, _: std.Io, _: std.process.RunOptions, _: u32) child.RunError!std.process.RunResult {
+    const out = try gpa.dupe(u8, "partial png");
+    errdefer gpa.free(out);
+    return .{ .term = .{ .exited = 1 }, .stdout = out, .stderr = try gpa.dupe(u8, "boom") };
+}
+
+test "a failed ffmpeg run frees what it wrote exactly once" {
+    var threaded = std.Io.Threaded.init(testing.allocator, .{});
+    defer threaded.deinit();
+    var ctx: u8 = 0;
+    report.install(.{ .ctx = &ctx, .emitFn = Spawns.mute });
+    defer report.uninstall();
+    try testing.expectError(Error.FfmpegFailed, extractFrameWith(testing.allocator, threaded.io(), "clip.mp4", 0, false, failedAfterOutput));
 }
 
 test "looksLikeVideo by extension, ignoring URL query" {

@@ -37,6 +37,20 @@ test "the host guard still applies to everything except the server-connect path"
     try testing.expectError(error.BlockedHost, net.request(testing.allocator, io, "http://169.254.169.254/latest/meta-data/", opts));
 }
 
+test "--strict-fetch makes a loose fetch refuse loopback for the whole run" {
+    var fake = try Fake.start("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok", .plain);
+    defer fake.stop();
+    const url = try fake.url(testing.allocator);
+    defer testing.allocator.free(url);
+
+    const body = try net.fetch(testing.allocator, fake.io, url, false); // a user-named loopback URL
+    testing.allocator.free(body);
+    net.setStrictFetch(true);
+    defer net.setStrictFetch(false);
+    try testing.expectError(error.BlockedHost, net.fetch(testing.allocator, fake.io, url, false));
+    try testing.expectEqual(@as(u32, 1), fake.hits.load(.acquire)); // the refused one never connected
+}
+
 test "a host that never answers is dropped at the deadline, not waited on" {
     var fake = try Fake.start("", .stall);
     defer fake.stop();
@@ -123,10 +137,11 @@ const Fake = struct {
     fn stop(self: *Fake) void {
         const a = testing.allocator;
         self.stopping.store(true, .release); // ends a stalling serve loop
-        // Only shutdown wakes a thread blocked in accept on Linux; close alone leaves it asleep.
-        (std.Io.net.Stream{ .socket = self.listener.socket }).shutdown(self.io, .both) catch {};
-        self.listener.deinit(self.io);
+        // One loopback dial wakes the accept on every OS: Windows refuses shutdown on a listener.
+        const wake = std.Io.net.IpAddress.parse("127.0.0.1", self.port) catch unreachable;
+        if (wake.connect(self.io, .{ .mode = .stream })) |s| s.close(self.io) else |_| {}
         self.thread.join();
+        self.listener.deinit(self.io);
         self.threaded.deinit();
         a.destroy(self.threaded);
         a.destroy(self);
@@ -139,6 +154,7 @@ const Fake = struct {
     fn serve(self: *Fake) void {
         const stream = self.listener.accept(self.io) catch return;
         defer stream.close(self.io);
+        if (self.stopping.load(.acquire)) return;
         _ = self.hits.fetchAdd(1, .release);
 
         var rbuf: [4096]u8 = undefined;

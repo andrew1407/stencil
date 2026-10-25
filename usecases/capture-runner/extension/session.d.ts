@@ -9,6 +9,7 @@ export declare const VIEWS: Record<string, { width: number; height: number }>;
 export declare const TIMEOUTS: Record<string, number>;
 export declare const MIN_ROWS: number;
 export declare const freezeMotion: (page: Page) => Promise<void>;
+export declare const inClosedShadow: <T>(page: Page, hostId: string, fn: (this: ShadowRoot) => T) => Promise<T | null>;
 export declare const llmSettings: (baseUrl: string) => object;
 export declare const app: { url: string; stop(): void };
 export declare const site: { url: string; stop(): void };

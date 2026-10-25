@@ -179,3 +179,34 @@ test('a landing for a picture or filter no longer on screen is dropped', async (
   assert.equal((await deliver()).closed, true, 'the tint landed after a switch to contour');
   assert.equal(layer.frame(img, 'contour', null), contour);
 });
+
+test('a landed copy is closed once neither the frame nor the cache holds it, never while it is on screen', async () => {
+  withWorker();
+  const layer = new BaseLayer();
+  const img = gradientImage(4, 3);
+  layer.frame(img, 'custom', '#010000');
+  layer.frame(img, 'custom', '#020000');
+  layer.frame(img, 'custom', '#030000');
+  const mid = await deliver();
+  assert.equal(layer.frame(img, 'custom', '#030000'), mid, 'shown while the newest tint is painted');
+  assert.ok(layer.now(img, 'custom', '#040000') instanceof PixelCanvas, 'an export builds its own');
+  assert.equal(mid.closed, undefined, 'the frame still shows it');
+  const last = await deliver();
+  assert.equal(layer.frame(img, 'custom', '#030000'), last);
+  assert.equal(mid.closed, true, 'the tint the drag passed through is let go');
+  assert.equal(last.closed, undefined);
+  layer.frame(img, 'contour', null);
+  assert.equal(last.closed, true, 'a filter switch lets go of the cached copy');
+});
+
+test('a landed copy handed to now() is never closed: a resting job snapshots it for later', async () => {
+  withWorker();
+  const layer = new BaseLayer();
+  const img = gradientImage(4, 3);
+  layer.frame(img, 'custom', '#010000');
+  layer.frame(img, 'custom', '#020000');
+  const copy = await deliver();
+  assert.equal(layer.now(img, 'custom', '#020000'), copy);
+  layer.frame(img, 'contour', null);
+  assert.equal(copy.closed, undefined);
+});

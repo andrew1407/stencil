@@ -32,7 +32,7 @@ graph TD
 
 ## Layers
 
-`llm/` (+ `llmtransport/`) → `pipeline/` → `args/` → `opplan/` → `server/` + tools; a layer
+`llm/` (+ `llmtransport/`) → `pipeline/` → `args/` → `plan/` → `server/` + tools; a layer
 may use everything to its left. `tests/layer_boundary_test.rs` scans every `crate::` reference
 in `src/` and fails one that points right, beyond the frozen allowance in that file: the
 `pipeline → args` crossing of `pipeline/mod.rs` and `pipeline/run.rs`, where the runner takes
@@ -55,7 +55,7 @@ job.
 | `src/deliver/` | per-surface delivery: file, desktop launch, the `#stencil=` browser URL | an unavailable surface is a failed `deliveries[]` note, never a sunk call; a launched child never shares our stdio |
 | `src/confine.rs`, `locate.rs` | the `Roots` and the `--confine-output` spawn rewrite; binary discovery (`STENCIL_CLI` → the executable's checkout → `PATH`) | the one write fence |
 | `src/llmtransport/` | the hand-rolled plain-http `POST` client | no TLS; credential headers go only to a loopback peer, decided per resolved address; one deadline bounds the reply; no redirect followed; a non-2xx body is sanitised |
-| `src/llm/`, `src/registry/`, `src/opplan/` | providers behind one trait; the embedded `opRegistry.json` and its fingerprint; the plan surface: check → typed result → actions → `lower/` → ask cards | core judges every plan before an edit spawns; a CLI built from another registry is refused |
+| `src/llm/`, `src/registry/`, `src/plan/` | providers behind one trait; the embedded `opRegistry.json` and its fingerprint; the plan surface: check → typed result → actions → `lower/` → ask cards | core judges every plan before an edit spawns; a CLI built from another registry is refused |
 | `tests/` | every suite, goldens and the shared fixture walkers | flat: Cargo sees an integration test only directly in `tests/` |
 
 ## Entities
@@ -107,15 +107,15 @@ classDiagram
 | Pattern | Where | Notes |
 |---|---|---|
 | Decorator | `server/call.rs` `decorate` | around every call: `Roots` resolved, a progress `Sink` scoped, the future dropped on cancel — taking the CLI child and the LLM request with it |
-| Adapter | `ArgvBuilder` + one `build_*_argv` per CLI mode; `outcome::parse_*`; `opplan::result::map` | typed request in, documented flags out; output lines or core's plan document in, typed results out |
+| Adapter | `ArgvBuilder` + one `build_*_argv` per CLI mode; `outcome::parse_*`; `plan::result::map` | typed request in, documented flags out; output lines or core's plan document in, typed results out |
 | Strategy | `ProviderMapping` (`llm/providers/`) | one wire mapping per file; `llm::chat` never branches on the provider |
 | Chain of Responsibility | URL → header bytes → per-address credential guard; `Roots::place` + `Servers::find` → no-root refusal → `--no-clobber` → `confine` | each guard refuses or passes on; a socket or a child opens only after the last one |
 | Table-driven registry | `OpDescriptor` from `common/config/llm/opRegistry.json` | prompt and lowering come off one table; validation off the CLI's copy, the same bytes by fingerprint |
-| Pipeline | `Fold` in `opplan/fold.rs` (source → frame → crop → rotate → filter → layout) | the CLI's fixed order is why a plan collapses into one run |
+| Pipeline | `Fold` in `plan/fold.rs` (source → frame → crop → rotate → filter → layout) | the CLI's fixed order is why a plan collapses into one run |
 | Bounded pool | the process-wide `Semaphore` in `pipeline/runner.rs` | every CLI child waits for a slot, a plan's fan-out included |
 | Ports | `CliRunner`, `LlmTransport` | the only CLI spawn and the only socket sit behind traits |
 | Fixture walker | `tests/common/walk.rs` | one named case per shared fixture under `common/fixtures/` |
-| Golden pin | `tests/goldens/` | tool prose and the README table are byte-pinned to `toolDescriptions.json` |
+| Golden pin | `tests/goldens/` | the server instructions and the README table are byte-pinned to `toolDescriptions.json`; each registered tool description is its `toolDescriptions/*.txt` source, unaltered |
 
 ## Design
 
@@ -191,7 +191,8 @@ and a plan's runs on a `JoinSet` the call owns. Process-wide state is two lazily
 
 1. **No pixels, no validator.** No codec, no `core/`, no HTML parsing, no op-plan validation:
    that work lives in the CLI and reaches this adapter as a parameter or a document.
-2. **stderr in, stdout sacred.** The CLI runs with `NO_COLOR=1`; `wrote …` and `error:` lines
+2. **stderr in, stdout sacred.** The CLI runs with `NO_COLOR=1` and `STENCIL_FETCH_STRICT=1` (a
+   model-chosen URL never reaches the host's loopback); `wrote …` and `error:` lines
    come from stderr, stdout only from the modes that print a result there. Nothing but
    JSON-RPC reaches our stdout and no child gets our stdio; the plan check's stdin carries only
    the model's reply.

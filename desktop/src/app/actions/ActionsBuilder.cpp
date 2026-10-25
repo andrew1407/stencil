@@ -1,7 +1,7 @@
 #include "MainWindow.hpp"
 #include "ProjectTitleController.hpp"
 #include "ActionsBuilder.hpp"
-#include "mainWindowHelpers.hpp"
+#include "keySeq.hpp"
 
 // MainWindow's action set: newAction() and buildActions()'s phase chain; the other phases are the MainWindowActions*.cpp siblings.
 

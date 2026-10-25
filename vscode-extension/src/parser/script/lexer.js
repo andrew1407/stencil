@@ -2,19 +2,25 @@
 // '#' opens a comment unless the token is a hex colour, and '://' never breaks a word.
 import { MAX_LINES, MAX_TOKENS, utf8Length } from './types.js';
 
-const isSpace = (c) => c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === '\f' || c === '\v';
-const isDigit = (c) => c >= '0' && c <= '9';
-const isHexByte = (c) => isDigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
-
-const isWordByte = (c) =>
-  !isSpace(c) && c !== ',' && c !== ';' && c !== '#' && c !== ':' && c !== '(' && c !== ')' &&
-  c !== '=' && c !== '"';
+// The §1 byte classes as bits over ASCII, read by char code. A code past 0x7f (or NaN, past the
+// end) has none, so it is a word byte, as lexer.cpp's bytes ≥ 0x80 are.
+const SPACE = 1, DIGIT = 2, HEX = 4, BREAK = 8;
+const CLASS = new Uint8Array(128);
+for (const c of ' \t\n\r\f\v') CLASS[c.charCodeAt(0)] = SPACE;
+for (const c of ',;#:()="') CLASS[c.charCodeAt(0)] = BREAK;
+for (const c of '0123456789') CLASS[c.charCodeAt(0)] = DIGIT | HEX;
+for (const c of 'abcdefABCDEF') CLASS[c.charCodeAt(0)] = HEX;
+const isSpace = (code) => (CLASS[code] & SPACE) !== 0;
+const isDigit = (code) => (CLASS[code] & DIGIT) !== 0;
+const isHexByte = (code) => (CLASS[code] & HEX) !== 0;
+const isWordByte = (code) => (CLASS[code] & (SPACE | BREAK)) === 0;
+const COLON = 58;
 
 export const isHexColorWord = (word) => {
   if (word.length < 2 || word[0] !== '#') return false;
   const n = word.length - 1;
   if (n !== 3 && n !== 4 && n !== 6 && n !== 8) return false;
-  for (let i = 1; i < word.length; i += 1) if (!isHexByte(word[i])) return false;
+  for (let i = 1; i < word.length; i += 1) if (!isHexByte(word.charCodeAt(i))) return false;
   return true;
 };
 
@@ -22,11 +28,11 @@ export const isHexColorWord = (word) => {
 const numberEnd = (s) => {
   let i = s[0] === '-' ? 1 : 0;
   const digits = i;
-  while (i < s.length && isDigit(s[i])) i += 1;
+  while (i < s.length && isDigit(s.charCodeAt(i))) i += 1;
   if (i === digits) return 0;
-  if (s[i] === '.' && isDigit(s[i + 1])) {
+  if (s[i] === '.' && isDigit(s.charCodeAt(i + 1))) {
     i += 2;
-    while (i < s.length && isDigit(s[i])) i += 1;
+    while (i < s.length && isDigit(s.charCodeAt(i))) i += 1;
   }
   return i;
 };
@@ -43,9 +49,17 @@ const isDriveColon = (src, wordStart, j) => {
     && (src[j + 1] === '\\' || src[j + 1] === '/');
 };
 
+// How far a ':' inside a word carries it: past '://' (3; the word now has a scheme), a port's
+// once it has one, or a drive letter's (1); 0 for the block's own ':', which never precedes a digit.
+const colonStep = (src, wordStart, j, scheme) => {
+  if (src[j + 1] === '/' && src[j + 2] === '/') return 3;
+  if (scheme && isDigit(src.charCodeAt(j + 1))) return 1;
+  return isDriveColon(src, wordStart, j) ? 1 : 0;
+};
+
 const isParamWord = (s) => {
   if (s.length < 2 || s[0] !== '@') return false;
-  for (let i = 1; i < s.length; i += 1) if (!isDigit(s[i])) return false;
+  for (let i = 1; i < s.length; i += 1) if (!isDigit(s.charCodeAt(i))) return false;
   return true;
 };
 
@@ -111,7 +125,7 @@ export const lexScript = (text) => {
       }
       continue;
     }
-    if (isSpace(c)) { i += 1; col += 1; continue; }
+    if (isSpace(src.charCodeAt(i))) { i += 1; col += 1; continue; }
 
     const startLine = line;
     const startCol = col;
@@ -161,23 +175,16 @@ export const lexScript = (text) => {
     let j = c === '#' ? i + 1 : i;
     let scheme = false;
     while (j < src.length) {
-      if (src[j] === ':' && src[j + 1] === '/' && src[j + 2] === '/') {
-        scheme = true;
-        j += 3;
-        continue;
-      }
-      // So does a port's ':', once the word already carries a scheme — the block's own
-      // ':' is never followed by a digit, and "aspect=3:2" carries no scheme.
-      if (src[j] === ':' && isDigit(src[j + 1]) && scheme) {
+      const code = src.charCodeAt(j);
+      if (code !== COLON) {
+        if (!isWordByte(code)) break;
         j += 1;
         continue;
       }
-      if (src[j] === ':' && isDriveColon(src, i, j)) {
-        j += 1;
-        continue;
-      }
-      if (!isWordByte(src[j])) break;
-      j += 1;
+      const step = colonStep(src, i, j, scheme);
+      if (step === 0) break;
+      if (step === 3) scheme = true;
+      j += step;
     }
     const word = src.slice(i, j);
 

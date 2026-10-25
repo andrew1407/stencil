@@ -3,8 +3,8 @@
 
 mod common;
 
-use stencil_mcp::opplan::fold;
-use stencil_mcp::opplan::{Action, Dir};
+use stencil_mcp::plan::fold;
+use stencil_mcp::plan::{Action, Dir};
 use stencil_mcp::registry::{descriptor, op_registry};
 
 /// An op is promised and RUN off one entry: a known op's entry carries the fold that

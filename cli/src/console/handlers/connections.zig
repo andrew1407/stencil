@@ -12,6 +12,16 @@ const Session = @import("../session.zig").Session;
 /// URL authenticates against a gated server (an admin token mints a session). Without one, the
 /// URL's `STENCIL_SERVER_TOKENS` entry or `STENCIL_SERVER_TOKEN` does, as for `--server`.
 pub fn doConnect(session: *Session, io: std.Io, arg: []const u8) !void {
+    return connectFrom(session, io, arg, false);
+}
+
+/// `/connect` for the URLs a launch link names: their origins are the link's choice, so the
+/// unscoped `STENCIL_SERVER_TOKEN` never goes to them (a `STENCIL_SERVER_TOKENS` entry still does).
+pub fn doConnectFromLink(session: *Session, io: std.Io, arg: []const u8) !void {
+    return connectFrom(session, io, arg, true);
+}
+
+fn connectFrom(session: *Session, io: std.Io, arg: []const u8, from_link: bool) !void {
     if (arg.len == 0) {
         logo.err(msg.connect_needs_url, .{});
         return;
@@ -20,7 +30,8 @@ pub fn doConnect(session: *Session, io: std.Io, arg: []const u8) !void {
     defer session.gpa.free(pairs);
     const env = session.server_tokens;
     for (pairs) |p| {
-        const token = server.tokenFor(p.token, env.per_origin, env.single, p.url);
+        const choice = server.tokenChoice(p.token, env.per_origin, if (from_link) null else env.single, p.url);
+        const token = choice.token;
         var client = server.connect(session.gpa, io, p.url, token) catch |e| {
             server.printConnectError(p.url, e);
             if (e == server.Error.Cancelled) return; // a Ctrl-C ends the command, not just this URL
@@ -32,10 +43,24 @@ pub fn doConnect(session: *Session, io: std.Io, arg: []const u8) !void {
             continue;
         }
         client.transport = netWait.transport;
-        try session.servers.append(session.gpa, client);
+        session.servers.append(session.gpa, client) catch |e| {
+            client.deinit();
+            return e;
+        };
         session.rememberServer(client.base) catch {}; // the pool a plan `connect` resolves against
-        logo.print(msg.connected, .{client.base});
+        if (from_link) logo.print(msg.connected_by_link, .{ client.base, sourceWords(choice.source) }) else logo.print(msg.connected, .{client.base});
     }
+}
+
+/// What a link's connection authenticated with, so a link never connects to a server unannounced.
+fn sourceWords(source: server.TokenSource) []const u8 {
+    return switch (source) {
+        .explicit => "with the link's token",
+        .invite => "with the link's invite token",
+        .per_origin => "with its STENCIL_SERVER_TOKENS entry",
+        .single => "with STENCIL_SERVER_TOKEN",
+        .none => "as a new session, no token",
+    };
 }
 
 /// `/disconnect [url]` — close one connection (or the most recent when omitted).

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from urllib.parse import urlsplit
 
 from ...server import normalize_url
 from .uri import Query, parse, project_origin
@@ -80,9 +81,21 @@ def _open_picture(repl, q: Query) -> None:
   if p: _OPENERS[p["kind"]](repl, q, p)
 
 
+def _origin(url: str) -> tuple:
+  parts = urlsplit(url or "")
+  return parts.scheme.lower(), parts.netloc.lower()
+
+
 def _apply_llm(repl, llm: dict) -> None:
+  """A key belongs to the base URL it was given for (launch-uri.md §2): a link that moves that
+  origin drops it unless the link brings its own."""
+  was = repl._llm.base_url
   for word, field in _LLM_WORDS:
     if llm.get(field): repl._cmd_llm("%s %s" % (word, llm[field]))
+  if not llm.get("apiKey") and repl._llm.api_key and _origin(was) != _origin(repl._llm.base_url):
+    repl._llm.api_key = ""
+    repl._note("launch link: the assistant now points at %s — the API key held for the old endpoint was dropped"
+               % repl._llm.base_url)
 
 
 def open_link(repl, url: str) -> bool:

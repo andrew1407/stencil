@@ -7,7 +7,7 @@ import { installDom, createStubElement } from '../../../helpers/dom.js';
 
 const doc = installDom({}, { window: { addEventListener() {} } });
 const { hotkeyActions } = await import('../../../../js/ui/bindings/keys/hotkeyActions.js');
-const { EditingMethods } = await import('../../../../js/core/app/editing.js');
+const { EditingBase } = await import('../../../../js/core/app/editing.js');
 
 // The view checkboxes, without a box to dust.
 for (const id of ['show-points', 'show-lines'])
@@ -28,7 +28,7 @@ const rig = (x, y, over = {}) => {
     ...over,
   };
   for (const m of ['findLineAt', 'findNearestPoint', 'findNearestPointWithIdx', 'findNearestSegmentWithIdx'])
-    app[m] = EditingMethods.prototype[m];
+    app[m] = EditingBase.prototype[m];
   return app;
 };
 const ALT = { altKey: true, shiftKey: false, ctrlKey: false, metaKey: false, timeStamp: 1 };

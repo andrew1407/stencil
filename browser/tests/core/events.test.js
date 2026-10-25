@@ -62,7 +62,8 @@ test('a booted app answers switchToSource by resuming the project that holds the
   const dom = installNullDom();
   t.after(dom.restore);
   const { DrawingApp } = await import('../../js/core/drawingApp.js');
-  const app = new DrawingApp();
+  const { viewPorts } = await import('../../js/ui/app/viewPorts.js');
+  const app = new DrawingApp(viewPorts);
   const asked = [];
   const switched = [];
   app.storage.store.findByImage = (source, name) => { asked.push([source, name]); return [{ id: 'p1', name: 'Plan' }]; };

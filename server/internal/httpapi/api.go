@@ -8,8 +8,12 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"net/netip"
+	"strconv"
+	"strings"
 	"time"
 
 	"stencil/server/internal/auth"
@@ -112,11 +116,14 @@ func (a *API) opCtx(req *http.Request) (context.Context, context.CancelFunc) {
 // auth middleware; POST /auth/token has its own admin gate.
 func (a *API) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /auth/token", a.limitByIP(a.authRate, a.handleIssueToken))
+	mux.HandleFunc("DELETE /auth/sessions/{id}", a.limitByIP(a.authRate, a.handleRevokeSession))
+	mux.HandleFunc("DELETE /auth/sessions", a.limitByIP(a.authRate, a.handleRevokeAllSessions))
 
 	guard := auth.Middleware(a.deps.Sessions, a.deps.OpTimeout)
 	write := func(h http.HandlerFunc) http.HandlerFunc { return a.limitBySession(a.writeRate, h) }
 	protected := map[string]http.HandlerFunc{
 		"GET /auth/session":                  a.handleSession,
+		"DELETE /auth/session":               a.handleRevokeOwnSession,
 		"GET /projects":                      a.handleListProjects,
 		"POST /projects":                     write(a.handleCreateProject),
 		"GET /projects/{id}":                 a.handleGetProject,
@@ -170,8 +177,38 @@ func (a *API) decodeJSON(rw http.ResponseWriter, req *http.Request, dst any) boo
 	dec := json.NewDecoder(req.Body)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(dst); err != nil {
-		writeBadRequest(rw, msgInvalidJSONPre+err.Error())
+		writeBadRequest(rw, msgInvalidJSONPre+jsonReason(err))
 		return false
 	}
 	return true
+}
+
+// jsonReason says why a body would not decode in the API's own words, never the decoder's text.
+func jsonReason(err error) string {
+	var tooBig *http.MaxBytesError
+	var syntax *json.SyntaxError
+	var typed *json.UnmarshalTypeError
+	switch {
+	case errors.As(err, &tooBig):
+		return "the body is over MAX_BODY_BYTES"
+	case errors.Is(err, io.EOF), errors.Is(err, io.ErrUnexpectedEOF):
+		return "the body ends early"
+	case errors.As(err, &syntax):
+		return "malformed JSON at byte " + strconv.FormatInt(syntax.Offset, 10)
+	case errors.As(err, &typed):
+		return "field " + strconv.Quote(clip(typed.Field)) + " has the wrong type"
+	case strings.HasPrefix(err.Error(), "json: unknown field "):
+		name, _ := strconv.Unquote(strings.TrimPrefix(err.Error(), "json: unknown field "))
+		return "unknown field " + strconv.Quote(clip(name))
+	default:
+		return "unreadable JSON"
+	}
+}
+
+// clip bounds a client-supplied name echoed in an error.
+func clip(s string) string {
+	if len(s) > 64 {
+		return s[:64] + "…"
+	}
+	return s
 }

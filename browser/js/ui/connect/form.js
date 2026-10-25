@@ -3,7 +3,8 @@
 // Desktop twin: ConnectDialog::doConnect (dialogs/connect/ConnectDialogActions.cpp).
 import { notify } from '../../utils.js';
 import { normalizeUrl, isInsecureRemote } from '../../net/urlRules.js';
-import { materialize, rowDustGrid } from '../motion.js';
+import { rowDustGrid } from '../motion/surface/tiles.js';
+import { materialize } from '../motion/control/chatFx.js';
 import { batchNote } from './rules.js';
 
 export function wireConnectForm({ urlEl, tokenEl, addBtn, reconnectBtn, list, mgr }, { hold, render }) {

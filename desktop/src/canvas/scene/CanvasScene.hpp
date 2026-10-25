@@ -142,12 +142,15 @@ namespace stencil::gui {
     core::CropRect defaultCropRect() const;  // centered crop for the rotated original
     void rebuildCroppedFromOriginal();       // image <- rotated original ∩ cropRect
     void rebuildFilteredImage();
+    // The filter's pixels for a picture; GUI-free, so a pool thread may run it.
+    static QImage filteredPixels(const QImage& image, core::FilterMode filterMode, const QColor& filterColor);
     void applyDefaultsToCurrent();
     // Every undo step is taken here, so a filter pick is measured against the step on screen.
     void pushStep();
     void resetSteps();
-    // True when the step's crop or turn differed from the one on screen and was rebuilt.
-    bool restoreMemento(const core::EditorMemento& m);
+    // True when the step's crop or turn differed from the one on screen and was rebuilt. By value:
+    // an undo hands its step over, so the lines are moved in, not copied a second time.
+    bool restoreMemento(core::EditorMemento m);
 
     // Scale 1.0 for renderToImage, scale live. `highlight` rings are never baked into exports and
     // need `live`, the live view's marks; without them nothing is in flight.
@@ -193,6 +196,7 @@ namespace stencil::gui {
     QColor stepTint{DEFAULT_ACCENT_HEX};
     QImage filteredImage;
     bool filterDirty = true;
+    bool filterJobRunning = false;   // a large picture's rebuild on the pool (CanvasFilter.cpp)
     mutable PremulImage shownPremul, basePremul;   // what paintEvent blits, per source picture
 
     CompareMode compareMode = CompareMode::NONE;

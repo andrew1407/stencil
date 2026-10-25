@@ -9,8 +9,8 @@ import { harness, lineOf } from '../../helpers/strokeGrowthHarness.js';
 import { ExportService, makeApp } from '../../helpers/exportServiceRig.js';
 import * as shapeBuilder from '../../../js/core/line/shapeBuilder.js';
 import { canvasClick } from '../../../js/core/pointer/canvasClick.js';
-import { EditingMethods } from '../../../js/core/app/editing.js';
-import { InputController } from '../../../js/core/pointer/inputController.js';
+import { EditingBase } from '../../../js/core/app/editing.js';
+import { InputController } from '../../../js/ui/bindings/pointer/inputController.js';
 import { strokeFoot } from '../../../js/ui/motion.js';
 
 const recorder = () => {
@@ -56,7 +56,7 @@ test('every route that adds a point sends it flying', () => {
   const lone = stubApp();
   routeFlies('a standalone point', lone, () => shapeBuilder.addConnectedPoint(lone, 20, 5));
   const pull = stubApp({ lines: [{ points: pts([0, 0], [100, 0]) }], findNearestPointWithIdx: () => ({ lineIdx: 0, ptIdx: 1 }) });
-  const [pulled] = routeFlies('the Alt+Ctrl pull-out', pull, () => EditingMethods.prototype.beginPullOutDrag.call(pull, 97, 3));
+  const [pulled] = routeFlies('the Alt+Ctrl pull-out', pull, () => EditingBase.prototype.beginPullOutDrag.call(pull, 97, 3));
   assert.deepStrictEqual(pulled.from, { x: 97, y: 3 }, 'a pulled-out point flies out of the spot it was pulled from');
 });
 
@@ -106,7 +106,7 @@ test('a restored or wiped set of lines grounds every flight', async () => {
   // A flight holds the point OBJECT it belongs to; undo/redo swap in a snapshot's own
   // points and a wipe drops them all, so nothing in the air still has a vertex to be.
   const snapshot = [{ points: pts([1, 1]) }];
-  const app = Object.assign(Object.create(EditingMethods.prototype), stubApp({
+  const app = Object.assign(Object.create(EditingBase.prototype), stubApp({
     history: { undo: () => snapshot, redo: () => snapshot }, imageModel: { restoreView: () => false },
   }));
   app.undo();

@@ -143,6 +143,7 @@ func (f *MemStore) SetFile(_ context.Context, id string, file store.StoredFile) 
 		p.OriginalHash = file.Hash
 	} else {
 		p.ResultPath = file.Path
+		p.HasResult = true
 	}
 	p.Version++
 	f.projects[id] = p
@@ -152,6 +153,9 @@ func (f *MemStore) SetFile(_ context.Context, id string, file store.StoredFile) 
 func (f *MemStore) DeleteProject(_ context.Context, id string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if _, ok := f.projects[id]; !ok {
+		return store.ErrNotFound
+	}
 	delete(f.projects, id)
 	f.dropCharges(id)
 	return nil

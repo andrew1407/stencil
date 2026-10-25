@@ -14,7 +14,7 @@ pub mod wire;
 use std::sync::LazyLock;
 
 use serde_json::Value;
-use stencil_mcp::opplan::{from_result, OpPlan, OpPlanError};
+use stencil_mcp::plan::{from_result, OpPlan, OpPlanError};
 
 /// A plan typed from a core result document — what `--plan-check` answers for a reply that
 /// already reads this way (normalized, defaults applied); `status` defaults to valid.

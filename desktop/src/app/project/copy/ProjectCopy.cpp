@@ -57,7 +57,7 @@ namespace stencil::gui {
   }
 
   void ProjectCopy::run(const CopyRequest& req, std::function<void(bool, QString, QString)> done) {
-    QPointer<MainWindow> self(&w);
+    QPointer<QWidget> self(w.window);
     readSource(req, [this, self, req, done](std::optional<CopySource> read, QString error) {
       if (!self) return;
       if (!read) {
@@ -88,7 +88,7 @@ namespace stencil::gui {
         if (id.isEmpty()) return reply(false, id);
         openSaved(opts.open, QString(), id, [reply, id] { reply(true, id); });
       };
-      auto* c = onServer && w.remote.connections ? w.remote.connections->find(read->server) : nullptr;
+      auto* c = onServer && w.remote.conns() ? w.remote.conns()->find(read->server) : nullptr;
       if (!c) { make({}); return; }
       // "-copy(N)" numbers past the server's own names too (browser copy/server.js serverNames).
       c->listProjectsAsync([make](bool ok, QVector<stencil::net::ServerProject> list) {
@@ -106,7 +106,7 @@ namespace stencil::gui {
 
   QString ProjectCopy::copyNameAmong(const std::vector<core::ProjectMeta>& extra, const std::string& name) const {
     std::vector<core::ProjectMeta> metas = extra;
-    for (const Project& pr : w.projectList) metas.push_back(pr.meta);
+    for (const Project& pr : host.projectList) metas.push_back(pr.meta);
     core::ProjectsStore store;
     store.load(std::move(metas));
     return QString::fromStdString(store.copySuffixName(name));

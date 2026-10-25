@@ -54,7 +54,7 @@ namespace stencil::gui {
                   int canvasLeft = INT_MIN, int canvasRight = INT_MAX) const {
       if (!barsShown && (isOverPanel || p.x() < canvasLeft || p.x() > canvasRight)) return false;
       return barsShown ? (p.y() < toolbarKeepBand(toolbarBottom))
-                       : (p.y() > REVEAL_TOP && p.y() < REVEAL_BOTTOM);
+                       : (p.y() >= REVEAL_TOP && p.y() < REVEAL_BOTTOM);
     }
     // `areaRight`: the right edge of the canvas, or of the panel once it shows (a chat docked past it reveals nothing).
     bool wantPanel(const QPoint& p, const QSize& win, int panelWidth, int areaRight = -1) const {

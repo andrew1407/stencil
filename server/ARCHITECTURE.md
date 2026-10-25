@@ -58,7 +58,7 @@ cursor rule (a full page carries a `nextCursor`, a short one ends the list).
 | `cmd/stencil-server/` | flags, signals, boot, the listeners and the background loops | wiring only |
 | `internal/protocol/` | the wire DTOs and the WS message envelope | **the contract** every client speaks |
 | `internal/config/` | the environment configuration; an embedded `providers.json` generated from `common/config/llm/providers.json` by `go generate` | every key is in `.env.example` and the README table; the generated copy stays byte-equal (`llmdefaults_test.go`) and is never committed |
-| `internal/auth/`, `internal/ratelimit/` | opaque bearer tokens (hashed, constant-time compare, expiry) + the HTTP gate; the token buckets + `clientip.go` | a token travels in the `Authorization` header or the WS hello, never in a URL; an IPv6 client is keyed by its /64 |
+| `internal/auth/`, `internal/ratelimit/` | opaque bearer tokens (hashed, resolved by hash lookup, expiry) + the HTTP gate; the token buckets + `clientip.go` | a token travels in the `Authorization` header or the WS hello, never in a URL; an IPv6 client is keyed by its /64 |
 | `internal/httpapi/` | the REST handlers, the LLM routes, `assets/` (generated from `common/config/`, gitignored) + `goldens/` | decode · authorize · call a service · encode — nothing else |
 | `internal/service/` | project and file policy | |
 | `internal/store/` | the pgx `Store` over projects, sessions and charges, keyset listing, the migrations | migrations are idempotent, applied once each in order under an advisory lock; Postgres is the sole source of truth |
@@ -67,7 +67,7 @@ cursor rule (a full page carries a `nextCursor`, a short one ends the list).
 | `internal/eventbus/`, `internal/redisbus/` | pub/sub fan-out, in-process and Redis | both drop rather than stall a slow subscriber; the in-proc `Subscribe` returns subscribed, the Redis one after the acknowledgement or, unconfirmed and logged, after `REDIS_SUBSCRIBE_TIMEOUT_SECONDS` |
 | `internal/llm/`, `internal/validate/` | the upstream proxy (one file per wire shape); the pure request predicates, the project field caps among them | requests validate before leaving; upstream text is untrusted and sanitized; the key and image payloads are never logged; `validate/` does no I/O |
 | `internal/clock/`, `internal/testutil/`, `internal/lint/` | the injectable `now()`, the shared test rigs, the test-count floor (run as a test) | |
-| `vendor/` | `go mod vendor` output | gitignored, as is `go.sum`; the only non-stdlib deps are `pgx`, `go-redis`, `coder/websocket` |
+| `vendor/` | `go mod vendor` output | gitignored; `go.sum` is tracked and the image verifies it; the only non-stdlib deps are `pgx`, `go-redis`, `coder/websocket` |
 
 ## Entities
 
@@ -94,11 +94,11 @@ classDiagram
 | `LlmChatRequest` / `LlmChatResponse` (`protocol/llm.go`) | one chat turn and its reply; the provider wire shape never leaves `llm/` | per request; `llm-contract.md` §6.3 is canonical | validated by `validate.LLMChat`; mapped by a `providerMapping` |
 | `Session` (`auth/token.go`) | the principal a bearer token's hash resolves to | a `sessions` row, live until `ExpiresAt` | resolved by `auth.Verify`; keys the per-session `Limiter` |
 | `Hub` (`hub/hub.go`) | the registry of live connections | one per process | tracks a `connReg` per connection for the shutdown notice |
-| `connReg` (`hub/hub.go`) | one live connection's cancel and `Conn` | from accept until the handler returns | cancelled by `CloseAll`; noticed through its `Conn` |
-| `ipCounter` (`hub/conncap.go`) | the live connections per client IP, against `WithMaxConnsPerIP`'s cap (0 = unlimited) | one per hub | taken before the hello is read, released when the handler returns |
+| `connReg` (`hub/hub.go`) | one live connection's cancel, `Conn` and, once its hello passed, its session id | from accept until the handler returns | cancelled by `CloseAll` or a revocation of its session; noticed through its `Conn` |
+| `ipCounter` (`hub/conncap.go`) | the live connections per client IP and in all, against `WithMaxConnsPerIP`'s and `WithMaxConns`'s caps (0 = unlimited) | one per hub | taken before the hello is read, released when the handler returns |
 | `Conn` (`transport/transport.go`) | one message stream: `wsConn` (a text frame each) or `tcpConn` (an NDJSON line each), reading under `MaxHelloBytes` until `SetReadLimit` | per socket | read and written by the hub |
 | `feed` (`hub/feed.go`) | the hub's one `events` subscription and the bounded channel of each listening connection | one per hub; closed when the subscription ends | `pump` copies each `Envelope`'s frame to every listener |
-| `Envelope` (`eventbus/eventbus.go`) | a marshalled frame plus the type fan-out reads unparsed | published to `events` | delivered to each hub's `feed` |
+| `Envelope` (`eventbus/eventbus.go`) | a marshalled frame plus the type fan-out reads unparsed; a `session-revoked` one carries a session id and is never forwarded | published to `events` | delivered to each hub's `feed` once `forwardable` admits it |
 | `Charge` (`store/charges.go`) | one stored file's bytes, charged to the session that wrote them | a `file_charges` row per (project, kind) while the cap is on | summed per `Session` under its row lock |
 | `Limiter` (`ratelimit/limiter.go`) | a per-key token bucket; `nil` is unlimited | one per metered surface (auth, writes, LLM, the hello) | keyed by client IP or `Session.ID` |
 | `Client` (`llm/client.go`) | the upstream proxy: provider, base URL, key, default model, bounded `Doer` | one per process when a provider is configured | dispatches to a `providerMapping`; fails as `*UpstreamError` |
@@ -133,12 +133,26 @@ classDiagram
   written, and only then moved into place over the old extension; a record write that fails
   discards the staged bytes and credits their charge, leaving the old bytes and row untouched; a file delete credits the writer before the bytes go.
   An expected version outside int4 is a `400`, never a store error. A delete takes the row, then
-  the bytes, then publishes `deleted`.
-- **A feed connection.** `Hub.HandleConn` takes the client IP's slot in the `ipCounter`
-  (refusing `rateLimited` past `MAX_CONNECTIONS_PER_IP`), reads the `hello` under `MaxHelloBytes` and
+  the bytes, then publishes `deleted`; an id that names no row is `404` and publishes nothing.
+  Two uploads of one recorded kind to one project write their row and commit their bytes one at
+  a time (`FileService.recording`), so the row always names the bytes on disk.
+- **The token gate.** `auth.Verify` tells an unknown or expired token (`ErrInvalidToken`, `401`)
+  from a store that could not answer (`ErrLookupFailed`): the REST guard answers that `503` with
+  `Retry-After`, and the hello refuses it `internal` without charging the failure, so a database
+  blip signs nobody out and throttles nobody.
+- **Revocation.** `DELETE /auth/session` (the bearer's own), `DELETE /auth/sessions/{id}` and
+  `DELETE /auth/sessions` (the admin's) delete the session rows, so the REST guard refuses the
+  token at once, and publish `session-revoked` on `events`; every hub hangs up that session's
+  live connections with an `unauthorized` notice.
+- **A feed connection.** A WebSocket upgrade is refused `403` first when its `Origin` fails the
+  feed's rule (`httpapi.FeedOriginAllowed`: `CORS_ORIGINS`, loopback by default, the
+  browser-extension schemes, and no `Origin` at all) and is not the server's own origin (its
+  `Host`, or a proxy's `X-Forwarded-Host`). `Hub.HandleConn` takes the client IP's slot in the `ipCounter`
+  (refusing `rateLimited` past `MAX_CONNECTIONS_PER_IP` or `MAX_CONNECTIONS`), reads the `hello` under `MaxHelloBytes` and
   `HelloTimeout`, runs `checkHello` (per-IP `Limiter`, `auth.Verify`), refuses a hello that
   names a `projectId` with `badRequest` and serves `serveEvents`, still reading under
-  `MaxHelloBytes`: every frame the hub's `feed` delivers is written
+  `MaxHelloBytes`: every frame the hub's `feed` delivers — a project event no bigger than the hello
+  cap, naming a server-shaped id; anything else on the bus is dropped — is written
   to the connection until the peer hangs up, the token's session expires (`unauthorized`), the
   feed's subscription ends or the server shuts down. Inbound frames after the hello are read
   and discarded; one past the hello cap ends the connection. A TCP accept error other than a closed listener is logged and retried after a
@@ -153,6 +167,9 @@ classDiagram
   `filestore.ErrQuotaExceeded`. `Store.Admit` locks the writer's `sessions` row, sums its other
   files and upserts the charge in one transaction, so one session's uploads are judged one at a
   time on every instance and a refusal stores nothing.
+- **A project read.** `GET /projects/{id}` carries `ETag: "v<version>"`; with `If-None-Match` it
+  first reads the metadata alone and answers `304` while the version holds, so a poller's check never
+  pulls the layout.
 - **Project list.** A page is bounded and keyset-paged under a strong `ETag`; every client walks
   `nextCursor` to the end, so the page size bounds one response, never the list.
 - **Wire schema.** A `protocol.WSMessage`'s `type` decides which optional fields are set:
@@ -181,15 +198,17 @@ the filestore meter's mutex (this process only).
 
 | Owner | Runs on | Shares | Guard | On overflow or teardown |
 |---|---|---|---|---|
-| `Hub` registry (`hub/hub.go`) | connection handlers, `CloseAll` | `conns` | `Hub.mu`, never held across I/O or a channel send | the handler's return forgets its `connReg` |
-| `ipCounter` (`hub/conncap.go`) | connection handlers | the per-IP counts | `ipCounter.mu` | a take past `MAX_CONNECTIONS_PER_IP` is refused `rateLimited` before the hello is read |
+| `Hub` registry (`hub/hub.go`) | connection handlers, `CloseAll`, the feed `pump`'s revocations | `conns` and each `connReg.session` | `Hub.mu`, never held across I/O or a channel send | the handler's return forgets its `connReg`; a revocation notices and cancels the matching ones outside the lock |
+| connection handler (`hub/conn.go`) | one goroutine per connection, with its `serveEvents` reader and token-expiry timer | the `Conn`, its `connReg` and `ipCounter` slot | the connection's context | the handler's return cancels the reader, stops the timer, forgets the `connReg`, releases the slot and closes the `Conn` on every path, a failed feed write included |
+| `FileService.recording` (`service/keylock.go`) | upload handlers | one project's record-then-commit | a mutex per project id, dropped when nobody holds or waits on it | a second upload of the project waits for the first's commit |
+| `ipCounter` (`hub/conncap.go`) | connection handlers | the per-IP and total counts | `ipCounter.mu` | a take past `MAX_CONNECTIONS_PER_IP` or `MAX_CONNECTIONS` is refused `rateLimited` before the hello is read |
 | feed `pump` (`hub/feed.go`) | one goroutine per hub, over its one `events` subscription | the listener set, each listener a channel of `BUS_SUB_BUFFER` (64) frames | `feed.mu`; delivery never blocks | a full listener drops and `DropLog` reports it, the client re-reads the list; the subscription's end closes every listener, which hangs its connection up |
 | `tcpConn` writer (`transport/tcp.go`) | the feed writer and any notice | the socket | a one-slot semaphore taken under the caller's context | a frame waits at most `TCP_WRITE_TIMEOUT_SECONDS` (30 s); a notice gives up at its own `NoticeTimeout` (1 s) |
 | `tcpConn` read limit (`transport/tcp.go`) | the handler raises it, the reader reads it | `limit` | an atomic | a frame past it fails the read with `ErrFrameTooLarge` and the handler hangs up |
-| `wsConn` keepalive (`transport/ws.go`) | one goroutine per WebSocket | the connection | `coder/websocket` | a peer silent past `WS_PONG_TIMEOUT_SECONDS` is closed |
+| `wsConn` keepalive (`transport/ws.go`) | one goroutine per WebSocket | the connection | `coder/websocket` | a peer silent past `WS_PONG_TIMEOUT_SECONDS` is closed; the connection's `Close` ends it |
 | Redis pump (`redisbus/redisbus.go`) | one goroutine per subscription | the subscriber channel | `BUS_SUB_BUFFER` slots | a full channel drops and logs; the unsubscribe closes the pubsub, which ends the pump and closes the channel |
 | in-proc bus (`eventbus/eventbus.go`) | publishers' goroutines | the subscriber map | `inProc.mu`; delivery never blocks | a full subscriber drops and `DropLog` reports it |
-| `ratelimit.Limiter` | request handlers, the hello | per-key buckets | `Limiter.mu` | an idle bucket is evicted after `RATE_BUCKET_IDLE_MINUTES`, by a sweep a new key runs once half that time has passed or the map has doubled |
+| `ratelimit.Limiter` | request handlers, the hello | per-key buckets | `Limiter.mu` | an idle bucket is evicted after `RATE_BUCKET_IDLE_MINUTES`, by a sweep a new key runs once half that time has passed or the map has doubled; past `maxBuckets` keys a new key is refused (fails closed) |
 | `llmGate` (`httpapi/llmlimit.go`) | `/llm/chat` handlers | in-flight slots | a buffered channel, taken without blocking | over the cap answers `rateLimited` at once |
 | filestore meter (`filestore/quota.go`) | upload and delete handlers, the reconcile pass | the per-process byte counts | `capped.mu` across each measure-and-swap | a write past a quota is refused before its rename |
 | maintenance loops (`cmd/stencil-server/`) | one goroutine each | the store, the filestore | each store call under `OP_TIMEOUT_SECONDS`; the sweep's byte drops over `SWEEP_WORKERS` | the signal context stops them and shutdown joins them before the connections close |
@@ -209,21 +228,26 @@ the filestore meter's mutex (this process only).
 5. **Every rate limit is a bucket in `ratelimit/`** keyed on the client IP or the session;
    never an ad-hoc counter. The other bounds are capacities, not rates: the `llmGate`
    (`httpapi/llmlimit.go`) refuses LLM in-flight over its cap rather than queueing, the hub's
-   `ipCounter` refuses the connection past `MAX_CONNECTIONS_PER_IP`, a hello is read under
+   `ipCounter` refuses the connection past `MAX_CONNECTIONS_PER_IP` or `MAX_CONNECTIONS` (a `refusalLog`
+   sums the refusals into one line a minute), a hello is read under
    `MaxHelloBytes`, and `eventbus.DropLog` only counts and reports drops.
 6. **Upstream failures are said once**: classified in `llm/upstream.go` into the condition
    the user can act on; anything unclassified is stripped, redacted of URLs and token-shaped
    runs, capped, and dropped entirely if a fragment of the key appears. The `code` is always
    the server's.
 7. **Store calls run under the operation timeout** in every handler, in the hub and in the
-   sweeps, token lookups included. An upload's body streams under the request's context, and
+   sweeps, token lookups included; a lookup that fails or times out is `503`, never `401`. An upload's body streams under the request's context, and
    each store call around it takes a fresh timeout of its own.
 8. **The payload reads once.** The layout leaves Postgres only for `GET /projects/{id}`;
    writes, lists, events and the file routes read metadata. An image is never a column: its
    bytes leave the filestore only by the files route, never in a project body, the feed or
    Redis.
 9. **Every project field is capped in `validate/`** — name, description, provenance URLs,
-   colours and keywords — so no field rides the feed, Redis or a list page unbounded.
+   colours, keywords, the layout (sized to the shared point limit) and a token's label — so no
+   field rides the feed, Redis, a list page or a row unbounded.
+10. **The bus is checked like client input.** The hub forwards only a well-formed project event
+    and acts on a `session-revoked` envelope without forwarding it; the feed's `Origin` rule is
+    judged before the upgrade.
 
 ## Tests
 
@@ -236,5 +260,6 @@ request. The whole suite runs under the race detector; the hub's proves the feed
 both transports and over TLS through one bus subscription, that a stalled listener drops alone,
 that a transient accept error is retried, that a hello past the hello cap, naming a project or over the
 per-IP connection cap is refused and closed, that a feed connection keeps the hello cap after the hello,
+that a failed feed write still closes the connection and ends its reader,
 and that a shutdown notices every connection before hanging up. `internal/lint/` holds the
 test-count floor and the layer lint. Opt-in benchmarks assert properties, not numbers.

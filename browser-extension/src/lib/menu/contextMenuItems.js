@@ -40,7 +40,16 @@ export const MENU = Object.freeze({
   BG_OPEN_MODAL_INCOGNITO: 'stencil-bg-open-modal-incognito',
   BG_CROP: 'stencil-bg-crop',
   BG_DESKTOP: 'stencil-bg-desktop',
-  BG_PIN: 'stencil-bg-pin'
+  BG_PIN: 'stencil-bg-pin',
+  LINK_PARENT: 'stencil-link-parent',
+  LINK: 'stencil-link',
+  LINK_INCOGNITO: 'stencil-link-incognito',
+  FRAME_LINK_PARENT: 'stencil-frame-link-parent',
+  FRAME_LINK: 'stencil-frame-link',
+  FRAME_LINK_INCOGNITO: 'stencil-frame-link-incognito',
+  BG_LINK_PARENT: 'stencil-bg-link-parent',
+  BG_LINK: 'stencil-bg-link',
+  BG_LINK_INCOGNITO: 'stencil-bg-link-incognito'
 });
 
 const ACTION_CONTEXTS = ['action'];
@@ -68,6 +77,9 @@ export const MENU_ITEMS = Object.freeze([
   // Revealed only when a desktop URL scheme is configured (syncDesktopMenuVisibility).
   { id: MENU.DESKTOP, parentId: MENU.ROOT, title: '🖥 Open in desktop app', contexts: IMAGE_CONTEXTS, visible: false },
   { id: MENU.PIN, parentId: MENU.ROOT, title: '📌 Pin image', contexts: IMAGE_CONTEXTS },
+  { id: MENU.LINK_PARENT, parentId: MENU.ROOT, title: '🔗 Copy Stencil link', contexts: IMAGE_CONTEXTS },
+  { id: MENU.LINK, parentId: MENU.LINK_PARENT, title: 'Link', contexts: IMAGE_CONTEXTS },
+  { id: MENU.LINK_INCOGNITO, parentId: MENU.LINK_PARENT, title: '🕶 Link (incognito)', contexts: IMAGE_CONTEXTS },
   { id: MENU.FRAME_OPEN_PARENT, parentId: MENU.ROOT, title: '✎ Open current frame', contexts: VIDEO_CONTEXTS },
   { id: MENU.FRAME_OPEN, parentId: MENU.FRAME_OPEN_PARENT, title: '↗ New tab', contexts: VIDEO_CONTEXTS },
   { id: MENU.FRAME_OPEN_INCOGNITO, parentId: MENU.FRAME_OPEN_PARENT, title: '🕶 New tab (incognito)', contexts: VIDEO_CONTEXTS },
@@ -76,6 +88,9 @@ export const MENU_ITEMS = Object.freeze([
   { id: MENU.FRAME_CROP, parentId: MENU.ROOT, title: '✂ Crop current frame…', contexts: VIDEO_CONTEXTS },
   { id: MENU.FRAME_DESKTOP, parentId: MENU.ROOT, title: '🖥 Open frame in desktop app', contexts: VIDEO_CONTEXTS, visible: false },
   { id: MENU.FRAME_PIN, parentId: MENU.ROOT, title: '📌 Pin video', contexts: VIDEO_CONTEXTS },
+  { id: MENU.FRAME_LINK_PARENT, parentId: MENU.ROOT, title: '🔗 Copy Stencil link', contexts: VIDEO_CONTEXTS },
+  { id: MENU.FRAME_LINK, parentId: MENU.FRAME_LINK_PARENT, title: 'Link', contexts: VIDEO_CONTEXTS },
+  { id: MENU.FRAME_LINK_INCOGNITO, parentId: MENU.FRAME_LINK_PARENT, title: '🕶 Link (incognito)', contexts: VIDEO_CONTEXTS },
   // Revealed (PREVIEW_ITEMS) only when the probed video actually has a poster.
   { id: MENU.PREVIEW_PARENT, parentId: MENU.ROOT, title: 'Video preview image', contexts: VIDEO_CONTEXTS, visible: false },
   { id: MENU.PREVIEW_TAB, parentId: MENU.PREVIEW_PARENT, title: '↗ Open preview in a new tab', contexts: VIDEO_CONTEXTS, visible: false },
@@ -94,14 +109,18 @@ export const MENU_ITEMS = Object.freeze([
   { id: MENU.BG_OPEN_MODAL_INCOGNITO, parentId: MENU.BG_OPEN_PARENT, title: '▣ Here (incognito)', contexts: ALL_CONTEXTS, visible: false },
   { id: MENU.BG_CROP, parentId: MENU.BG_ROOT, title: '✂ Crop image…', contexts: ALL_CONTEXTS, visible: false },
   { id: MENU.BG_DESKTOP, parentId: MENU.BG_ROOT, title: '🖥 Open in desktop app', contexts: ALL_CONTEXTS, visible: false },
-  { id: MENU.BG_PIN, parentId: MENU.BG_ROOT, title: '📌 Pin image', contexts: ALL_CONTEXTS, visible: false }
+  { id: MENU.BG_PIN, parentId: MENU.BG_ROOT, title: '📌 Pin image', contexts: ALL_CONTEXTS, visible: false },
+  { id: MENU.BG_LINK_PARENT, parentId: MENU.BG_ROOT, title: '🔗 Copy Stencil link', contexts: ALL_CONTEXTS, visible: false },
+  { id: MENU.BG_LINK, parentId: MENU.BG_LINK_PARENT, title: 'Link', contexts: ALL_CONTEXTS, visible: false },
+  { id: MENU.BG_LINK_INCOGNITO, parentId: MENU.BG_LINK_PARENT, title: '🕶 Link (incognito)', contexts: ALL_CONTEXTS, visible: false }
 ]);
 
 // Revealed/hidden together — the group's ROOT first, so it never renders without children.
 export const DYNAMIC_ITEMS = Object.freeze([
   MENU.BG_ROOT, MENU.BG_OPEN_PARENT,
   MENU.BG_OPEN, MENU.BG_OPEN_RESUME, MENU.BG_OPEN_INCOGNITO,
-  MENU.BG_OPEN_MODAL, MENU.BG_OPEN_MODAL_INCOGNITO, MENU.BG_CROP, MENU.BG_PIN
+  MENU.BG_OPEN_MODAL, MENU.BG_OPEN_MODAL_INCOGNITO, MENU.BG_CROP, MENU.BG_PIN,
+  MENU.BG_LINK_PARENT, MENU.BG_LINK, MENU.BG_LINK_INCOGNITO
 ]);
 
 // Toggle on the desktop scheme alone; MENU.BG_DESKTOP ALSO needs the probe's reveal.
@@ -119,3 +138,9 @@ export const PREVIEW_ITEMS = Object.freeze([
   MENU.PREVIEW_PARENT, MENU.PREVIEW_TAB, MENU.PREVIEW_OPEN, MENU.PREVIEW_OPEN_INCOGNITO,
   MENU.PREVIEW_MODAL, MENU.PREVIEW_MODAL_INCOGNITO, MENU.PREVIEW_CROP
 ]);
+
+// Copy a link that opens Stencil on the element's source; the second of each pair is incognito.
+export const LINK_ITEMS = Object.freeze([
+  MENU.LINK, MENU.LINK_INCOGNITO, MENU.FRAME_LINK, MENU.FRAME_LINK_INCOGNITO, MENU.BG_LINK, MENU.BG_LINK_INCOGNITO
+]);
+export const INCOGNITO_LINK_ITEMS = Object.freeze([MENU.LINK_INCOGNITO, MENU.FRAME_LINK_INCOGNITO, MENU.BG_LINK_INCOGNITO]);

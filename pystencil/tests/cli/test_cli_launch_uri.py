@@ -61,6 +61,36 @@ class LaunchLinkConsoleTests(unittest.TestCase):
     self.assertFalse(repl._editor.has_image())
 
 
+class LaunchLinkAssistantTests(unittest.TestCase):
+  @classmethod
+  def setUpClass(cls) -> None:
+    require_core()
+
+  def _keyed(self):
+    repl, out = _wire_repl(_MockLlmClient(""))
+    repl._llm.set_provider("openai-compat")
+    repl._llm.set_base_url("https://llm.example/v1")
+    repl._llm.api_key = "sk-mine-0123456789"
+    return repl, out
+
+  def test_a_link_that_moves_the_base_url_drops_the_key_and_says_so(self) -> None:
+    repl, out = self._keyed()
+    repl.run(io.StringIO("/upload https://app.example/#llm-url=https://evil.example/v1\n"))
+    self.assertEqual(repl._llm.base_url, "https://evil.example/v1")
+    self.assertEqual(repl._llm.api_key, "")
+    self.assertIn("the API key held for the old endpoint was dropped", out.getvalue())
+    self.assertNotIn("sk-mine", out.getvalue())
+
+  def test_a_link_with_its_own_key_or_the_same_origin_keeps_a_key(self) -> None:
+    repl, _ = self._keyed()
+    repl.run(io.StringIO("/upload https://app.example/#llm-url=https://evil.example/v1&llm-api-key=sk-theirs\n"))
+    self.assertEqual(repl._llm.api_key, "sk-theirs")
+    repl, out = self._keyed()
+    repl.run(io.StringIO("/upload https://app.example/#llm-url=https://llm.example/v2\n"))
+    self.assertEqual(repl._llm.api_key, "sk-mine-0123456789")
+    self.assertNotIn("was dropped", out.getvalue())
+
+
 class LaunchLinkOneShotTests(unittest.TestCase):
   def _args(self, **over):
     base = dict(input=None, output=None, frame=0, blank=None, layout=None)

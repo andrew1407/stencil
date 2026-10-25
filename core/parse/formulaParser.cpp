@@ -202,6 +202,17 @@ namespace stencil::core {
     return evaluate(expr, varName, varValue, FormulaContext{});
   }
 
+  void FormulaParser::applyPoints(const std::string& exprX, const std::string& exprY, double* xy,
+                                  std::size_t count, FormulaContext ctx) {
+    if (!xy) return;
+    for (std::size_t i = 0; i < count; ++i) {
+      ctx.x = xy[2 * i];
+      ctx.y = xy[2 * i + 1];
+      xy[2 * i] = apply(exprX, 'x', ctx.x, true, ctx);
+      xy[2 * i + 1] = apply(exprY, 'y', ctx.y, true, ctx);
+    }
+  }
+
   bool FormulaParser::validate(const std::string& expr, char varName) {
     if (isBlankFormula(expr)) return true;  // empty = identity = valid
     return evaluate(expr, varName, 1.0).has_value();

@@ -2,7 +2,7 @@
 // in js/core/scriptHandles.js). wasm-parity.test.js pins the pure ops; this one pins the
 // language: the compiled C++ and the hand-written JS fallback must lower every fixture in
 // the shared corpus to the same op stream and report the same diagnostics for it. Node
-// loads the SINGLE_FILE ES module directly.
+// loads the ES glue and its .wasm directly.
 import { test, before } from 'node:test';
 import assert from 'node:assert';
 import { existsSync } from 'node:fs';
@@ -13,7 +13,7 @@ import { parseScript, scriptDiagnostics, scriptDump } from '../../js/core/script
 import { readScriptCases } from '../helpers/scriptCases.js';
 
 // Generated artifact (gitignored) — skip rather than fail when it has not been built.
-const MODULE_BUILT = existsSync(fileURLToPath(new URL('../../js/wasm/stencilCore.js', import.meta.url)));
+const MODULE_BUILT = ['stencilCore.js', 'stencilCore.wasm'].every((f) => existsSync(fileURLToPath(new URL(`../../js/wasm/${f}`, import.meta.url))));
 const wtest = MODULE_BUILT ? test : test.skip;
 
 const CASES = readScriptCases();
@@ -21,20 +21,22 @@ const source = (c) => c.script;
 
 // The call-site span each diagnostic carries, which the dump text has no field for.
 const relatedOf = (p) => p.diagnostics.map((d) => d.related ?? null);
+// What an editor paints by; the lexeme is the fallback's alone.
+const spansOf = (p) => p.tokens.map(({ kind, line, col, len }) => [kind, line, col, len]);
 const NESTED = '@stencil inner:\n  @line (0,0)\n\n@stencil outer:\n  @use stencil inner\n\n'
   + '@source a.png:\n  @use stencil outer\n  @use stencil outer\n';
 
 // Captured BEFORE wasm is installed, so these are the hand-written fallback's results.
 const jsRef = CASES.map((c) => {
   const p = parseScript(c.script);
-  return { dump: scriptDump(p), diags: scriptDiagnostics(p), errors: p.errorCount, related: relatedOf(p) };
+  return { dump: scriptDump(p), diags: scriptDiagnostics(p), errors: p.errorCount, related: relatedOf(p), spans: spansOf(p) };
 });
 const jsNested = relatedOf(parseScript(NESTED));
 
 before(async () => {
   if (!MODULE_BUILT) return;
   const ok = await core.init();
-  assert.strictEqual(ok, true, 'wasm core must load in Node (SINGLE_FILE ES module)');
+  assert.strictEqual(ok, true, 'wasm core must load in Node (ES glue + .wasm)');
 });
 
 wtest('the corpus is what both sides are measured against', () => {
@@ -68,6 +70,11 @@ wtest('the blocks and ops cross the ABI with their structure intact', () => {
   const crop = parseScript('@source a.png:\n  @crop 10%\n').ops[1];
   assert.deepStrictEqual(crop.toks, ['10%', '-10%', '10%', '-10%']);
   assert.equal(crop.editIndex, 1);
+});
+
+wtest('every fixture lexes to the same token spans on both sides', () => {
+  CASES.forEach((c, i) => assert.deepStrictEqual(spansOf(parseScript(c.script)), jsRef[i].spans, `tokens ${c.name}`));
+  assert.ok(jsRef.some((r) => r.spans.length > 50), 'the corpus holds a long token stream');
 });
 
 wtest('the token stream crosses with the spans an editor colours by', () => {

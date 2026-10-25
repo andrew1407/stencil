@@ -15,9 +15,16 @@ public sealed partial class CommandHandlers
     // RenderAndSendAsync.
     private async Task sendPromptRenderAsync(long chatId, PromptRender render, UserSession session, CancellationToken ct)
     {
-        await _bot.SendChatAction(chatId, ChatAction.UploadPhoto, cancellationToken: ct);
-        await sendResultPhotoAsync(chatId, render.Result.Path, promptCaption(render),
-            Keyboards.EditMenu(session.ActiveProjectId is not null), ct);
+        try
+        {
+            await _bot.SendChatAction(chatId, ChatAction.UploadPhoto, cancellationToken: ct);
+            await sendResultPhotoAsync(chatId, render.Result.Path, promptCaption(render),
+                Keyboards.EditMenu(session.ActiveProjectId is not null), ct);
+        }
+        finally
+        {
+            _editing.Discard(render.Result);
+        }
     }
 
     private static string promptCaption(PromptRender render) =>
@@ -29,7 +36,7 @@ public sealed partial class CommandHandlers
 
     private readonly ConcurrentDictionary<long, List<PromptRender>> _renderCaptures = new();
 
-    // Until disposed, this user's RenderAndSendAsync results are buffered instead of sent.
+    // Until disposed, this user's latest RenderAndSendAsync result is buffered instead of sent.
     public IDisposable BeginRenderCapture(long userId, List<PromptRender> captured)
     {
         _renderCaptures[userId] = captured;
@@ -47,17 +54,46 @@ public sealed partial class CommandHandlers
         {
             return;
         }
-        if (renders.Count == 1)
+        if (renders.Count > 1)
+        {
+            await sendPromptAlbumAsync(chatId, renders, ct);
+            return;
+        }
+        try
         {
             await _bot.SendChatAction(chatId, ChatAction.UploadPhoto, cancellationToken: ct);
             await sendResultPhotoAsync(chatId, renders[0].Result.Path, promptCaption(renders[0]), keyboard: null, ct);
-            return;
         }
-        await sendPromptAlbumAsync(chatId, renders, ct);
+        finally
+        {
+            _editing.Discard(renders[0].Result);
+        }
     }
 
     // Falls back to sequential photos when the album send fails (e.g. an API limit).
     private async Task sendPromptAlbumAsync(long chatId, IReadOnlyList<PromptRender> renders, CancellationToken ct)
+    {
+        try
+        {
+            if (await trySendMediaGroupAsync(chatId, renders, ct))
+            {
+                return;
+            }
+            foreach (PromptRender render in renders)
+            {
+                await sendResultPhotoAsync(chatId, render.Result.Path, promptCaption(render), keyboard: null, ct);
+            }
+        }
+        finally
+        {
+            foreach (PromptRender render in renders)
+            {
+                _editing.Discard(render.Result);
+            }
+        }
+    }
+
+    private async Task<bool> trySendMediaGroupAsync(long chatId, IReadOnlyList<PromptRender> renders, CancellationToken ct)
     {
         await _bot.SendChatAction(chatId, ChatAction.UploadPhoto, cancellationToken: ct);
         List<FileStream> streams = new();
@@ -74,11 +110,12 @@ public sealed partial class CommandHandlers
                 });
             }
             await _bot.SendMediaGroup(chatId, media, cancellationToken: ct);
-            return;
+            return true;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogWarning(ex, "Media-group send failed; falling back to sequential photos");
+            return false;
         }
         finally
         {
@@ -86,10 +123,6 @@ public sealed partial class CommandHandlers
             {
                 await stream.DisposeAsync();
             }
-        }
-        foreach (PromptRender render in renders)
-        {
-            await sendResultPhotoAsync(chatId, render.Result.Path, promptCaption(render), keyboard: null, ct);
         }
     }
 }

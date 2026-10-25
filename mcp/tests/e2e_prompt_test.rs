@@ -9,7 +9,7 @@ use serde_json::json;
 use stencil_mcp::config::LlmEnv;
 use stencil_mcp::llm::{self, ChatMessage, LlmConfig, Role};
 use stencil_mcp::llmtransport::PlainHttpTransport;
-use stencil_mcp::{opplan, pipeline};
+use stencil_mcp::{pipeline, plan};
 
 /// §7 edge map: the CLI's contour filter renders the input into an attachable PNG.
 #[tokio::test]
@@ -98,11 +98,11 @@ async fn prompt_flow_against_a_canned_llm_and_the_real_cli() {
     .expect("chat should succeed");
 
     // 2. Parse and map the plan.
-    let plan = opplan::parse_op_plan(&reply).await.expect("plan should validate");
+    let plan = plan::parse_op_plan(&reply).await.expect("plan should validate");
     assert_eq!(plan.reply, "Rotated it; the sepia take is separate.");
     let dir = tempfile::tempdir().unwrap();
     let out_dir = dir.path().to_string_lossy().into_owned();
-    let requests = opplan::to_edit_requests(
+    let requests = plan::to_edit_requests(
         &plan,
         Some(FIXTURE),
         &out_dir,

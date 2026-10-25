@@ -42,7 +42,7 @@ type Config struct {
 	OpTimeout           time.Duration // deadline around one REST store operation
 	DBMaxConns          int           // DB_MAX_CONNS: pool ceiling (0 = pgx default)
 	DBMinConns          int           // DB_MIN_CONNS: warm connections (0 = pgx default)
-	DBStatementTimeout  time.Duration // DB_STATEMENT_TIMEOUT: per-statement cap (0 = none)
+	DBStatementTimeout  time.Duration // DB_STATEMENT_TIMEOUT: per-statement cap, default OP_TIMEOUT_SECONDS (0 = none)
 	// TrustedProxies are the peers whose X-Forwarded-For is believed when a
 	// limiter keys on the client IP. Empty (default) ignores the header.
 	TrustedProxies []netip.Prefix
@@ -143,6 +143,11 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	cfg.SweepInterval = time.Duration(sweepMinutes) * time.Minute
+	opSeconds, err := positiveInt(get, "OP_TIMEOUT_SECONDS", int(defaultOpTimeout/time.Second), 1)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.OpTimeout = time.Duration(opSeconds) * time.Second
 	for _, load := range []func(getter, *Config) error{loadLLM, loadDB, loadRedis, loadLive, loadHTTP, loadSweep} {
 		if err := load(get, &cfg); err != nil {
 			return Config{}, err
@@ -160,11 +165,6 @@ func Load() (Config, error) {
 	if cfg.RateBucketIdle, err = duration(get, "RATE_BUCKET_IDLE_MINUTES", defaultRateBucketIdle, time.Minute, 1); err != nil {
 		return Config{}, err
 	}
-	opSeconds, err := positiveInt(get, "OP_TIMEOUT_SECONDS", int(defaultOpTimeout/time.Second), 1)
-	if err != nil {
-		return Config{}, err
-	}
-	cfg.OpTimeout = time.Duration(opSeconds) * time.Second
 	if cfg.TrustedProxies, err = parseCIDRs(get("TRUSTED_PROXY_CIDRS", "")); err != nil {
 		return Config{}, err
 	}

@@ -55,7 +55,7 @@ stencil_headless_test(stencil_dblreset_headless
   SOURCES tests/support/control/dblReset.headless.cpp
   LIBS Qt6::Widgets)
 
-# Per-icon hover motion (support/iconMotion.hpp): the table against the glyph canon, the semantic
+# Per-icon hover motion (support/icon/iconMotion.hpp): the table against the glyph canon, the semantic
 # pins, and the driver on a live button.
 stencil_headless_test(stencil_iconmotion_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}

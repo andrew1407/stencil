@@ -1,5 +1,5 @@
 //! Replay the shared golden fixtures for the CLI stderr output grammar
-//! (`cli/testdata/outcome_fixtures.json`) through `outcome.rs`'s parsers.
+//! (`common/fixtures/cli/outcome.json`) through `outcome.rs`'s parsers.
 //!
 //! The .NET bot's `SharedOutcomeFixturesTests` replays the same file, so a disagreement
 //! between the two parsers reddens one of the suites.
@@ -15,7 +15,7 @@ use common::walk::Walk;
 /// Resolved against this crate's manifest dir, so the working directory does not matter.
 /// Read once per test binary.
 static FIXTURES: LazyLock<Value> = LazyLock::new(|| {
-    common::read_json(concat!(env!("CARGO_MANIFEST_DIR"), "/../cli/testdata/outcome_fixtures.json"))
+    common::read_json(concat!(env!("CARGO_MANIFEST_DIR"), "/../common/fixtures/cli/outcome.json"))
 });
 
 fn cases(section: &str) -> &'static Vec<Value> {

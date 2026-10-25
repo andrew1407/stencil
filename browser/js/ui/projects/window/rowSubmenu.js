@@ -2,7 +2,9 @@
 // its item — right, or left when the window has no room — on hover, click or ArrowRight, back
 // on ArrowLeft / Escape. It lives on <body> like its parent, so the parent asks it `contains`.
 import { icon } from '../../icons.js';
-import { surfaceIn, surfaceOut, rectCenter, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../../motion.js';
+import { SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../../motion/surface/motion.js';
+import { surfaceIn, surfaceOut } from '../../motion/surface/surfaces.js';
+import { rectCenter } from '../../motion/control/tips.js';
 
 const GAP = 4;
 const EDGE = 8;

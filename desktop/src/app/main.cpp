@@ -7,7 +7,7 @@
 #include <QFileOpenEvent>
 #include <QIcon>
 #include "../support/tip/SnappyTooltipStyle.hpp"
-#include "../support/guiHelpers.hpp"
+#include "pointerCursor.hpp"
 #include <QStringList>
 #include <QUrl>
 

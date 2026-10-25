@@ -130,6 +130,12 @@ pub fn origin_of(url: &str) -> Result<String, String> {
     })
 }
 
+/// A loopback host as the CLI's `net.isLoopbackHost` reads it: `localhost`, a `.localhost` name, or a
+/// parsed loopback address — never a name that merely starts with "127.".
 fn is_loopback(host: &str) -> bool {
-    host == "localhost" || host == "[::1]" || host.starts_with("127.")
+    if host == "localhost" || host.ends_with(".localhost") {
+        return true;
+    }
+    let bare = host.strip_prefix('[').and_then(|h| h.strip_suffix(']')).unwrap_or(host);
+    bare.parse::<std::net::IpAddr>().is_ok_and(|ip| ip.is_loopback())
 }

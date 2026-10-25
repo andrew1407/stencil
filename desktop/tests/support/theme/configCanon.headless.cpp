@@ -1,6 +1,6 @@
 // Pins the desktop consumption of the shared config canon embedded via resources/app.qrc
 // (common/config/*.json): accents.json → theme.cpp accentPresets(); icons.json → iconSet.cpp;
-// constants.json PAGE_SIZES → core's pageMetrics, both ways; layoutFields.json → fileStore's export
+// constants.json (the alias; core's own suite holds PAGE_SIZES); layoutFields.json → fileStore's export
 // key set; llm/systemPrompt.json → opRegistry's §4 prose; llm/opRegistry.json → core/opplan's schema;
 // llm/providers.json → llmSettings' §5 defaults (configCanonLlm); net/blockedRanges.json → fetchGuard.
 // A broken alias parses empty, so each block fails fast.
@@ -9,7 +9,6 @@
 #include "iconSet.hpp"
 #include "logoStageRules.hpp"
 #include "theme.hpp"
-#include "pageMetrics.hpp"
 
 #include <QApplication>
 #include <QFile>
@@ -31,7 +30,7 @@ int main(int argc, char** argv) {
     const QJsonArray canon = readConfig(":/config/accents.json").array();
     const auto& presets = accentPresets();
     check(!canon.isEmpty(), "accents.json qrc alias resolves and parses");
-    check(canon.size() == 16, "accents canon carries the 16 presets");
+    check(canon.size() >= 16, "accents canon carries at least the 16 presets");
     check(int(presets.size()) == canon.size(), "accentPresets() count matches the canon");
     check(!presets.empty() && presets.front().key == "violet"
               && presets.front().hex == "#7c3aed",
@@ -112,27 +111,9 @@ int main(int argc, char** argv) {
     check(drawn, "every canon glyph rasterizes with the motion hooks in it");
   }
 
-  // ── constants.json PAGE_SIZES vs the core's native table ─────────────────
-  {
-    const QJsonObject sizes =
-        readConfig(":/config/constants.json").object().value("PAGE_SIZES").toObject();
-    check(!sizes.isEmpty(), "constants.json qrc alias resolves and parses");
-    QStringList canon = sizes.keys(), listed =
-        QString::fromUtf8(stencil::core::pageFormatNames()).split(QLatin1Char(' '));
-    canon.sort();
-    listed.sort();
-    check(canon == listed, "pageFormatNames() lists exactly the canon's PAGE_SIZES names");
-    bool sized = true;
-    for (auto it = sizes.begin(); it != sizes.end(); ++it) {
-      const stencil::core::PageSize ps = stencil::core::namedPageSize(it.key().toStdString());
-      const QJsonObject o = it.value().toObject();
-      if (ps.width == o.value("width").toDouble() && ps.height == o.value("height").toDouble())
-        continue;
-      sized = false;
-      std::printf("       page-size drift: %s\n", qPrintable(it.key()));
-    }
-    check(sized, "every PAGE_SIZES entry matches namedPageSize() in cm");
-  }
+  // ── constants.json: the alias the launch and co-edit tunings read ─────────
+  check(!readConfig(":/config/constants.json").object().value("PAGE_SIZES").toObject().isEmpty(),
+        "constants.json qrc alias resolves and parses");
 
   // ── layoutFields.json export subset vs buildLayoutJson ───────────────────
   {

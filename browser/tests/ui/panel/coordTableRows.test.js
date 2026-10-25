@@ -73,3 +73,25 @@ test('one delegated listener per event on the body, none on the rows, however of
   body.dispatch('mouseout', { target: body.rows[1], relatedTarget: null });
   assert.equal(app.hoveredPtIdx, -1);
 });
+
+test('a burst of drag moves rewrites the rows once a frame, with the newest points', () => {
+  const { app, body, points, table } = rig();
+  table.update(points, 0);
+  const frames = [];
+  globalThis.requestAnimationFrame = (fn) => { frames.push(fn); return frames.length; };
+  try {
+    for (let k = 1; k <= 5; k++) { points[0].x = 10 * k; table.refreshRows(points, 0); }
+    assert.equal(frames.length, 1, 'one frame for the whole burst');
+    assert.notEqual(body.rows[0].cells[1].textContent, 50, 'nothing painted before the frame');
+    frames.shift()();
+    assert.equal(body.rows[0].cells[1].textContent, 50, 'the frame paints the newest move');
+
+    table.refreshRows(points, 0);
+    app.coordLineIdx = 1;   // the table moved on to another line before the frame
+    points[0].x = 999;
+    frames.shift()();
+    assert.equal(body.rows[0].cells[1].textContent, 50, 'a stale refresh paints nothing');
+  } finally {
+    delete globalThis.requestAnimationFrame;
+  }
+});

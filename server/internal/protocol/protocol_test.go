@@ -48,21 +48,26 @@ func TestProjectRecordOptionalFieldNames(t *testing.T) {
 		HasImage: true, ImageW: 4, ImageH: 5,
 		Source: "https://e/i.png", Resource: "https://e/", Color: "#ff0000",
 		Keywords: []string{"k"}, Description: "d",
-		BlankColor: "#ffffff", Blank: true, OriginalHash: "e3b0",
+		BlankColor: "#ffffff", Blank: true, HasResult: true, OriginalHash: "e3b0",
 		OriginalPath: "a", ResultPath: "b",
 		Layout: json.RawMessage(`{"lines":[]}`), Version: 7, OwnerSession: "s1",
 	})
 	for _, k := range []string{
 		"id", "name", "createdAt", "updatedAt", "expiresAt", "hasImage", "imageW", "imageH",
 		"source", "resource", "color", "keywords", "description", "blankColor", "blank",
-		"originalHash", "originalPath", "resultPath", "layout", "version", "ownerSession",
+		"hasResult", "originalHash", "layout", "version",
 	} {
 		if !got[k] {
 			t.Errorf("populated ProjectRecord is missing key %q", k)
 		}
 	}
-	if len(got) != 21 {
-		t.Errorf("ProjectRecord emitted %d keys, want 21 — a field was added or renamed: %v", len(got), got)
+	if len(got) != 19 {
+		t.Errorf("ProjectRecord emitted %d keys, want 19 — a field was added or renamed: %v", len(got), got)
+	}
+	for _, k := range []string{"originalPath", "resultPath", "ownerSession"} {
+		if got[k] {
+			t.Errorf("ProjectRecord leaks the server-only %q", k)
+		}
 	}
 }
 

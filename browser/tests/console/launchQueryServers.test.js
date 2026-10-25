@@ -1,6 +1,6 @@
-// applyLaunchQuery (js/console/launchQuery.js) over the facade rig — the servers, the assistant
-// and the chat: a credential rides only the fragment, an unknown server asks first, a project
-// locator connects then opens by id or name, and the assistant keys go through stencil.llm.
+// applyLaunchQuery (js/console/launchQuery.js) over the facade rig — the servers and the chat: a
+// credential rides only the fragment, an unknown server asks first, and a project locator connects
+// then opens by id or name. The assistant keys are launchQueryAssistant.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { boot, connected, notices, texts, called, lastCall, applyLaunchQuery } from '../helpers/launchQueryRig.js';
@@ -27,6 +27,24 @@ test('a server already connected is neither asked about nor reconnected', async 
   await applyLaunchQuery({ app, stencil });
   assert.equal(called(app, 'confirm').length, 0);
   assert.equal(called(app, 'connect').length, 0);
+});
+
+test('a link token for a saved server connects for this session only; the saved credential stays', async () => {
+  localStorage.setItem('drawingApp_servers', JSON.stringify([{ url: SRV, token: 'mine' }]));
+  try {
+    const { app, stencil } = boot('', `#connect=${SRV}&token=theirs`, {
+      confirm() { this.calls.push(['confirm']); return Promise.resolve(true); },
+    }, connected(false));
+    await applyLaunchQuery({ app, stencil });
+    assert.equal(called(app, 'confirm').length, 0, 'a saved server is not asked about');
+    assert.deepEqual(called(app, 'connect'), [['connect', { url: SRV, token: 'theirs', saved: { token: 'mine', kind: '' } }]]);
+
+    const same = boot('', `#connect=${SRV}&token=mine`, {}, connected(false));
+    await applyLaunchQuery(same);
+    assert.deepEqual(called(same.app, 'connect'), [['connect', { url: SRV, token: 'mine' }]]);
+  } finally {
+    localStorage.removeItem('drawingApp_servers');
+  }
 });
 
 test('server=&id= opens the shared project through the server launch, incognito as an unlinked copy', async () => {
@@ -75,23 +93,6 @@ test('project= naming a project the server lacks is one notice', async () => {
   const { app, stencil } = boot(`?project=${SRV}/projects/ghost`, '', {}, connected(true, []));
   await applyLaunchQuery({ app, stencil });
   assert.deepEqual(texts(), [`Launch link: picture — no project "ghost" on ${SRV}`]);
-});
-
-test('the assistant settings go through stencil.llm.setup; a fragment key becomes this tab\'s session key', async () => {
-  const { app, stencil } = boot('?llm-provider=ollama&llm-model=llava&llm-url=http://localhost:11434');
-  await applyLaunchQuery({ app, stencil });
-  assert.equal(stencil.llm.provider, 'ollama');
-  assert.equal(stencil.llm.model, 'llava');
-  assert.equal(stencil.llm.baseUrl, 'http://localhost:11434');
-  assert.deepEqual(notices, []);
-
-  const keyed = boot('', '#llm-provider=anthropic&llm-api-key=sk-test-1234');
-  await applyLaunchQuery(keyed);
-  assert.equal(keyed.stencil.llm.provider, 'anthropic');
-  assert.equal(keyed.stencil.llm.apiKey, '[redacted]');
-  assert.ok(keyed.stencil.llm.keyExpiresAt > Date.now());
-  assert.equal(globalThis.localStorage.getItem('drawingApp_llmSettings').includes('sk-test'), false, 'never persisted');
-  keyed.stencil.llm.forgetKey();
 });
 
 test('chat-dock= and chat=open reach the panel through the facade, dock first', async () => {

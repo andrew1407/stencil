@@ -7,6 +7,7 @@
 
 namespace {
   enum { NAME_COL = 1, EYE_COL = 7 };   // selectionPanelParts.hpp LineCol
+  constexpr int SELECTED_ROLE = Qt::UserRole + 1;   // selectionPanelParts.hpp
 }  // namespace
 
 class MainWindowGuiTest : public QObject {
@@ -122,9 +123,18 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(!list->item(0, 0)->data(mark).toBool());
     QCOMPARE(list->item(0, 6)->text(), QStringLiteral("3"));
     list->item(0, 0)->setData(mark, true);
+    list->item(1, 0)->setData(mark, true);
     lines[1].style = "dashed";
     win.selPanel->setLines(lines, {});
-    QVERIFY2(!list->item(0, 0)->data(mark).toBool(), "a style change still rebuilds the rows");
+    QVERIFY2(!list->item(1, 0)->data(mark).toBool(), "a style change rebuilds its row");
+    QVERIFY2(list->item(0, 0)->data(mark).toBool(), "…and only its row");
+    win.selPanel->setLines(lines, {1});
+    QVERIFY2(list->item(0, 0)->data(mark).toBool(), "a selection restyles rows, never rebuilds them");
+    QVERIFY(list->item(1, 0)->data(SELECTED_ROLE).toBool());
+    lines.erase(lines.begin());
+    win.selPanel->setLines(lines, {});
+    QCOMPARE(list->rowCount(), 1);
+    QCOMPARE(list->item(0, 0)->text(), QStringLiteral("1"));
   }
 };
 

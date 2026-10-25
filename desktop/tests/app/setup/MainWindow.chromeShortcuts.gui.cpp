@@ -109,7 +109,7 @@ class MainWindowGuiTest : public QObject {
 
     // Incognito adds its line — and only its line.
     win.acts.incognito->setChecked(true);
-    QTRY_VERIFY(win.incognito);
+    QTRY_VERIFY(win.projectHost.incognito);
     const QStringList lines = hint->toolTip().split('\n');
     QCOMPARE(lines.size(), 2);
     QVERIFY2(lines[0].contains(size), "the size stays first");
@@ -117,7 +117,7 @@ class MainWindowGuiTest : public QObject {
 
     // …and it leaves again when incognito does.
     win.acts.incognito->setChecked(false);
-    QTRY_VERIFY(!win.incognito);
+    QTRY_VERIFY(!win.projectHost.incognito);
     QVERIFY2(!hint->toolTip().contains("Incognito"),
              "the incognito line goes with the mode");
     QCOMPARE(hint->toolTip().split('\n').size(), 1);

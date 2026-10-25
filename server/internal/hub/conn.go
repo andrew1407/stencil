@@ -10,6 +10,8 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,15 +22,35 @@ import (
 // WSHandler returns an http.Handler that upgrades to WebSocket and serves the feed.
 func (h *Hub) WSHandler() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		// Refused before the upgrade, so a hostile page spends neither a per-IP slot nor a hello token.
+		if origin := req.Header.Get("Origin"); h.originOK != nil && !sameOrigin(origin, req) && !h.originOK(origin) {
+			http.Error(rw, "origin not allowed", http.StatusForbidden)
+			return
+		}
 		conn, err := transport.AcceptWS(rw, req)
 		if err != nil {
 			return // Accept already wrote a response
 		}
 		ctx := withClientIP(req.Context(), h.hello.requestIP(req))
-		if err := h.HandleConn(ctx, conn); err != nil {
+		if err := h.HandleConn(ctx, conn); err != nil && !h.refusals.refused(err, time.Now()) {
 			log.Printf("hub: ws connection ended: %v", err)
 		}
 	})
+}
+
+// sameOrigin reports a page served from the host the upgrade names (directly, or through a proxy's
+// X-Forwarded-Host): same-origin REST needs no CORS_ORIGINS entry, so neither does its live feed.
+func sameOrigin(origin string, req *http.Request) bool {
+	u, err := url.Parse(origin)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return false
+	}
+	for _, host := range []string{req.Host, strings.TrimSpace(strings.Split(req.Header.Get("X-Forwarded-Host"), ",")[0])} {
+		if host != "" && strings.EqualFold(u.Host, host) {
+			return true
+		}
+	}
+	return false
 }
 
 // ServeListener accepts TCP connections and handles each as a feed connection (NDJSON framing). Any
@@ -58,7 +80,7 @@ func (h *Hub) ServeListener(ln net.Listener) error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if err := h.HandleConn(h.ctx, transport.NewTCP(c)); err != nil {
+			if err := h.HandleConn(h.ctx, transport.NewTCP(c)); err != nil && !h.refusals.refused(err, time.Now()) {
 				log.Printf("hub: tcp connection ended: %v", err)
 			}
 		}()
@@ -74,15 +96,21 @@ var (
 // HandleConn takes the per-IP slot, performs the hello handshake and serves the global events feed. It
 // blocks until the connection ends.
 func (h *Hub) HandleConn(ctx context.Context, conn transport.Conn) error {
+	// A failed feed write is the one return that has not hung up yet; a second Close is a no-op.
+	defer func() { _ = conn.Close(transport.CloseNormal, "bye") }()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	untrack := h.trackConn(conn, cancel)
+	reg, untrack := h.trackConn(conn, cancel)
 	defer untrack()
 
 	ip := h.hello.connIP(ctx, conn)
-	if !h.perIP.take(ip) {
-		refuseHello(ctx, conn, protocol.CodeRateLimited, "too many connections from this address")
-		return errTooManyConns
+	if err := h.perIP.take(ip); err != nil {
+		msg := "too many connections from this address"
+		if errors.Is(err, errServerFull) {
+			msg = "the server is at its connection limit"
+		}
+		refuseHello(ctx, conn, protocol.CodeRateLimited, msg)
+		return err
 	}
 	defer h.perIP.drop(ip)
 
@@ -97,6 +125,7 @@ func (h *Hub) HandleConn(ctx context.Context, conn transport.Conn) error {
 	if err := checkHelloFields(ctx, conn, hello); err != nil {
 		return err
 	}
+	h.authenticated(reg, sess.ID)
 	defer h.expireAt(sess.ExpiresAt, conn, cancel)()
 	return h.serveEvents(ctx, conn)
 }

@@ -2,7 +2,7 @@ import { popoverPosition, wireModalOpenGestures } from '../tip/popover.js';
 import { peekEngaged, wirePeekBox } from '../tip/altPeek.js';
 import { wireModalDrag } from './drag.js';
 import { wireModalResize } from './resize.js';
-import { sweepDust } from '../motion.js';
+import { sweepDust } from '../motion/surface/tiles.js';
 import { isTypingTarget } from '../../utils.js';
 import { modalShells, wireEscapeOnce, wireCollapseOnce, closeOpenModal, closeOpenPopovers, raiseWindow } from './registry.js';
 import { motionMs, multiWindow } from '../motion/motionPrefs.js';

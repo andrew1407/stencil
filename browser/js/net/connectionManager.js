@@ -26,6 +26,8 @@ export class ConnectionManager {
   // second socket; a disconnect drops the entry, and the late handshake is then closed.
   #inflight = new Map();   // url -> handshake promise
   #lastSet = [];        // for reconnect()
+  // URLs the user disconnected this session: the saved set drops them, and only them.
+  #forgotten = new Set();
   constructor({ fetchImpl, WebSocketImpl, onChange } = {}) {
     this.#fetch = fetchImpl; this.#WS = WebSocketImpl;
     this.#onChange = onChange ?? (() => {});
@@ -33,6 +35,7 @@ export class ConnectionManager {
 
   get urls() { return Array.from(this.#conns.keys()); }
   get expiredUrls() { return Array.from(this.#expired.keys()); }
+  get forgotten() { return Array.from(this.#forgotten); }
   // Everything the user has a row for: live first, then the sessions that need a token.
   get knownUrls() {
     const known = [...this.#conns.keys(), ...this.#expired.keys()];
@@ -42,13 +45,15 @@ export class ConnectionManager {
   isExpired(url) { try { return this.#expired.has(normalizeUrl(url)); } catch { return false; } }
   get connections() { return Array.from(this.#conns.values()); }
   get reconnectable() { return this.#conns.size > 0 || this.#expired.size > 0 || this.#lastSet.length > 0; }
-  // The ORIGINAL credential persists — a minted session token dies with the server.
-  // Expired sessions are included: the saved URL must survive a dead token.
+  // The ORIGINAL credential persists — a minted session token dies with the server — unless the
+  // connection was opened with a `saved` one to keep. Expired sessions are included: the saved URL
+  // must survive a dead token.
   snapshot() {
     return [
-      ...this.connections.map((c) => (c.credentialKind === 'admin'
-        ? { url: c.url, token: c.credential || '', kind: 'admin' }
-        : { url: c.url, token: c.credential || '' })),
+      ...this.connections.map((c) => {
+        const kept = c.persisted ?? { token: c.credential || '', kind: c.credentialKind };
+        return kept.kind === 'admin' ? { url: c.url, token: kept.token, kind: 'admin' } : { url: c.url, token: kept.token };
+      }),
       // The refusal persists too: the next boot must not spend a request (and a 401) on it.
       ...[...this.#expired.values()].map((c) => ({ url: c.url, token: c.credential || '', expired: true })),
     ];
@@ -83,16 +88,19 @@ export class ConnectionManager {
     const pending = [];
     const joined = [];
     for (const item of items) {
-      const { url, token, kind } = typeof item === 'string' ? { url: item, token: '' } : (item || {});
+      const { url, token, kind, saved } = typeof item === 'string' ? { url: item, token: '' } : (item || {});
       // An explicitly supplied token wins over the invite fragment's.
       const inv = parseInviteUrl(url);
       const norm = normalizeUrl(inv.url);
+      this.#forgotten.delete(norm);
       if (this.#conns.has(norm) || pending.some((p) => p.norm === norm)) continue;
       if (this.#inflight.has(norm)) { joined.push(this.#inflight.get(norm)); continue; }
       const conn = new ServerConnection(norm, {
         token: token || inv.token, kind, fetchImpl: this.#fetch, WebSocketImpl: this.#WS,
       });
       conn._onStatus = () => this.#onChange({ type: 'status', connection: conn });
+      // `saved` is the credential to keep on disk: this one lives for the session only.
+      if (saved) conn.persisted = { token: saved.token || '', kind: saved.kind || '' };
       const shake = conn.handshake();
       this.#inflight.set(norm, shake);
       pending.push({ norm, conn, shake });
@@ -112,8 +120,9 @@ export class ConnectionManager {
         return;
       }
       const err = settled[i].reason;
-      // A refused credential is remembered, not retried; any other failure may recover.
-      if (err && err.expired) {
+      // A refused credential is remembered, not retried; any other failure may recover. A
+      // session-only one leaves the saved credential's row as it was.
+      if (err && err.expired && !conn.persisted) {
         this.#expired.set(norm, conn);
         this.#onChange({ type: 'expired', connection: conn });
       }
@@ -135,6 +144,7 @@ export class ConnectionManager {
     if (url == null) { const k = this.knownUrls; target = k[k.length - 1]; }
     else target = normalizeUrl(url);
     this.#inflight.delete(target);
+    if (target) this.#forgotten.add(target);
     const conn = target && (this.#conns.get(target) || this.#expired.get(target));
     if (conn) { conn.close(); this.#conns.delete(target); this.#expired.delete(target); }
     this.#onChange({ type: 'disconnect' });
@@ -142,6 +152,7 @@ export class ConnectionManager {
   }
 
   disconnectAll() {
+    for (const url of this.knownUrls) this.#forgotten.add(url);
     for (const c of this.#conns.values()) c.close();
     for (const c of this.#expired.values()) c.close();
     this.#conns.clear();

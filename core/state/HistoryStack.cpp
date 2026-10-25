@@ -17,9 +17,15 @@ namespace stencil::core {
 
     // The step -1 stop keeps a memento's view; a Lines snapshot has none to keep.
     Lines floorOf(const Lines&) { return {}; }
+    // The view alone: the lines are never copied just to be dropped.
     EditorMemento floorOf(const EditorMemento& m) {
-      EditorMemento f = m;
-      f.lines.clear();
+      EditorMemento f;
+      f.hasView = m.hasView;
+      f.crop = m.crop;
+      f.quarters = m.quarters;
+      f.mirrored = m.mirrored;
+      f.filter = m.filter;
+      f.filterColor = m.filterColor;
       return f;
     }
   }  // namespace

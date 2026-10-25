@@ -1,7 +1,7 @@
 #include "DataExportController.hpp"
 #include "CanvasWidget.hpp"
 #include "Notifications.hpp"
-#include "../../support/guiHelpers.hpp"  // showSaveDialog
+#include "modalChrome.hpp"  // showSaveDialog
 #include "../../support/share/shareImage.hpp"
 #include <QClipboard>
 #include <QFileInfo>

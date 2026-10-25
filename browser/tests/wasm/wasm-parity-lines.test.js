@@ -10,13 +10,13 @@ import { core } from '../../js/core/abi/stencilCore.js';
 import { mergeKeepJS, mergeLines } from '../../js/core/layout.js';
 import { unchainLine, pullOutPoint } from '../../js/core/touch/dragGestures.js';
 
-const MODULE_BUILT = existsSync(fileURLToPath(new URL('../../js/wasm/stencilCore.js', import.meta.url)));
+const MODULE_BUILT = ['stencilCore.js', 'stencilCore.wasm'].every((f) => existsSync(fileURLToPath(new URL(`../../js/wasm/${f}`, import.meta.url))));
 const wtest = MODULE_BUILT ? test : test.skip;
 
 before(async () => {
   if (!MODULE_BUILT) return;
   const ok = await core.init();
-  assert.strictEqual(ok, true, 'wasm core must load in Node (SINGLE_FILE ES module)');
+  assert.strictEqual(ok, true, 'wasm core must load in Node (ES glue + .wasm)');
 });
 
 const P = (...xy) => xy.map(([x, y]) => ({ x, y }));

@@ -399,6 +399,9 @@
     "test": "node ../tools/repo/testRun.mjs",
     "package": "vsce package --out stencil-stc.vsix"
   },
+  "stencil": {
+    "testFloor": 305
+  },
   "devDependencies": {
     "@vscode/vsce": "3.9.2"
   }

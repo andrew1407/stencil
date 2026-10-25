@@ -25,7 +25,7 @@ namespace stencil::gui {
     const Project* pick = nullptr;
     QString note;
     if (last) {
-      for (const auto& p : w.projectList)
+      for (const auto& p : w.projectHost.projectList)
         if (!pick || p.meta.updatedAt > pick->meta.updatedAt) pick = &p;
       if (!pick) return done(true, QStringLiteral("there are no saved projects yet"));
     } else {
@@ -34,7 +34,7 @@ namespace stencil::gui {
     if (!pick) return done(true, note);  // the note says why
     const QString id = QString::fromStdString(pick->meta.id);
     const QString nm = support::shortName(QString::fromStdString(pick->meta.name));
-    const bool unsaved = w.canvas->hasImage() && w.activeProjectId.isEmpty() &&
+    const bool unsaved = w.canvas->hasImage() && w.projectHost.activeProjectId.isEmpty() &&
                          w.remote.session->getLink().id.isEmpty();
     ConfirmSpec openSpec;
     openSpec.title = "Open project";
@@ -52,14 +52,14 @@ namespace stencil::gui {
           const auto landed = [guard](bool ok) {
             if (guard) guard->settle(ok, QString());
           };
-          if (!w.loadProjectIntoCanvas(id, true, landed)) landed(false);
+          if (!w.projectHost.loadProjectIntoCanvas(id, true, landed)) landed(false);
         });
   }
   // §10 incognito: only togglable on a blank editor, like the action's own gate.
   bool ChatPlanTarget::setIncognito(bool on, QString* note) {
-    if (!on && w.incognito && w.canvas->hasImage()) {
+    if (!on && w.projectHost.incognito && w.canvas->hasImage()) {
       // Leaving incognito with work on screen keeps it as a local project.
-      const QString promoted = w.promoteIncognitoToLocal();
+      const QString promoted = w.projectHost.promoteIncognitoToLocal();
       *note = QStringLiteral("left incognito — saved as the local project \"%1\"")
                   .arg(support::shortName(promoted));
       return true;
@@ -131,12 +131,12 @@ namespace stencil::gui {
   // §10 clearProjects: LOCAL projects only, through the dialog's "Clear All (Local)" machinery.
   bool ChatPlanTarget::clearProjects(bool keepCurrent, QString* note) {
     // `keepCurrent` = "delete the others": without it the model clears the lot and loses the project outright.
-    const QString keepId = keepCurrent ? w.activeProjectId : QString();
+    const QString keepId = keepCurrent ? w.projectHost.activeProjectId : QString();
     const bool keeping = !keepId.isEmpty();
-    const int total = static_cast<int>(w.projectList.size());
+    const int total = static_cast<int>(w.projectHost.projectList.size());
     QString keptName;
     int n = 0;
-    for (const Project& p : w.projectList) {
+    for (const Project& p : w.projectHost.projectList) {
       if (keeping && QString::fromStdString(p.meta.id) == keepId) {
         keptName = support::shortName(QString::fromStdString(p.meta.name));
         continue;
@@ -164,19 +164,19 @@ namespace stencil::gui {
       *note = QStringLiteral("clear canceled");
       return true;
     }
-    const bool hadActive = !w.activeProjectId.isEmpty();
+    const bool hadActive = !w.projectHost.activeProjectId.isEmpty();
     if (keeping) {
       std::vector<Project> kept;
-      for (const Project& p : w.projectList)
+      for (const Project& p : w.projectHost.projectList)
         if (QString::fromStdString(p.meta.id) == keepId) kept.push_back(p);
-      w.projectList = std::move(kept);
+      w.projectHost.projectList = std::move(kept);
     } else {
-      w.projectList.clear();
-      if (hadActive) w.parts.projects.resetToBlankEditor();   // the open one went with them
+      w.projectHost.projectList.clear();
+      if (hadActive) w.projectHost.flows.resetToBlankEditor();   // the open one went with them
     }
     SharedState::instance().saveProjects(&w);
     w.refreshActions();
-    SiblingWindows::refreshDockMenu(w.projectList);
+    SiblingWindows::refreshDockMenu(w.projectHost.projectList);
     w.notify->success(clearedToast(n));
     return true;
   }

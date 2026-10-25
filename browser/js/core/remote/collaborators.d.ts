@@ -14,8 +14,8 @@ import type { ImageModel } from '../image/model.js';
 import type { RemoteSyncController } from './syncController.js';
 import type { ProjectTransferController } from '../project/transferController.js';
 import type { StencilSync } from './stencilSync.js';
-import type { InputController } from '../pointer/inputController.js';
-import type { PointerController } from '../pointer/controller.js';
+import type { InputController } from '../../ui/bindings/pointer/inputController.js';
+import type { PointerController } from '../../ui/bindings/pointer/controller.js';
 import type { ZoomPan } from '../zoom/pan.js';
 import type { Emitter } from '../emitter.js';
 
@@ -23,6 +23,8 @@ import type { Emitter } from '../emitter.js';
 export interface CollaboratorDeps {
   CoordTable: new (app: DrawingApp) => unknown;
   AccentController: new (app: DrawingApp) => unknown;
+  InputController: new (app: DrawingApp) => InputController;
+  PointerController: new (app: DrawingApp) => PointerController;
   onProjectsChanged: (detail: ProjectsChangedDetail) => void;
 }
 

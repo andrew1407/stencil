@@ -3,7 +3,7 @@
 
 
 use stencil_mcp::args::build_argv;
-use stencil_mcp::opplan::{
+use stencil_mcp::plan::{
     to_edit_requests, Action, Dir, FilterMode, OpPlan, Variant,
 };
 

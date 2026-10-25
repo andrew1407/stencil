@@ -26,6 +26,21 @@ type Envelope struct {
 	Data json.RawMessage `json:"data"` // the frame as sent to clients
 }
 
+// TypeSessionRevoked is a bus-only envelope: Data is the revoked session id as a JSON string, "" for
+// every session. A hub hangs up the matching live connections and never forwards it to a client.
+const TypeSessionRevoked = "session-revoked"
+
+// PublishSessionRevoked tells every hub (every instance, over Redis) that a session's token is gone.
+func PublishSessionRevoked(ctx context.Context, b Bus, sessionID string) {
+	if b == nil {
+		return
+	}
+	data, _ := json.Marshal(sessionID)
+	if err := b.Publish(ctx, ChannelEvents, Envelope{Type: TypeSessionRevoked, Data: data}); err != nil {
+		log.Printf("eventbus: publish the revocation of session %q failed: %v", sessionID, err)
+	}
+}
+
 // EnvelopeOf wraps an already-marshalled frame for publication.
 func EnvelopeOf(msg protocol.WSMessage, data []byte) Envelope {
 	return Envelope{Type: msg.Type, Data: data}

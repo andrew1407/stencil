@@ -7,16 +7,17 @@ import { fileURLToPath } from 'node:url';
 
 import { core } from '../../js/core/abi/stencilCore.js';
 import { applyContourRGBA } from '../../js/core/image/contourFilter.js';
+import { FILTER_RECIPE, filterPixels, filteredPixels } from '../../js/core/image/filterPixels.js';
 
 // js/wasm/stencilCore.js is a generated, gitignored artifact, present only after the Emscripten build, so the
 // suite skips when it is missing: the other suites already cover the JS reference path it mirrors.
-const MODULE_BUILT = existsSync(fileURLToPath(new URL('../../js/wasm/stencilCore.js', import.meta.url)));
+const MODULE_BUILT = ['stencilCore.js', 'stencilCore.wasm'].every((f) => existsSync(fileURLToPath(new URL(`../../js/wasm/${f}`, import.meta.url))));
 const wtest = MODULE_BUILT ? test : test.skip;
 
 before(async () => {
   if (!MODULE_BUILT) return; // nothing to load; wtest already skipped the suite
   const ok = await core.init();
-  assert.strictEqual(ok, true, 'wasm core must load in Node (SINGLE_FILE ES module)');
+  assert.strictEqual(ok, true, 'wasm core must load in Node (ES glue + .wasm)');
 });
 
 wtest('applyFilterRGBA custom: grayscale+tint in one pass, alpha preserved (pixel buffer marshalling)', () => {
@@ -61,4 +62,37 @@ wtest('applyContourRGBA: wasm matches the JS fallback byte-for-byte on a gradien
   assert.deepStrictEqual([...wasmBuf], [...jsBuf]);
   // Sanity: the filter actually ran (a gradient produces some non-255 output).
   assert.ok([...wasmBuf].some((v, i) => i % 4 !== 3 && v !== 255));
+});
+
+wtest('filteredPixels answers the heap view byte-for-byte what filterPixels writes in place, and leaves its input as read', () => {
+  const W = 37, H = 23;
+  const src = Uint8ClampedArray.from({ length: W * H * 4 }, (_, i) => (i * 2654435761) >>> 24);
+  const op = (name) => core.op(name);
+  for (const recipe of [FILTER_RECIPE.CONTOUR, FILTER_RECIPE.CUSTOM, FILTER_RECIPE.TINT]) {
+    const inPlace = src.slice();
+    assert.strictEqual(filterPixels(recipe, inPlace, W, H, { r: 124, g: 58, b: 237 }, op), true);
+    const input = src.slice();
+    const out = filteredPixels(recipe, input, W, H, { r: 124, g: 58, b: 237 }, op);
+    assert.deepStrictEqual([...out], [...inPlace], recipe);
+    if (recipe !== FILTER_RECIPE.TINT) {
+      assert.notStrictEqual(out, input, `${recipe}: the result is the heap's, not copied back`);
+      assert.deepStrictEqual([...input], [...src], `${recipe}: the input stays as it was read`);
+    }
+  }
+  const js = src.slice();
+  applyContourRGBA(js, W, H);
+  assert.deepStrictEqual([...filteredPixels(FILTER_RECIPE.CONTOUR, src.slice(), W, H, { r: 0, g: 0, b: 0 }, () => null)], [...js],
+    'without wasm the JS twin runs in place');
+});
+
+wtest('a closed picture frees the pixel scratch, and the next pass allocates it again', () => {
+  const run = () => {
+    const data = new Uint8ClampedArray(64 * 48 * 4).map((_, i) => (i * 37) & 255);
+    core.op('applyContourRGBA')(data, 64, 48);
+    return data;
+  };
+  const before = run();
+  core.releasePixelScratch();
+  core.releasePixelScratch();   // twice is still one free
+  assert.deepStrictEqual(run(), before);
 });

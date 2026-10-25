@@ -3,7 +3,7 @@
 use rmcp::model::CallToolResult;
 use rmcp::ErrorData as McpError;
 
-use crate::opplan;
+use crate::plan;
 use crate::server::tools::err_result;
 
 use super::response::{prompt_response, PromptResult};
@@ -21,7 +21,7 @@ pub(super) fn kept_or_error(
     notes.push(format!(
         "note: auto-continuation failed ({detail}) — kept the loaded image"
     ));
-    let plan = opplan::OpPlan {
+    let plan = plan::OpPlan {
         reply,
         actions: Vec::new(),
         variants: Vec::new(),
@@ -36,7 +36,7 @@ pub(super) fn kept_or_error(
 /// join in order, and round 1's written files survive unless round 2 rewrote the path.
 pub(super) fn merged_response(
     first: Option<(String, Vec<PromptResult>)>,
-    plan: &opplan::OpPlan,
+    plan: &plan::OpPlan,
     notes: &[String],
     results: Vec<PromptResult>,
 ) -> Result<CallToolResult, McpError> {
@@ -54,7 +54,7 @@ pub(super) fn merged_response(
         .copied()
         .collect::<Vec<_>>()
         .join("\n");
-    let plan = opplan::OpPlan {
+    let plan = plan::OpPlan {
         reply,
         ..plan.clone()
     };
@@ -68,8 +68,8 @@ mod tests {
     use super::*;
     use crate::server::testwire::{payload_of, summary_of, wire};
 
-    fn plan(reply: &str) -> opplan::OpPlan {
-        opplan::OpPlan {
+    fn plan(reply: &str) -> plan::OpPlan {
+        plan::OpPlan {
             reply: reply.into(),
             actions: vec![],
             variants: vec![],

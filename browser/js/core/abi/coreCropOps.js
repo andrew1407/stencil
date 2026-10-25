@@ -1,31 +1,19 @@
 // The core's crop ops over the wasm ABI: the page aspect, the centred default rect, every
 // rect edit (corner resize, move, scale, orientation swap, quarter rotation, mirror) and the commit snap.
-import { heapAlloc } from './coreMarshal.js';
-
-export const buildCropOps = (core, { F64, withRectOut }) => {
+export const buildCropOps = (core, { withF64Out, withRectOut }) => {
   const cIsAlbum         = core.cwrap('stencil_isAlbumOrientation', 'number', ['number', 'number']);
   const cCropAspect      = core.cwrap('stencil_cropAspect', 'number', ['number', 'number', 'number']);
   const cCropResizeScale = core.cwrap('stencil_cropResizeScale', 'number', ['number', 'number']);
-  const cCenteredCrop = (iw, ih, aspect, out) =>
-    core.ccall('stencil_centeredCrop', null, ['number', 'number', 'number', 'number'], [iw, ih, aspect, out]);
-  const cResizeCorner = (x, y, w, h, corner, cx, cy, aspect, iw, ih, minSize, out) =>
-    core.ccall('stencil_resizeCropFromCorner', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [x, y, w, h, corner, cx, cy, aspect, iw, ih, minSize, out]);
-  const cMoveCrop   = (x, y, w, h, dx, dy, iw, ih, out) =>
-    core.ccall('stencil_moveCropClamped', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [x, y, w, h, dx, dy, iw, ih, out]);
-  const cScaleCrop  = (x, y, w, h, factor, aspect, iw, ih, out) =>
-    core.ccall('stencil_scaleCropCentered', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [x, y, w, h, factor, aspect, iw, ih, out]);
-  const cSwapCrop   = (x, y, w, h, aspect, iw, ih, out) =>
-    core.ccall('stencil_swapCropOrientation', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [x, y, w, h, aspect, iw, ih, out]);
-  const cCropChange = (ox, oy, ow, oh, nx, ny, nw, nh, out) =>
-    core.ccall('stencil_cropChange', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [ox, oy, ow, oh, nx, ny, nw, nh, out]);
-  const cRotateCrop = (x, y, w, h, iw, ih, cw, out) =>
-    core.ccall('stencil_rotateCropRectQuarter', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [x, y, w, h, iw, ih, cw, out]);
-  const cSnapCrop = (x, y, w, h, iw, ih, out) =>
-    core.ccall('stencil_snapCropRect', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number'], [x, y, w, h, iw, ih, out]);
-  const cTurnEdit = (x, y, w, h, q, ow, oh, cw, out) =>
-    core.ccall('stencil_rotateEditQuarter', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [x, y, w, h, q, ow, oh, cw, out]);
-  const cMirrorEdit = (x, y, w, h, q, ow, oh, out) =>
-    core.ccall('stencil_mirrorEdit', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [x, y, w, h, q, ow, oh, out]);
+  const cCenteredCrop = core.cwrap('stencil_centeredCrop', null, ['number', 'number', 'number', 'number']);
+  const cResizeCorner = core.cwrap('stencil_resizeCropFromCorner', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number']);
+  const cMoveCrop = core.cwrap('stencil_moveCropClamped', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number']);
+  const cScaleCrop = core.cwrap('stencil_scaleCropCentered', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number']);
+  const cSwapCrop = core.cwrap('stencil_swapCropOrientation', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number']);
+  const cCropChange = core.cwrap('stencil_cropChange', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number']);
+  const cRotateCrop = core.cwrap('stencil_rotateCropRectQuarter', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number']);
+  const cSnapCrop = core.cwrap('stencil_snapCropRect', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number']);
+  const cTurnEdit = core.cwrap('stencil_rotateEditQuarter', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number']);
+  const cMirrorEdit = core.cwrap('stencil_mirrorEdit', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number']);
 
   return {
     isAlbumOrientation(w, h) {
@@ -61,13 +49,8 @@ export const buildCropOps = (core, { F64, withRectOut }) => {
     },
 
     cropChange(oldRect, newRect) {
-      const out = heapAlloc(core, 2 * F64);
-      try {
-        cCropChange(oldRect.x, oldRect.y, oldRect.width, oldRect.height, newRect.x, newRect.y, newRect.width, newRect.height, out);
-        return { orientationChanged: core.getValue(out, 'double') === 1, scale: core.getValue(out + F64, 'double') };
-      } finally {
-        core._free(out);
-      }
+      const at = withF64Out(out => cCropChange(oldRect.x, oldRect.y, oldRect.width, oldRect.height, newRect.x, newRect.y, newRect.width, newRect.height, out));
+      return { orientationChanged: at(0) === 1, scale: at(1) };
     },
 
     rotateCropRectQuarter(r, imageW, imageH, clockwise) {
@@ -80,26 +63,14 @@ export const buildCropOps = (core, { F64, withRectOut }) => {
 
     // out[0..3] = the snapped window, out[4] = the wrapped quarter count.
     rotateEditQuarter(crop, quarters, originalW, originalH, clockwise) {
-      const out = heapAlloc(core, 5 * F64);
-      try {
-        cTurnEdit(crop.x, crop.y, crop.width, crop.height, quarters, originalW, originalH, clockwise ? 1 : 0, out);
-        const at = (i) => core.getValue(out + i * F64, 'double');
-        return { crop: { x: at(0), y: at(1), width: at(2), height: at(3) }, quarters: at(4) };
-      } finally {
-        core._free(out);
-      }
+      const at = withF64Out(out => cTurnEdit(crop.x, crop.y, crop.width, crop.height, quarters, originalW, originalH, clockwise ? 1 : 0, out));
+      return { crop: { x: at(0), y: at(1), width: at(2), height: at(3) }, quarters: at(4) };
     },
 
     // out[0..3] = the reflected window, out[4] = the negated quarter count.
     mirrorEdit(crop, quarters, originalW, originalH) {
-      const out = heapAlloc(core, 5 * F64);
-      try {
-        cMirrorEdit(crop.x, crop.y, crop.width, crop.height, quarters, originalW, originalH, out);
-        const at = (i) => core.getValue(out + i * F64, 'double');
-        return { crop: { x: at(0), y: at(1), width: at(2), height: at(3) }, quarters: at(4) };
-      } finally {
-        core._free(out);
-      }
+      const at = withF64Out(out => cMirrorEdit(crop.x, crop.y, crop.width, crop.height, quarters, originalW, originalH, out));
+      return { crop: { x: at(0), y: at(1), width: at(2), height: at(3) }, quarters: at(4) };
     },
   };
 };

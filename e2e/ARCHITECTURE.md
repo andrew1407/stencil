@@ -58,7 +58,7 @@ imports a spec. `playwright.config.js` sits above all three, reading `config.js`
 | `helpers/png.js` | a real PNG encoded with Node's own `zlib` | the picture a spec hands a file input |
 | `helpers/llm-stub.js` | the scriptable stub LLM for every wire shape | **all model traffic ends here** |
 | `fixtures/` | host pages the extension scanner loads, `project.stencil`, `cli-layout.json` | `project.stencil` is opened by both the browser and the cli specs |
-| `pins/<platform>/` | the UI-pin baselines, one JSON per pinned state | a platform without baselines skips |
+| `pins/common/`, `pins/<platform>/` | the UI-pin baselines, one JSON per pinned state: the platform-stable half (`commonOf`: no box metrics, no UA-inked input colours) and the whole capture | the common half runs everywhere; a platform without its own baselines checks only that half |
 | `tests/specGuard.test.js` | the test-count floor, and that every spec is claimed by a project | a `node --test` lint; `npm test` runs it before Playwright |
 | `tests/<project>/` | one representative flow per surface, named by what it proves | a spec drives the real artifact through its public contract — never an internal |
 
@@ -157,13 +157,10 @@ classDiagram
 |---|---|---|
 | Fixture | `fixtures/` at `/__e2e__/`; `test.beforeAll` in stub-backed suites; the `.stc` corpus | two surfaces are proven on one `project.stencil` and one script corpus |
 | Stub / Fake | `startLlmStub` (`helpers/llm-stub.js`) | one Node `http` server for every wire shape; a FIFO `queue` of scripted replies; `hold` / `release` keep calls in flight |
-| Golden / Pin | `expectPin`, `capturePin`, `diffPins` (`helpers/uiPin.js`); `pins/<platform>/` | computed styles + DOM shape, never screenshots |
+| Golden / Pin | `expectPin`, `capturePin`, `diffPins`, `commonOf` (`helpers/uiPin.js`); `pins/common/`, `pins/<platform>/` | computed styles + DOM shape, never screenshots |
 | Driver (page-object style) | `boot.js`, `chat.js`, `drag.js`, `openImage.js`, `extension.js` | each helper wraps one seam of the artifact; specs hold no selectors for those seams |
 | Adapter over the wire | `Client` (`server/wire.js`); the REST helpers (`server/api.js`) | one `send` / `readUntil` shape over two transports; `T` follows `protocol.go` |
 | Adapter over the CLI | `runCli`, `parseWrote`, `pngSize` (`cli/run.js`) | the argv/stderr grammar of `cli/`; `pngSize` checks the IHDR so the file, not the claim, is asserted |
-| Serial-vs-parallel project split | `playwright.config.js` | projects sharing one server and stub port run serially; the rest are `fullyParallel` |
-| Capability gate (self-skip) | `stackEnabled` (`server/api.js`), `cliAvailable` (`cli/run.js`), the `PINS_DIR` check in `expectPin`, `GET /llm/info` in the LLM specs | a missing prerequisite is a reported skip, never a pass |
-| Lifecycle hook | `globalSetup` (`compose/setup.js`), `globalTeardown` (`compose/teardown.js`), `webServer` in the config | compose up + `/healthz` poll before any project; the static server for every project |
 
 ## Design
 
@@ -201,6 +198,14 @@ The pin file the harness owns:
 
 `style` holds only `PIN_PROPS` values outside the `DROPPED` defaults; `text` appears on leaves
 only; `<svg>` children are not walked.
+- **Serial-vs-parallel project split.** `playwright.config.js` — projects sharing one server and
+  stub port run serially; the rest are `fullyParallel`.
+- **Capability gate (self-skip).** `stackEnabled` (`server/api.js`), `cliAvailable` (`cli/run.js`),
+  the `PINS_DIR` check in `expectPin`, `GET /llm/info` in the LLM specs — a missing prerequisite is
+  a reported skip, never a pass.
+- **Lifecycle hook.** `globalSetup` (`compose/setup.js`), `globalTeardown` (`compose/teardown.js`),
+  `webServer` in the config — compose up + `/healthz` poll before any project; the static server for
+  every project.
 
 ## Concurrency
 

@@ -179,9 +179,10 @@ public sealed class ProcessStencilCli : IStencilCli
         }
     }
 
-    // The CLI prints ANSI-coloured errors unless told not to.
+    // The CLI prints ANSI-coloured errors unless told not to. STENCIL_FETCH_STRICT keeps the bot's own
+    // loopback refusal (RemoteImageUrl) through the CLI: a chat's URL is never the operator's own.
     private static readonly IReadOnlyDictionary<string, string> _noColor =
-        new Dictionary<string, string> { ["NO_COLOR"] = "1" };
+        new Dictionary<string, string> { ["NO_COLOR"] = "1", ["STENCIL_FETCH_STRICT"] = "1" };
 
     private readonly record struct CliOutput(bool Success, string Stderr, string Stdout);
 }

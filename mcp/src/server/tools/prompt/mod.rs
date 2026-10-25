@@ -13,7 +13,7 @@ use crate::config::Config;
 use crate::confine::Roots;
 use crate::llm;
 use crate::llmtransport::{clip, LlmTransport, PlainHttpTransport, SNIPPET_LEN};
-use crate::opplan;
+use crate::plan;
 use crate::pipeline::progress;
 use crate::server::tools::err_result;
 
@@ -84,9 +84,9 @@ pub async fn run_prompt(
         };
 
         // Core checks the op-plan (contract §1–§3) through the CLI; unknown ops become notes.
-        let mut plan = match opplan::parse_op_plan(&reply).await {
+        let mut plan = match plan::parse_op_plan(&reply).await {
             Ok(plan) => plan,
-            Err(error @ opplan::OpPlanError::Checker(_)) => {
+            Err(error @ plan::OpPlanError::Checker(_)) => {
                 return kept_or_error(first, notes, error.to_string());
             }
             Err(error) => {
@@ -121,7 +121,7 @@ pub async fn run_prompt(
 
         // §7 auto-continuation: a plan that only loaded a picture cannot have finished the
         // looking-work — re-send the turn once over the rendered base result.
-        if round == 0 && opplan::loads_without_tracing(&plan) {
+        if round == 0 && plan::loads_without_tracing(&plan) {
             if let Some(base) = results.iter().find(|r| r.label.is_none() && r.width.is_some()) {
                 round_input = Some(base.path.clone());
                 // §7 auto-continuation: the cli console's wording — this tool is

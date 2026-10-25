@@ -68,6 +68,12 @@
       "by": "go generate ./... (server/)"
     },
     {
+      "from": "common/config/mediaTypes.json",
+      "to": "server/internal/httpapi/assets/mediaTypes.json",
+      "test": "server/internal/httpapi/mediatypes_test.go",
+      "by": "go generate ./... (server/)"
+    },
+    {
       "from": "common/config/llm/opRegistry.json",
       "to": "pystencil/pystencil/_data/opRegistry.json",
       "test": "pystencil/tests/test_canonical_drift.py",
@@ -228,17 +234,17 @@
     {
       "name": "opSchema",
       "from": "browser/js/llm/plan/opSchema.js",
-      "to": "browser-extension/src/llm/op/schema.js"
+      "to": "browser-extension/src/llm/plan/schema.js"
     },
     {
       "name": "opSchemaBase",
       "from": "browser/js/llm/plan/opSchemaBase.js",
-      "to": "browser-extension/src/llm/op/opSchemaBase.js"
+      "to": "browser-extension/src/llm/plan/opSchemaBase.js"
     },
     {
       "name": "planCaps",
       "from": "browser/js/llm/plan/planCaps.js",
-      "to": "browser-extension/src/llm/op/planCaps.js"
+      "to": "browser-extension/src/llm/plan/planCaps.js"
     },
     {
       "name": "chatLayoutPrefs",
@@ -353,7 +359,7 @@
     {
       "name": "planCapsDts",
       "from": "browser/js/llm/plan/planCaps.d.ts",
-      "to": "browser-extension/src/llm/op/planCaps.d.ts"
+      "to": "browser-extension/src/llm/plan/planCaps.d.ts"
     },
     {
       "name": "escapeHtmlDts",
@@ -393,7 +399,7 @@
     {
       "name": "opSchemaBaseDts",
       "from": "browser/js/llm/plan/opSchemaBase.d.ts",
-      "to": "browser-extension/src/llm/op/opSchemaBase.d.ts"
+      "to": "browser-extension/src/llm/plan/opSchemaBase.d.ts"
     }
   ],
   "functions": [
@@ -457,7 +463,7 @@
     {
       "name": "planParser",
       "from": "browser/js/llm/plan/parser.js",
-      "to": "browser-extension/src/llm/op/plan.js",
+      "to": "browser-extension/src/llm/plan/plan.js",
       "names": [
         "firstJsonObject",
         "askAnswerText"

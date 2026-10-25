@@ -175,6 +175,18 @@ public sealed class SourceHandlerTests : IDisposable
         Assert.False(session.HasImage);
     }
 
+    [Theory]
+    [InlineData("/sourcesite")]
+    [InlineData("/sourceupload")]
+    public async Task Should_Delete_The_Scrape_Once_It_Is_Sent_Or_Adopted(string command)
+    {
+        await dispatch($"{command} {_publicUrl}");
+
+        Assert.False(Directory.Exists(lastScrape().OutputDir));
+        UserSession session = await _store.GetAsync(_userId, CancellationToken.None);
+        Assert.True(command == "/sourcesite" || File.Exists(session.OriginalImagePath)); // the adopted copy stays
+    }
+
     private ScrapeRequest lastScrape()
     {
         Assert.NotNull(_cli.LastScrapeRequest);

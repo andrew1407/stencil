@@ -1,8 +1,8 @@
 // Rebuilding the projects list, and holding it steady while rows fly out. The plan it paints is
 // plan.js; what a wipe must outlive is here, so an out-of-band refresh cannot cut in.
-import {
-  wipeDurationMs, materialize, filterDelta, rowDustGrid, ROW_ARRIVE_MS, ROW_ARRIVE_DELAY_MS,
-} from '../../motion.js';
+import { wipeDurationMs, filterDelta, ROW_ARRIVE_MS, ROW_ARRIVE_DELAY_MS } from '../../motion/enterLeave.js';
+import { rowDustGrid } from '../../motion/surface/tiles.js';
+import { materialize } from '../../motion/control/chatFx.js';
 import { releaseHeldHeight } from '../../motion/easeBoxHeight.js';
 import { motionMs } from '../../motion/motionPrefs.js';
 import { showsRemoteSkeletons } from '../../../core/remote/listing.js';

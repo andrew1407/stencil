@@ -2,7 +2,7 @@
 #include "EditorView.hpp"
 #include "mainWindowShared.hpp"
 #include "PanelSlide.hpp"
-#include "mainWindowHelpers.hpp"
+#include "windowMotion.hpp"
 #include "CanvasWidget.hpp"
 #include "Notifications.hpp"
 #include "OverlayScrollArea.hpp"
@@ -191,10 +191,10 @@ namespace stencil::gui {
     // particle modes, the slot alone in `slide`, a plain show/hide under `none`.
     if (w.tools.incognitoTag) {
       w.reserveImageInfoHeight();
-      revealControls(w.tools.incognitoTag, w.toolbarsShown && w.incognito);
+      revealControls(w.tools.incognitoTag, w.toolbarsShown && w.projectHost.incognito);
     }
     if (!w.tools.statusHintAction) return;
-    const bool live = (w.canvas && w.canvas->hasImage()) || w.incognito;
+    const bool live = (w.canvas && w.canvas->hasImage()) || w.projectHost.incognito;
     w.tools.statusHintAction->setVisible(live && !w.toolbarsShown);
   }
 

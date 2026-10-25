@@ -78,15 +78,16 @@ export const castToGif = (cast, dst, look = {}) => timelineToGif(castTimeline(ca
 
 // Two screencasts filmed at once → one GIF, side by side on a shared clock: `left` and `right`
 // each hold their last frame until the later one ends, then both rest `lastMs` more; `cropPx`
-// trims each side before they meet.
+// trims each side before they meet, or each its own when it is a [left, right] pair.
 export function pairToGif(left, right, dst, { fps = 10, width = 800, gap = 8, cropPx = null, lastMs = 1800, ...look } = {}) {
-  const side = cropPx ? `,crop=${cropPx.width}:${cropPx.height}:${cropPx.x}:${cropPx.y}` : '';
+  const side = (c) => (c ? `,crop=${c.width}:${c.height}:${c.x}:${c.y}` : '');
+  const [leftCrop, rightCrop] = Array.isArray(cropPx) ? cropPx : [cropPx, cropPx];
   const from = Math.max(left.frames[0].at, right.frames[0].at);
   const end = Math.max(left.end, right.end) + lastMs / 1000;
   const lists = [left, right].map((cast, i) => writeConcat(`${dst}.${i}.ffconcat`, castTimeline({ ...cast, end }, from)));
   try {
     runFfmpeg(['-f', 'concat', '-safe', '0', '-i', lists[0], '-f', 'concat', '-safe', '0', '-i', lists[1],
-      '-filter_complex', `[0:v]fps=${fps}${side},pad=iw+${gap}:ih:0:0:color=0x888888[l];[1:v]fps=${fps}${side}[r];`
+      '-filter_complex', `[0:v]fps=${fps}${side(leftCrop)},pad=iw+${gap}:ih:0:0:color=0x888888[l];[1:v]fps=${fps}${side(rightCrop)}[r];`
         + `[l][r]hstack=inputs=2,${filterChain(fps, width, look)}`, dst]);
   } finally {
     for (const list of lists) fs.rmSync(list, { force: true });

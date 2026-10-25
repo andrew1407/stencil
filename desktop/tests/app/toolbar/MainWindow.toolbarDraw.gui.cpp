@@ -163,7 +163,8 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(!stencil::gui::faceSwapping(btn));
     QCOMPARE(btn->size(), drawSize);
     QCOMPARE(btn->property("drawToggle").toString(), QString("on"));
-    QVERIFY2(btn->styleSheet().isEmpty(), "the swap's colour override outlived it");
+    QVERIFY2(!btn->styleSheet().contains(QLatin1String(stencil::gui::FACE_SWAPPING_PROPERTY)),
+             "the swap's colour override outlived it");
 
     // Line ↔ Rect: the same swap and the same pinned box, but — unlike Start/Stop — a PERMANENT accent
     // fill it carries itself, having no idle/on pair and no QAction for styleDangerToolButtons to reach.

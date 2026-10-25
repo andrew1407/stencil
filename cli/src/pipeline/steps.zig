@@ -66,7 +66,7 @@ pub fn applyRotateBy(gpa: std.mem.Allocator, img: *image.Rgba8, rotate: i32) !vo
 /// Mirror in place, left-right.
 pub fn applyMirror(gpa: std.mem.Allocator, img: *image.Rgba8) !void {
     const dst = try gpa.alloc(u8, img.pixels.len);
-    core.mirrorImageRGBA(img.pixels, @intCast(img.width), @intCast(img.height), dst);
+    imageRows.mirror(img.pixels, @intCast(img.width), @intCast(img.height), dst);
     gpa.free(img.pixels);
     img.pixels = dst;
 }

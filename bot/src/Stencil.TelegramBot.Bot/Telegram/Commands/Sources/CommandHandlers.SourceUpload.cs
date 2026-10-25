@@ -39,14 +39,21 @@ public sealed partial class CommandHandlers
         {
             await progress.StopAsync();
         }
-        if (result.Files.Count == 0)
+        try
         {
-            await _bot.SendMessage(chatId, $"{Replies.NoImageAtIndex(index)}\n\n{Replies.SourceUploadUsage()}", cancellationToken: ct);
-            return;
+            if (result.Files.Count == 0)
+            {
+                await _bot.SendMessage(chatId, $"{Replies.NoImageAtIndex(index)}\n\n{Replies.SourceUploadUsage()}", cancellationToken: ct);
+                return;
+            }
+            // Telegram has no modal, so there's no TTY-style confirmation before replacing the working
+            // image. The still is copied in, so the scrape itself is spent.
+            await _editing.SetImageFromLocalFileAsync(userId, result.Files[0].Path, labelFromUrl(url), sourceUrl: url, ct: ct);
         }
-        // Telegram has no modal, so there's no TTY-style confirmation before replacing the working
-        // image.
-        await _editing.SetImageFromLocalFileAsync(userId, result.Files[0].Path, labelFromUrl(url), sourceUrl: url, ct: ct);
+        finally
+        {
+            _editing.Discard(result);
+        }
         await RenderAndSendAsync(userId, chatId, ct);
     }
 

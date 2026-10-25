@@ -1,4 +1,4 @@
-// DrawingApp takes on only its view seam and its DOM-free mixin (core/app/delegates.js): a core
+// DrawingApp takes on only its view seam (core/app/delegates.js) and inherits its DOM-free base: a core
 // function is imported by its callers, never forwarded through the app, and a collaborator's method
 // is called on the collaborator. The seam lands as named, non-enumerable methods.
 import { test } from 'node:test';
@@ -7,8 +7,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DrawingApp } from '../../../js/core/drawingApp.js';
-import { installDelegates, installMethods } from '../../../js/core/app/delegates.js';
-import { EditingMethods } from '../../../js/core/app/editing.js';
+import { installDelegates } from '../../../js/core/app/delegates.js';
+import { EditingBase } from '../../../js/core/app/editing.js';
+import { installGestureFlags } from '../../../js/core/pointer/gesture.js';
 
 const JS = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'js');
 const own = (cls) => Object.getOwnPropertyNames(cls.prototype).filter((n) => n !== 'constructor');
@@ -17,30 +18,6 @@ const own = (cls) => Object.getOwnPropertyNames(cls.prototype).filter((n) => n !
 const VIEW_SEAM = ['hideSelectionPanels', 'applyLinesListHover', 'showSelectionPanel', 'syncDrawModeUI',
   'updateCoordStatus', 'applyUnitToUI', 'updateButtons', 'updateProjectTitle', 'updateInfo'];
 
-// Names that used to be forwarded: each is its module's function, or its collaborator's method.
-const RETIRED = [
-  'nearCompareDivider', 'canvasCoords', 'openInLaunchPayload', 'currentLayoutPayload',
-  'loadImageFromFile', 'applyExternalLaunch', 'startDrawingMode', 'setDrawMode', 'stopDrawingMode',
-  'selectedIndices', 'updateMultiSelectStatus', 'selectLineFromList',
-  'setListHoverLine', 'deselectEmptyArea', 'applySelectionChange', 'canvasClick',
-  'tryCloseShapeAt', 'insertPointOnSegment', 'createRect', 'canvasMouseMove', 'canvasDblClick',
-  'beginSegmentDrag', 'movePointTo', 'endPointDrag', 'endSegmentDrag', 'dragMove',
-  'finishDragGesture', 'getPageDimensions', 'pixelToPageCoords', 'rotateSelectedLine',
-  'flipSelectedLine', 'rotateSelectedLineQuarter', 'nudgeSelected', 'newEditor', 'openImageHere',
-  'replaceProjectImage', 'createRemoteBlank', 'adoptIncognitoHere', 'publishIncognitoToServer',
-  'promoteIncognitoToLocal', 'canToggleIncognito', 'reportIncognitoSession', 'createBlankImage',
-  'activeIsBlank', 'setBlankColor', 'projectFileState', 'applyProjectFile',
-  'applyProjectFileInPlace', 'chooseFileConflict', 'updateStencilSyncUI', 'setPointCoord',
-  'removePoint', 'removeLine', 'removeSelectedLines', 'renderResultCanvas', 'setTheme',
-  'setAccent', 'setCustomAccent', 'previewAccent', 'endAccentPreview', 'openRemoteProject',
-  'switchToProject', 'openProjectInNewTab', 'openRemoteProjectInNewTab', 'clearAllProjects',
-  'renewProject', 'setProjectExpiration', 'renameProject', 'setProjectColor', 'setProjectKeywords',
-  'setProjectDescription', 'setProjectBlankColor', 'removeProject', 'moveProjectToServer',
-  'copyProjectToServer', 'moveProjectToLocal', 'copyServerProjectToLocal',
-  'copyServerProjectToIncognito', 'renderLinesList', 'applyFill', 'syncFsSelectionPanel',
-  'syncDrawToggleUI',
-];
-
 test('the view seam lands on the prototype as named, non-enumerable methods, and nothing else is forwarded', () => {
   for (const name of VIEW_SEAM) {
     const d = Object.getOwnPropertyDescriptor(DrawingApp.prototype, name);
@@ -48,26 +25,36 @@ test('the view seam lands on the prototype as named, non-enumerable methods, and
     assert.equal(d.enumerable, false, `${name} is not enumerable, like a class method`);
     assert.equal(d.value.name, name);
   }
-  for (const name of RETIRED) assert.equal(name in DrawingApp.prototype, false, `${name} is no pass-through`);
-  for (const name of own(EditingMethods)) assert.ok(!VIEW_SEAM.includes(name), `${name} is written out, not forwarded`);
-  assert.ok(DrawingApp.prototype.undo === EditingMethods.prototype.undo, 'the mixin methods are installed as they are');
+  // Positively: what the prototype holds is its class body, the seam and the gesture flags — nothing else.
+  const body = [...fs.readFileSync(path.join(JS, 'core/drawingApp.js'), 'utf8')
+    .matchAll(/^ {2}(?:async |get |set |static )?([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/gm)].map((m) => m[1]);
+  class Flags {}
+  installGestureFlags(Flags.prototype);
+  assert.deepEqual(own(DrawingApp).sort(), [...new Set([...body.filter((n) => n !== 'constructor'), ...VIEW_SEAM, ...own(Flags)])].sort());
+  for (const name of own(EditingBase)) assert.ok(!VIEW_SEAM.includes(name), `${name} is written out, not forwarded`);
+  assert.equal(Object.getPrototypeOf(DrawingApp.prototype), EditingBase.prototype, 'the editing methods are inherited');
+  assert.ok(own(EditingBase).every((n) => !Object.hasOwn(DrawingApp.prototype, n)), 'and never shadowed by the app');
 });
 
-test('no module calls a retired pass-through on the app', () => {
-  const calls = new RegExp(`\\b(?:app|this\\.app)\\??\\.(?:${RETIRED.join('|')})\\b\\??\\.?\\(`);
-  const hits = [];
+// A method called on the app is one the app has — its own, inherited, or a member something installs
+// on it (`app.quarterTurn = …`); a call left behind on a retired forwarder names neither.
+test('every method a module calls on the app is one the app has', () => {
+  const names = new Set();
+  for (let p = DrawingApp.prototype; p && p !== Object.prototype; p = Object.getPrototypeOf(p)) Object.getOwnPropertyNames(p).forEach((n) => names.add(n));
+  const called = new Map(), assigned = new Set();
   const walk = (dir) => {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       const p = path.join(dir, e.name);
-      if (e.isDirectory()) { if (e.name !== 'wasm') walk(p); } else if (e.name.endsWith('.js')) {
-        fs.readFileSync(p, 'utf8').split('\n').forEach((line, i) => {
-          if (calls.test(line.replace(/\/\/.*$/, ''))) hits.push(`${path.relative(JS, p)}:${i + 1}`);
-        });
-      }
+      if (e.isDirectory()) { if (e.name !== 'wasm') walk(p); continue; }
+      if (!e.name.endsWith('.js')) continue;
+      const src = fs.readFileSync(p, 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+      for (const m of src.matchAll(/\b(?:app|this\.app)\??\.(\w+)\??\.?\(/g)) if (!called.has(m[1])) called.set(m[1], path.relative(JS, p));
+      for (const m of src.matchAll(/\b(?:app|this\.app|this)\.(\w+)\s*=(?!=)/g)) assigned.add(m[1]);
     }
   };
   walk(JS);
-  assert.deepEqual(hits, []);
+  assert.ok(called.size > 20, 'the scan read the tree');
+  assert.deepEqual([...called].filter(([n]) => !names.has(n) && !assigned.has(n)).map(([n, f]) => `${f}: app.${n}()`), []);
 });
 
 test('a forwarder hands the app first and returns what its target returns', () => {
@@ -79,11 +66,3 @@ test('a forwarder hands the app first and returns what its target returns', () =
   assert.deepEqual(seen, [[h, [1, 2]]]);
 });
 
-test('installMethods copies a class\'s methods, getters included, without its constructor', () => {
-  class Mixin { get twice() { return this.v * 2; } bump() { this.v++; return this; } }
-  class Host { v = 2; }
-  installMethods(Host.prototype, Mixin);
-  const h = new Host();
-  assert.equal(h.bump().twice, 6);
-  assert.ok(!Object.hasOwn(Host.prototype, 'constructor') || Host.prototype.constructor === Host);
-});

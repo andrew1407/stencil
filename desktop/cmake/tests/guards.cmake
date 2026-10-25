@@ -17,7 +17,7 @@ stencil_headless_test(stencil_childenv_headless
 # route a picture that will not decode takes (a loopback server stands in for a download), and the
 # shared image-header corpus through its sniffer.
 stencil_headless_test(stencil_medialoader_headless
-  SOURCES tests/io/MediaLoader.headless.cpp tests/io/mediaLoaderRouting.headless.cpp
+  SOURCES tests/io/MediaLoader.headless.cpp tests/io/mediaLoaderRouting.headless.cpp tests/io/mediaLoaderGuard.headless.cpp
     tests/io/imageHeaderFixtures.headless.cpp
     src/io/MediaLoader.cpp src/io/MediaLoaderVideo.cpp src/io/mediaTypes.cpp
     ${STENCIL_FETCHGUARD_SOURCES} resources/app.qrc

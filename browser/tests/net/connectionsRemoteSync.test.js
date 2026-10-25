@@ -115,6 +115,12 @@ test('deleteProject removes a project on the server', async () => {
   assert.ok(server.state.calls.includes('DELETE /projects/p_a_b'));
 });
 
+test('deleteProject of a project a peer already deleted resolves: the server\'s 404 is "gone"', async () => {
+  const server = makeMockServer({ projects: [] });
+  const conn = await connectOne(server);
+  assert.equal(await conn.deleteProject('p_gone_1'), null);
+});
+
 test('createRemoteProject sends a copy\'s description, keywords, blank colour and expiry only when set', async () => {
   const bodies = [];
   const conn = { url: 'http://srv:9', createProject: async (b) => { bodies.push(b); return { id: 'r1', version: 0 }; } };

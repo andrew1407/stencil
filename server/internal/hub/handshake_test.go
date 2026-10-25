@@ -131,7 +131,7 @@ func TestPerIPCapTuning(t *testing.T) {
 	if got := newTestHub(t).perIP.cap; got != defaultMaxConnsPerIP {
 		t.Fatalf("default cap %d, want %d", got, defaultMaxConnsPerIP)
 	}
-	if h := newTestHub(t, WithMaxConnsPerIP(0)); !h.perIP.take("ip") || !h.perIP.take("ip") || h.perIP.cap != 0 {
+	if h := newTestHub(t, WithMaxConnsPerIP(0)); h.perIP.take("ip") != nil || h.perIP.take("ip") != nil || h.perIP.cap != 0 {
 		t.Fatalf("a zero cap should lift it, got %d", h.perIP.cap)
 	}
 }

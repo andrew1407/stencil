@@ -12,6 +12,7 @@ const inspect = @import("inspect.zig");
 const project = @import("project.zig");
 const project_cli = @import("project/cli.zig");
 const llm = @import("llm.zig");
+const net = @import("net.zig");
 const logo = @import("app/logo.zig");
 const report = @import("app/report.zig");
 const messages = @import("app/messages.zig");
@@ -58,6 +59,8 @@ pub fn main(init: std.process.Init) !void {
         .per_origin = init.environ_map.get("STENCIL_SERVER_TOKENS"),
         .single = init.environ_map.get("STENCIL_SERVER_TOKEN"),
     };
+    const strict_env = init.environ_map.get("STENCIL_FETCH_STRICT") orelse "";
+    if (opts.strict_fetch or std.mem.eql(u8, strict_env, "1")) net.setStrictFetch(true);
 
     switch (args.modeOf(opts, cli_args.len, project.isStencilPath)) {
         .usage => {
@@ -149,9 +152,7 @@ test {
     _ = @import("pipeline.zig");
     _ = @import("project.zig");
     _ = @import("project/cli.zig");
-    _ = @import("console.zig");
     _ = @import("app/theme.zig");
-    _ = @import("line_edit/line_edit.zig");
     _ = @import("clipboard.zig");
     _ = @import("safety/child.zig");
     _ = @import("safety/confine.zig");
@@ -164,7 +165,13 @@ test {
     _ = @import("media/types.zig");
     _ = @import("net/fetchPool.zig");
     _ = @import("net/send.zig");
+    _ = @import("net/shown.zig");
     _ = @import("net/jobCall.zig");
     _ = @import("media/imageRows.zig");
     _ = @import("app/report.zig");
+    // The console's terminal (termios, pipes, signals) is POSIX-only: Windows ships no console.
+    if (builtin.os.tag != .windows) {
+        _ = @import("line_edit/line_edit.zig");
+        _ = @import("console.zig");
+    }
 }

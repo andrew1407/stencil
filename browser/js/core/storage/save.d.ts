@@ -6,4 +6,4 @@ import type { Storage } from './storage.js';
 export declare const saveBlockedReason: (storage: Storage) => string | null;
 /** Builds the layout + meta from live app state, upserts them and schedules the thumbnail; settles
  *  true once IndexedDB holds the write (confirmCommit). */
-export declare const writeActiveProject: (storage: Storage) => Promise<boolean>;
+export declare const writeActiveProject: (storage: Storage, opts?: { viewOnly?: boolean }) => Promise<boolean>;

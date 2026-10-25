@@ -2,6 +2,7 @@ import { perFrame } from '../../utils.js';
 import { BaseLayer } from './baseLayer.js';
 import { filteredFill } from '../image/filterCanvas.js';
 import { StageLayers } from './stageLayers.js';
+import { MarksCache } from './marksCache.js';
 import { paintOriginalSide, eraseOriginalSide, paintDivider, splitFraction } from './compareSplit.js';
 import { drawLine as paintLine, drawPoint as paintPoint, pointColorOf } from '../line/render.js';
 import { selectionPredicate } from '../line/selection.js';
@@ -19,6 +20,7 @@ const OVERLAY_MAX_SIDE = 16384;
 export class Renderer {
   #base = new BaseLayer(() => this.requestRedraw());
   #stage = new StageLayers();
+  #marks = new MarksCache();
   #frame = null;   // the overlay's context while a layered frame paints
   #fill = null;    // { image, color, key, css }: a blank's recolour on trial, over that image only
   #clean = false;
@@ -96,11 +98,12 @@ export class Renderer {
   }
 
   // Overlay px per image px: the zoom × devicePixelRatio, so marks paint at screen resolution as the
-  // desktop's drawLineScaled does, not as image pixels CSS stretches; 1/100 steps.
+  // desktop's drawLineScaled does; rounded UP to a quarter octave, so a zoom step rebacks it only on a crossing.
   #overlayDensity() {
     const { width: w, height: h } = this.app.canvas;
     const dpr = typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? devicePixelRatio : 1;
-    const k = Math.min((this.app.scale || 1) * dpr, Math.sqrt(OVERLAY_MAX_PX / Math.max(1, w * h)),
+    const want = Math.max(0.01, (this.app.scale || 1) * dpr);
+    const k = Math.min(2 ** (Math.ceil(Math.log2(want) * 4 - 1e-9) / 4), Math.sqrt(OVERLAY_MAX_PX / Math.max(1, w * h)),
       OVERLAY_MAX_SIDE / Math.max(1, w, h));
     return Math.max(0.01, Math.round(k * 100) / 100);
   }
@@ -129,9 +132,14 @@ export class Renderer {
     }
     if (compare === 'original') return;
 
-    this.#frame = layered ? this.#stage.ctx : null;
+    const top = layered ? this.#stage.ctx : null;
+    this.#frame = top;
+    this.suppressHighlight = isSplit;
     try {
-      this.#paintAnnotations(isSplit);
+      if (!layered) this.#paintAnnotations(isSplit);
+      else this.#marks.draw(app, top, isSplit, this.#stage.overlay.width, this.#stage.overlay.height,
+        (ctx) => { this.#frame = ctx; this.#paintAnnotations(isSplit); this.#frame = top; });
+      if (app.holdPreview) this.drawHoldPreview();
       if (layered && isSplit) { eraseOriginalSide(this.ctx, app, compare); paintDivider(this.ctx, app, compare); }
     } finally {
       this.#frame = null;
@@ -140,11 +148,10 @@ export class Renderer {
     if (!layered && isSplit) this.drawCompareSplit(compare);
   }
 
-  // Lines (or their points alone) and the hold preview; a split view's edit side is read-only,
-  // so it shows no selection glow or hover/focus rings.
+  // Lines, or their points alone; a split view's edit side is read-only, so it shows no selection
+  // glow or hover/focus rings.
   #paintAnnotations(readOnly) {
     const app = this.app;
-    this.suppressHighlight = readOnly;
     const selected = readOnly ? () => false : selectionPredicate(app);
 
     if (app.showLines) {
@@ -166,8 +173,6 @@ export class Renderer {
       app.lines.forEach((line, i) => { if (!line.hidden) drawPts(line, i, selected(i)); });
       if (app.currentLine) drawPts(app.currentLine, -1, false);
     }
-
-    if (app.holdPreview) this.drawHoldPreview();
   }
 
   // Both halves into this.ctx; `withDivider: false` (the export path's clean split) skips the bar and knob.

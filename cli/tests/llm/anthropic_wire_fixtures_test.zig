@@ -65,6 +65,7 @@ test "providerWire corpus: the anthropic wire, request to printed reason, over a
     var w = fx.Walk.start();
     defer w.stop();
     const a = w.alloc();
+    const g = testing.allocator; // the code under test: its leaks fail the walk
     const io = w.io();
     try w.loadOverrides();
     Exchange.arena = a;
@@ -99,8 +100,8 @@ test "providerWire corpus: the anthropic wire, request to printed reason, over a
         const last = msgs[msgs.len - 1];
         var images: std.ArrayList([]const u8) = .empty;
         if (fx.member(last, "images")) |imgs| for (imgs.array.items) |img| try images.append(a, fx.memberStr(img, "data").?);
-        var req = try llm.buildRequestWithSystem(a, &cfg, fx.memberStr(chat, "system").?, fx.memberStr(last, "text").?, images.items, "", "", history.items, "");
-        defer req.deinit(a);
+        var req = try llm.buildRequestWithSystem(g, &cfg, fx.memberStr(chat, "system").?, fx.memberStr(last, "text").?, images.items, "", "", history.items, "");
+        defer req.deinit(g);
 
         Exchange.sends = 0;
         Said.errs.clearRetainingCapacity();
@@ -113,7 +114,8 @@ test "providerWire corpus: the anthropic wire, request to printed reason, over a
             const b = fx.member(er, "body").?;
             Exchange.answer = if (b == .string) b.string else try fx.stringify(a, b);
         }
-        const posted = llm.postJsonVia(a, io, &req, null, Exchange.send);
+        const posted = llm.postJsonVia(g, io, &req, null, Exchange.send);
+        defer if (posted) |b| g.free(b) else |_| {};
 
         if (fx.member(case, "expectNoRequest") != null) {
             // No key: nothing sent, the typed disabled error, its exact words.
@@ -151,7 +153,8 @@ test "providerWire corpus: the anthropic wire, request to printed reason, over a
                 w.fail("providerWire '{s}': reason\n  want: {s}\n  cli:  {s}\n", .{ name, fx.memberStr(expect_err.?, "message").?, said });
             continue;
         }
-        const ex = try llm.extractReply(a, .anthropic, try posted);
+        const ex = try llm.extractReply(g, .anthropic, try posted);
+        defer ex.deinit(g);
         const ok = if (fx.memberStr(case, "expectReply")) |want| ex == .text and std.mem.eql(u8, ex.text, want) else blk: {
             const kind = fx.memberStr(expect_err.?, "kind").?;
             if (std.mem.eql(u8, kind, "truncated")) break :blk ex == .truncated;

@@ -6,6 +6,10 @@
 
 namespace stencil::gui {
 
+  namespace {
+    const QString LLM_API_KEY = QStringLiteral("llmApiKey");
+  }
+
   QString fileStore::stateDir() {
     const QString dir = baseDir();
     QDir().mkpath(dir);
@@ -26,8 +30,12 @@ namespace stencil::gui {
     // without a "units" key still gets one; a stored "units" value below overrides it.
     s.units = localeDefaultUnit();
     const QJsonObject o = readJson(settingsPath()).object();
-    if (o.isEmpty()) return s;
-    return settingsFromJson(o, s);
+    if (!o.isEmpty()) s = settingsFromJson(o, s);
+    // The key lives in secrets.json; one left in an older settings.json is read here and moved there
+    // by the next save.
+    const QJsonValue secret = loadSecrets().value(LLM_API_KEY);
+    if (secret.isString()) s.llmApiKey = secret.toString();
+    return s;
   }
 
   Settings fileStore::settingsFromJson(const QJsonObject& o, const Settings& base) {
@@ -90,9 +98,16 @@ namespace stencil::gui {
     return s;
   }
 
+  // settings.json holds no secret: the openai-compat key goes to the 0600 secrets.json beside the
+  // connection tokens. settings.json stays owner-only for what it says about the user.
   void fileStore::saveSettings(const Settings& s) {
-    // Owner-only: this file holds llmApiKey in plaintext (contract §5).
-    writeJson(settingsPath(), QJsonDocument(settingsToJson(s)), /*ownerOnly=*/true);
+    QJsonObject o = settingsToJson(s);
+    o.remove(LLM_API_KEY);
+    QJsonObject secrets = loadSecrets();
+    if (s.llmApiKey.isEmpty()) secrets.remove(LLM_API_KEY);
+    else secrets.insert(LLM_API_KEY, s.llmApiKey);
+    saveSecrets(secrets);
+    writeJson(settingsPath(), QJsonDocument(o), /*ownerOnly=*/true);
   }
 
   QJsonObject fileStore::settingsToJson(const Settings& s) {

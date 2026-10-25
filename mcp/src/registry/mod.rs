@@ -6,7 +6,7 @@ mod entries;
 
 use std::sync::OnceLock;
 
-use crate::opplan::fold::{self, Lower};
+use crate::plan::fold::{self, Lower};
 
 pub use entries::{fingerprint, limit, REGISTRY_JSON, SURFACE};
 

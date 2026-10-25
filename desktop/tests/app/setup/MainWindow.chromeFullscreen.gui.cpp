@@ -48,6 +48,8 @@ class MainWindowGuiTest : public QObject {
 
     QAction* fs = actionByText(&win, "Enter Fullscreen");
     QVERIFY(fs);
+    // Mid-canvas first: off macOS the top band starts at the very edge, where a pointer may rest.
+    QCursor::setPos(win.mapToGlobal(QPoint(win.width() / 2, win.height() / 2)));
     fs->trigger();                                   // ENTER fullscreen (bars + panel hidden)
     QTest::qWait(120);
     QVERIFY(!anyBarVisible());                        // nothing shown until the cursor hits an edge

@@ -56,7 +56,7 @@ export class ZoomPan {
   constructor(app) {
     this.app = app;
     // The single debounced persistence path for every zoom route: a burst saves once, at its end.
-    this.persistZoom = createTrailingSave(() => { if (this.app.image) this.app.storage.save(); });
+    this.persistZoom = createTrailingSave(() => { if (this.app.image) this.app.storage.save({ viewOnly: true }); });
   }
 
   // The shared C++ core (wasm) clampScale when loaded; the JS bound is the reference + fallback.

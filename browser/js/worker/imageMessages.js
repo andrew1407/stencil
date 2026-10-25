@@ -4,6 +4,6 @@
 export const IMAGE_TASK = Object.freeze({
   SCALE: 'scale',       // { bitmap: ImageBitmap, width, height, halve } → encoded at width×height
   CONTOUR: 'contour',   // { data: ArrayBuffer (RGBA8), width, height } → the core contour pass, encoded
-  FILTER: 'filter',     // { recipe, data: ArrayBuffer (RGBA8), width, height, rgb } → filterPixels, an ImageBitmap
-  RESULT: 'result',     // { bitmap: the base, width, height, lines, showLines, showPoints, pointSize } → encoded
+  FILTER: 'filter',     // { recipe, data: ArrayBuffer (RGBA8) | bitmap: ImageBitmap, width, height, rgb } → an ImageBitmap
+  RESULT: 'result',     // { bitmap: the base, width, height, lines, showLines, showPoints, pointSize, fit? } → encoded
 });

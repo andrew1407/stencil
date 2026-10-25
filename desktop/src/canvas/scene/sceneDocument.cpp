@@ -140,7 +140,7 @@ namespace stencil::gui {
     step.crop = crop;
     step.quarters = ((quarters % 4) + 4) % 4;
     if (mirrored >= 0) step.mirrored = mirrored != 0;
-    const bool rebuilt = restoreMemento(step);
+    const bool rebuilt = restoreMemento(std::move(step));
     pushStep();
     return rebuilt;
   }
@@ -162,22 +162,23 @@ namespace stencil::gui {
     stepTint = filterColor;
   }
 
+  // Not const: the step is moved into restoreMemento, never copied a second time.
   bool CanvasScene::undo() {
-    const std::optional<core::EditorMemento> step = history.undo();
-    if (step) restoreMemento(*step);
+    std::optional<core::EditorMemento> step = history.undo();
+    if (step) restoreMemento(std::move(*step));
     return step.has_value();
   }
 
   bool CanvasScene::redo() {
-    const std::optional<core::EditorMemento> step = history.redo();
-    if (step) restoreMemento(*step);
+    std::optional<core::EditorMemento> step = history.redo();
+    if (step) restoreMemento(std::move(*step));
     return step.has_value();
   }
 
   // The rebuild is the one a crop runs, from the original: no decode. Browser twin: restoreView. A
   // step without a filter leaves the one on screen.
-  bool CanvasScene::restoreMemento(const core::EditorMemento& m) {
-    lines = m.lines;
+  bool CanvasScene::restoreMemento(core::EditorMemento m) {
+    lines = std::move(m.lines);
     currentLine = core::Line{};
     applyDefaultsToCurrent();
     if (!m.filter.empty()) {

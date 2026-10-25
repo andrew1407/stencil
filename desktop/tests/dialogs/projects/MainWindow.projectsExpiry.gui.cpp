@@ -77,7 +77,7 @@ class MainWindowGuiTest : public QObject {
       dated = rowText();
       pw.dlg->reject();
     });
-    win.parts.projects.openProjects();
+    win.projectHost.flows.openProjects();
     QVERIFY2(sawRow, "the seeded project row never appeared in the dialog");
     QVERIFY2(kept.contains(QStringLiteral("never expires")),
              qPrintable(QStringLiteral("kept forever, the open row reads \"%1\"").arg(kept)));

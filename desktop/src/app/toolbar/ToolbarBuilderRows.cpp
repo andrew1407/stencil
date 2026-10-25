@@ -2,7 +2,7 @@
 // with the Controls pill.
 #include "MainWindow.hpp"
 #include "ToolbarBuilder.hpp"
-#include "mainWindowHelpers.hpp"
+#include "toolbarMetrics.hpp"
 #include "SearchCombo.hpp"
 #include "OpenImageButton.hpp"
 #include "../../support/modal/imageAnchor.hpp"
@@ -32,10 +32,10 @@ namespace stencil::gui {
     w.nameBar.blankColorBtn->setText("Blank");
     w.nameBar.blankColorBtn->setToolTip("Blank background color — recolor this blank image (keeps your lines)");
     w.nameBar.blankColorBtn->setVisible(false);
-    support::wireColorChip(w.nameBar.blankColorBtn, [this] { w.parts.projects.setActiveBlankColor(); },
-                           [this] { w.parts.projects.applyBlankColor(QColor("#ffffff")); });   // a blank's default fill
-    support::installColorDrag(w.nameBar.blankColorBtn, {[this] { return QColor(w.docSource.blankColor); },
-                                                        [this](const QColor& c) { w.parts.projects.applyBlankColor(c); }});
+    support::wireColorChip(w.nameBar.blankColorBtn, [this] { w.projectHost.flows.setActiveBlankColor(); },
+                           [this] { w.projectHost.flows.applyBlankColor(QColor("#ffffff")); });   // a blank's default fill
+    support::installColorDrag(w.nameBar.blankColorBtn, {[this] { return QColor(w.projectHost.docSource.blankColor); },
+                                                        [this](const QColor& c) { w.projectHost.flows.applyBlankColor(c); }});
 
     // Dialog icons answer dblclick / right-click with the compact popover; a plain click is
     // deferred one double-click interval because exec() blocks.

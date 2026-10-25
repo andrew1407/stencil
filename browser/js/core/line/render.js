@@ -35,6 +35,8 @@ export const ringFor = (css) => {
   return v;
 };
 
+const SHORT_HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
+
 // JS twin of core's pointColorOr (core/models.hpp) — keep identical; "unset" includes ''.
 export const pointColorOf = (line) => (line.pointColor ? line.pointColor : line.color);
 
@@ -152,7 +154,8 @@ export function drawPoint(r, point, color, pointSize = 4, isSelected = false, hi
   ctx.beginPath();
   ctx.arc(point.x, point.y, rad, 0, Math.PI * 2);
   ctx.fill();
-  ctx.strokeStyle = ringFor(ctx.fillStyle);
+  // A #rgb/#rrggbb fill is its own canvas-normalised value, so the getter's per-point read is skipped.
+  ctx.strokeStyle = ringFor(SHORT_HEX.test(color) ? color : ctx.fillStyle);
   ctx.lineWidth = 1;
   ctx.stroke();
 }

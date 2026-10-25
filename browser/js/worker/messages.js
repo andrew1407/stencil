@@ -13,6 +13,8 @@ export const MSG = Object.freeze({
   PEERS: 'peers',                       // worker → tab: active ids across tabs
   INCOGNITO: 'incognito',               // a tab's incognito session changed (set/cleared)
   INCOGNITOS: 'incognitos',             // worker → tab: OTHER tabs' incognito sessions
+  PING: 'ping',                         // worker → tab, or tab → tabs on the channel: are you alive?
+  PONG: 'pong',                         // the answer, with the tab's activeId and incognito
 });
 
 // What happened to the project set, carried on a PROJECTS_CHANGED message so a

@@ -15,6 +15,8 @@ class QTimer;
 
 // Resolves a launch --src (local image, remote URL via fetchGuard, inline data: bytes, or a
 // video frame) into one QImage.
+class QImageReader;
+
 namespace stencil::gui {
 
   // Pure suffix sniffers off the canon (common/config/mediaTypes.json `surfaces.desktop`).
@@ -29,6 +31,17 @@ namespace stencil::gui {
     quint32 height = 0;
   };
   ImageHeader sniffImageHeader(QByteArrayView head);
+
+  // A decode held to LIMITS.imageMaxSide / imageMaxPixels (constants.json), as every surface holds
+  // it: a header over the cap is refused before any pixel is allocated (`*tooLarge` set), and Qt's
+  // own allocation limit is lifted to fit the cap, so a 16384-px picture decodes as it does elsewhere.
+  QImage decodeCapped(QIODevice* dev, bool* tooLarge = nullptr);
+  QImage decodeCapped(const QByteArray& bytes, bool* tooLarge = nullptr);
+  QImage decodeCappedFile(const QString& path, bool* tooLarge = nullptr);
+  // The same cap on a reader its caller drives (a scaled thumbnail decode): false when the header is
+  // over it, else Qt's allocation limit is lifted to fit it.
+  bool capReader(QImageReader& reader);
+  QString imageTooLargeMessage();
 
   class MediaLoader : public QObject {
     Q_OBJECT
@@ -62,6 +75,10 @@ namespace stencil::gui {
 
     QUrl resolvedUrl() const { return url; }
 
+    // A source a link named is fetched strict (fetchGuard: loopback refused too); a typed one is not.
+    // Applies from the next load() on.
+    void setStrictFetch(bool on) { strictFetch = on; }
+
     // SEQUENTIAL seeks reusing load()'s pipeline; the first failure aborts. No other load() until `done`.
     void extractFrames(const QString& src, const QList<int>& indices,
                        std::function<void(QList<QImage> frames, QString error)> done);
@@ -81,6 +98,10 @@ namespace stencil::gui {
     bool hasMoreCandidates() const { return candidateIndex + 1 < candidates.size(); }
     void resolve();
     void startVideo(const QUrl& url);
+    // A remote stream only once the guard, DNS included, has passed its host: Qt's FFmpeg backend
+    // resolves and connects on its own, past any check the image fetch makes.
+    void startRemoteVideo(const QUrl& url, const QString& fetchError);
+    void fetchRemoteImage(const QUrl& url);
     void tryStartVideoSeek();
     void captureThumbnail();  // read embedded preview/cover art from the player's metadata
     void fail(const QString& message);
@@ -95,6 +116,7 @@ namespace stencil::gui {
     QUrl url;
     QString localPath;  // non-empty only for an existing local file
     int frame = 0;
+    bool strictFetch = false;
     bool done = false;     // guards single-shot loaded()/failed()
     quint64 loadSerial = 0;  // bumped per load, so a decode finishing late cannot answer a newer one
     bool isVideo = false;  // set once the source is resolved as a video

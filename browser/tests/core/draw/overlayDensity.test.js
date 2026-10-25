@@ -53,3 +53,16 @@ test('a huge picture zoomed in is capped at 4096² backing pixels', () => {
   r.redraw();
   assert.ok(overlay.width * overlay.height <= 4096 * 4096 * 1.01);
 });
+
+test('a zoom step inside one quarter octave keeps the backing; crossing one rebacks it, never below the zoom', () => {
+  const { app, r, overlay } = stage(3);
+  r.redraw();
+  const at3 = [overlay.width, overlay.height];
+  assert.deepEqual(at3, [54, 37], '3 rounds up to 2^(7/4) ≈ 3.36');
+  app.scale = 3.3;
+  r.redraw();
+  assert.deepEqual([overlay.width, overlay.height], at3);
+  app.scale = 3.5;
+  r.redraw();
+  assert.ok(overlay.width >= 16 * 3.5 && overlay.width > at3[0]);
+});

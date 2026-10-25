@@ -1,4 +1,4 @@
-import { markSwap } from '../../motion.js';
+import { markSwap } from '../../motion/control/revealControls.js';
 import { showMenu, hideMenu } from '../../control/dropdownMenu.js';
 import { wireAltPeek } from '../../tip/altPeek.js';
 import { isTypingInFocus } from '../../../utils.js';

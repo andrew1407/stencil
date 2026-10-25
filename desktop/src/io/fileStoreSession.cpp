@@ -164,12 +164,13 @@ namespace stencil::gui {
     return o;
   }
 
-  // The WHOLE registry is re-serialised for any change; 600 ms is the house debounce window.
+  // The WHOLE registry is re-serialised for any change; 600 ms is the house debounce window. Compact:
+  // it is the largest state file, every project's lines in it, and no one reads it by eye.
   void fileStore::saveProjects(const std::vector<Project>& projects) {
     deferredWrite::schedule(projectsPath(), 600, [copy = projects] {
       QJsonArray arr;
       for (const auto& pr : copy) arr.append(projectToJson(pr));
-      return QJsonDocument(arr).toJson(QJsonDocument::Indented);
+      return QJsonDocument(arr).toJson(QJsonDocument::Compact);
     });
   }
   void fileStore::flushWrites() { deferredWrite::flush(); }

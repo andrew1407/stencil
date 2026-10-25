@@ -179,6 +179,25 @@ TEST_CASE("the token stream carries spans an editor can colour") {
   CHECK(directives == 4);
 }
 
+TEST_CASE("scriptTokens reads the same stream in one call, truncated at cap") {
+  Handle s{kScript};
+  const int n = stencil_cli_scriptTokenCount(s.h);
+  std::vector<int> bulk(static_cast<std::size_t>(4 * n) + 4, -7);
+  REQUIRE(stencil_cli_scriptTokens(s.h, bulk.data(), n + 1) == n);
+  for (int i = 0; i < n; ++i) {
+    int at[4] = {-1, -1, -1, -1};
+    REQUIRE(stencil_cli_scriptTokenAt(s.h, i, &at[0], &at[1], &at[2], &at[3]) == 1);
+    for (int k = 0; k < 4; ++k) CHECK(bulk[static_cast<std::size_t>(4 * i + k)] == at[k]);
+  }
+  CHECK(bulk[static_cast<std::size_t>(4 * n)] == -7);
+  std::vector<int> two(12, -7);
+  CHECK(stencil_cli_scriptTokens(s.h, two.data(), 2) == 2);
+  CHECK(two[8] == -7);
+  CHECK(stencil_cli_scriptTokens(s.h, two.data(), -3) == 0);
+  CHECK(stencil_cli_scriptTokens(s.h, nullptr, 5) == 0);
+  CHECK(stencil_cli_scriptTokens(4242, two.data(), 2) == -1);
+}
+
 TEST_CASE("script ABI: the handle table and the dump memo survive concurrent callers") {
   const int shared = stencil_cli_scriptParse(kScript, static_cast<int>(std::strlen(kScript)));
   std::vector<std::thread> workers;

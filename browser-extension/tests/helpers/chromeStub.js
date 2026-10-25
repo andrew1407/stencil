@@ -98,6 +98,7 @@ export const installChromeStub = ({
       onChanged: { addListener: (fn) => changedListeners.push(fn) },
     },
     runtime: {
+      id: 'stencil-ext',
       sendMessage: (m) => {
         sent.push(m);
         return respond ? respond(m) : Promise.resolve();

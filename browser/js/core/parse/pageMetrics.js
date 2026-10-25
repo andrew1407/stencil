@@ -52,3 +52,23 @@ export const pixelToPageCoords = (app, x, y) => {
     y: blankY ? raw.y : app.formula.applyCtx(app.formulaY, 'y', raw.y, app.allowFormulas, ctx)
   };
 };
+
+// The wasm op takes the first four; `formula` is the JS twin's engine (an empty expr = identity).
+const applyPoints = core.bind('formulaApplyPoints', (exprX, exprY, raws, ctx, formula) => raws.map((raw) => {
+  const at = { ...ctx, x: raw.x, y: raw.y };
+  return {
+    x: exprX ? formula.applyCtx(exprX, 'x', raw.x, true, at) : raw.x,
+    y: exprY ? formula.applyCtx(exprY, 'y', raw.y, true, at) : raw.y
+  };
+}));
+
+// pixelToPageCoords over every point of a line, the formulas crossing into the core once
+// (core FormulaParser::applyPoints) rather than once per value.
+export const pixelToPageCoordsAll = (app, points) => {
+  const ps = getPageDimensions(app);
+  const raws = points.map((p) => ({ x: (ps.width / app.canvas.width) * p.x, y: (ps.height / app.canvas.height) * p.y }));
+  const blankX = !app.allowFormulas || !String(app.formulaX ?? '').trim();
+  const blankY = !app.allowFormulas || !String(app.formulaY ?? '').trim();
+  if (blankX && blankY) return raws;
+  return applyPoints(blankX ? '' : app.formulaX, blankY ? '' : app.formulaY, raws, formulaContext(app, ps), app.formula);
+};

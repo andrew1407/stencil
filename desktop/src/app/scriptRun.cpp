@@ -51,7 +51,16 @@ namespace stencil::gui {
         respond();
       }
 
+      // A link's script fetches strict for exactly its own loads: the target reads the flag as a
+      // load starts, so it is never left on for a later, unrelated one.
       void startLoad(const ScriptOp& op, llm::OpDone done) {
+        if (!rules.webSourcesOnly) return startLoadAs(op, std::move(done));
+        target.setStrictSources(true);
+        startLoadAs(op, std::move(done));
+        target.setStrictSources(false);
+      }
+
+      void startLoadAs(const ScriptOp& op, llm::OpDone done) {
         if (op.kind == ScriptOpKind::OPEN) {
           const QString spec = strAt(op, 0);
           if (net::fetchGuard::isWebScheme(spec)) return target.openUrlThen(spec, false, std::move(done));

@@ -110,10 +110,11 @@ namespace stencil::gui {
   // Format_RGBA8888 is core's byte order and tightly packed, so a row starts at y * width * 4.
   void CanvasScene::rebuildFilteredImage() {
     filterDirty = false;
-    if (image.isNull() || filterMode == core::FilterMode::NONE) {
-      filteredImage = QImage();
-      return;
-    }
+    filteredImage = filteredPixels(image, filterMode, filterColor);
+  }
+
+  QImage CanvasScene::filteredPixels(const QImage& image, core::FilterMode filterMode, const QColor& filterColor) {
+    if (image.isNull() || filterMode == core::FilterMode::NONE) return QImage();
     QImage img = image.convertToFormat(QImage::Format_RGBA8888);
     const int w = img.width();
     const int h = img.height();
@@ -130,8 +131,7 @@ namespace stencil::gui {
       support::forEachSlice(h, MIN_ROWS_PER_SLICE, [&](int y0, int y1) {
         core::sobelRows(luma.data(), bits, w, h, y0, y1);
       });
-      filteredImage = img;
-      return;
+      return img;
     }
     // The tint channels are read only for the custom mode.
     const int tr = filterColor.red();
@@ -140,7 +140,7 @@ namespace stencil::gui {
     support::forEachSlice(h, MIN_ROWS_PER_SLICE, [&](int y0, int y1) {
       core::applyFilterRows(filterMode, bits, w, y0, y1, tr, tg, tb);
     });
-    filteredImage = img;
+    return img;
   }
 
   // The "original" side: raw pixels, but a BLANK page as currently coloured.

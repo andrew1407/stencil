@@ -2,11 +2,9 @@
 
 #include "projectsRowChrome.hpp"
 #include "ReorderableListWidget.hpp"
-#include "guiHelpers.hpp"
 #include "fetchGuard.hpp"
 #include "iconSet.hpp"
 #include "../../support/motion/scrollReveal.hpp"  // revealOpacityForItem (scroll edge fade)
-#include "../../app/mainWindowHelpers.hpp"   // NAME_CHIP_BOX / NAME_CHIP_GLYPH — the shared chip
 #include "../../support/control/reveal/controlReveal.hpp"       // the rename ✓/✗ form/come apart as dust
 #include "../../support/displayName.hpp"          // shortName for the remove confirm
 #include "../../support/theme/filterFade.hpp"          // filtered-out rows fade + collapse

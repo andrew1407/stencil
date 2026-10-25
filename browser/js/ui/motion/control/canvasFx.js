@@ -6,11 +6,16 @@ import { arriveFrom, flashLanding } from '../enterLeave.js';
 // The arrival is the clear played backwards (sweep reversed, bottom-to-top); it does not
 // stream from the drop point because the stage is only as big as the image. Returns true
 // only when the dust is playing — the caller hides the real canvas only then.
-// Sampled, not exhaustive: cheap on a big canvas, fine enough that no image reads as empty.
-export function hasPixels(ctx, w, h, stride = 41) {
+// Sampled, not exhaustive: cheap on a big canvas, fine enough that no image reads as empty. Read
+// `band` rows at a time, so a painted image answers from its top band, never a whole-canvas copy.
+export function hasPixels(ctx, w, h, stride = 41, band = 256) {
   if (!ctx?.getImageData || w < 1 || h < 1) return false;
-  const d = ctx.getImageData(0, 0, w, h).data;
-  for (let p = 3; p < d.length; p += 4 * stride) if (d[p] > 0) return true;
+  let p = 3;   // the sampled alpha's byte offset over the whole canvas
+  for (let y = 0; y < h; y += band) {
+    const d = ctx.getImageData(0, y, w, Math.min(band, h - y)).data;
+    const base = y * w * 4;
+    for (; p - base < d.length; p += 4 * stride) if (d[p - base] > 0) return true;
+  }
   return false;
 }
 

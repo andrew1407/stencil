@@ -68,7 +68,8 @@ namespace stencil::gui {
     if (compareReadOnly()) {
       unsetCursor();
     } else {
-      if (updateHover(ip.x, ip.y)) update();
+      const int wasHover = hover.lineIdx, wasOver = hover.overLineIdx;
+      if (updateHover(ip.x, ip.y)) update(hoverDirty(wasHover, wasOver));
       applyHoverCursor(ip, mods);
     }
     emit hovered(ip.x, ip.y);
@@ -79,11 +80,13 @@ namespace stencil::gui {
     emit hoverLeft();
     emit canvasLeft();
     if (hover.lineIdx != -1 || hover.pointIdx != -1 || hover.overLineIdx != -1) {
+      const QRect dirty = hoverDirty(hover.lineIdx, hover.overLineIdx);
       hover.lineIdx = -1;
       hover.pointIdx = -1;
       hover.overLineIdx = -1;
       emit canvasHoverChanged(-1, -1, -1);   // panel row tints clear too
-      update();
+      bounds.ask(dirty);
+      update(dirty);
     }
     idle.setHover(false);
     QWidget::leaveEvent(event);

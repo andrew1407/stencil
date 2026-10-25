@@ -1,8 +1,7 @@
-//! Drift guard for the media-type canon: src/media/types.zig now feeds video.zig's
+//! Drift guard for the media-type canon: src/media/types.zig feeds video.zig's
 //! looksLikeVideo and scrape.zig's format normalisation + extension allow-list from
-//! common/config/mediaTypes.json. These pin the values the CLI used before the move —
-//! so the asset cannot silently change what the CLI accepts — and hold the asset's own
-//! internal claims (the cli surface list is a subset of the contract set).
+//! common/config/mediaTypes.json. These hold the CLI to the asset's `surfaces.cli` lists
+//! and the asset to its own claims (the cli surface list is a subset of the contract set).
 const std = @import("std");
 const mediaTypes = @import("../../src/media/types.zig");
 const video = @import("../../src/media/video.zig");
@@ -10,17 +9,6 @@ const scrape = @import("../../src/scrape.zig");
 const testing = std.testing;
 
 const media_types_json = @embedFile("mediaTypes.json");
-
-// What src/media/video.zig held as `video_exts` before it read the canon. Byte-identical, in order.
-const historic_video_exts = [_][]const u8{
-    ".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v", ".mpg", ".mpeg", ".wmv", ".flv", ".ts", ".gifv",
-};
-
-test "the cli's video extensions are the asset's, unchanged from the inline list" {
-    const got = mediaTypes.videoExts();
-    try testing.expectEqual(historic_video_exts.len, got.len);
-    for (historic_video_exts, got) |want, have| try testing.expectEqualStrings(want, have);
-}
 
 test "the cli video list is surfaces.cli.video, and a subset of the contract set" {
     const a = testing.allocator;
@@ -42,15 +30,25 @@ test "the cli video list is surfaces.cli.video, and a subset of the contract set
     }
 }
 
-test "looksLikeVideo still answers exactly as the inline list did" {
-    try testing.expect(video.looksLikeVideo("clip.MP4"));
-    try testing.expect(video.looksLikeVideo("https://h/v.webm?token=1"));
-    try testing.expect(video.looksLikeVideo("reel.gifv")); // cli-only in the canon
+test "looksLikeVideo answers yes for the cli list alone, in any case and before a query" {
+    const a = testing.allocator;
+    const parsed = try std.json.parseFromSlice(std.json.Value, a, media_types_json, .{});
+    defer parsed.deinit();
+    const root = parsed.value.object;
+    const cli = root.get("surfaces").?.object.get("cli").?.object.get("video").?.array;
+    var buf: [64]u8 = undefined;
+    for (cli.items) |v| {
+        try testing.expect(video.looksLikeVideo(try std.fmt.bufPrint(&buf, "clip.{s}", .{v.string})));
+        const upper = std.ascii.upperString(buf[32..][0..v.string.len], v.string);
+        try testing.expect(video.looksLikeVideo(try std.fmt.bufPrint(&buf, "https://h/v.{s}?token=1", .{upper})));
+    }
+    // In the contract set but not the CLI's: wiring the canon never widens what the CLI takes.
+    for (root.get("video").?.object.get("extensions").?.array.items) |c| {
+        var listed = false;
+        for (cli.items) |v| listed = listed or std.mem.eql(u8, v.string, c.string);
+        if (!listed) try testing.expect(!video.looksLikeVideo(try std.fmt.bufPrint(&buf, "clip.{s}", .{c.string})));
+    }
     try testing.expect(!video.looksLikeVideo("photo.png"));
-    // In the contract set, but never in the CLI's — wiring the canon must not widen it.
-    try testing.expect(!video.looksLikeVideo("clip.3gp"));
-    try testing.expect(!video.looksLikeVideo("clip.ogv"));
-    try testing.expect(!video.looksLikeVideo("clip.ogg"));
 }
 
 test "format normalisation keeps the asset's three rewrites, in order" {

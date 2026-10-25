@@ -11,3 +11,5 @@ export declare const formulaContext: (app: DrawingApp,
   ps?: { width: number; height: number }) => FormulaContext;
 /** Raw scaling, then the app's x/y formulas when formulas are allowed. */
 export declare const pixelToPageCoords: (app: DrawingApp, x: number, y: number) => { x: number; y: number };
+/** pixelToPageCoords for every point, the formulas evaluated in one core call. */
+export declare const pixelToPageCoordsAll: (app: DrawingApp, points: ReadonlyArray<{ x: number; y: number }>) => Array<{ x: number; y: number }>;

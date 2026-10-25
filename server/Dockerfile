@@ -5,16 +5,13 @@
 
 FROM golang:1.26 AS build
 WORKDIR /src/server
-COPY server/go.mod ./
-# Warm this image layer's own module cache — never a host cache. (Local dev vendors into
-# server/vendor/ via `go mod vendor`; that dir is git-ignored and excluded from the build
-# context by .dockerignore, so the image always uses this clean download.)
-RUN go mod download
+COPY server/go.mod server/go.sum ./
+# Warm this image layer's own module cache — never a host cache — against the tracked go.sum, and
+# verify every module it holds. (Local dev vendors into server/vendor/ via `go mod vendor`; that dir
+# is git-ignored and excluded from the build context by .dockerignore.)
+RUN go mod download && go mod verify
 COPY server/ ./
 COPY common/config/ /src/common/config/
-# go.sum is not tracked either, and `go mod download` above leaves it incomplete, so the
-# checksums have to be written here — after the source is in, since tidy reads the imports.
-RUN go mod tidy
 RUN go generate ./...
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/stencil-server ./cmd/stencil-server
 

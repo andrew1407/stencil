@@ -35,7 +35,10 @@ uneven, prose where it is one argument:
 
 A rule a lint enforces as a frozen allowance is written as one ("beyond the frozen allowance
 in `x.test.js`"), never as an absolute. A surface with no concurrency of its own says so in one
-sentence under Concurrency. A new entity, pattern or flow goes into its section, never a new
-heading. Name what a thing
+sentence under Concurrency. An Entities or Patterns section with fewer than three rows is one
+sentence of prose, not a table or a diagram. A Patterns row names a pattern with two or more
+participants in this tree; a language idiom (cache, singleton, factory, higher-order function) or
+a behaviour belongs under Design. A Patterns table holds at most fifteen rows. A new entity, pattern or flow goes into
+its section, never a new heading. Name what a thing
 *is*, never how many there are: counts of suites, files, pinned states or cases go stale on
 the next commit and are not design.

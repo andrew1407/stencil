@@ -3,6 +3,7 @@
 import { ProjectsStore, addPeriod, DEFAULT_PERIOD } from '../project/store/projectsStore.js';
 import { getProjectsBackend } from '../project/store/projectsBackend.js';
 import { markProjectOpened } from '../project/meta/projectOpened.js';
+import { core } from '../abi/stencilCore.js';
 
 export { markProjectOpened };
 
@@ -55,6 +56,7 @@ export const collapseCanvas = (app) => {
   c.width = 0;
   c.height = 0;
   if (c.style) { c.style.width = ''; c.style.height = ''; }
+  core.releasePixelScratch();   // the picture's pixel scratch goes with it
 };
 
 // Everything the emptied editor forgets; the canvas itself is the caller's to collapse.

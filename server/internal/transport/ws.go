@@ -24,8 +24,8 @@ type wsConn struct {
 	once   sync.Once
 }
 
-// AcceptWS upgrades an HTTP request to a WebSocket Conn. Origin checking is off because the in-band hello
-// frame's bearer token is the auth: any origin may connect, none is served without a valid token.
+// AcceptWS upgrades an HTTP request to a WebSocket Conn. The library's same-origin check is off: the hub
+// judges Origin (its own origin, then CORS_ORIGINS) before the upgrade, and the hello's bearer token is the auth.
 func AcceptWS(rw http.ResponseWriter, req *http.Request) (Conn, error) {
 	c, err := websocket.Accept(rw, req, &websocket.AcceptOptions{InsecureSkipVerify: true})
 	if err != nil {

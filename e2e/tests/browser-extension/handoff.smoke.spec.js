@@ -6,7 +6,7 @@
 import { setTimeout as sleep } from 'node:timers/promises';
 import { test, expect } from '@playwright/test';
 import { APP_URL, SITE_URL } from '../../helpers/config.js';
-import { launchExtension } from '../../helpers/extension.js';
+import { inClosedShadow, launchExtension } from '../../helpers/extension.js';
 
 const FIXTURE_URL = SITE_URL + '__e2e__/page-with-image.html';
 const EDITOR_URL = APP_URL;
@@ -76,10 +76,20 @@ test.describe('extension', () => {
     const host = await openHost();
     // Default open() (no newTab) mounts the editor as an in-page iframe overlay in the host tab.
     await host.evaluate(() => window.stencil.images[0].open());
-    const frame = host.locator('iframe');
-    await expect(frame.first()).toBeAttached({ timeout: 15_000 });
-    await expect.poll(async () => (await frame.first().getAttribute('src')) || '', { timeout: 10_000 })
-      .toContain('#stencil=');
+    // The overlay's shadow root is closed, so its frame is read over CDP.
+    const modal = () => inClosedShadow(host, 'stencil-ext-modal', function () {
+      return { src: this.querySelector('iframe')?.getAttribute('src') || '', loading: !!this.querySelector('.loading') };
+    });
+    // The host page reads every frame src back through Resource Timing: the payload is posted instead.
+    await expect.poll(async () => (await modal())?.src || '', { timeout: 15_000 }).toContain('#stencil-await');
+    // The editor's `ready` ping clears the loading veil and cancels the 3 s fall-back to a tab.
+    await expect.poll(async () => (await modal())?.loading, { timeout: 10_000 }).toBe(false);
+    await sleep(3500);
+    expect(await modal()).toMatchObject({ loading: false, src: expect.not.stringContaining('#stencil=') });
+    const editor = host.frames().find((f) => f.parentFrame() && f.url().startsWith(EDITOR_URL));
+    await editor.waitForFunction(() => /** @type {any} */ (window).stencil?.imageSize?.width === 3, null, { timeout: 15_000 });
+    expect(await host.evaluate(() => performance.getEntriesByType('resource').map((e) => e.name)
+      .filter((n) => n.includes('#stencil=')))).toEqual([]);
     await host.close();
   });
 

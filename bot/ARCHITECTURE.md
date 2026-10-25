@@ -129,8 +129,10 @@ classDiagram
   looked up in `CommandHandlers._routes`, a tap goes to `CallbackAction`.
 - **A photo turn.** An upload is downloaded through a capping stream into `UserWorkspace`, which
   resets the session. A render replays `EditState` as an `EditRequest`; `ProcessStencilCli`
-  parses the `wrote` line into a `RenderResult`; the layout file a render wrote and a result once
-  sent or uploaded are deleted, the janitor only sweeping what a failure left. `/crop` answers a
+  parses the `wrote` line into a `RenderResult`; the layout file a render wrote, a result once
+  sent or uploaded (variant takes, frame picks and album photos included), a render once encoded
+  for the model (the edge map, the continuation snapshot) and a scrape once sent or adopted are
+  deleted, the janitor only sweeping what a failure left. `/crop` answers a
   spec `CropSpecResolver` (the port of core's `cropSpec.cpp`) refuses — malformed, an edge outside
   the image, an overflowing ratio — with the crop help and stores nothing. Every mutating command
   pushes the previous state onto the history.
@@ -210,7 +212,8 @@ and every semaphore below hold for one process only, whichever session store is 
 ## Rules
 
 1. **The CLI is the pixel engine.** Located `STENCIL_CLI` → `cli/zig-out/bin/stencil` → `PATH`,
-   run with `NO_COLOR=1`, its stderr parsed. `--confine-output` refuses an absolute path, so the
+   run with `NO_COLOR=1` and `STENCIL_FETCH_STRICT=1` (the CLI keeps `RemoteImageUrl`'s loopback
+   refusal), its stderr parsed. `--confine-output` refuses an absolute path, so the
    child is spawned *in* the output's folder with only the leaf name, and the relative paths it
    prints are re-rooted on the way back. `--script-plan`, `--plan-check` and
    `--merge-lines` carry no `--confine-output`: they write nothing and print their envelope on stdout.
@@ -227,9 +230,14 @@ and every semaphore below hold for one process only, whichever session store is 
    the update takes a pump slot; an unlisted caller gets one sentence per refusal window, the id
    goes to the log.
 6. **Bounded and single-instance.** One user never holds more than one worker; every outbound
-   call carries a timeout and every read a size cap; a CLI run past its deadline is killed. The
-   locks are per process, so the bot runs as one instance.
-7. **Sessions** live in Redis when `REDIS_URL` is set, else in memory — tests need neither.
+   call carries a timeout and every read a size cap, and every reply is disposed on every path; a
+   CLI run past its deadline is killed. A per-user map drops its entry when the work that added it
+   ends, keys only allowlisted ids (`SyncRegistry`), or carries a cap (`AccessGate`, the prompt
+   history). The locks are per process, so the bot runs as one instance.
+7. **Sessions** live in Redis when `REDIS_URL` is set, else in memory — tests need neither (the
+   Redis store's suite runs over an in-process fake). A stored session has no expiry and keeps its
+   server tokens as plain JSON: that Redis sits inside the trust boundary, as it does for the Go
+   server. A value the store cannot read starts the user afresh, and the next save overwrites it.
 8. **Provider, URL, model and token come from the operator's environment**, never from a chat
    message; `/chatapi` is a picker over `STENCIL_LLM_PROFILES`.
 9. **One model round per turn**; one image per turn (an album is one run per photo); `save` goes
@@ -256,7 +264,7 @@ registry. A save's merge runs offline on `MockStencilCli`'s `mergeLines` in mini
 
 The fixture walkers replay the shared corpora under `common/fixtures/` through the real parsers,
 measured divergences pinned in `FixtureOverrides.json`; `SharedOutcomeFixturesTests` replays
-`cli/testdata/outcome_fixtures.json`. The script suites run a canned `--script-plan` envelope
+`common/fixtures/cli/outcome.json`. The script suites run a canned `--script-plan` envelope
 through the real `ScriptService`, proving a lowered plan takes the op-plan route.
 `TextGoldenTests` pins every reply, keyboard label, callback token and menu entry byte-exact;
 `LayerBoundaryTests` pins the ring order and `CompositionRootTests` resolves the whole DI graph.

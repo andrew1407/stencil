@@ -22,6 +22,12 @@ const (
 	// MaxKeywords and MaxKeywordChars bound the search keywords, count and each.
 	MaxKeywords     = 32
 	MaxKeywordChars = 64
+	// MaxTokenLabelChars bounds the label POST /auth/token stores on the session.
+	MaxTokenLabelChars = 200
+	// MaxLayoutBytes bounds the opaque layout JSON a create or update stores (48 MiB): room for the
+	// shared LIMITS.layoutPointsMax at ~44 bytes a full-precision {x,y} point, so no layout a client may
+	// draw is refused; the storage quotas bound what one session writes in total.
+	MaxLayoutBytes = 48 << 20
 )
 
 // colorPattern is the one colour shape the clients write: "#rrggbb".
@@ -29,6 +35,9 @@ var colorPattern = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 
 // Name refuses a project name past MaxNameChars; empty is allowed (the server names it).
 func Name(name string) error { return capped("name", name, MaxNameChars) }
+
+// TokenLabel refuses a session label past MaxTokenLabelChars.
+func TokenLabel(label string) error { return capped("label", label, MaxTokenLabelChars) }
 
 // CreateProject refuses a create whose metadata overruns a field cap.
 func CreateProject(req protocol.CreateProjectRequest) error {
@@ -42,12 +51,17 @@ func CreateProject(req protocol.CreateProjectRequest) error {
 		keywords(req.Keywords),
 		imageSide("imageW", req.ImageW),
 		imageSide("imageH", req.ImageH),
+		layout(req.Layout),
+		expiry(req.ExpiresAt),
 	)
 }
 
 // UpdateProject refuses an update whose named fields overrun a cap; an absent field is unchanged.
 func UpdateProject(req protocol.UpdateProjectRequest) error {
-	errs := []error{Version(req.Version)}
+	errs := []error{Version(req.Version), layout(req.Layout)}
+	if req.ExpiresAt != nil {
+		errs = append(errs, expiry(*req.ExpiresAt))
+	}
 	if req.Name != nil {
 		errs = append(errs, Name(*req.Name))
 	}
@@ -76,6 +90,21 @@ func capped(field, value string, maxChars int) error {
 func color(field, value string) error {
 	if value != "" && !colorPattern.MatchString(value) {
 		return errors.New(field + " must be #rrggbb")
+	}
+	return nil
+}
+
+func layout(raw []byte) error {
+	if len(raw) > MaxLayoutBytes {
+		return errors.New("layout must be at most " + strconv.Itoa(MaxLayoutBytes) + " bytes")
+	}
+	return nil
+}
+
+// expiry refuses a negative epoch; 0 means "never".
+func expiry(ms int64) error {
+	if ms < 0 {
+		return errors.New("expiresAt must not be negative")
 	}
 	return nil
 }

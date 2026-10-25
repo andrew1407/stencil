@@ -23,8 +23,8 @@ namespace stencil::gui {
     llmClient = std::make_unique<llm::LlmClient>(llmTransport);
     // Prefer the LIVE connection's token (it may have been re-issued); fall back to the persisted one.
     llmClient->setServerTokenResolver([this](const QString& url) -> QString {
-      if (w.remote.connections)
-        if (auto* c = w.remote.connections->find(url)) return c->getToken();
+      if (w.remote.conns())
+        if (auto* c = w.remote.conns()->find(url)) return c->getToken();
       return llm::LlmClient::savedServerToken(url);
     });
   }
@@ -41,8 +41,8 @@ namespace stencil::gui {
     cfg.serverUrl = w.settings.llmServerUrl;
     // Contract §5: an empty serverUrl means the first configured connection — live first, then saved.
     if (cfg.provider == QLatin1String("stencil-server") && cfg.serverUrl.isEmpty()) {
-      if (w.remote.connections && !w.remote.connections->urls().isEmpty()) {
-        cfg.serverUrl = w.remote.connections->urls().first();
+      if (w.remote.conns() && !w.remote.conns()->urls().isEmpty()) {
+        cfg.serverUrl = w.remote.conns()->urls().first();
       } else {
         const auto saved = stencil::net::connectionStore::loadSavedServers();
         if (!saved.isEmpty()) cfg.serverUrl = saved.first().url;
@@ -52,12 +52,12 @@ namespace stencil::gui {
   }
 
   void ChatAppliers::persistActiveChat() {
-    if (!w.settings.saveChatsWithProject || w.incognito) return;
+    if (!w.settings.saveChatsWithProject || w.projectHost.incognito) return;
     const QJsonObject doc = w.chatSession->buildActiveChatDoc();
     const auto& link = w.remote.session->getLink();
     if (!link.address.isEmpty()) {
       // Server-linked: the chat lives on the server (kind "chat", §9). Fire-and-forget; a failed push costs only the server copy.
-      if (auto* c = w.remote.connections ? w.remote.connections->find(link.address) : nullptr) {
+      if (auto* c = w.remote.conns() ? w.remote.conns()->find(link.address) : nullptr) {
         if (doc.isEmpty())
           c->deleteFileAsync(link.id, QStringLiteral("chat"), [](bool) {});
         else
@@ -67,23 +67,23 @@ namespace stencil::gui {
       }
       return;
     }
-    if (w.activeProjectId.isEmpty()) return;  // temporary editor — nowhere to file it
-    Project* pr = w.findProject(w.activeProjectId.toStdString());
+    if (w.projectHost.activeProjectId.isEmpty()) return;  // temporary editor — nowhere to file it
+    Project* pr = w.projectHost.findProject(w.projectHost.activeProjectId.toStdString());
     if (!pr) return;
     pr->chat = doc;
     SharedState::instance().saveProjects(&w);
   }
 
   void ChatAppliers::clearPersistedChat() {
-    if (!w.settings.saveChatsWithProject || w.incognito) return;
+    if (!w.settings.saveChatsWithProject || w.projectHost.incognito) return;
     const auto& link = w.remote.session->getLink();
     if (!link.address.isEmpty()) {
-      if (auto* c = w.remote.connections ? w.remote.connections->find(link.address) : nullptr)
+      if (auto* c = w.remote.conns() ? w.remote.conns()->find(link.address) : nullptr)
         c->deleteFileAsync(link.id, QStringLiteral("chat"), [](bool) {});
       return;
     }
-    if (w.activeProjectId.isEmpty()) return;
-    Project* pr = w.findProject(w.activeProjectId.toStdString());
+    if (w.projectHost.activeProjectId.isEmpty()) return;
+    Project* pr = w.projectHost.findProject(w.projectHost.activeProjectId.toStdString());
     if (!pr || pr->chat.isEmpty()) return;
     pr->chat = QJsonObject();
     SharedState::instance().saveProjects(&w);

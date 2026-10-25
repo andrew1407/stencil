@@ -143,6 +143,8 @@ async fn spawn(
         .envs(child_env(std::env::vars_os()))
         .envs(env.iter().map(|(name, value)| (*name, value.as_str())))
         .env("NO_COLOR", "1")
+        // A model-chosen URL is never the user's own: every fetch of the run refuses loopback.
+        .env("STENCIL_FETCH_STRICT", "1")
         .stdin(piped(input.is_some()))
         .stdout(piped(capture_stdout))
         .stderr(Stdio::piped())

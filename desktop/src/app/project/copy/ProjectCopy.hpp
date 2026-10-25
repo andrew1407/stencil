@@ -18,7 +18,8 @@ namespace stencil::net { class ServerClient; }
 
 namespace stencil::gui {
 
-  class MainWindow;
+  class ProjectHost;
+  struct ProjectWindow;
   class ProjectsDialog;
 
   enum CopyOpen { COPY_OPEN_NONE, COPY_OPEN_HERE, COPY_OPEN_NEW_WINDOW };
@@ -51,7 +52,7 @@ namespace stencil::gui {
 
   class ProjectCopy {
    public:
-    explicit ProjectCopy(MainWindow& w) : w(w) {}
+    ProjectCopy(ProjectHost& host, ProjectWindow& w) : host(host), w(w) {}
 
     // Every UI entry point: the confirmation, then run(); `done` hears the new id ("" when unsaved)
     // and where it opened. `over` stacks the confirmation on another window (the projects list),
@@ -89,7 +90,8 @@ namespace stencil::gui {
     // Saves what is open before a copy replaces it (SourceOpener::openSourceHere's own step).
     void leaveCurrent();
 
-    MainWindow& w;
+    ProjectHost& host;
+    ProjectWindow& w;
   };
 
   // What a copy carries by scope (browser copy/scope.js): the original always, with its blank colour

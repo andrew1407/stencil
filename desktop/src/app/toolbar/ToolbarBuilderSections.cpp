@@ -2,7 +2,7 @@
 #include "windowSheets.hpp"
 #include "CanvasWidget.hpp"
 #include "ToolbarBuilder.hpp"
-#include "mainWindowHelpers.hpp"
+#include "toolbarMetrics.hpp"
 #include "../../support/control/reveal/controlReveal.hpp"   // section buttons come and go as sand
 #include "../../support/modal/imageAnchor.hpp"
 #include "../../support/tip/altPeek.hpp"

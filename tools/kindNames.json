@@ -1,0 +1,20 @@
+{
+  "about": "The files named for a kind (tools/caps.mjs KIND_NAME) when the ban came in. The list only shrinks: a file split by concern or renamed leaves it, and no file joins it.",
+  "files": [
+    "browser-extension/src/popup/assistant/shared.js",
+    "browser/js/utils.js",
+    "browser/tests/llm/chat/ctx-assistant-shared.test.js",
+    "browser/tests/ui/ctx/ctx-assistant-helpers.test.js",
+    "browser/tests/ui/layout-helpers.test.js",
+    "cli/src/script/emit/common.zig",
+    "core/tests/abi/abiShared.test.cpp",
+    "desktop/src/app/mainWindowShared.cpp",
+    "desktop/src/app/mainWindowShared.hpp",
+    "desktop/src/llm/client/llmClientShared.hpp",
+    "desktop/src/llm/dock/chatDockShared.cpp",
+    "desktop/src/llm/dock/chatDockShared.hpp",
+    "desktop/src/support/modal/modalChromeShared.hpp",
+    "desktop/tests/dialogs/projects/MainWindow.projectsShared.gui.cpp",
+    "usecases/capture-runner/desktop/captureShared.hpp"
+  ]
+}

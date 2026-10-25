@@ -48,9 +48,10 @@ the compose env bring it down first: `docker compose down -v` from the repo root
 
 **UI pins.** `tests/browser/ui-pins.spec.js` and `tests/browser-extension/ui-pins.spec.js` record
 each UI state's computed styles and DOM shape and deep-equal them against
-`pins/<platform>/<name>.json`; a failure names the element path and the property that moved.
-Only `macos/` is recorded, so other platforms skip these specs. After an intended visual
-change, re-record with `UPDATE_PINS=1 npm run test:ui`.
+`pins/common/<name>.json` (what is the same on every OS) and `pins/<platform>/<name>.json` (the
+whole capture, box metrics included); a failure names the element path and the property that
+moved. Only `macos/` is recorded per platform, so elsewhere the common half alone runs. After an
+intended visual change, re-record both with `UPDATE_PINS=1 npm run test:ui`.
 
 ## Notes
 

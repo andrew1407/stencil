@@ -22,7 +22,7 @@ namespace stencil::gui {
     req.open = OPENS.value(a.open, COPY_OPEN_NONE);
     req.incognito = a.incognito;
     req.local = a.local;
-    w.parts.projectCopy.run(req, [done](bool ok, QString, QString note) {
+    w.projectHost.copy.run(req, [done](bool ok, QString, QString note) {
       if (ok) return done(true, note);
       done(true, note.isEmpty() ? QStringLiteral("could not make the copy")
                                 : QStringLiteral("could not make the copy — %1").arg(note));

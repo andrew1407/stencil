@@ -60,7 +60,7 @@ void MainWindowGuiTest::assistantShots(MainWindow& win, const ShotSet& shots) {
   const QImage icon(ICON_FILE);
   if (icon.isNull()) { std::printf("  assistant SKIPPED (STENCIL_DOCS_ICON_FILE unset)\n"); return; }
   // Opened as a fresh window opens it: this path keeps the blank tag the earlier page left.
-  win.docSource.blankColor.clear();
+  win.projectHost.docSource.blankColor.clear();
   win.parts.sourceOpener.openPreviewedImageHere(icon, ICON_FILE, QString(), false, false, false, QString());
   waitUntil([canvas] { return canvas->hasImage() && canvas->getImage().width() == 512; }, 8000);
   fit(win);

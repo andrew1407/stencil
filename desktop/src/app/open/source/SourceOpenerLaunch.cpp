@@ -3,7 +3,7 @@
 #include "fetchGuard.hpp"
 #include "Notifications.hpp"
 #include <QComboBox>
-#include "mainWindowHelpers.hpp"
+#include "naturalPage.hpp"
 #include "CanvasWidget.hpp"
 #include "DataExportController.hpp"
 
@@ -17,23 +17,23 @@ namespace stencil::gui {
   void SourceOpener::onLaunchImageLoaded(const QImage& image,
                                        const QString& localPath) {
     // Provenance from loadImageByUrl; consumed once.
-    const QString provSource = w.docSource.pendingProvSource;
-    const QString provResource = w.docSource.pendingProvResource;
-    w.docSource.pendingProvSource.clear();
-    w.docSource.pendingProvResource.clear();
+    const QString provSource = w.projectHost.docSource.pendingProvSource;
+    const QString provResource = w.projectHost.docSource.pendingProvResource;
+    w.projectHost.docSource.pendingProvSource.clear();
+    w.projectHost.docSource.pendingProvResource.clear();
 
     // Inline full-layout hand-off (browser→desktop "Open in…"): crop + rotation + filter + lines + page in the ORIGINAL
     // image's space, adopted like a server project — NOT the auto-crop + lines-only import.
-    if (!w.docSource.pendingLaunchLayoutJson.isEmpty()) {
-      const QString json = w.docSource.pendingLaunchLayoutJson;
-      w.docSource.pendingLaunchLayoutJson.clear();
-      w.docSource.pendingLaunchLayout.clear();   // an inline layout supersedes any --layout source
+    if (!w.projectHost.docSource.pendingLaunchLayoutJson.isEmpty()) {
+      const QString json = w.projectHost.docSource.pendingLaunchLayoutJson;
+      w.projectHost.docSource.pendingLaunchLayoutJson.clear();
+      w.projectHost.docSource.pendingLaunchLayout.clear();   // an inline layout supersedes any --layout source
       QJsonParseError err{};
       const QJsonDocument doc = QJsonDocument::fromJson(json.toUtf8(), &err);
       if (err.error == QJsonParseError::NoError && doc.isObject() && !image.isNull()) {
         w.loadImageWithLayout(image, doc.object());
-        w.docSource.currentSource = provSource;
-        w.docSource.currentResource = provResource;
+        w.projectHost.docSource.currentSource = provSource;
+        w.projectHost.docSource.currentResource = provResource;
         w.refreshActions();
         w.fitToWindow();
         return;
@@ -55,36 +55,38 @@ namespace stencil::gui {
     } else {
       if (image.isNull()) {
         w.notify->error("Failed to open the image");
-        w.docSource.pendingLaunchLayout.clear();
+        w.projectHost.docSource.pendingLaunchLayout.clear();
         return;
       }
       w.canvas->loadFromImage(image);  // remote image / video frame (in-memory)
-      w.docSource.setBytes({}, {});         // in-memory frame/remote → re-encode on bundle
+      w.projectHost.docSource.setBytes({}, {});         // in-memory frame/remote → re-encode on bundle
     }
     // Quick pre-load crop from the links modal overrides the page-aspect auto-crop; consumed once.
     applyQuickCrop();
     // A new image's provenance replaces the previous one.
-    w.docSource.currentSource = provSource;
-    w.docSource.currentResource = provResource;
-    w.activeProjectId.clear();  // a fresh URL/video/OS-open load is a new editor
+    w.projectHost.docSource.currentSource = provSource;
+    w.projectHost.docSource.currentResource = provResource;
+    w.projectHost.activeProjectId.clear();  // a fresh URL/video/OS-open load is a new editor
     w.refreshActions();
     w.fitToWindow();
     w.playImageArrival();
 
     // --layout (path/URL variant) applies now that an image exists; the inline stencil:// layout was handled up top.
-    if (!w.docSource.pendingLaunchLayout.isEmpty()) {
-      const QString src = w.docSource.pendingLaunchLayout;
-      w.docSource.pendingLaunchLayout.clear();
-      applyLayoutFromSource(src);
+    if (!w.projectHost.docSource.pendingLaunchLayout.isEmpty()) {
+      const QString src = w.projectHost.docSource.pendingLaunchLayout;
+      const bool strict = w.projectHost.docSource.pendingLaunchStrict;
+      w.projectHost.docSource.pendingLaunchLayout.clear();
+      w.projectHost.docSource.pendingLaunchStrict = false;
+      applyLayoutFromSource(src, strict);
     }
     // Persist as a local project (browser parity: the active editor is always saved); createLocalProject writes pathless pixels to the state dir.
-    w.adoptCanvasAsLocalProject();
+    w.projectHost.adoptCanvasAsLocalProject();
   }
 
   // Quick-crop override from the load-by-URL dialog (browser defaultCropRect(albumOverride) / noCrop). No-op for Auto / no image.
   void SourceOpener::applyQuickCrop() {
-    const QuickCropOpts opts = w.docSource.pendingCrop;
-    w.docSource.pendingCrop = {};  // consume regardless of outcome
+    const QuickCropOpts opts = w.projectHost.docSource.pendingCrop;
+    w.projectHost.docSource.pendingCrop = {};  // consume regardless of outcome
     if (!w.canvas->hasImage() || opts.mode == QuickCropOpts::Mode::AUTO) return;
     // A freshly loaded image is un-rotated, so the original IS the crop's pixel space.
     const QImage& orig = w.canvas->getOriginalImage();
@@ -114,7 +116,7 @@ namespace stencil::gui {
   }
 
   // Load a layout JSON from a path or http(s) URL through the shared applyLayoutJson() guards.
-  void SourceOpener::applyLayoutFromSource(const QString& src) {
+  void SourceOpener::applyLayoutFromSource(const QString& src, bool strict) {
     auto adopt = [this, src](const QByteArray& bytes) {
       QJsonParseError err{};
       const QJsonDocument doc = QJsonDocument::fromJson(bytes, &err);
@@ -127,8 +129,8 @@ namespace stencil::gui {
 
     const QUrl url = QUrl::fromUserInput(src);
     if (stencil::net::fetchGuard::isWebScheme(url)) {
-      // A URL the USER named, so the loose guard: their localhost stays reachable, internal ranges do not.
-      stencil::net::fetchGuard::get(&w, url, /*strict=*/false,
+      // A URL the USER named takes the loose guard (their localhost stays reachable); a link's, the strict one.
+      stencil::net::fetchGuard::get(&w, url, strict,
                                     [this, adopt](const QByteArray& b, const QString& e) {
                                       if (e.isEmpty()) adopt(b);
                                       else w.notify->error("Could not fetch --layout: " + e);

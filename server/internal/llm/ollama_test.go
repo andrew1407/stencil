@@ -55,3 +55,20 @@ func TestOllamaErrorSurfacesUpstreamMessage(t *testing.T) {
 		t.Fatalf("upstream message should surface verbatim, got %v", err)
 	}
 }
+
+// LLM_MAX_TOKENS rides Ollama's options.num_predict, clamped to the cap.
+func TestOllamaClampsNumPredict(t *testing.T) {
+	for _, tc := range []struct{ asked, want int }{{0, 8192}, {100, 100}, {1 << 20, 8192}} {
+		mock := &mockDoer{status: 200, resp: `{"model":"llama3","message":{"content":"hi"}}`}
+		turn := turnWithImage
+		turn.MaxTokens = tc.asked
+		if _, err := providerClient(ProviderOllama, "", mock).Chat(context.Background(), turn); err != nil {
+			t.Fatal(err)
+		}
+		var sent ollamaRequest
+		_ = json.Unmarshal(mock.body, &sent)
+		if sent.Options == nil || sent.Options.NumPredict != tc.want {
+			t.Fatalf("asked %d: options %+v, want num_predict %d", tc.asked, sent.Options, tc.want)
+		}
+	}
+}

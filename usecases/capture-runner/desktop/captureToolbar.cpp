@@ -46,19 +46,19 @@ namespace {
 }  // namespace
 
 void MainWindowGuiTest::useProject(MainWindow& win, const char* id, const char* name, const QImage& picture) {
-  if (!win.findProject(id)) {
+  if (!win.projectHost.findProject(id)) {
     Project pr;
     pr.meta.id = id;
     pr.meta.name = name;
     pr.meta.createdAt = pr.meta.updatedAt = QDateTime::currentMSecsSinceEpoch();
     pr.meta.expiresAt = pr.meta.createdAt + 7LL * 24 * 3'600'000;   // a week, the app's default period
-    win.projectList.push_back(pr);
+    win.projectHost.projectList.push_back(pr);
     SharedState::instance().saveProjects(&win);
   }
-  win.activeProjectId = QString::fromLatin1(id);
-  fileStore::markProjectOpened(win.activeProjectId, QDateTime::currentMSecsSinceEpoch());
+  win.projectHost.activeProjectId = QString::fromLatin1(id);
+  fileStore::markProjectOpened(win.projectHost.activeProjectId, QDateTime::currentMSecsSinceEpoch());
   win.findChild<CanvasWidget*>()->loadFromImage(picture);
-  win.docSource.blankColor.clear();
+  win.projectHost.docSource.blankColor.clear();
   win.applyImageFilter(QStringLiteral("none"));
   win.projectTitle->updateProjectTitle();
   win.refreshActions();

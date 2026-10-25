@@ -63,7 +63,7 @@ namespace stencil::gui {
     const QString newName = nameBar.field->text().trimmed();
     // Server-linked session: push the rename to the server, version-guarded (mirrors setActiveProjectColor); else rename locally.
     if (!remote.session->getLink().id.isEmpty()) {
-      stencil::net::ServerClient* c = remote.connections ? remote.connections->find(remote.session->getLink().address) : nullptr;
+      stencil::net::ServerClient* c = remote.conns() ? remote.conns()->find(remote.session->getLink().address) : nullptr;
       if (!newName.isEmpty() && newName != remote.session->getLink().name && c) {
         QPointer<ProjectTitleController> self(this);
         const QString id = remote.session->getLink().id;

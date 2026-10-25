@@ -1,6 +1,6 @@
 // The touchscreen flow's gesture machine: which of tap / point / segment / pan / pinch a press
 // became, and how each follows and ends. The hold-draw half stays in inputController.js.
-import type { InputController } from '../pointer/inputController.js';
+import type { InputController } from '../../ui/bindings/pointer/inputController.js';
 
 /** The four listeners inputController.js registers, in one closure over the long-press timer. */
 export interface TouchHandlers {

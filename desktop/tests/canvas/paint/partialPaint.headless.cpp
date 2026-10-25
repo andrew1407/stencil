@@ -4,6 +4,7 @@
 
 #include <QApplication>
 #include <QImage>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QRegion>
 
@@ -25,6 +26,23 @@ namespace {
         if (a.pixel(x, y) != b.pixel(x, y)) return false;
     return true;
   }
+
+  QRect changed(const QImage& a, const QImage& b) {
+    QRect box;
+    for (int y = 0; y < a.height(); ++y)
+      for (int x = 0; x < a.width(); ++x)
+        if (a.pixel(x, y) != b.pixel(x, y)) box |= QRect(x, y, 1, 1);
+    return box;
+  }
+
+  // The union of the rects the widget asks to repaint while events drain.
+  struct PaintLog : QObject {
+    QRegion asked;
+    bool eventFilter(QObject*, QEvent* e) override {
+      if (e->type() == QEvent::Paint) asked += static_cast<QPaintEvent*>(e)->region();
+      return false;
+    }
+  };
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -72,6 +90,51 @@ int main(int argc, char** argv) {
       check(same, "a partial repaint lands the pixels a full one does");
     }
   }
+
+  // A hover change repaints only the rings it moved, and that is every pixel the ring changes.
+  canvas.setCompareMode(QStringLiteral("none"));
+  canvas.setImageFilter(QStringLiteral("none"), QColor("#7c3aed"));
+  canvas.deselect();
+  canvas.resize(450, 300);
+  canvas.show();
+  QApplication::processEvents();
+  const QImage before = paint(canvas, QRegion(canvas.rect()));
+  PaintLog log;   // installed between renders: render() itself sends a full Paint
+  canvas.installEventFilter(&log);
+  const QPointF onLine1(140 * 1.5, 78 * 1.5);
+  QMouseEvent move(QEvent::MouseMove, onLine1, canvas.mapToGlobal(onLine1), Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+  QApplication::sendEvent(&canvas, &move);
+  QApplication::processEvents();
+  const QRegion onHover = log.asked;
+  canvas.removeEventFilter(&log);
+  const QImage hovered = paint(canvas, QRegion(canvas.rect()));
+  const QRect ring = changed(before, hovered);
+  check(!ring.isEmpty(), "hovering a line draws its ring");
+  check(onHover.contains(ring) && onHover.boundingRect() != canvas.rect(),
+        "the hover repaint asks for the ring's rect, not the whole canvas");
+  log.asked = QRegion();
+  canvas.installEventFilter(&log);
+  QEvent leave(QEvent::Leave);
+  QApplication::sendEvent(&canvas, &leave);
+  QApplication::processEvents();
+  const QRegion onLeave = log.asked;
+  canvas.removeEventFilter(&log);
+  check(changed(before, paint(canvas, QRegion(canvas.rect()))).isEmpty(), "leaving takes the ring off again");
+  check(onLeave.contains(ring) && onLeave.boundingRect() != canvas.rect(), "…repainting only where it was");
+
+  // A hover paint culls by the bounds the last paint kept; an edit that keeps every line's point count
+  // and width must still drop them, or the moved line is culled out of the ring's repaint.
+  stencil::core::Lines moved = canvas.getLines();
+  for (auto& pt : moved[1].points) pt.y += 110;
+  canvas.setLines(moved);   // its repaint still queued, as the hover's lands first
+  const QPointF onMoved(140 * 1.5, 188 * 1.5);
+  QMouseEvent moveTo(QEvent::MouseMove, onMoved, canvas.mapToGlobal(onMoved), Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+  QApplication::sendEvent(&canvas, &moveTo);
+  const QRect nearCursor = QRectF(onMoved - QPointF(6, 6), QSizeF(12, 12)).toRect();
+  const QImage cached = paint(canvas, QRegion(nearCursor));   // inside the rings the move asked for
+  check(sameIn(cached, paint(canvas, QRegion(canvas.rect())), nearCursor),
+        "a hover repaint after an edit draws the line where it now is");
+  QApplication::processEvents();
 
   std::printf(failures ? "\nFAILED (%d)\n" : "\nOK\n", failures);
   return failures ? 1 : 0;

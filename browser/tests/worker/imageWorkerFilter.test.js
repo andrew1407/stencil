@@ -12,7 +12,7 @@ globalThis.self = { postMessage: (msg, transfer) => replies.push({ msg, transfer
 
 const { core } = await import('../../js/core/abi/stencilCore.js');
 core.init = async () => false;   // node --test never loads wasm: the worker falls back like the page
-const { ImageFilterCanvas, readFilterInput } = await import('../../js/core/image/filterCanvas.js');
+const { ImageFilterCanvas, readFilterInput, filterJob } = await import('../../js/core/image/filterCanvas.js');
 const { FILTER_RECIPE } = await import('../../js/core/image/filterPixels.js');
 await import('../../js/worker/imageWorker.js');
 
@@ -41,6 +41,20 @@ for (const [filter, color] of [['contour', null], ['custom', '#7c3aed'], ['custo
     assert.notDeepEqual(main.px, image.px, 'the filter changed the pixels');
   });
 }
+
+test('handed the picture, the worker reads it itself and paints the main thread\'s copy', async () => {
+  const image = gradientImage(23, 17);
+  const main = new ImageFilterCanvas().canvasFor(image, 'contour', null);
+  const job = filterJob(image, 'contour', null);
+  assert.equal(job.image, image, 'a plain read leaves the picture to the worker');
+  const bitmap = { closed: false, close() { this.closed = true; } };
+  Object.setPrototypeOf(bitmap, image);
+  const { msg } = await ask({ recipe: job.recipe, bitmap, width: 23, height: 17, rgb: job.rgb });
+  assert.equal(msg.ok, true, msg.error);
+  assert.deepEqual(msg.bitmap.px, main.px);
+  assert.equal(bitmap.closed, true, 'the picture\'s bitmap is released');
+  assert.ok(filterJob(image, 'custom', '#7c3aed').pixels, 'the grayscale prepass still reads here');
+});
 
 test('without wasm the duotone reads grayscaled pixels and the worker only tints them', () => {
   assert.equal(readFilterInput(gradientImage(2, 2), 'custom', '#7c3aed').recipe, FILTER_RECIPE.TINT);

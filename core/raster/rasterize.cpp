@@ -75,13 +75,35 @@ namespace stencil::core {
     for (const Point& p : pts) { minY = std::min(minY, p.y); maxY = std::max(maxY, p.y); }
     const int y0 = std::max(clampToInt(std::floor(minY), 0, h - 1), std::max(rowFrom, 0));
     const int y1 = std::min(clampToInt(std::ceil(maxY), 0, h - 1), std::min(rowTo, h) - 1);
+    // An active-edge sweep: each edge is visited only on the rows it can cross, judged by the same
+    // half-open test as ever, so the crossings — sorted — and the pixels are the same.
+    struct Edge {
+      Point a, b;
+      int first, last;
+    };
+    std::vector<Edge> edges;
+    for (std::size_t i = 0, nn = pts.size(); i < nn; ++i) {
+      const Point& a = pts[i];
+      const Point& b = pts[(i + 1) % nn];
+      const double lo = std::min(a.y, b.y), hi = std::max(a.y, b.y);
+      if (!(lo < hi)) continue;  // flat, or NaN: never crosses a row centre
+      const double f = std::floor(lo - 0.5), l = std::ceil(hi - 0.5);
+      if (l < y0 || f > y1) continue;
+      edges.push_back({a, b, f < y0 ? y0 : static_cast<int>(f), l > y1 ? y1 : static_cast<int>(l)});
+    }
+    std::sort(edges.begin(), edges.end(), [](const Edge& l, const Edge& r) { return l.first < r.first; });
+    std::vector<std::size_t> active;
+    std::size_t next = 0;
     std::vector<double> xs;
     for (int y = y0; y <= y1; ++y) {
       const double sy = y + 0.5;
+      while (next < edges.size() && edges[next].first <= y) active.push_back(next++);
+      active.erase(std::remove_if(active.begin(), active.end(), [&](std::size_t i) { return edges[i].last < y; }),
+                   active.end());
       xs.clear();
-      for (std::size_t i = 0, nn = pts.size(); i < nn; ++i) {
-        const Point& a = pts[i];
-        const Point& b = pts[(i + 1) % nn];
+      for (const std::size_t i : active) {
+        const Point& a = edges[i].a;
+        const Point& b = edges[i].b;
         if ((a.y <= sy && b.y > sy) || (b.y <= sy && a.y > sy)) {
           const double t = (sy - a.y) / (b.y - a.y);
           xs.push_back(a.x + (b.x - a.x) * t);

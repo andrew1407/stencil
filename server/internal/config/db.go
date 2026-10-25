@@ -12,7 +12,8 @@ func loadDB(get getter, cfg *Config) error {
 	if cfg.DBMinConns, err = positiveInt(get, "DB_MIN_CONNS", 0, 0); err != nil {
 		return err
 	}
-	seconds, err := positiveInt(get, "DB_STATEMENT_TIMEOUT", 0, 0)
+	// A statement outlives no REST operation unless asked to; migrations lift it for themselves.
+	seconds, err := positiveInt(get, "DB_STATEMENT_TIMEOUT", int(cfg.OpTimeout/time.Second), 0)
 	if err != nil {
 		return err
 	}

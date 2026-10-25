@@ -3,7 +3,7 @@
 // One canvas per wearer, punched out under the tile's own rounded rect so both pass behind the
 // icon; the rAF loop runs only while the tile listens or motes are in flight. Level is the
 // `--voice-level` <html> variable (ui/toolbar/toolbar.js, ~60Hz); the pure parts are node-testable.
-import { dustEnabled } from '../motion.js';
+import { dustEnabled } from '../motion/motionPrefs.js';
 
 export const DUST_MARGIN = 56;            // canvas room around the tile, px
 const DUST_MAX_LIVE = 540;         // motes alive at once, whatever the shouting

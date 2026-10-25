@@ -133,3 +133,29 @@ func TestSweepIsAmortisedOverNewKeys(t *testing.T) {
 		t.Fatalf("a new key after idleTTL/2 ran %d sweeps, want 1", l.sweeps-before)
 	}
 }
+
+// A full table refuses a new key — the limit fails closed — while known keys keep spending, and an
+// idle sweep makes room again.
+func TestAFullTableRefusesNewKeysUntilASweepFreesRoom(t *testing.T) {
+	old := maxBuckets
+	maxBuckets = 3
+	t.Cleanup(func() { maxBuckets = old })
+	now := time.Unix(1_000, 0)
+	l := New(5)
+	l.now = func() time.Time { return now }
+	for _, k := range []string{"a", "b", "c"} {
+		if !l.Allow(k) {
+			t.Fatalf("%s refused below the cap", k)
+		}
+	}
+	if l.Allow("d") {
+		t.Fatal("a new key was admitted into a full table")
+	}
+	if !l.Allow("a") {
+		t.Fatal("a known key was refused because the table is full")
+	}
+	now = now.Add(idleTTL + time.Minute)
+	if !l.Allow("d") {
+		t.Fatal("once the old keys idled out, a new key should fit")
+	}
+}

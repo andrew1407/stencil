@@ -122,5 +122,8 @@ class _ProjectApi:
     return (proj.get("description", "") or "") if proj else ""
 
   def delete_project(self, pid: str) -> None:
-    """DELETE /projects/{id} (204 No Content)."""
-    self._request("DELETE", "/projects/" + urllib.parse.quote(str(pid)))
+    """DELETE /projects/{id} (204 No Content); a project already gone (404) counts as deleted."""
+    try:
+      self._request("DELETE", "/projects/" + urllib.parse.quote(str(pid)))
+    except ServerError as err:
+      if err.status != 404: raise

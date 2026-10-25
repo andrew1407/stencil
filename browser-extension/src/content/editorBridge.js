@@ -2,10 +2,11 @@
 // setting). Same-origin, so it reads the editor's project registry from localStorage for the SW
 // (pruneLedger). READ-ONLY on the editor: never writes the registry or a project — every editor
 // mutation goes through the page's own app methods. Also editor mode's relay in both
-// directions. Classic script — no import; the guard stops a second inject.
+// directions. Classic script — no import; orphan.js's claim stops a second inject and stands down
+// a copy a reload orphaned.
 (() => {
-  if (window.__stencilEditorBridge) return;
-  window.__stencilEditorBridge = true;
+  const { on } = window.__stencilOrphan?.('__stencilEditorBridge', window) ?? {};
+  if (!on) return;
 
   // mirror of lib/messages.js (classic content script — can't import)
   const MSG = {
@@ -47,14 +48,14 @@
   // `stencil:registry-changed` covers the editing tab; the `storage` event covers OTHER editor
   // tabs (it fires in every same-origin document except the one that wrote).
   publishRegistry();
-  window.addEventListener('stencil:registry-changed', publishRegistry);
-  window.addEventListener('storage', (e) => {
+  on('stencil:registry-changed', publishRegistry);
+  on('storage', (e) => {
     if (!e || e.key == null || e.key === REGISTRY_KEY) publishRegistry();
   });
 
   // Editor → extension UNPIN relay, as a PAGE_PIN with pin:false. `resource` is required so the
   // SW computes the (site, source) pin key — the editor passes the OLD image's.
-  window.addEventListener('message', (e) => {
+  on('message', (e) => {
     if (e.source !== window) return;                       // same-document page → bridge only
     const m = e && e.data;
     if (!m || m.source !== 'stencil-editor-bridge' || m.type !== 'unpin') return;
@@ -102,7 +103,7 @@
     }
   });
 
-  window.addEventListener('message', (e) => {
+  on('message', (e) => {
     if (e.source !== window) return;                       // same-document page → bridge only
     const d = e && e.data;
     if (!d || d.source !== SRC.EXT_RES || d.id == null) return;
@@ -163,7 +164,7 @@
   // No id = fire-and-forget (PAGE_OPEN / PAGE_CROP never respond): relay and stay quiet.
   const answerApi = (id, reply) => { if (id != null) window.postMessage({ source: SRC.EXT_API_RES, id, ...reply }, '*'); };
 
-  window.addEventListener('message', (e) => {
+  on('message', (e) => {
     if (e.source !== window) return;
     const d = e && e.data;
     if (!d || d.source !== SRC.EXT_API || !d.message) return;

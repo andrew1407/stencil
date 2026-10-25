@@ -39,4 +39,27 @@
   } catch {
     root.setAttribute('data-motion', 'particles');   /* storage blocked or junk — the default */
   }
+
+// In the extension's editor modal: the page itself loaded (no CSP or mixed-content refusal), told
+// to the referrer's origin from <head>, before the module graph downloads.
+  const hash = window.location?.hash || '';
+  if (window.parent !== window && (hash.startsWith('#stencil=') || hash === '#stencil-await')) {
+    try {
+      const target = document.referrer ? new URL(document.referrer).origin : '*';
+// The modal's payload never rides the frame's src, which the host page reads back through Resource
+// Timing: the parent posts it once ready, and it lands in the fragment js/core/launch/controller.js reads.
+      if (hash === '#stencil-await') window.addEventListener('message', function onHandoff(e) {
+        const d = e.data;
+        if (e.source !== window.parent || !d || d.source !== 'stencil-extension' || d.type !== 'handoff') return;
+        if (typeof d.hash !== 'string' || !d.hash.startsWith('#stencil=')) return;
+        window.removeEventListener('message', onHandoff);
+        history.replaceState(null, '', location.pathname + location.search + d.hash);
+        // Past index.js's wait the app booted empty: a reload boots it on the payload instead.
+        if (document.documentElement.hasAttribute('data-handoff-late')) location.reload();
+      });
+      window.parent.postMessage({ source: 'stencil-modal', type: 'ready' }, target);
+    } catch {
+      /* ignore */
+    }
+  }
 })();

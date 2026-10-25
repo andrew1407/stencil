@@ -108,9 +108,9 @@ class MainWindowGuiTest : public QObject {
     win.settings.saveChatsWithProject = true;
 
     // A local project to file the chat under.
-    win.adoptCanvasAsLocalProject();
-    QVERIFY(!win.activeProjectId.isEmpty());
-    const QString projectId = win.activeProjectId;
+    win.projectHost.adoptCanvasAsLocalProject();
+    QVERIFY(!win.projectHost.activeProjectId.isEmpty());
+    const QString projectId = win.projectHost.activeProjectId;
 
     // A settled turn: history push + the persist that onChatReply's tail runs.
     stencil::llm::ChatMessage u;
@@ -127,7 +127,7 @@ class MainWindowGuiTest : public QObject {
     win.chatSession->chatMirror("Assistant", a.text, false);
     win.parts.chatAppliers.persistActiveChat();
     {
-      Project* pr = win.findProject(projectId.toStdString());
+      Project* pr = win.projectHost.findProject(projectId.toStdString());
       QVERIFY(pr);
       QCOMPARE(parseChatDoc(pr->chat).size(), 2);   // saved, text-only, in order
     }
@@ -137,7 +137,7 @@ class MainWindowGuiTest : public QObject {
     win.chatSession->resetChatState();
     QVERIFY(win.chatSession->chatHistory.isEmpty());
     bool landed = false;   // the replay comes with the picture, which decodes off the GUI thread
-    QVERIFY(win.loadProjectIntoCanvas(projectId, true, [&landed](bool ok) { landed = ok; }));
+    QVERIFY(win.projectHost.loadProjectIntoCanvas(projectId, true, [&landed](bool ok) { landed = ok; }));
     QTRY_VERIFY_WITH_TIMEOUT(landed, 5000);
     QCOMPARE(win.chatSession->chatHistory.size(), 2);
     QCOMPARE(win.chatSession->chatHistory.last().text, QString("Sepia applied."));
@@ -156,7 +156,7 @@ class MainWindowGuiTest : public QObject {
     win.chatSession->onChatClear();
     QVERIFY(win.chatSession->chatHistory.isEmpty());
     {
-      Project* pr = win.findProject(projectId.toStdString());
+      Project* pr = win.projectHost.findProject(projectId.toStdString());
       QVERIFY(pr && pr->chat.isEmpty());
     }
 
@@ -165,7 +165,7 @@ class MainWindowGuiTest : public QObject {
     win.chatSession->pushChatHistory(u);
     win.parts.chatAppliers.persistActiveChat();
     {
-      Project* pr = win.findProject(projectId.toStdString());
+      Project* pr = win.projectHost.findProject(projectId.toStdString());
       QVERIFY(pr && pr->chat.isEmpty());
     }
 

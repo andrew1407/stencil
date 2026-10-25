@@ -2,7 +2,7 @@
 import { UNSUPPORTED_TEXT, VOICE_STATE_EVENT } from '../../../llm/voice/modes.js';
 import { icon } from '../../icons.js';
 import { notify } from '../../../utils.js';
-import { swapContent } from '../../motion.js';
+import { swapContent } from '../../motion/control/fx.js';
 import { subscribe } from '../../../eventBus/appBus.js';
 
 // Two layers of state: the FACE (`on`) and LISTENING (the coordinator's, with this surface's

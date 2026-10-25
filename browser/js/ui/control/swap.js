@@ -1,4 +1,4 @@
-import { markIn, markOut } from '../motion.js';
+import { markIn, markOut } from '../motion/surface/marks.js';
 
 // A checkbox's checked indicator is a mark: it forms and scatters like every mark
 // (motion.js markIn / markOut); the box itself never moves. One delegated listener,

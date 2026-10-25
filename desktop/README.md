@@ -8,13 +8,13 @@ browser app through the C++ [`core/`](../core/). For the project overview see th
 
 ## Build
 
-Needs a C++17 compiler, CMake and **Qt 6** (Widgets, Network, Multimedia):
+Needs a C++17 compiler, CMake and **Qt 6.12** (Widgets, Network, Multimedia, Svg):
 
 ```bash
-# Fedora
-sudo dnf install -y gcc-c++ cmake qt6-qtbase-devel
-# Debian / Ubuntu
-sudo apt install -y g++ cmake qt6-base-dev
+# macOS
+brew install cmake qt
+# Linux / Windows: Qt 6.12 from the Qt Online Installer, then name it to CMake
+cmake -S . -B build -DCMAKE_PREFIX_PATH=$HOME/Qt/6.12.0/gcc_64
 ```
 
 ```bash
@@ -24,7 +24,7 @@ cmake --build build -j 4
 ./build/stencil
 ```
 
-If Qt 6 is not found, configuration prints a notice and skips the app so the core still
+If Qt 6.12 is not found, configuration prints a notice and skips the app so the core still
 builds. This dev build keeps runtime state (settings, projects, the session autosave) in a
 repo-local `desktop/.stencil/` directory and links Qt dynamically — it is not a
 distributable binary; see [Release packaging](#release-packaging).

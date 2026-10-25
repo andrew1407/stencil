@@ -73,13 +73,12 @@ export const buildPageOps = (core, { F64, allocPoints }) => {
     },
 
     boundingBoxCenter(points) {
-      const { ptr, n } = allocPoints(points);
       const out = heapAlloc(core, 2 * F64);
       try {
-        cBboxCenter(ptr, n, out);
+        const { ptr, n } = allocPoints(points);
+        try { cBboxCenter(ptr, n, out); } finally { core._free(ptr); }
         return { x: core.getValue(out, 'double'), y: core.getValue(out + F64, 'double') };
       } finally {
-        core._free(ptr);
         core._free(out);
       }
     },

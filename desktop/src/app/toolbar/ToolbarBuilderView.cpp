@@ -1,7 +1,7 @@
 #include "MainWindow.hpp"
 #include "windowSheets.hpp"
 #include "ToolbarBuilder.hpp"
-#include "mainWindowHelpers.hpp"
+#include "toolbarMetrics.hpp"
 #include "CanvasWidget.hpp"
 #include "SearchCombo.hpp"
 #include "../../support/control/WrapRow.hpp"     // rows wrap like the browser's, never overflow into "»"

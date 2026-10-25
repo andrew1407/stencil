@@ -1,6 +1,6 @@
 // Topbar project name + the image-info line.
 import { icon } from '../../icons.js';
-import { revealControls } from '../../motion.js';
+import { revealControls } from '../../motion/control/revealControls.js';
 import { activeIsBlank } from '../../../core/image/blankImage.js';
 
 // The project-colour picker's colour on trial: painted only while the project and its stored

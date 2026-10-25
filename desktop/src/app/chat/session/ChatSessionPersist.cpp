@@ -1,5 +1,5 @@
 #include "ChatSessionController.hpp"
-#include "mainWindowHelpers.hpp"
+#include "stamps.hpp"
 #include "fileStore.hpp"
 
 // The §12 chat doc: built from the displayed conversation, and read back into both views.

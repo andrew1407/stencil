@@ -12,7 +12,7 @@ import urllib.parse
 
 from tests.helpers.fixturebase import _FIXTURES, _load
 
-from pystencil._net import _address_blocked, _assert_fetchable, _is_blocked_ip, _literal
+from pystencil._net import _address_blocked, _assert_fetchable, _is_blocked_ip, _literal, _server_target_refused
 
 _HOSTS = _load(_FIXTURES / "net" / "hosts.json")
 
@@ -45,6 +45,8 @@ class HostCorpusTests(unittest.TestCase):
           _verdict(_address_blocked(ip, "serverTarget", allowPrivate=True)),
           expect["serverTarget+allowPrivate"],
         )
+        self.assertEqual(_verdict(bool(_server_target_refused(url))), expect["serverTarget+allowPrivate"],
+                         "a server URL is refused as the table says, from its own parse")
         try:
           _assert_fetchable(url, strict=True)
           refused = False

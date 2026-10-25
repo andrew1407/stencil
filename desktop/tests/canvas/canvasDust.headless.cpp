@@ -1,5 +1,5 @@
 // The CANVAS image's arrival and clear clouds (app/MainWindowDnd playImageArrival,
-// MainWindowProjectClose resetToBlankEditor). They run on CANVAS_DUST_MS, their own clock —
+// ProjectFlowsCrud resetToBlankEditor). They run on CANVAS_DUST_MS, their own clock —
 // 1.5x faster than the DUST_MS every list row, chip and dialog shares.
 #include "CanvasWidget.hpp"
 #include "MainWindow.hpp"

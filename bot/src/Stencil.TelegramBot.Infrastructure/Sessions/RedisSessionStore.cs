@@ -6,8 +6,8 @@ using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Infrastructure.Sessions;
 
-// One JSON value per user, in the Redis the Go server may share. It outlives a restart; it does not
-// make the bot multi-instance, since UserGate and the update lanes are per-process.
+// One JSON value per user, with no expiry, in the Redis the Go server may share. It outlives a restart;
+// it does not make the bot multi-instance, since UserGate and the update lanes are per-process.
 public sealed class RedisSessionStore : ISessionStore
 {
     private readonly IConnectionMultiplexer _redis;
@@ -25,8 +25,17 @@ public sealed class RedisSessionStore : ISessionStore
         {
             return new UserSession { UserId = userId };
         }
-        UserSession? session = JsonSerializer.Deserialize<UserSession>((string)value!, StencilJson.Options);
-        return session ?? new UserSession { UserId = userId };
+        UserSession? session;
+        try
+        {
+            session = JsonSerializer.Deserialize<UserSession>((string)value!, StencilJson.Options);
+        }
+        catch (JsonException)
+        {
+            // A corrupt or older-schema value starts the user afresh; the next save overwrites it.
+            return new UserSession { UserId = userId };
+        }
+        return session is not null && session.UserId == userId ? session : new UserSession { UserId = userId };
     }
 
     public async Task SaveAsync(UserSession session, CancellationToken ct = default)

@@ -67,15 +67,15 @@ class MainWindowGuiTest : public QObject {
 
     // A saved project: all three live, the reason gone. Idempotent against the persisted test store,
     // where a copy left by an earlier run (the dialog writes through fileStore) would be found first.
-    win.projectList.erase(std::remove_if(win.projectList.begin(), win.projectList.end(),
+    win.projectHost.projectList.erase(std::remove_if(win.projectHost.projectList.begin(), win.projectHost.projectList.end(),
                                           [](const stencil::gui::Project& p) { return p.meta.id == "meta-gui"; }),
-                           win.projectList.end());
+                           win.projectHost.projectList.end());
     stencil::gui::Project pr;
     pr.meta.id = "meta-gui";
     pr.meta.name = "Meta";
     pr.meta.description = "Before";
-    win.projectList.push_back(pr);
-    win.activeProjectId = "meta-gui";
+    win.projectHost.projectList.push_back(pr);
+    win.projectHost.activeProjectId = "meta-gui";
     win.refreshActions();
     for (QAction* a : want) {
       QVERIFY2(a->isEnabled(), qPrintable(a->text() + " is dead with a saved project"));
@@ -109,7 +109,7 @@ class MainWindowGuiTest : public QObject {
       QVERIFY(save);
     });
     win.acts.description->trigger();
-    QTRY_COMPARE(QString::fromStdString(win.findProject("meta-gui")->meta.description),
+    QTRY_COMPARE(QString::fromStdString(win.projectHost.findProject("meta-gui")->meta.description),
                  QStringLiteral("After"));
     QTimer::singleShot(0, [&] {
       QDialog* dlg = nullptr;
@@ -135,13 +135,13 @@ class MainWindowGuiTest : public QObject {
     });
     win.acts.keywords->trigger();
     // "Kitchen Plan" is ONE keyword, not two; the later "plan" is its own, listed first.
-    QTRY_COMPARE(win.findProject("meta-gui")->meta.keywords,
+    QTRY_COMPARE(win.projectHost.findProject("meta-gui")->meta.keywords,
                  std::vector<std::string>({"plan", "kitchen plan"}));
     // …and leave no trace in the store for the next run.
-    win.projectList.erase(std::remove_if(win.projectList.begin(), win.projectList.end(),
+    win.projectHost.projectList.erase(std::remove_if(win.projectHost.projectList.begin(), win.projectHost.projectList.end(),
                                           [](const stencil::gui::Project& p) { return p.meta.id == "meta-gui"; }),
-                           win.projectList.end());
-    stencil::gui::fileStore::saveProjects(win.projectList);
+                           win.projectHost.projectList.end());
+    stencil::gui::fileStore::saveProjects(win.projectHost.projectList);
   }
 };
 

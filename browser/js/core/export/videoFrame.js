@@ -28,7 +28,7 @@ const captureCurrentFrame = (v) =>
   scaledDataUrl(v, v.videoWidth, v.videoHeight, FRAME_MAX_EDGE, 'image/jpeg', FRAME_JPEG_QUALITY);
 
 // Decode `srcUrl` ONCE, seek sequentially through `timesFor(duration)`, capture each frame.
-// The per-step timeout is re-armed on every load/seek. Revokes `srcUrl` when done.
+// The per-step timeout is re-armed on every load/seek. Releases the element and `srcUrl` when done.
 function captureFramesAt(srcUrl, timesFor) {
   return new Promise((resolve, reject) => {
     const v = document.createElement('video');
@@ -45,6 +45,9 @@ function captureFramesAt(srcUrl, timesFor) {
       if (done) return;
       done = true;
       clearTimeout(timer);
+      // An emptied src stops the fetch and frees the decoder, a remote one past a timeout too.
+      v.removeAttribute('src');
+      v.load();
       URL.revokeObjectURL(srcUrl);
       if (err) reject(err); else resolve(out);
     };

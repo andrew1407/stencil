@@ -66,11 +66,13 @@ export const spawnStageCount = (intensity, dt, rnd = Math.random) => {
 };
 
 // The style's drift points out of the mark, not down the screen, so the ring stays even.
-export const driftedStageMote = (m, f) => {
+export const driftedStageMote = (m, f, into = {}) => {
   const d = Math.hypot(m.x, m.y);
-  if (d <= 0) return { x: m.x + f.sx, y: m.y + f.sy };
+  if (d <= 0) { into.x = m.x + f.sx; into.y = m.y + f.sy; return into; }
   const ux = m.x / d, uy = m.y / d, out = Math.abs(f.sy);
-  return { x: m.x + ux * out + uy * f.sx, y: m.y + uy * out - ux * f.sx };
+  into.x = m.x + ux * out + uy * f.sx;
+  into.y = m.y + uy * out - ux * f.sx;
+  return into;
 };
 
 // One emitter per stage: `style` is a dustCloud style name, null for a show that flies none.
@@ -79,7 +81,12 @@ export const createStageCloud = (style) => {
   const code = PARTICLE_STYLES[style] ?? null;
   let colours = null;
   const out = {};
-  const bucket = new Map();
+  const spot = {};
+  // Per (colour, alpha step) key: 5 doubles a grain, grown by doubling and reused every frame,
+  // painted in the order the keys first appeared.
+  const grains = [];
+  const counts = [];
+  const order = [];
   const poly = [];
   return {
     get live() { return motes.length; },
@@ -95,33 +102,44 @@ export const createStageCloud = (style) => {
       if (code === null) return 0;
       const want = Math.min(spawnStageCount(boost, dt, rnd), CLOUD.maxLive - motes.length);
       for (let i = 0; i < want; i++) motes.push(styleStageMote(newStageMote(size, boost, rnd, dir), code));
-      for (let i = motes.length - 1; i >= 0; i--) if (!stepStageMote(motes[i], dt)) motes.splice(i, 1);
-      return motes.length;
+      let kept = 0;
+      for (const m of motes) if (stepStageMote(m, dt)) motes[kept++] = m;
+      motes.length = kept;
+      return kept;
     },
     // Painted around (x, y) in the same batched fills every other cloud uses. `scale` is the
     // mark's own: the grains grow out of the header logo with it and shrink back into it.
     draw(ctx, doc, x, y, tMs, scale = 1) {
       if (code === null || !motes.length) return;
       if (!colours) colours = paletteCss().map((css) => resolveColour(doc, css));
-      for (const b of bucket.values()) b.length = 0;
+      for (const key of order) counts[key] = 0;
       for (const m of motes) {
         const p = Math.min(1, m.age / m.life);
         styleFrame(code, p, p, m.w, m.len, tMs, out);
         const alpha = stageMoteAlpha(m) * out.glow;
         if (alpha < 0.01) continue;
-        const at = driftedStageMote(m, out);
+        const at = driftedStageMote(m, out, spot);
         const tint = tintOf(m.w);
         const mix = tint < 0 && code === PARTICLE_STYLES.dust ? dustMix(m.w, false) : out.mix;
         const key = Math.min(colours.length - 1, stopOfTint(mix, tint)) * 10 + Math.round(alpha * 9);
-        let b = bucket.get(key);
-        if (!b) bucket.set(key, (b = []));
-        b.push(x + at.x * scale, y + at.y * scale, m.r * out.scale * scale, m.shape, m.a);
+        if (grains[key] === undefined) { order.push(key); counts[key] = 0; }
+        const n = counts[key];
+        let b = grains[key];
+        if (!b || (n + 1) * 5 > b.length) {
+          const grown = new Float64Array(Math.max(320, (b?.length ?? 0) * 2));
+          if (b) grown.set(b);
+          grains[key] = b = grown;
+        }
+        const o = n * 5;
+        b[o] = x + at.x * scale; b[o + 1] = y + at.y * scale; b[o + 2] = m.r * out.scale * scale;
+        b[o + 3] = m.shape; b[o + 4] = m.a;
+        counts[key] = n + 1;
       }
-      for (const [key, b] of bucket) {
-        if (!b.length) continue;
+      for (const key of order) {
+        if (!counts[key]) continue;
         ctx.globalAlpha = (key % 10) / 9;
         ctx.fillStyle = colours[Math.floor(key / 10)];
-        fillGrains(ctx, b, b.length / 5, poly);
+        fillGrains(ctx, grains[key], counts[key], poly);
       }
       ctx.globalAlpha = 1;
     },

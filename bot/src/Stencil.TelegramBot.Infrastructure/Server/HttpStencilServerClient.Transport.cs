@@ -33,7 +33,16 @@ public sealed partial class HttpStencilServerClient
         int status = (int)response.StatusCode;
         if ((status == 401 || status == 403) && _credential.Length != 0 && path != "/auth/token")
         {
-            string? minted = await tryMintAsync(ct).ConfigureAwait(false);
+            string? minted;
+            try
+            {
+                minted = await tryMintAsync(ct).ConfigureAwait(false);
+            }
+            catch
+            {
+                response.Dispose();
+                throw;
+            }
             if (minted is not null)
             {
                 response.Dispose();

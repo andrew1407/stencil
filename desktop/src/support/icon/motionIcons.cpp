@@ -3,33 +3,18 @@
 
 namespace stencil::support {
 
-  double motionIconMs(const QString& mode) {
-    double ms = 450;
-    if (mode == QLatin1String("water")) ms = 1125;
-    else if (mode == QLatin1String("fire")) ms = 900;
-    else if (mode == QLatin1String("particles")) ms = 825 + 4 * 90;
-    return ms / MOTION_ICON_SPEEDUP;
-  }
+  namespace {
 
-  // `box` is square, any size — the drawing is 16 units; a big `ms` = at rest.
-  void paintMotionIcon(QPainter& p, const QRectF& box, const QString& mode,
-                       const QColor& colour, double ms) {
-    const double s = box.width() / 16.0;
-    const double t = std::clamp(ms / motionIconMs(mode), 0.0, 1.0);
-    p.save();
-    p.setRenderHint(QPainter::Antialiasing, true);
-    p.translate(box.topLeft());
-    p.scale(s, s);
-    QPen pen(colour, 1.6, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
-    p.setPen(pen);
-    p.setBrush(Qt::NoBrush);
-    if (mode == QLatin1String("none")) {
+    // Each glyph in the 16-unit box with the pen already set; `t` 0..1 through its keyframes.
+    void paintNone(QPainter& p, const QColor&, double t) {
       p.drawEllipse(QPointF(8, 8), 5.6, 5.6);
       // Browser stroke-dashoffset 11.4 → 0.
       const double k = mmEaseOut(t);
       const QPointF a(12.05, 3.95), b(3.95, 12.05);
       if (k > 0.01) p.drawLine(a, a + (b - a) * k);
-    } else if (mode == QLatin1String("slide")) {
+    }
+
+    void paintSlide(QPainter& p, const QColor&, double t) {
       // Browser mmShaft (stroke-dashoffset 9.9 → 0) over the first 35%; mmHead over the last third.
       const double ks = mmEaseOut(std::clamp(t / (0.35 / 0.45), 0.0, 1.0));
       const QPointF a(4.5, 11.5), b(11.5, 4.5);
@@ -41,7 +26,9 @@ namespace stencil::support {
         head.moveTo(6.5, 4.5); head.lineTo(11.5, 4.5); head.lineTo(11.5, 9.5);
         p.drawPath(head);
       }
-    } else if (mode == QLatin1String("water")) {
+    }
+
+    void paintWater(QPainter& p, const QColor& colour, double t) {
       // 0% translateY(-9) scale(.6) fade → 70% landed squashed (1.06, .94) → 100% rest.
       double dy, sx, sy, op;
       if (t < 0.7) { const double k = mmOut(t / 0.7); dy = -9 * (1 - k); sx = mmLerp(0.6, 1.06, k); sy = mmLerp(0.6, 0.94, k); op = k; }
@@ -56,7 +43,9 @@ namespace stencil::support {
       drop.closeSubpath();
       p.setPen(Qt::NoPen); p.setBrush(colour);
       p.drawPath(drop);
-    } else if (mode == QLatin1String("fire")) {
+    }
+
+    void paintFire(QPainter& p, const QColor& colour, double t) {
       // Keyframes: 0% scale(.5,.15) fade → 35% (1.05,.8) → 60% (.94,1.1) → 80% (1.04,.96) → 100% rest.
       struct K { double at, sx, sy, op; };
       const K keys[] = {{0, 0.5, 0.15, 0}, {0.35, 1.05, 0.8, 1}, {0.6, 0.94, 1.1, 1}, {0.8, 1.04, 0.96, 1}, {1, 1, 1, 1}};
@@ -76,7 +65,10 @@ namespace stencil::support {
       flame.closeSubpath();
       p.setPen(Qt::NoPen); p.setBrush(colour);
       p.drawPath(flame);
-    } else {   // particles (dust): five specks settling in from the top, 60ms apart over 550ms
+    }
+
+    // Dust: five specks settling in from the top, 60ms apart over 550ms.
+    void paintParticles(QPainter& p, const QColor& colour, double t) {
       const QPointF at[5] = {{4, 6}, {8.5, 4.2}, {12, 7}, {6.2, 10.5}, {10.4, 11.6}};
       const double r[5] = {1.3, 1.0, 1.2, 1.1, 1.35};
       p.setPen(Qt::NoPen); p.setBrush(colour);
@@ -88,6 +80,44 @@ namespace stencil::support {
         p.drawEllipse(at[i] + QPointF(0, -7 * (1 - k)), r[i], r[i]);
       }
     }
+
+    // mode → its hover keyframes' length (ms, before MOTION_ICON_SPEEDUP) and its glyph.
+    struct MotionIconRow {
+      const char* mode;
+      double ms;
+      void (*paint)(QPainter&, const QColor&, double);
+    };
+    const MotionIconRow ROWS[] = {
+        {"none", 450, paintNone},     {"slide", 450, paintSlide},
+        {"water", 1125, paintWater},  {"fire", 900, paintFire},
+        {"particles", 825 + 4 * 90, paintParticles},
+    };
+
+    // An unknown mode times as a 450ms one and paints as dust.
+    const MotionIconRow& rowFor(const QString& mode) {
+      static const MotionIconRow fallback{"", 450, paintParticles};
+      for (const MotionIconRow& row : ROWS)
+        if (mode == QLatin1String(row.mode)) return row;
+      return fallback;
+    }
+
+  }  // namespace
+
+  double motionIconMs(const QString& mode) { return rowFor(mode).ms / MOTION_ICON_SPEEDUP; }
+
+  // `box` is square, any size — the drawing is 16 units; a big `ms` = at rest.
+  void paintMotionIcon(QPainter& p, const QRectF& box, const QString& mode,
+                       const QColor& colour, double ms) {
+    const double s = box.width() / 16.0;
+    const double t = std::clamp(ms / motionIconMs(mode), 0.0, 1.0);
+    p.save();
+    p.setRenderHint(QPainter::Antialiasing, true);
+    p.translate(box.topLeft());
+    p.scale(s, s);
+    QPen pen(colour, 1.6, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
+    p.setPen(pen);
+    p.setBrush(Qt::NoBrush);
+    rowFor(mode).paint(p, colour, t);
     p.restore();
   }
 

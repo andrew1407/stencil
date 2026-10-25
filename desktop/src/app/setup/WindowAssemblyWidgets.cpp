@@ -9,10 +9,11 @@
 #include "DataExportController.hpp"
 #include "DropZonesOverlay.hpp"
 #include "IncognitoOverlay.hpp"
-#include "guiHelpers.hpp"   // fillPageSizeCombo
+#include "pageSizeCombo.hpp"   // fillPageSizeCombo
 #include "Notifications.hpp"
 #include "ProjectDragZones.hpp"
 #include "RemoteSession.hpp"
+#include "RemoteSyncController.hpp"
 #include "SearchCombo.hpp"
 #include "ShimmerOverlay.hpp"
 #include "ChatDock.hpp"
@@ -44,12 +45,14 @@ namespace stencil::gui {
     // Parented to the window, not the viewport: DisintegrateOverlay raises itself over the
     // viewport and painted over a toast there (browser: #notify-balloon is position:fixed).
     w.notify = new Notifications(&w);
-    // Created before the sync controller, which composes it; its ConnectionManager is set in
-    // ensureConnections().
+    // Created before the sync controller, which composes it; it builds its ConnectionManager on first use.
     w.remote.session = new RemoteSession(&w, w.notify);
+    QObject::connect(w.remote.session, &RemoteSession::linkedServerForgotten, &w, [this] {
+      if (w.remoteSync) w.remoteSync->stopRemotePoll();
+    });
     w.dataExport = std::make_unique<DataExportController>(
         &w, w.canvas, w.notify, &w.settings,
-        [this] { return w.projectBaseName(); },
+        [this] { return w.projectHost.projectBaseName(); },
         [this] { return w.currentLayoutMeta(); });
     // Mirrors the browser's body.incognito-mode outline/badge.
     w.overlays.incognito = new IncognitoOverlay(w.scroll->viewport());

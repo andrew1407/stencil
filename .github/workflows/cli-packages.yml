@@ -98,3 +98,22 @@ jobs:
         run: |
           gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" --generate-notes || true
           gh release upload "${GITHUB_REF_NAME}" cli/dist/stencil-cli-*.${{ matrix.ext }} --clobber
+
+  # The suite on the OSes the packages target but ci.yml does not test on (it runs Linux). Its own
+  # job, so a failure only one OS shows is reported without holding a package back.
+  tests:
+    name: Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.17.0
+      - name: Test
+        working-directory: cli
+        run: zig build test --summary all

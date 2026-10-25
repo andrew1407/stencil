@@ -32,12 +32,12 @@ namespace stencil::gui {
     // every exit path, unless a newer push owns it.
     w.remote.pushing = true;
     const int seq = ++w.remote.pushSeq;
-    auto pushGuard = std::shared_ptr<void>(nullptr, [self = QPointer<MainWindow>(&w), seq](void*) {
-      if (!self || self->tearingDown || self->remote.pushSeq != seq) return;
-      self->remote.pushing = false;
-      if (self->remoteSync) self->remoteSync->pushFinished();
+    auto pushGuard = std::shared_ptr<void>(nullptr, [this, self = QPointer<QWidget>(w.window), seq](void*) {
+      if (!self || w.tearingDown || w.remote.pushSeq != seq) return;
+      w.remote.pushing = false;
+      if (w.remoteSync) w.remoteSync->pushFinished();
     });
-    QPointer<MainWindow> self(&w);
+    QPointer<QWidget> self(w.window);
     const int width = w.canvas->imageWidth();
     const int h = w.canvas->imageHeight();
     // The push carries the project it started on, and touches the link only while it still holds it.
@@ -87,7 +87,7 @@ namespace stencil::gui {
                   w.remote.reloading = true;
                   // Adopt the peer's filter unless this user changed their own (the scalar cannot
                   // merge); the merged lines' one step carries it, else it is a step of its own.
-                  if (!w.filterDirty) {
+                  if (!host.filterDirty) {
                     QString sf, st;
                     parseLayoutFilter(srvLayout, w.settings.filterColor, sf, st);
                     w.applyTintColor(QColor(st), /*asUndoStep=*/false);
@@ -114,7 +114,7 @@ namespace stencil::gui {
                             "saving again");
             return;
           }
-          w.filterDirty = false;   // our filter (if any) is now the server's
+          host.filterDirty = false;   // our filter (if any) is now the server's
           if (w.remote.session->saveOutcomeChanged(true))
             w.notify->success(QString("Saved \"%1\" to %2").arg(name, addr));
           w.remoteSync->scheduleResultUpload();
@@ -122,16 +122,16 @@ namespace stencil::gui {
   }
 
   void ProjectFlows::openConnections() {
-    ConnectDialog dlg(w.ensureConnections(), &w);
+    ConnectDialog dlg(w.ensureConnections(), w.window);
     // Sits beside Auto-connect there (browser parity).
     dlg.setSyncToServer(w.settings.syncToServer);
-    QObject::connect(&dlg, &ConnectDialog::syncToServerToggled, &w, [this](bool on) {
+    QObject::connect(&dlg, &ConnectDialog::syncToServerToggled, w.window, [this](bool on) {
       Settings s = w.settings;
       s.syncToServer = on;
       w.applySettings(s, true);
     });
     // Reports on the toast stack, never a native alert (browser parity).
-    QObject::connect(&dlg, &ConnectDialog::toast, &w, [this](const QString& text, bool failed) {
+    QObject::connect(&dlg, &ConnectDialog::toast, w.window, [this](const QString& text, bool failed) {
       if (!w.notify) return;
       if (failed) w.notify->error(text); else w.notify->success(text);
     });

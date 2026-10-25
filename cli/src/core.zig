@@ -27,8 +27,10 @@ pub fn zstr(s: []const u8) ?[:0]const u8 {
     return S.buf[0..s.len :0];
 }
 
+// Not @intCast(std.math.clamp(...)): Zig 0.17 miscompiles that over a value an extern call just
+// wrote (ReleaseFast/Safe read the stale pre-call value), so a parsed colour came back wrong.
 fn toByte(v: c_int) u8 {
-    return @intCast(std.math.clamp(v, 0, 255));
+    return @intCast(@max(0, @min(v, 255)));
 }
 
 /// Parse a CSS colour (named / hex / "transparent"). null if unrecognized.

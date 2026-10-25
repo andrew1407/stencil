@@ -30,6 +30,7 @@ namespace stencil::gui {
     QString pendingServerTarget;
     QuickCropOpts pendingCrop;
     QString pendingLaunchLayout;
+    bool pendingLaunchStrict = false;   // the pending layout URL came from a link: fetched strict
     QString pendingLaunchLayoutJson;
     // The canvas picture generation the window's MediaLoader open and the boot restore began under;
     // while the canvas still stands at `sessionLoad`, the restore is decoding and holds the first show.

@@ -118,6 +118,10 @@ namespace stencil::gui {
       liveFeed = new stencil::net::LiveFeed(this);
       connect(liveFeed, &stencil::net::LiveFeed::projectUpdated,
               this, &RemoteSyncController::onRemoteProjectEvent);
+      // A live feed brings every edit; the poll stays a slow backstop for an event the bus dropped.
+      const int pollMs = pollTimer->interval();
+      connect(liveFeed, &stencil::net::LiveFeed::liveChanged, this,
+              [this, pollMs](bool on) { pollTimer->setInterval(on ? pollMs * LIVE_POLL_FACTOR : pollMs); });
     }
     liveFeed->subscribe(addr, c->getToken());
   }
@@ -164,7 +168,7 @@ namespace stencil::gui {
       if (localWriteBusy() || resultInFlight || *planRunning || *remoteReloading) return;
       if (meta.version > session->version())
         h.openServerProject(addr, id, /*silent=*/true);
-    });
+    }, session->version());
   }
 
 }  // namespace stencil::gui

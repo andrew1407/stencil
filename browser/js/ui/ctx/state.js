@@ -2,7 +2,7 @@ import { setHtml, setRadioGroup, formatCombo, hasAnyLines } from '../../utils.js
 import { hotkeys } from '../../core/settings/hotkeys.js';
 import { icon } from '../icons.js';
 import { keysHtml } from '../tip/content.js';
-import { revealControls } from '../motion.js';
+import { revealControls } from '../motion/control/revealControls.js';
 import { EXPORT_VARIANTS, exportVariantState } from '../export/variants.js';
 
 // Reflect the app's live state into the open context menu, after each updateButtons sweep; setHtml

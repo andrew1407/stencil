@@ -38,15 +38,15 @@ const holdDrawClass = (mod) => {
 
     constructor({ holdDelay = HOLD_DRAW.delayMs, moveTolerance = HOLD_DRAW.moveTolerancePx,
       rearmDistance = HOLD_DRAW.rearmDistancePx } = {}) {
+      this.#out = heapAlloc(mod, 2 * F64);   // first: a heap that cannot serve it leaves no handle behind
       this.#handle = c.create(holdDelay, moveTolerance, rearmDistance);
-      this.#out = heapAlloc(mod, 2 * F64);
     }
 
 // Idempotent; the instance is unusable after.
     destroy() {
+      if (this.#out) { mod._free(this.#out); this.#out = 0; }
       if (!this.#handle) return;
       c.destroy(this.#handle);
-      mod._free(this.#out);
       this.#handle = 0;
     }
 
@@ -129,14 +129,14 @@ const historyClass = (mod) => {
     #sizes;
 
     constructor() {
-      this.#handle = c.create();
       this.#sizes = heapAlloc(mod, 2 * I32);
+      this.#handle = c.create();
     }
 
     destroy() {
+      if (this.#sizes) { mod._free(this.#sizes); this.#sizes = 0; }
       if (!this.#handle) return;
       c.destroy(this.#handle);
-      mod._free(this.#sizes);
       this.#handle = 0;
     }
 

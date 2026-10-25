@@ -1,9 +1,10 @@
+#include "MediaLoader.hpp"
 #include "MainWindow.hpp"
 #include "../../../support/control/reveal/controlReveal.hpp"
 #include "ProjectFlows.hpp"
 #include "ChatSessionController.hpp"
 #include "mainWindowShared.hpp"
-#include "mainWindowHelpers.hpp"
+#include "naturalPage.hpp"
 #include "displayName.hpp"
 #include "CanvasWidget.hpp"
 #include "Notifications.hpp"
@@ -28,15 +29,15 @@ namespace stencil::gui {
   // downloadFile("original") → fetchUrlBytes(source) on empty → decode (pool) → adopt.
   void ProjectFlows::openServerProject(const QString& serverUrl, const QString& id, bool silent,
                                      bool link, qint64 version) {
-    if (!w.remote.connections) return;
+    if (!w.remote.conns()) return;
     stencil::net::ServerClient* c = w.remote.session->requireClient(serverUrl);
     if (!c || (silent && w.remote.reloading)) return;
     // Loading emits changed(); the flag stops it being pushed straight back. Async-in-flight: the
     // shared clearer's destructor resets it once the last continuation is gone.
     w.remote.reloading = true;
     const int seq = ++w.remote.reloadSeq;
-    auto reloadGuard = std::shared_ptr<void>(nullptr, [self = QPointer<MainWindow>(&w), seq](void*) {
-      if (self && self->remote.reloadSeq == seq) self->remote.reloading = false;
+    auto reloadGuard = std::shared_ptr<void>(nullptr, [this, self = QPointer<QWidget>(w.window), seq](void*) {
+      if (self && w.remote.reloadSeq == seq) w.remote.reloading = false;
     });
     // Lines drawn while a reload of this same project is in flight are merged into what lands.
     const bool sameProject = silent && link && w.remote.session->address() == serverUrl &&
@@ -72,7 +73,7 @@ namespace stencil::gui {
       else w.canvas->commitFilter(filter, w.tools.filterColorValue);
       return true;
     };
-    QPointer<MainWindow> self(&w);
+    QPointer<QWidget> self(w.window);
     c->getProjectAsync(id, [this, self, c, serverUrl, id, silent, link, version, reloadGuard, applyLayoutOnly,
                             editsSince, seq](
                                bool ok, stencil::net::ServerProject meta, QJsonObject layout) {
@@ -90,11 +91,11 @@ namespace stencil::gui {
           const model::LineUnion merged = model::unionLines(w.canvas->allLines(), *local);
           if (merged.lines.size() != w.canvas->allLines().size()) w.canvas->commitLines(merged.lines);
         }
-        w.docSource.blankColor = meta.blankColor;  // restore blank-fill so the recolour control tracks it
-        w.canvas->setBlankPage(!w.docSource.blankColor.isEmpty());
+        host.docSource.blankColor = meta.blankColor;  // restore blank-fill so the recolour control tracks it
+        w.canvas->setBlankPage(!host.docSource.blankColor.isEmpty());
         // Unlinked (incognito deep-link) opens adopt the content only, mirroring the browser's
         // copyServerProjectToIncognito.
-        w.activeProjectId.clear();
+        host.activeProjectId.clear();
         if (link) {
           w.remote.session->getLink().bind(serverUrl, id, meta.name, meta.color, meta.version);
           if (!img.isNull())
@@ -104,9 +105,9 @@ namespace stencil::gui {
           w.remote.session->getLink().unbind();
           w.remoteSync->stopRemotePoll();
         }
-        w.docSource.currentSource = meta.source;
-        w.docSource.currentResource = meta.resource;
-        w.filterDirty = false;   // we just adopted the server/project filter
+        host.docSource.currentSource = meta.source;
+        host.docSource.currentResource = meta.resource;
+        host.filterDirty = false;   // we just adopted the server/project filter
         w.refreshActions();
         // Fit on open (browser switchToProject); skipped for a silent live-poll reload, dust
         // arrival included — a peer's stroke is an edit, not an image appearing.
@@ -118,7 +119,7 @@ namespace stencil::gui {
         // Chat persistence (§12): a linked, user-initiated open pulls the server-stored chat;
         // silent reloads must not stomp it.
         if (link && !silent && w.settings.saveChatsWithProject) {
-          if (auto* cc = w.remote.connections ? w.remote.connections->find(serverUrl) : nullptr) {
+          if (auto* cc = w.remote.conns() ? w.remote.conns()->find(serverUrl) : nullptr) {
             cc->downloadFileAsync(id, QStringLiteral("chat"),
                                   [this, self](bool cok, QByteArray data) {
                                     if (!self) return;
@@ -148,7 +149,7 @@ namespace stencil::gui {
       }
       auto decode = [this, adopt, editsSince](QByteArray bytes) {
         w.decodeForCanvas(
-            [bytes] { return QImage::fromData(bytes); },
+            [bytes] { return decodeCapped(bytes); },
             [this, adopt, editsSince](const QImage& img) {
               if (img.isNull()) {
                 w.notify->error("Server image could not be decoded");
@@ -166,7 +167,7 @@ namespace stencil::gui {
         }
         // No stored bytes (an extension-added project records only the web URL): fetch that
         // source. Qt Network has no CORS limit.
-        fetchUrlBytesAsync(&w, meta.source, [this, self, c, decode, reloadGuard](QByteArray b) {
+        fetchUrlBytesAsync(w.window, meta.source, [this, self, c, decode, reloadGuard](QByteArray b) {
           if (!self) return;
           if (b.isEmpty()) {
             w.notify->error(QString("Could not download image — %1").arg(c->lastError()));

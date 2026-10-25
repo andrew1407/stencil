@@ -2,7 +2,7 @@
 #include "DockChrome.hpp"
 #include "ToastStack.hpp"
 #include "mainWindowShared.hpp"
-#include "guiHelpers.hpp"
+#include "theme.hpp"
 #include "Notifications.hpp"
 #include "SelectionPanel.hpp"
 #include "../../support/dockGrip.hpp"

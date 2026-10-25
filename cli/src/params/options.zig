@@ -55,6 +55,7 @@ pub const Options = struct {
     filter: ?[]const u8 = null,
     output: ?[]const u8 = null,
     confine_output: bool = false, // --confine-output: output + scrape dir stay inside the cwd
+    strict_fetch: bool = false, // --strict-fetch: every fetch of the run refuses loopback, as content's do
     no_clobber: bool = false, // --no-clobber: refuse an output that exists once its extension is filled
     thumbnail: ?u32 = null, // --thumbnail: the result's longer side at most this many px, never grown
 
@@ -81,6 +82,9 @@ pub const Options = struct {
     remote_update: bool = false,
     token: ?[]const u8 = null,
     env_tokens: EnvTokens = .{},
+    /// The server came out of a launch link: its origin is the link's choice, so the unscoped
+    /// `STENCIL_SERVER_TOKEN` never goes to it (a `STENCIL_SERVER_TOKENS` entry for it still does).
+    server_from_link: bool = false,
     // Reporting modes: JSON on stdout, nothing written. `--probe` reads -i; the other two read --server.
     probe: bool = false,
     list_projects: bool = false,

@@ -16,6 +16,8 @@ export declare function decideHover(
   y: number,
   mods: HoverMods,
   immediate?: boolean,
+  lineAt?: number,
+  pointAt?: null,
 ): void;
 
 /** Re-decides at the last known cursor position, without the reveal delay. */

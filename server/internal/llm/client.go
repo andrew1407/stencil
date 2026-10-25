@@ -31,6 +31,15 @@ type Client struct {
 	http      Doer
 }
 
+// tokens is the request's max_tokens clamped to LLM_MAX_TOKENS: an absent or larger one takes the cap,
+// on every wire, so the cap is a spend control whichever provider is behind the proxy.
+func (c *Client) tokens(asked int) int {
+	if asked <= 0 || asked > c.maxTokens {
+		return c.maxTokens
+	}
+	return asked
+}
+
 // New builds a Client whose outbound calls are bounded by timeout. `provider`
 // is one of the §6 mappings (empty = anthropic, the historical default).
 func New(provider, base, key, model string, maxTokens int, timeout time.Duration) *Client {

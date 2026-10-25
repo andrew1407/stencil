@@ -24,7 +24,7 @@ namespace stencil::gui {
     if (!toolTip().isEmpty()) setToolTip(QString());
     // "original" shows the cropped+rotated original alone (a BLANK page keeps fill + tint); the
     // split modes render the edit and overlay the original on one half at the end.
-    if (filterDirty) rebuildFilteredImage();
+    if (filterDirty) refreshFilter();
     const CompareMode compare = effectiveCompareMode();
     const QRectF target(0, 0, image.width() * scale, image.height() * scale);
     if (cleanPreview) {   // the logo drag's clean view: the bare picture, nothing over it
@@ -40,10 +40,10 @@ namespace stencil::gui {
     // A split compare view is read-only: no selection glow, no hover/focus rings. A line whose
     // padded bounds miss the exposed rect would paint nothing there, so it is not stroked.
     const bool hl = compare == CompareMode::NONE;
-    const QRect exposed = event->rect();
+    const QRect exposed = bounds.painting(event->rect());
     const LiveMarks marks = liveMarks();
     for (int i = 0; i < static_cast<int>(lines.size()); ++i)
-      if (exposed.intersects(lineRect(i))) drawLineScaled(p, lines[i], i, scale, /*highlight=*/hl, &marks);
+      if (exposed.intersects(paintRect(i))) drawLineScaled(p, lines[i], i, scale, /*highlight=*/hl, &marks);
     if (exposed.intersects(lineRect(-1))) drawLineScaled(p, currentLine, -1, scale, /*highlight=*/hl, &marks);
 
     if (gesture.is(Gesture::ZOOM_RECT)) {

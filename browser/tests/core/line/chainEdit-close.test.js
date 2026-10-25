@@ -9,7 +9,7 @@ import constants from '../../../../common/config/constants.json' with { type: 'j
 const doc = installDom({}, { window: { addEventListener() {} } });
 const shapeBuilder = await import('../../../js/core/line/shapeBuilder.js');
 const { canvasClick } = await import('../../../js/core/pointer/canvasClick.js');
-const { InputController } = await import('../../../js/core/pointer/inputController.js');
+const { InputController } = await import('../../../js/ui/bindings/pointer/inputController.js');
 const SLACK = constants.HIT.closeSlackPx;
 const real = { now: performance.now, setInterval, clearInterval, setTimeout };
 afterEach(() => {

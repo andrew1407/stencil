@@ -1,5 +1,5 @@
 #include "MainWindow.hpp"
-#include "mainWindowHelpers.hpp"
+#include "naturalPage.hpp"
 #include "CanvasWidget.hpp"
 #include "cropGeometry.hpp"
 #include "CropDialog.hpp"

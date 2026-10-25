@@ -41,8 +41,7 @@ export const deleteRemoteProject = async (connMgr, serverUrl, id) => {
   });
   if (!saved) throw new Error(`not connected to ${serverUrl}`);
   const oneShot = new ServerConnection(serverUrl, { token: saved.token, kind: saved.kind || '' });
-  try { await oneShot.deleteProject(id); }
-  catch (err) { if (err?.status !== 404) throw err; }   // already-gone counts as removed
+  try { await oneShot.deleteProject(id); }   // already-gone counts as removed
   finally { oneShot.close(); }
 };
 

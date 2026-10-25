@@ -33,6 +33,21 @@ int main(int argc, char** argv) {
     check(over.scriptDropped && over.script.isEmpty(), "…and says when it was over the cap");
   }
 
+  // ── a link's source and layout are a page's choice, so they are fetched strict; argv's are not ──
+  {
+    stencil::gui::LaunchOptions typed;
+    check(!typed.srcFromLink && !typed.layoutFromLink, "a typed --src is fetched with the loose guard");
+    stencil::gui::LaunchOptions o;
+    adoptLinkOptions(o, parseStencilUrl(QUrl(QStringLiteral("stencil://open?src=http%3A%2F%2F127.0.0.1%3A9%2Fa.png"))));
+    check(o.srcFromLink && !o.src.isEmpty(), "a link-delivered source is marked as the link's");
+    stencil::gui::LaunchOptions mixed;
+    mixed.src = QStringLiteral("http://localhost:8080/typed.png");
+    adoptLinkOptions(mixed, parseStencilUrl(QUrl(QStringLiteral("stencil://open?layout=https%3A%2F%2Fe.example%2Fl.json"))));
+    check(!mixed.srcFromLink && mixed.src.endsWith(QStringLiteral("typed.png")),
+          "a typed --src beside a link that names none keeps the loose guard");
+    check(mixed.layoutFromLink && !mixed.layout.isEmpty(), "…while the link's layout is fetched strict");
+  }
+
   // ── parseStencilUrl grammar ──
   {
     const LaunchOptions o = parseStencilUrl(QUrl(

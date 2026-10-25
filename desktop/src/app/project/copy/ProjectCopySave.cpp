@@ -7,7 +7,8 @@
 #include "Notifications.hpp"
 #include "ServerClient.hpp"
 #include "SiblingWindows.hpp"
-#include "projectTransferParts.hpp"   // nowMs, makeSalt, pngBytes
+#include "stamps.hpp"   // nowMs, makeSalt
+#include "fileBytes.hpp"   // pngBytes
 
 #include <QBuffer>
 #include <QDir>
@@ -83,7 +84,7 @@ namespace stencil::gui {
   }  // namespace
 
   QString ProjectCopy::createLocal(const CopySource& src, support::CopyScope what, const QString& name) {
-    const std::string id = w.projectsStore.createId(nowMs(), makeSalt());
+    const std::string id = host.projectsStore.createId(nowMs(), makeSalt());
     Project pr = scopedCopy(src, what, id, name, nowMs());
     const QString dir = fileStore::stateDir() + "/images";
     QDir().mkpath(dir);
@@ -106,10 +107,10 @@ namespace stencil::gui {
       return QString();
     }
     pr.imagePath = path;
-    w.projectList.push_back(pr);
-    SharedState::instance().saveProjects(&w);
+    host.projectList.push_back(pr);
+    SharedState::instance().saveProjects(w.window);
     w.refreshActions();
-    SiblingWindows::refreshDockMenu(w.projectList);
+    SiblingWindows::refreshDockMenu(host.projectList);
     return QString::fromStdString(id);
   }
 
@@ -124,7 +125,7 @@ namespace stencil::gui {
 
   void ProjectCopy::createOnServer(const CopySource& src, support::CopyScope what, const QString& name,
                                    std::function<void(bool, QString)> done) {
-    stencil::net::ServerClient* c = w.remote.connections ? w.remote.connections->find(src.server) : nullptr;
+    stencil::net::ServerClient* c = w.remote.conns() ? w.remote.conns()->find(src.server) : nullptr;
     const Upload up = uploadOf(src);
     if (!c || up.bytes.isEmpty()) {
       w.notify->error(c ? QStringLiteral("Could not read the copy's image") : QStringLiteral("Not connected to %1").arg(src.server));

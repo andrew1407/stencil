@@ -2,7 +2,7 @@
 //! index/indices, variant labels — and label sanitization. Their validation is core's.
 
 
-use stencil_mcp::opplan::{sanitize_label, Action, Axis, FormulaOp, PageSize};
+use stencil_mcp::plan::{sanitize_label, Action, Axis, FormulaOp, PageSize};
 
 use crate::common::plan_of;
 

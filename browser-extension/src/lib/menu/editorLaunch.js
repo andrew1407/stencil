@@ -43,14 +43,18 @@ const fitLaunchPayload = async (editorUrl, payload) => {
   if (url.length <= MAX_PAYLOAD || typeof data !== 'string' || !data.startsWith('data:image')) return { payload, url };
   try {
     const bmp = await createImageBitmap(await (await fetch(data)).blob());
-    for (let scale = 0.8; scale >= 0.12 && url.length > MAX_PAYLOAD; scale *= 0.8) {
-      const w = Math.max(1, Math.round(bmp.width * scale)), h = Math.max(1, Math.round(bmp.height * scale));
-      const c = new OffscreenCanvas(w, h);
-      c.getContext('2d').drawImage(bmp, 0, 0, w, h);
-      const next = { ...payload, dataUrl: await blobToDataUrl(await c.convertToBlob({ type: 'image/jpeg', quality: 0.85 })) };
-      if (payload.crop) next.crop = scaleRect(payload.crop, w / bmp.width);
-      const nextUrl = buildLaunchUrl(editorUrl, next);
-      if (nextUrl.length < url.length) { payload = next; url = nextUrl; }
+    try {
+      for (let scale = 0.8; scale >= 0.12 && url.length > MAX_PAYLOAD; scale *= 0.8) {
+        const w = Math.max(1, Math.round(bmp.width * scale)), h = Math.max(1, Math.round(bmp.height * scale));
+        const c = new OffscreenCanvas(w, h);
+        c.getContext('2d').drawImage(bmp, 0, 0, w, h);
+        const next = { ...payload, dataUrl: await blobToDataUrl(await c.convertToBlob({ type: 'image/jpeg', quality: 0.85 })) };
+        if (payload.crop) next.crop = scaleRect(payload.crop, w / bmp.width);
+        const nextUrl = buildLaunchUrl(editorUrl, next);
+        if (nextUrl.length < url.length) { payload = next; url = nextUrl; }
+      }
+    } finally {
+      bmp.close?.();
     }
   } catch {
     /* keep the original; the caller still warns */

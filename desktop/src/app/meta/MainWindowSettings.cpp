@@ -9,9 +9,10 @@
 #include <QLabel>
 #include <QSpinBox>
 #include "mainWindowShared.hpp"
-#include "mainWindowHelpers.hpp"
+#include "windowMotion.hpp"
 #include "CanvasWidget.hpp"
 #include "RemoteSyncController.hpp"
+#include "SharedState.hpp"
 #include "SiblingWindows.hpp"
 #include "StencilFileSync.hpp"
 #include "SelectedLineBar.hpp"
@@ -24,6 +25,8 @@
 #include <QShowEvent>
 #include <QSignalBlocker>
 #include <QTimer>
+#include <QLineEdit>
+#include <QToolButton>
 
 // Show/close, the theme toggle and applying the Settings dialog's result.
 
@@ -36,8 +39,8 @@ namespace stencil::gui {
     if (!firstShow) return;
     firstShow = false;
     setWindowOpacity(0.0);
-    docSource.revealHeld = parts.persistence.sessionRestorePending();
-    if (!docSource.revealHeld) fadeInWindow(this);
+    projectHost.docSource.revealHeld = parts.persistence.sessionRestorePending();
+    if (!projectHost.docSource.revealHeld) fadeInWindow(this);
   }
 
   // Closing is immediate on every path, no confirmation; autosave preserves the work.
@@ -197,6 +200,10 @@ namespace stencil::gui {
     if (chatDock && llmChanged) chatSession->refreshLlmStatus();  // re-describe + re-probe the AI provider
     applyTheme();
     if (persist) persistSettings();
+  }
+
+  void MainWindow::persistSettings() {
+    if (!projectHost.incognito) SharedState::instance().saveSettings(settings, this);
   }
 
 }  // namespace stencil::gui

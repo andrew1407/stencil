@@ -10,3 +10,5 @@ export type ScalarOpName =
   'parseDuration' | 'clampScale' | 'zoomMin' | 'zoomMax' | 'rectZoom' | 'shouldCloseShape';
 
 export declare const buildScalarOps: (core: unknown, m: CoreMarshal) => Pick<CoreOps, ScalarOpName>;
+/** The formulas over a whole run of raw page points, in one crossing. */
+export declare const buildFormulaPointOps: (core: unknown, m: CoreMarshal) => Pick<CoreOps, 'formulaApplyPoints'>;

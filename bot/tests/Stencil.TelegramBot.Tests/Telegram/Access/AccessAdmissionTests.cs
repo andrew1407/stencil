@@ -2,6 +2,7 @@ using Stencil.TelegramBot.Application.Editing;
 using Stencil.TelegramBot.Bot.Telegram;
 using Stencil.TelegramBot.Bot.Telegram.Access;
 using Stencil.TelegramBot.Bot.Telegram.Messaging;
+using Stencil.TelegramBot.Bot.Telegram.Sync;
 using Stencil.TelegramBot.Infrastructure.Configuration;
 using Stencil.TelegramBot.Infrastructure.Sessions;
 using Stencil.TelegramBot.Infrastructure.Workspace;
@@ -40,7 +41,8 @@ public sealed class AccessAdmissionTests : IDisposable
     }
 
     internal static UpdateRouter RouterFor(
-        string dataDir, InMemorySessionStore store, MockStencilCli cli, MockBotClient bot, TimeProvider? clock, params long[] allowed)
+        string dataDir, InMemorySessionStore store, MockStencilCli cli, MockBotClient bot, TimeProvider? clock,
+        SyncRegistry? sync, params long[] allowed)
     {
         BotOptions options = new()
         {
@@ -49,13 +51,15 @@ public sealed class AccessAdmissionTests : IDisposable
         EditingService editing = new(cli, new UserWorkspace(options), store);
         var handlers = TestHandlers.Create(options, store, cli, bot, editing: editing);
         return new UpdateRouter(handlers, new CallbackAction(handlers, bot, store), editing, store, bot,
-            new UserGate(), options, new MockLogger<UpdateRouter>(), clock: clock);
+            new UserGate(), options, new MockLogger<UpdateRouter>(), clock: clock, sync: sync);
     }
 
     internal static Message TextFrom(long userId, string text) =>
         new() { Chat = new Chat { Id = _chatId }, From = new User { Id = userId }, Text = text };
 
-    private UpdateRouter router() => RouterFor(_dataDir, _store, _cli, _bot, _clock, _allowed);
+    private readonly SyncRegistry _sync = new();
+
+    private UpdateRouter router() => RouterFor(_dataDir, _store, _cli, _bot, _clock, _sync, _allowed);
 
     private int refusals() =>
         _bot.Requests.OfType<SendMessageRequest>().Count(m => m.Text == Replies.AccessRefused(closed: false));
@@ -108,6 +112,19 @@ public sealed class AccessAdmissionTests : IDisposable
         await gate.HandleMessageAsync(TextFrom(_stranger, command), CancellationToken.None);
         Assert.NotEmpty(_bot.Requests.OfType<SendMessageRequest>());
         Assert.Equal(0, refusals());
+    }
+
+    [Fact]
+    public async Task Should_Track_No_Sync_State_For_A_Stranger_Who_Only_Asks_For_Help()
+    {
+        UpdateRouter gate = router();
+
+        await gate.HandleMessageAsync(TextFrom(_stranger, "/help"), CancellationToken.None);
+        await gate.HandleMessageAsync(TextFrom(_allowed, "/help"), CancellationToken.None);
+
+        // Every id is kept for the process's life, so a stranger's must never be added.
+        Assert.False(_sync.Consulted(_stranger));
+        Assert.True(_sync.Consulted(_allowed));
     }
 
     [Fact]

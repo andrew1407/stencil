@@ -4,8 +4,8 @@ import { probeProvider } from '../../llm/client.js';
 import { loadLlmSettings, serverBearerToken, withSessionKey } from '../../llm/settings.js';
 import { cacheProbe, probeStatusClass } from '../../llm/chat/session.js';
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';
-import { surfaceIn, surfaceOut, settleSurface, rectCenter,
-         TIP_DUST_IN_MS, TIP_DUST_OUT_MS } from '../motion.js';
+import { surfaceIn, surfaceOut, settleSurface } from '../motion/surface/surfaces.js';
+import { rectCenter, TIP_DUST_IN_MS, TIP_DUST_OUT_MS } from '../motion/control/tips.js';
 import { gearStatusRows, gearTipFootText } from './geometry.js';
 
 // The status table a "…" trigger shows on hover or keyboard focus, fixed above it like #app-tooltip:

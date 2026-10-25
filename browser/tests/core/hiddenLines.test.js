@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { sanitizeLines } from '../../js/core/layout.js';
 import { lineAt, holdTargetAt } from '../../js/core/pointer/markHits.js';
 import { paintRestingLines } from '../../js/core/draw/restingPaint.js';
-import { EditingMethods } from '../../js/core/app/editing.js';
+import { EditingBase } from '../../js/core/app/editing.js';
 import { renameLine, setLineHidden, lineNameOf } from '../../js/core/line/selection.js';
 
 const pts = (...xy) => xy.map(([x, y]) => ({ x, y }));
@@ -39,7 +39,7 @@ test('a hidden line keeps its index but is never a target', () => {
 test("the app's finders skip a hidden line", () => {
   const app = { lines: lines(), currentLine: null, scale: 1, showPoints: true, showLines: true };
   for (const m of ['findNearestPoint', 'findNearestPointWithIdx', 'findNearestSegmentWithIdx', 'findLineAt'])
-    app[m] = EditingMethods.prototype[m];
+    app[m] = EditingBase.prototype[m];
   assert.equal(app.findLineAt(50, 1), 0);
   assert.equal(app.findNearestPointWithIdx(0, 0).lineIdx, 0);
   assert.equal(app.findNearestSegmentWithIdx(50, 1).lineIdx, 0);

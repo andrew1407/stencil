@@ -2,6 +2,7 @@
 //! encode it, and — when --remote-update / --remote ask for it — deliver the result to a
 //! server project.
 const std = @import("std");
+
 const image = @import("../media/image.zig");
 const layout_mod = @import("../media/layout.zig");
 const net = @import("../net.zig");
@@ -14,6 +15,12 @@ const steps_mod = @import("steps.zig");
 const output = @import("output.zig");
 const thumbnail = @import("../media/thumbnail.zig");
 
+/// The server-delivery lines mcp and bot parse (common/fixtures/cli/outcome.json `remotes`).
+pub const line = struct {
+    pub const updated_result = "updated server result for project {s} ({d}x{d})\n";
+    pub const created_project = "created server project \"{s}\" ({s})\n";
+};
+
 const acquireInput = steps_mod.acquireInput;
 const acquireBlank = sources.acquireBlank;
 const resolveCropSpec = steps_mod.resolveCropSpec;
@@ -24,9 +31,11 @@ const applyFilterMode = steps_mod.applyFilterMode;
 const drawLayoutDoc = steps_mod.drawLayoutDoc;
 const writeOutputLabeled = output.writeOutputLabeled;
 
-/// The credential `url` is dialled with: `--token`, an invite link's own, then the environment's.
+/// The credential `url` is dialled with: `--token`, an invite link's own, then the environment's
+/// (never the unscoped one for a run whose server a launch link chose).
 fn tokenFor(opts: args.Options, url: []const u8) ?[]const u8 {
-    return server.tokenFor(opts.token, opts.env_tokens.per_origin, opts.env_tokens.single, url);
+    const single = if (opts.server_from_link) null else opts.env_tokens.single;
+    return server.tokenFor(opts.token, opts.env_tokens.per_origin, single, url);
 }
 
 pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
@@ -153,18 +162,18 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
     try writeOutputLabeled(gpa, io, img, out, default_fmt, page_label);
 
     // 7) Server result delivery.
-    try deliverToServer(gpa, io, opts, img, default_fmt, fetch_client, fetched_id, original_bytes, orig_w, orig_h);
+    try deliverToServer(gpa, io, opts, img, default_fmt, if (fetch_client) |*c| c else null, fetched_id, original_bytes, orig_w, orig_h);
 }
 
 /// Push the result (and, for a new project, the original) to a server when the
 /// --remote-update / --remote flags ask for it.
-fn deliverToServer(
+pub fn deliverToServer(
     gpa: std.mem.Allocator,
     io: std.Io,
     opts: args.Options,
     img: image.Rgba8,
     fmt: image.Format,
-    fetch_client: ?server.Client,
+    fetch_client: ?*server.Client, // the caller's: a re-mint during the upload swaps its token
     fetched_id: ?[]u8,
     original_bytes: ?[]u8,
     orig_w: usize,
@@ -176,11 +185,11 @@ fn deliverToServer(
             report.err("--remote-update needs --server <url> -i <project>\n", .{});
             return error.NoRemote;
         }
-        var c = fetch_client.?;
+        const c = fetch_client.?;
         const result = try image.encode(gpa, img, fmt);
         defer gpa.free(result);
         try c.uploadFile(fetched_id.?, "result", result, fmt.ext(), img.width, img.height);
-        report.print("updated server result for project {s} ({d}x{d})\n", .{ fetched_id.?, img.width, img.height });
+        report.print(line.updated_result, .{ fetched_id.?, img.width, img.height });
     }
 
     // Mode B: create a NEW project on --remote and upload original + result.
@@ -198,7 +207,7 @@ fn deliverToServer(
         const result = try image.encode(gpa, img, fmt);
         defer gpa.free(result);
         try c.uploadFile(id, "result", result, fmt.ext(), img.width, img.height);
-        report.print("created server project \"{s}\" ({s})\n", .{ name, id });
+        report.print(line.created_project, .{ name, id });
     }
 }
 

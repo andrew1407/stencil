@@ -2,7 +2,7 @@
 // widest-option width floor. ui/control/customSelect.js drives them; the native element stays the truth.
 import { icon } from '../icons.js';
 import { escapeHtml } from '../base.js';
-import { pinWidestFace } from '../motion.js';
+import { pinWidestFace } from '../motion/control/fx.js';
 
 // The box floors at the WIDEST option's width so a row of selects doesn't reshuffle — a FLOOR,
 // not a pin. Capped, so one long server URL can't overrun its row.

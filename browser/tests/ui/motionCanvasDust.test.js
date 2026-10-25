@@ -70,6 +70,24 @@ test('hasPixels tells a painted canvas from an empty one', () => {
   // so the sample walks the buffer rather than peeking at the corner.
   const sparse = ctx((n) => { const d = new Uint8ClampedArray(n); d[4 * 41 * 7 + 3] = 255; return d; });
   assert.equal(hasPixels(sparse, 400, 300), true);
+  // Read a band at a time: the samples are the whole-canvas ones, and the first hit stops the reads.
+  const canvas = (w, h, at) => {
+    const reads = [];
+    return { reads, getImageData: (_x, y, rw, rh) => {
+      reads.push(rh);
+      const d = new Uint8ClampedArray(rw * rh * 4);
+      if (at >= y * rw * 4 && at < (y + rh) * rw * 4) d[at - y * rw * 4] = 255;
+      return { data: d };
+    } };
+  };
+  const low = canvas(400, 300, 4 * 41 * 2900 + 3);
+  assert.equal(hasPixels(low, 400, 300, 41, 64), true, 'a sample in the last band is seen');
+  assert.deepEqual(low.reads, [64, 64, 64, 64, 44]);
+  const off = canvas(400, 300, 4 * (41 * 2900 + 1) + 3);
+  assert.equal(hasPixels(off, 400, 300, 41, 64), false, 'a pixel between samples is not, as before');
+  const top = canvas(400, 300, 3);
+  assert.equal(hasPixels(top, 400, 300, 41, 64), true);
+  assert.deepEqual(top.reads, [64], 'a painted top band answers alone');
   assert.equal(hasPixels(null, 10, 10), false, 'no context');
   assert.equal(hasPixels(empty, 0, 0), false, 'no box');
 });

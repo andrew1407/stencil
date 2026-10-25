@@ -1,7 +1,9 @@
 // ISOLATED-world half of the page API: MAIN (content/pageApiMain.js) has no chrome.*, so this
 // script shares the page's `window` message bus and relays its requests to the SW, fire-and-forget.
-if (!window.__stencilPageBridge) {
-  window.__stencilPageBridge = true;
+// orphan.js's claim stops a second inject and stands down a copy a reload orphaned.
+pageBridge: {
+  const { on } = window.__stencilOrphan?.('__stencilPageBridge', window) ?? {};
+  if (!on) break pageBridge;
   // mirror of lib/messages.js (classic content script — can't import)
   const SRC = { PAGE_API: 'stencil-page-api', PAGE_FILTERS: 'stencil-page-filters', PAGE_PINS: 'stencil-page-pins', PAGE_EDITED: 'stencil-page-edited', PAGE_HL_COLOR: 'stencil-page-hl-color' };
   const MSG = { PAGE_SET_FILTERS: 'stencil-page-set-filters', PAGE_REQUEST_SYNC: 'stencil-page-request-sync' };
@@ -27,10 +29,25 @@ if (!window.__stencilPageBridge) {
     source: SRC.PAGE_PINS,
     sources: (Array.isArray(entries) ? entries : []).filter((e) => e && e.site === site).map(srcOf).filter(Boolean),
   }, '*');
+  // Only this site's ledger: the page must not learn what the user opened from other sites.
+  const originOf = (u) => { try { return new URL(String(u || '')).origin; } catch { return ''; } };
   const pushEdited = (entries) => window.postMessage({
     source: SRC.PAGE_EDITED,
-    sources: (Array.isArray(entries) ? entries : []).map(srcOf).filter(Boolean),
+    sources: (Array.isArray(entries) ? entries : []).filter((e) => e && originOf(e.resource) === site).map(srcOf).filter(Boolean),
   }, '*');
+  // A page's filter write is the popup's shape and nothing more: known keys, bounded values.
+  const SEARCH_MAX = 500, FORMATS_MAX = 32, FORMAT_MAX = 16;
+  const dim = (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null);
+  const cleanFilters = (raw) => {
+    const f = raw ?? {};   // nothing named is the defaults, as an empty write always was
+    if (typeof f !== 'object' || Array.isArray(f)) return null;
+    const out = { search: String(f.search ?? '').slice(0, SEARCH_MAX), regex: f.regex === true };
+    for (const k of ['minW', 'maxW', 'minH', 'maxH']) out[k] = dim(f[k]);
+    for (const k of ['includeImg', 'includeBg', 'includeVideo', 'includePosters', 'includeMeta']) out[k] = f[k] !== false;
+    out.disabledFormats = (Array.isArray(f.disabledFormats) ? f.disabledFormats : [])
+      .filter((x) => typeof x === 'string' && x.length <= FORMAT_MAX).slice(0, FORMATS_MAX);
+    return out;
+  };
   // The setting lives in storage.sync; the accent key in storage.local.
   const pushHlColor = (setting, accentKey) => window.postMessage({ source: SRC.PAGE_HL_COLOR, color: resolveHl(setting, accentKey) }, '*');
   const refreshHlColor = () => chrome.storage.sync.get({ highlightColor: 'theme' })
@@ -57,7 +74,7 @@ if (!window.__stencilPageBridge) {
     });
   } catch { /* no chrome.storage */ }
 
-  window.addEventListener('message', (e) => {
+  on('message', (e) => {
     if (e.source !== window) return;
     const d = e.data;
     if (!d || d.source !== SRC.PAGE_API || !d.message) return;
@@ -65,10 +82,13 @@ if (!window.__stencilPageBridge) {
     if (m.type === MSG.PAGE_REQUEST_SYNC) { syncAll(); return; }
     // Filter writes go to shared storage (which feeds the popup), NOT the service worker.
     if (m.type === MSG.PAGE_SET_FILTERS) {
-      try { chrome.storage.local.set({ [FILTERS_KEY]: m.filters || {} }); } catch { /* storage gone */ }
+      const clean = cleanFilters(m.filters);
+      if (clean) try { chrome.storage.local.set({ [FILTERS_KEY]: clean }); } catch { /* storage gone */ }
       return;
     }
     if (!RELAYABLE.has(m.type)) return;
+    // A desktop hand-off launches an OS handler: only on the user's own click or key, never a page's say-so.
+    if (m.type === 'stencil-page-open' && m.desktop && !navigator.userActivation?.isActive) return;
     try {
       chrome.runtime.sendMessage(m).catch(() => { /* SW asleep / context gone */ });
     } catch { /* extension context invalidated */ }

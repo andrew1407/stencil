@@ -8,7 +8,7 @@ class MainWindowGuiTest : public QObject {
 
   // The window's list is private to it; this suite is its friend.
   static bool hasProject(const MainWindow& win, const QString& id) {
-    for (const auto& p : win.projectList)
+    for (const auto& p : win.projectHost.projectList)
       if (QString::fromStdString(p.meta.id) == id) return true;
     return false;
   }
@@ -37,7 +37,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(project);
     QCOMPARE(project->actions().indexOf(close), project->actions().indexOf(win.acts.clearProject) + 1);
 
-    QVERIFY(win.activeProjectId.isEmpty());
+    QVERIFY(win.projectHost.activeProjectId.isEmpty());
     Asked unexpected;
     QPointer<QTimer> refuse = answerClose(QStringLiteral("Cancel"), &unexpected);
     close->trigger();
@@ -53,12 +53,12 @@ class MainWindowGuiTest : public QObject {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    const QString id = win.activeProjectId;
+    const QString id = win.projectHost.activeProjectId;
     QVERIFY2(!id.isEmpty(), "the opened picture became this window's project");
 
     answerClose(QStringLiteral("Cancel"));
     win.acts.closeProject->trigger();
-    QCOMPARE(win.activeProjectId, id);
+    QCOMPARE(win.projectHost.activeProjectId, id);
     QVERIFY2(canvas->hasImage(), "Cancel closed nothing");
 
     Asked asked;
@@ -68,7 +68,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(asked.message.contains(QStringLiteral("stays saved in Projects")), qPrintable(asked.message));
     QVERIFY2(!asked.danger, "closing removes nothing, so it is no danger");
     QTRY_VERIFY_WITH_TIMEOUT(!canvas->hasImage(), 5000);
-    QVERIFY(win.activeProjectId.isEmpty());
+    QVERIFY(win.projectHost.activeProjectId.isEmpty());
     QVERIFY2(hasProject(win, id), "the project stays in Projects");
   }
 
@@ -80,7 +80,7 @@ class MainWindowGuiTest : public QObject {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    const QString open = win.activeProjectId;
+    const QString open = win.projectHost.activeProjectId;
     QVERIFY(!open.isEmpty());
     QImage img(40, 30, QImage::Format_RGB32);
     img.fill(Qt::darkMagenta);
@@ -105,7 +105,7 @@ class MainWindowGuiTest : public QObject {
       w.list->onDragOut(w.list->currentRow());
       QTest::qWait(150);
       delete refuse.data();
-      otherInert = unexpected.title.isEmpty() && win.activeProjectId == open && w.dlg->isVisible();
+      otherInert = unexpected.title.isEmpty() && win.projectHost.activeProjectId == open && w.dlg->isVisible();
 
       w.list->setCurrentItem(rowFor(w.list, open));
       w.list->onDragStart();
@@ -113,15 +113,15 @@ class MainWindowGuiTest : public QObject {
       QPointer<QTimer> refuseToo = answerClose(QStringLiteral("Cancel"), &asked);
       w.list->onDragEnd();
       w.list->onDragOut(w.list->currentRow());
-      settle([&] { return win.activeProjectId.isEmpty(); }, 3000);
+      settle([&] { return win.projectHost.activeProjectId.isEmpty(); }, 3000);
       delete refuseToo.data();
-      closed = win.activeProjectId.isEmpty() && hasProject(win, open);
+      closed = win.projectHost.activeProjectId.isEmpty() && hasProject(win, open);
       stayed = w.dlg->isVisible();
       QLabel* toast = win.notify->toasts()->lastToast();
       noticed = toast && toast->text().contains(QStringLiteral("Closed"));
       w.dlg->reject();
     });
-    win.parts.projects.openProjects();
+    win.projectHost.flows.openProjects();
     QVERIFY2(otherInert, "a project not open here leaves Close inert");
     QVERIFY2(asked.title.isEmpty(), "the drop asks nothing");
     QVERIFY2(closed, "the open project closed here and stays in Projects");

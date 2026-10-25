@@ -9,7 +9,6 @@
 #include "connectDialogParts.hpp"
 #include "../../support/theme/filterFade.hpp"
 #include "../../support/control/FlowLayout.hpp"
-#include "../../support/guiHelpers.hpp"
 #include "../../support/modal/modalChrome.hpp"
 #include "../../support/menu/SearchCombo.hpp"
 #include "../../support/theme/theme.hpp"

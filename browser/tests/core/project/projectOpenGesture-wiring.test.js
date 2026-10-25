@@ -8,44 +8,76 @@ import { DOUBLE_CLICK_MS, DRAG_SLOP_PX } from '../../../js/core/project/openGest
 import { isTouchLike, TOUCH_MEDIA } from '../../../js/utils.js';
 import { COMPONENTS_CSS } from '../../helpers/css.js';
 import { mountContextMenu } from '../../helpers/ctxMenuMountRig.js';
+import { mountProjectsModal } from '../../helpers/projectsModalRig.js';
 import { projectsModalSource } from '../../helpers/moduleSource.js';
 
-// ── Wiring contract (what the DOM side must keep doing) ──
-test('the row wires every gesture to the SAME open paths, and stays keyboard-usable', () => {
+// ── Wiring contract: a mounted projects list, its row driven the way a pointer or a key drives it ──
+const mountRow = async (t) => {
+  const calls = [];
+  const m = await mountProjectsModal(t, { metas: [{ id: 'a', name: 'Beta', keywords: [], updatedAt: 1 }],
+    app: { confirm: async (msg) => { calls.push(['confirm', msg]); return true; },
+      projectTransfer: { switchToProject: (id) => calls.push(['here', id]), openProjectInNewTab: (id) => calls.push(['newtab', id]) } } });
+  m.$('projects-modal-overlay').classList.add('modal-open');
+  m.change('projects-filter', 'all');
+  const row = () => m.rows().find((r) => r.dataset.filterKey === 'local:a');
+  const settle = () => new Promise((r) => setImmediate(r));
+  const fireClick = async () => { m.timers.splice(0).filter((x) => x.ms === DOUBLE_CLICK_MS).forEach((x) => x.fn()); await settle(); };
+  return { m, row, calls, settle, fireClick };
+};
+const HERE = ['confirm', 'Open "Beta" here? Any unsaved changes in the current tab will be replaced.'];
+const NEWTAB = ['confirm', 'Open "Beta" in a new tab?'];
+
+test('a double-click opens the row here at once; with Ctrl or Cmd, in a new tab — the paths the ⋯ menu uses', async (t) => {
+  const r = await mountRow(t);
+  r.row().dispatch('dblclick', {});
+  await r.settle();
+  assert.deepStrictEqual(r.calls.splice(0), [['here', 'a']], 'a double-click never asks');
+  r.row().dispatch('dblclick', { ctrlKey: true });
+  r.row().dispatch('dblclick', { metaKey: true });
+  await r.settle();
+  assert.deepStrictEqual(r.calls, [['newtab', 'a'], ['newtab', 'a']]);
+});
+
+test('a single click waits out the double-click interval, then confirms before it opens', async (t) => {
+  const r = await mountRow(t);
+  r.row().dispatch('click', {});
+  await r.settle();
+  assert.deepStrictEqual(r.calls, [], 'nothing before the interval');
+  await r.fireClick();
+  assert.deepStrictEqual(r.calls.splice(0), [HERE, ['here', 'a']]);
+  r.row().dispatch('click', { ctrlKey: true });
+  await r.fireClick();
+  assert.deepStrictEqual(r.calls, [NEWTAB, ['newtab', 'a']], 'the new-tab wording');
+});
+
+test('a press that travels past the slop is a reorder drag: it opens nothing, not even on release', async (t) => {
+  const r = await mountRow(t);
+  r.row().dispatch('pointerdown', { button: 0, clientX: 10, clientY: 10 });
+  r.row().dispatch('pointermove', { clientX: 10 + DRAG_SLOP_PX + 5, clientY: 10 });
+  r.row().dispatch('click', {});
+  await r.fireClick();
+  r.row().dispatch('dragstart', {});
+  await r.fireClick();
+  assert.deepStrictEqual(r.calls, []);
+});
+
+test('the row is a focusable button that Enter and Space open, and it stays draggable', async (t) => {
+  const r = await mountRow(t);
+  const row = r.row();
+  assert.strictEqual(row.tabIndex, 0);
+  assert.strictEqual(row.getAttribute('role'), 'button');
+  assert.strictEqual(row.draggable, true, 'reordering is untouched');
+  row.dispatch('keydown', { key: 'Enter', preventDefault() {} });
+  await r.settle();
+  row.dispatch('keydown', { key: ' ', preventDefault() {} });
+  await r.settle();
+  row.dispatch('keydown', { key: 'a', preventDefault() {} });
+  await r.settle();
+  assert.deepStrictEqual(r.calls, [HERE, ['here', 'a'], HERE, ['here', 'a']]);
+});
+
+test('touch is the app-wide helper, never a user-agent sniff', () => {
   const src = projectsModalSource();
-  // One intent runner, reusing the existing open paths — no duplicated open logic.
-  assert.ok(src.includes('const openWithIntent = async ({ confirm = true, target = \'here\', closeAnchor = null } = {}) => {'));
-  assert.ok(src.includes('app.projectTransfer.openProjectInNewTab(meta.id);   // the same path the ⋯ menu uses'));
-  assert.ok(src.includes('app.projectTransfer.switchToProject(meta.id);'));
-  assert.ok(src.includes('if (confirm && !(await confirmOpen(meta.name, true, closeAnchor))) return;'), 'new-tab wording');
-  assert.ok(src.includes('const open = () => openWithIntent({ confirm: true, target: \'here\', closeAnchor: menuBtn });'), 'the ⋯ menu keeps its Open — flying back into the ⋯, not the menu row that is gone');
-  // Every gesture goes through the machine.
-  for (const wire of [
-    "row.addEventListener('click', (e) => gesture.click(e));",
-    "row.addEventListener('dblclick', (e) => gesture.dblclick(e));",
-    "row.addEventListener('pointerdown', (e) => {",
-    "row.addEventListener('pointermove', (e) => gesture.pressMove({ x: e.clientX, y: e.clientY }));",
-    "row.addEventListener('dragstart', () => gesture.dragStart());",
-  ]) assert.ok(src.includes(wire), `wired: ${wire}`);
-  // Both drag engines cancel a pending open: HTML5 dragstart (mouse) and the touch
-  // engine's pickup callback (drag.js onStart).
-  assert.ok(src.includes('row._openGesture?.dragStart(); dragKey = key;'), 'touch pickup cancels the open');
-  // Reordering itself is untouched — the row is still draggable and still carries the
-  // reorder flag the global drop overlay ignores.
-  assert.ok(src.includes('row.draggable = true;'));
-  assert.ok(src.includes("e.dataTransfer.setData('application/x-stencil-reorder', 'project')"));
-  assert.ok(src.includes('makeTouchDraggable(row, {'), 'the touch reorder engine is still attached');
-  // Keyboard: focusable, announced as a button, Enter/Space activate.
-  assert.ok(src.includes('row.tabIndex = 0;') && src.includes("row.setAttribute('role', 'button');"));
-  assert.ok(src.includes("if (e.key !== 'Enter' && e.key !== ' ') return;"));
-  // The rename path cancels a pending open so no modal lands over the input.
-  assert.ok(src.includes('gesture: rowGesture }') && src.includes('gesture?.cancel();'));
-  // The overflow menu still opens from a right-click / touch callout — that menu is
-  // where "Open in new tab" lives for touch, since the hold belongs to reordering.
-  assert.match(src, /row\.addEventListener\('contextmenu', e => \{\s+e\.preventDefault\(\);\s+showMenu\(menuBtn, menuItems\(\), \{ x: e\.clientX, y: e\.clientY \}\);/);
-  assert.ok(src.includes("{ icon: 'external', label: 'Open in new tab', onClick:"), 'the touch route exists');
-  // Touch detection is the app-wide helper, never a user-agent sniff; matched on the named import
-  // rather than the whole statement, which another helper in it would break.
   assert.match(src, /import \{[^}]*\bisTouchLike\b[^}]*\} from '[^']*utils\.js';/);
   assert.ok(!/navigator\.userAgent/.test(src), 'no UA sniffing');
 });

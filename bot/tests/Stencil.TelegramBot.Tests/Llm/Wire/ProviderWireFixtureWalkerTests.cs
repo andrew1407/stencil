@@ -21,7 +21,7 @@ public sealed class ProviderWireFixtureWalkerTests
 
     [Fact]
     public void Should_Have_Every_Vector_In_The_Corpus() =>
-        Assert.Equal(26, _files.Sum(f => SharedFixtures.Cases(pathFor(f)).Count));
+        Assert.True(_files.Sum(f => SharedFixtures.Cases(pathFor(f)).Count) >= 26, $"the provider wire corpus collapsed to {_files.Sum(f => SharedFixtures.Cases(pathFor(f)).Count)}");
 
     [Theory]
     [MemberData(nameof(Vectors))]

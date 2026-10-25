@@ -2,7 +2,7 @@
 //! mapper lost nothing; `canon` folds the forms the types merge on purpose.
 
 use serde_json::{json, Map, Number, Value};
-use stencil_mcp::opplan::{Action, Axis, Dir, FormulaOp, PageSize};
+use stencil_mcp::plan::{Action, Axis, Dir, FormulaOp, PageSize};
 
 /// Every number as its double, so `2` and `2.0` compare equal as they do in JS.
 pub fn numbers(v: Value) -> Value {

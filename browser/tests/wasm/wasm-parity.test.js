@@ -2,7 +2,7 @@
 // exercise the hand-written fallback path; this one loads the real wasm module and asserts that the compiled
 // C++ agrees with the JS reference — so the fallback stays a faithful stand-in and the shipped .js is in sync
 // — and that the js/core/abi/stencilCore.js marshalling (strings, char codes, flat point arrays, output pointers,
-// the RGBA pixel buffer) round-trips. Node loads the SINGLE_FILE ES module directly, with no emcc.
+// the RGBA pixel buffer) round-trips. Node loads the ES glue and its .wasm directly, with no emcc.
 import { test, before } from 'node:test';
 import assert from 'node:assert';
 import { existsSync } from 'node:fs';
@@ -17,7 +17,7 @@ import constants from '../../../common/config/constants.json' with { type: 'json
 
 // js/wasm/stencilCore.js is a generated, gitignored artifact, present only after the Emscripten build, so the
 // suite skips when it is missing: the other suites already cover the JS reference path it mirrors.
-const MODULE_BUILT = existsSync(fileURLToPath(new URL('../../js/wasm/stencilCore.js', import.meta.url)));
+const MODULE_BUILT = ['stencilCore.js', 'stencilCore.wasm'].every((f) => existsSync(fileURLToPath(new URL(`../../js/wasm/${f}`, import.meta.url))));
 // Register as skipped (not failed) when the artifact is absent.
 const wtest = MODULE_BUILT ? test : test.skip;
 
@@ -46,6 +46,13 @@ const CASES = {
 // A4 landscape behind a 600x400 image; the unbound-field case has no image open.
 const CTX = { x: 10, y: 4, pageWidthCm: 29.7, pageHeightCm: 21, imageWidth: 600, imageHeight: 400, unit: 'cm' };
 const NO_IMAGE = { pageWidthCm: 29.7, pageHeightCm: 21, unit: 'in' };
+// [f(x), f(y)] over RAWS: both axes, a blank (identity) axis, an invalid one beside a valid one.
+const POINT_FORMULAS = [['x / y', 'PAGE_WIDTH - y'], ['', 'y * 2'], ['PAGE_WIDTHS', 'x + y']];
+const RAWS = [{ x: 10, y: 4 }, { x: 0, y: 0 }, { x: -3.5, y: 7.25 }];
+const perPoint = ([ex, ey]) => RAWS.map((r) => {
+  const at = { ...CTX, x: r.x, y: r.y };
+  return { x: ex ? fe.applyCtx(ex, 'x', r.x, true, at) : r.x, y: ey ? fe.applyCtx(ey, 'y', r.y, true, at) : r.y };
+});
 const jsRef = {
   dist: CASES.dist.map(c => distToSegment(c.px, c.py, c.a, c.b)),
   formulaApply: CASES.formula.map(([e, v, x]) => fe.apply(e, v, x, true)),
@@ -53,6 +60,7 @@ const jsRef = {
   formulaApplyCtx: CASES.formulaCtx.map(([e, v, x]) => fe.applyCtx(e, v, x, true, CTX)),
   formulaValidateCtx: CASES.formulaCtx.map(([e]) => fe.validateCtx(e, CTX)),
   formulaNoImage: CASES.formulaCtx.map(([e, v, x]) => fe.applyCtx(e, v, x, true, NO_IMAGE)),
+  formulaPoints: POINT_FORMULAS.map(perPoint),
   hex: CASES.hex.map(h => parseHex(h)),
   // Captured at module-eval time (no wasm installed yet), so this is the JS fallback.
   duration: CASES.duration.map(s => parseDuration(s)),
@@ -65,7 +73,7 @@ before(async () => {
   // core.init() dynamically imports the gitignored artifact, so importing the
   // `core` singleton statically (above) is safe even when it hasn't been built.
   const ok = await core.init();
-  assert.strictEqual(ok, true, 'wasm core must load in Node (SINGLE_FILE ES module)');
+  assert.strictEqual(ok, true, 'wasm core must load in Node (ES glue + .wasm)');
 });
 
 wtest('wasm loaded and every core op is installed', () => {
@@ -126,6 +134,18 @@ wtest('formula in a context: wasm matches JS reference (constants, both axes, Na
   });
   assert.strictEqual(apply('PAGE_WIDTH', 'x', 5, false, CTX), 5);
   assert.strictEqual(valid('x / y', { ...CTX, x: undefined, y: undefined }), true);
+});
+
+// A run of points crosses once as a flat buffer, both formulas as heap strings.
+wtest('formulaApplyPoints: wasm matches the JS reference point for point', () => {
+  const batch = core.op('formulaApplyPoints');
+  POINT_FORMULAS.forEach(([ex, ey], i) => {
+    const got = batch(ex, ey, RAWS, CTX);
+    jsRef.formulaPoints[i].forEach((want, k) => {
+      assert.ok(Math.abs(got[k].x - want.x) < 1e-9 && Math.abs(got[k].y - want.y) < 1e-9, `points ${i}.${k}: ${ex} / ${ey}`);
+    });
+  });
+  assert.deepStrictEqual(batch('x', 'y', [], CTX), []);
 });
 
 wtest('parseDuration: wasm matches JS reference (ms, 0 for off, null for invalid)', () => {

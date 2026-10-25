@@ -22,12 +22,20 @@ var defaultTuning = Tuning{
 	FeedBuffer:    eventbus.DefaultSubBuffer,
 }
 
-// defaultMaxConnsPerIP is the per-IP connection cap a hub built without WithMaxConnsPerIP keeps.
-const defaultMaxConnsPerIP = 64
+// The connection caps a hub built without WithMaxConnsPerIP / WithMaxConns keeps.
+const (
+	defaultMaxConnsPerIP = 64
+	defaultMaxConns      = 10000
+)
 
 // WithMaxConnsPerIP caps the live connections one client IP may hold; 0 = unlimited.
 func WithMaxConnsPerIP(n int) Option {
-	return func(h *Hub) { h.perIP = newIPCounter(n) }
+	return func(h *Hub) { h.perIP.cap = n }
+}
+
+// WithMaxConns caps the live connections the whole server holds; 0 = unlimited.
+func WithMaxConns(n int) Option {
+	return func(h *Hub) { h.perIP.total = n }
 }
 
 // WithTuning overrides the hub's sizing field by field.

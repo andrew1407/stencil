@@ -142,7 +142,7 @@ public sealed class UpdatePumpTests
     {
         string dataDir = TempDirs.New("bot-flood");
         MockBotClient bot = new();
-        UpdateRouter router = AccessAdmissionTests.RouterFor(dataDir, new InMemorySessionStore(), new MockStencilCli(), bot, null, 1);
+        UpdateRouter router = AccessAdmissionTests.RouterFor(dataDir, new InMemorySessionStore(), new MockStencilCli(), bot, null, null, 1);
         // Two slots, one held by a listed user's running update: a single enqueued stranger would fill
         // the other, and the third would block the poller.
         await using UpdatePump pump = new(_logger, new BotOptions { UpdateWorkers = 1, UpdateQueueCapacity = 2 });
@@ -170,7 +170,7 @@ public sealed class UpdatePumpTests
         string dataDir = TempDirs.New("bot-edited");
         MockBotClient bot = new();
         MockStencilCli cli = new();
-        UpdateRouter router = AccessAdmissionTests.RouterFor(dataDir, new InMemorySessionStore(), cli, bot, null, 1);
+        UpdateRouter router = AccessAdmissionTests.RouterFor(dataDir, new InMemorySessionStore(), cli, bot, null, null, 1);
         UpdatePump pump = new(_logger, new BotOptions());
         UpdateIntake intake = new(pump, router, CancellationToken.None);
 

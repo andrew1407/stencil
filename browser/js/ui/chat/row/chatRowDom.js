@@ -1,5 +1,6 @@
 // Transcript row DOM: classes, text node, shrink-wrap.
-import { CHAT_ENTERING_CLASS, REVEAL_ENTERING_CLASS, REVEAL_IN_CLASS, REVEAL_ITEM_CLASS, REVEAL_MASKED_CLASS, REVEAL_NO_TRIGGER_CLASS, REVEAL_SMOOTH_CLASS } from '../../motion.js';
+import { REVEAL_ENTERING_CLASS, REVEAL_IN_CLASS, REVEAL_ITEM_CLASS, REVEAL_MASKED_CLASS, REVEAL_NO_TRIGGER_CLASS, REVEAL_SMOOTH_CLASS } from '../../motion/reveal.js';
+import { CHAT_ENTERING_CLASS } from '../../motion/control/chatFx.js';
 
 // Repaints rewrite className wholesale, so motion.js's classes are kept here — CHAT_ENTERING_CLASS
 // too: a turn appends two rows, and the second repaint would tear the first's veil off mid-flight.

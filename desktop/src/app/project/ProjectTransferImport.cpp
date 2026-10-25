@@ -1,6 +1,7 @@
 #include "ProjectTransferController.hpp"
 #include "SharedState.hpp"
-#include "projectTransferParts.hpp"
+#include "stamps.hpp"
+#include "fileBytes.hpp"
 #include "../../support/rowWork.hpp"
 #include "CanvasWidget.hpp"
 #include "Notifications.hpp"

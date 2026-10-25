@@ -74,6 +74,7 @@ namespace stencil::gui {
     const int at = std::max(
         0, std::min(continueInsertIdx, static_cast<int>(line.points.size())));
     line.points.insert(line.points.begin() + at, ip);
+    bounds.clear();
     flyInPoint(continueLineIdx, line, at);
     selectedPoint = at;
     if (advance) continueInsertIdx = at + 1;

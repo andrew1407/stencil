@@ -116,6 +116,12 @@ namespace stencil::gui {
     FlightAnchors flight;                           // where it grows from / shrinks into
   };
   bool confirmModal(QWidget* parent, const ConfirmSpec& spec);
+  // No platform icon; defaults to No.
+  bool confirmYesNo(QWidget* parent, const QString& title, const QString& text);
+  // DontUseNativeDialog, so it gets the reveal flight and centering a native panel
+  // cannot. Empty string on Cancel, as getSaveFileName().
+  QString showSaveDialog(QWidget* parent, const QString& title,
+                         const QString& suggested, const QString& filter);
   // Browser confirmModal.js askAlt.
   enum class ConfirmChoice { CANCEL, CONFIRM, ALT };
   ConfirmChoice confirmModalChoice(QWidget* parent, const ConfirmSpec& spec);

@@ -10,7 +10,7 @@ import { dockBesideSite, popup, surface } from './popup.mjs';
 // below — so this point lights "Open in editor here".
 const HERE = Object.freeze([0.25, 0.3]);
 
-const panelPage = async (ctx, theme) => {
+export const panelPage = async (ctx, theme) => {
   if (!ctx.panel || ctx.panel.isClosed()) {
     ctx.panel = await surface('src/sidepanel/sidepanel.html', VIEWS.panel, theme);
     await ctx.panel.waitForSelector('.filters', { timeout: TIMEOUTS.scanMs });
@@ -25,12 +25,13 @@ const panelPage = async (ctx, theme) => {
   return ctx.panel;
 };
 
-const rowEvent = (panel, name, type) => panel.evaluate(([label, kind]) => {
+// `at` is where the drag grabs the row (CSS px); by default its thumbnail.
+export const rowEvent = (panel, name, type, at = null) => panel.evaluate(([label, kind, grab]) => {
   const row = [...document.querySelectorAll('.row')].find((r) => r.querySelector('.name')?.textContent === label);
   const box = row.getBoundingClientRect();
   row.dispatchEvent(new DragEvent(kind, { bubbles: true, cancelable: true, dataTransfer: new DataTransfer(),
-    clientX: box.left + 40, clientY: box.top + box.height / 2 }));
-}, [name, type]);
+    clientX: grab ? grab[0] : box.left + 40, clientY: grab ? grab[1] : box.top + box.height / 2 }));
+}, [name, type, at]);
 
 export const makePanelSteps = ({ image }) => Object.freeze([
   { name: 'side-panel', run: async (ctx, theme) => {

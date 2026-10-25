@@ -19,7 +19,7 @@ export declare class StencilTooltip extends StencilElement {
   static inner(): string;
   static template(): string;
   wire(app: DrawingApp): void;
-  applyHover(clientX: number, clientY: number, x: number, y: number, mods: { altKey?: boolean; ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean }, immediate?: boolean): void;
+  applyHover(clientX: number, clientY: number, x: number, y: number, mods: { altKey?: boolean; ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean }, immediate?: boolean, lineAt?: number, pointAt?: null): void;
   refresh(mods: { altKey?: boolean; ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean }): void;
   scheduleShow(key: string, revealFn: () => void, immediate: boolean): void;
   show(clientX: number, clientY: number, x: number, y: number): void;

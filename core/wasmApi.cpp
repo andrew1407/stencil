@@ -69,17 +69,6 @@ extern "C" {
     *outY = p.y;
   }
 
-  // varName is the ASCII code of 'x' or 'y'; 0 (out untouched) on a parse error or
-  // non-finite result.
-  int stencil_formulaEvaluate(const char* expr, int varName, double varValue,
-                              double* out) {
-    const auto r =
-        FormulaParser::evaluate(expr ? expr : "", static_cast<char>(varName), varValue);
-    if (!r.has_value()) return 0;
-    *out = *r;
-    return 1;
-  }
-
   // `mode` is the FilterMode code (0 none … 5 contour, a no-op here — it needs
   // dimensions, see stencil_applyContourRGBA); `data` is a canvas ImageData.data.
   void stencil_applyFilterRGBA(int mode, std::uint8_t* data, int pixelCount,
@@ -127,23 +116,23 @@ extern "C" {
   double stencil_zoomMin(void) { return ZOOM_MIN; }
   double stencil_zoomMax(void) { return ZOOM_MAX; }
 
-  // Both zooms -> out[0..2] = {scale, scrollLeft, scrollTop}.
-  void stencil_anchoredZoom(double scrollLeft, double scrollTop, double cursorX,
-                            double cursorY, double oldScale, double newScale,
-                            double* out) {
-    const AnchoredZoom z = anchoredZoom(scrollLeft, scrollTop, cursorX, cursorY,
-                                        oldScale, newScale);
-    out[0] = z.scale;
-    out[1] = z.scrollLeft;
-    out[2] = z.scrollTop;
-  }
-
+  // out[0..2] = {scale, scrollLeft, scrollTop}.
   void stencil_rectZoom(double x1, double y1, double rectW, double rectH,
                         double availW, double availH, double* out) {
     const RectZoom z = rectZoom(x1, y1, rectW, rectH, availW, availH);
     out[0] = z.scale;
     out[1] = z.scrollLeft;
     out[2] = z.scrollTop;
+  }
+
+  // In place over `count` flat raw page points (cm); formulas off is the caller's identity.
+  void stencil_formulaApplyPoints(const char* exprX, const char* exprY, double* xy, int count,
+                                  double pageWcm, double pageHcm, double imageW, double imageH,
+                                  const char* unit) {
+    if (count <= 0) return;
+    FormulaParser::applyPoints(exprX ? exprX : "", exprY ? exprY : "", xy, static_cast<std::size_t>(count),
+                               abi::toFormulaContext(kFormulaUnset, kFormulaUnset, pageWcm, pageHcm,
+                                                     imageW, imageH, unit));
   }
 
   // The rest come from abi/shared.inc, verbatim with the CLI ABI.

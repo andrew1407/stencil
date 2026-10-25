@@ -3,7 +3,7 @@
 // filterPixels.js pass the main thread runs, on the wasm core when it loads here, else its JS twin.
 import { core } from '../core/abi/stencilCore.js';
 import { applyContourRGBA } from '../core/image/contourFilter.js';
-import { FILTER_RECIPE, filterPixels } from '../core/image/filterPixels.js';
+import { FILTER_RECIPE, filteredPixels } from '../core/image/filterPixels.js';
 import { IMAGE_TASK } from './imageMessages.js';
 import { paintScaled, contourCanvas, paintResult } from './imageRaster.js';
 
@@ -36,13 +36,20 @@ const render = async (msg) => {
   throw new Error(`unknown image task "${msg.task}"`);
 };
 
-// The RGBA pass the main thread's painter runs, then its putImageData, into a bitmap.
-const filterBitmap = async ({ recipe, data, width, height, rgb }) => {
+// The main thread's painter — its plain read when handed the picture, its RGBA pass, its putImageData
+// of the result where it lies (a heap view, never copied back) — into a bitmap.
+const filterBitmap = async ({ recipe, data, bitmap, width, height, rgb }) => {
   if (recipe !== FILTER_RECIPE.TINT) await coreReady();
-  const image = new ImageData(new Uint8ClampedArray(data), width, height);
-  if (!filterPixels(recipe, image.data, width, height, rgb, op)) throw new Error('wasm core unavailable in the image worker');
   const canvas = makeCanvas(width, height);
-  canvas.getContext('2d').putImageData(image, 0, 0);
+  const ctx = canvas.getContext('2d');
+  let image;
+  if (bitmap) {
+    try { ctx.drawImage(bitmap, 0, 0); } finally { bitmap.close(); }
+    image = ctx.getImageData(0, 0, width, height);
+  } else image = new ImageData(new Uint8ClampedArray(data), width, height);
+  const out = filteredPixels(recipe, image.data, width, height, rgb, op);
+  if (!out) throw new Error('wasm core unavailable in the image worker');
+  ctx.putImageData(out === image.data ? image : new ImageData(out, width, height), 0, 0);
   return canvas.transferToImageBitmap();
 };
 

@@ -10,6 +10,8 @@ import { publish, EVENTS } from '../../eventBus/appBus.js';
 import { str } from '../coerce.js';
 import { cliModeGate } from '../shell/gate.js';
 
+const originOf = (url) => { try { return new URL(url).origin; } catch { return ''; } };
+
 export const createAssistantApi = ({ app, guard }) => {
   let stencil;   // the frozen facade, handed over by setFacade after the guard
 
@@ -33,6 +35,12 @@ export const createAssistantApi = ({ app, guard }) => {
       }
     }
     if (opts.model != null) next.model = str(opts.model).trim();
+    // A key belongs to the base URL it was given for (llm-providers.md §5): a moved origin drops it.
+    // stencil-server's serverUrl carries no key; its bearer is bound to that URL.
+    if (opts.apiKey == null && originOf(next.baseUrl) !== originOf(cur.baseUrl)) {
+      next.apiKey = '';
+      forgetSessionKey();
+    }
     if (opts.apiKey != null) {
       // The anthropic key is this tab's session key (llm-providers.md §5): held, never saved.
       if (next.provider !== 'anthropic') next.apiKey = str(opts.apiKey);

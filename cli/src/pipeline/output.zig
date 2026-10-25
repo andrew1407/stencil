@@ -2,10 +2,16 @@
 //! before it — `..` always, `--confine-output` and `--no-clobber` when asked — each on the name
 //! the output really lands under, a missing extension filled from the input's format.
 const std = @import("std");
+
 const image = @import("../media/image.zig");
 const report = @import("../app/report.zig");
 const confine = @import("../safety/confine.zig");
 const sources = @import("sources.zig");
+
+/// The success line mcp and bot parse (cli/CONTRACT.md §2; common/fixtures/cli/outcome.json).
+pub const line = struct {
+    pub const wrote = "wrote {s} ({d}x{d} px · {s})\n";
+};
 
 const expandHome = sources.expandHome;
 const hasParentTraversal = confine.hasParentTraversal;
@@ -27,7 +33,7 @@ pub fn writeOutputLabeled(gpa: std.mem.Allocator, io: std.Io, img: image.Rgba8, 
         return e;
     };
 
-    report.print("wrote {s} ({d}x{d} px · {s})\n", .{ resolved.path, img.width, img.height, page_label });
+    report.print(line.wrote, .{ resolved.path, img.width, img.height, page_label });
 }
 
 /// `--confine-output` on the file `out` lands at (extension filled from `default_fmt`): outside the

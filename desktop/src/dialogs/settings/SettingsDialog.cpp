@@ -3,7 +3,7 @@
 #include "../../support/menu/SearchCombo.hpp"
 #include "SettingsDialog.hpp"
 #include "defaultVisuals.hpp"
-#include "guiHelpers.hpp"
+#include "colorSwatch.hpp"
 #include "../../support/modal/modalChrome.hpp"   // the browser modal shell + .vs-row rows
 #include "../../support/modal/modalReveal.hpp"
 #include "../../support/motionPrefs.hpp"

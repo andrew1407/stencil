@@ -17,6 +17,47 @@ const pointsOf = (s) => linesOf(s).reduce((n, l) => n + (l?.points?.length ?? 0)
 // The step -1 stop: no lines, on the view of the step the stack starts from.
 const floorOf = (s) => (Array.isArray(s) || !s ? [] : { ...s, lines: [] });
 
+// Points dominate a step, so a stored line keeps its plain {x, y} points as one Float64Array (a
+// tenth of structuredClone's cost, a third of its memory); a point carrying anything else keeps
+// the whole array as a deep copy.
+const plainPoint = (p) => {
+  let n = 0;
+  for (const k in p) { if (k !== 'x' && k !== 'y') return false; n++; }
+  return n === 2 && typeof p.x === 'number' && typeof p.y === 'number';
+};
+const packPoints = (points) => {
+  const flat = new Float64Array(points.length * 2);
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    if (!p || !plainPoint(p)) return structuredClone(points);
+    flat[2 * i] = p.x;
+    flat[2 * i + 1] = p.y;
+  }
+  return flat;
+};
+const unpackPoints = (flat) => {
+  const out = new Array(flat.length / 2);
+  for (let i = 0; i < out.length; i++) out[i] = { x: flat[2 * i], y: flat[2 * i + 1] };
+  return out;
+};
+// A copy of `o` with key `k` taken through `fn`, every key kept in its place: a layout's bytes
+// follow its key order.
+const copyWith = (o, k, fn) => {
+  const out = {};
+  for (const key of Object.keys(o)) {
+    const v = o[key];
+    out[key] = key === k ? fn(v) : (v !== null && typeof v === 'object' ? structuredClone(v) : v);
+  }
+  return out;
+};
+const storeLine = (l) => (l && Array.isArray(l.points) ? copyWith(l, 'points', packPoints) : structuredClone(l));
+const liveLine = (l) => (l && ArrayBuffer.isView(l.points) ? copyWith(l, 'points', unpackPoints) : structuredClone(l));
+const mapLines = (s, fn) => {
+  if (Array.isArray(s)) return s.map(fn);
+  if (!s || !Array.isArray(s.lines)) return structuredClone(s);
+  return copyWith(s, 'lines', (lines) => lines.map(fn));
+};
+
 // One undo step of the editor, core's EditorMemento: the lines, the crop and turn under them, and
 // the filter over the picture.
 export const editorMemento = (app) => ({
@@ -51,11 +92,11 @@ export class HistoryStack {
     const step = baseStep !== undefined ? baseStep : (linesOf(snapshot).length > 0 ? 0 : -1);
 // A negative step means "no current snapshot": keep the history empty so canRedo() stays
 // false (a phantom empty snapshot would surface a stray redo after a blank image).
-    this.history = step >= 0 ? [this.#clone(snapshot)] : [];
+    this.history = step >= 0 ? [this.#store(snapshot)] : [];
     this.#points = step >= 0 ? [pointsOf(snapshot)] : [];
     this.#total = this.#points[0] ?? 0;
     this.historyStep = step;
-    this.floor = this.#clone(floorOf(snapshot));
+    this.floor = this.#store(floorOf(snapshot));
   }
 
   push(snapshot) {
@@ -63,7 +104,7 @@ export class HistoryStack {
 // Truncate in place: a no-op in the common no-redo case, no reallocation per push.
     if (this.history.length > this.historyStep) this.history.length = this.historyStep;
     for (const n of this.#points.splice(this.historyStep)) this.#total -= n ?? 0;
-    this.history.push(this.#clone(snapshot));
+    this.history.push(this.#store(snapshot));
     const n = pointsOf(snapshot);
     this.#points[this.history.length - 1] = n;
     this.#total += n;
@@ -92,10 +133,10 @@ export class HistoryStack {
   undo() {
     if (this.historyStep > 0) {
       this.historyStep--;
-      return this.#clone(this.history[this.historyStep]);
+      return this.#live(this.history[this.historyStep]);
     } else if (this.historyStep === 0) {
       this.historyStep = -1;
-      return this.#clone(this.floor);
+      return this.#live(this.floor);
     }
     return null;
   }
@@ -104,13 +145,14 @@ export class HistoryStack {
   redo() {
     if (this.historyStep < this.history.length - 1) {
       this.historyStep++;
-      return this.#clone(this.history[this.historyStep]);
+      return this.#live(this.history[this.historyStep]);
     }
     return null;
   }
 
-// Stored history must be immune to later mutation of live lines (their points arrays).
-  #clone(snapshot) {
-    return structuredClone(snapshot);
-  }
+// Stored history must be immune to later mutation of live lines (their points arrays), and what
+// undo/redo hand back must be free to mutate: both directions copy.
+  #store(snapshot) { return mapLines(snapshot, storeLine); }
+
+  #live(stored) { return mapLines(stored, liveLine); }
 }

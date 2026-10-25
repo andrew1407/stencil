@@ -19,7 +19,8 @@ extern "C" {
   const char* stencil_pageFormats(void);
   int stencil_formulaValidate(const char*, int);
   double stencil_formulaApply(const char*, int, double, int);
-  int stencil_formulaEvaluate(const char*, int, double, double*);
+  void stencil_formulaApplyPoints(const char*, const char*, double*, int, double, double, double,
+                                  double, const char*);
   void stencil_applyFilterRGBA(int, std::uint8_t*, int, int, int, int);
   void stencil_applyContourRGBA(std::uint8_t*, int, int);
   void stencil_rotatePoints(double*, int, double, double, double);
@@ -28,8 +29,6 @@ extern "C" {
   double stencil_clampScale(double);
   double stencil_zoomMin(void);
   double stencil_zoomMax(void);
-  void stencil_anchoredZoom(double, double, double, double, double, double,
-                            double*);
   void stencil_rectZoom(double, double, double, double, double, double, double*);
 }
 
@@ -88,14 +87,17 @@ TEST_SUITE("wasmApi") {
     CHECK(stencil_formulaApply("x * 2", x, 3.0, 1) == doctest::Approx(6.0));
     // allowFormulas = 0 -> value passes through unchanged.
     CHECK(stencil_formulaApply("x * 2", x, 3.0, 0) == doctest::Approx(3.0));
+  }
 
-    double out = -1;
-    CHECK(stencil_formulaEvaluate("x + 9", x, 3.0, &out) == 1);
-    CHECK(out == doctest::Approx(12.0));
-    // Division by zero -> non-finite -> failure, out left untouched.
-    out = 77.0;
-    CHECK(stencil_formulaEvaluate("x / 0", x, 3.0, &out) == 0);
-    CHECK(out == doctest::Approx(77.0));
+  TEST_CASE("stencil_formulaApplyPoints rewrites the flat pairs in place, each with both raw axes") {
+    double xy[] = {10, 4, 6, 3};
+    stencil_formulaApplyPoints("x / y", nullptr, xy, 2, 21, 29.7, 600, 400, "cm");
+    CHECK(xy[0] == doctest::Approx(2.5));
+    CHECK(xy[1] == doctest::Approx(4.0));   // a NULL formula is the identity
+    CHECK(xy[2] == doctest::Approx(2.0));
+    stencil_formulaApplyPoints("", "PAGE_WIDTH - y", xy, 1, 21, 29.7, 600, 400, "cm");
+    CHECK(xy[1] == doctest::Approx(17.0));
+    stencil_formulaApplyPoints("x", "y", nullptr, 3, 21, 29.7, 600, 400, "cm");   // no buffer: a no-op
   }
 
   TEST_CASE("stencil_applyFilterRGBA filters an interleaved buffer in place") {
@@ -177,14 +179,6 @@ TEST_SUITE("wasmApi") {
     CHECK(stencil_zoomMax() == 32.0);
     CHECK(stencil_clampScale(-1.0) == stencil_zoomMin());
     CHECK(stencil_clampScale(1e9) == stencil_zoomMax());
-  }
-
-  TEST_CASE("stencil_anchoredZoom fills out[scale, scrollLeft, scrollTop]") {
-    double out[3] = {0, 0, 0};
-    stencil_anchoredZoom(200, 100, 100, 50, 1.0, 2.0, out);
-    CHECK(out[0] == doctest::Approx(2.0));
-    CHECK(out[1] == doctest::Approx(500.0));
-    CHECK(out[2] == doctest::Approx(250.0));
   }
 
   TEST_CASE("stencil_rectZoom fills out[scale, scrollLeft, scrollTop]") {

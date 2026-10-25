@@ -72,3 +72,20 @@ test('the selection is marked through one Set; an empty list is one message acro
   assert.equal(rows().length, 1);
   assert.deepEqual([rows()[0].children[0].className, rows()[0].children[0].colSpan], ['empty-message', 9]);
 });
+
+// A re-render keeps the rows whose line did not move and builds only the ones that did.
+test('a re-render rebuilds only the rows whose line changed, and ends as a fresh render', () => {
+  const app = makeLinesApp();
+  renderLinesList(app);
+  const before = [...rows()];
+  app.lines[1].thickness = 9;
+  renderLinesList(app);
+  assert.equal(rows()[0], before[0], 'an unchanged line keeps its row');
+  assert.notEqual(rows()[1], before[1], 'the changed line gets a new one');
+  assert.equal(rows()[2], before[2]);
+  assert.equal(cellsOf(1)[3].textContent, '9');
+  const seen = rows().map((r) => [r.className, r.children.map((c) => c.textContent)]);
+  body.children.splice(0);
+  renderLinesList(app);
+  assert.deepEqual(rows().map((r) => [r.className, r.children.map((c) => c.textContent)]), seen, 'the same rows a fresh render builds');
+});

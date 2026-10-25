@@ -4,7 +4,7 @@
 #include "cssColor.hpp"
 #include "../../support/control/FlowLayout.hpp"
 #include "../../support/control/lineLimits.hpp"
-#include "../../support/guiHelpers.hpp"
+#include "colorSwatch.hpp"
 #include "../../support/modal/modalReveal.hpp"
 #include "../../support/control/numericInput.hpp"
 #include "../../support/menu/SearchCombo.hpp"

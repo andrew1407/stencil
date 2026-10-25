@@ -2,11 +2,15 @@ package httpapi
 
 import (
 	"crypto/subtle"
+	"errors"
 	"net/http"
 
 	"stencil/server/internal/auth"
 	"stencil/server/internal/clock"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/protocol"
+	"stencil/server/internal/store"
+	"stencil/server/internal/validate"
 )
 
 // issueTokenRequest is the optional body of POST /auth/token.
@@ -26,6 +30,10 @@ func (a *API) handleIssueToken(rw http.ResponseWriter, req *http.Request) {
 		if !a.decodeJSON(rw, req, &body) {
 			return
 		}
+	}
+	if err := validate.TokenLabel(body.Label); err != nil {
+		writeBadRequest(rw, err.Error())
+		return
 	}
 
 	token, hash, err := auth.GenerateToken()
@@ -61,4 +69,52 @@ func (a *API) adminAuthorized(req *http.Request) bool {
 func (a *API) handleSession(rw http.ResponseWriter, req *http.Request) {
 	sess, _ := auth.SessionFromContext(req.Context())
 	writeJSON(rw, http.StatusOK, protocol.SessionResponse{SessionID: sess.ID, ExpiresAt: sess.ExpiresAt})
+}
+
+// handleRevokeOwnSession ends the bearer's own session: its token stops resolving at once and its live
+// feeds are hung up, on every instance.
+func (a *API) handleRevokeOwnSession(rw http.ResponseWriter, req *http.Request) {
+	sess, _ := auth.SessionFromContext(req.Context())
+	a.revokeSession(rw, req, sess.ID)
+}
+
+// handleRevokeSession is the admin's revocation of one session by id (a leaked token).
+func (a *API) handleRevokeSession(rw http.ResponseWriter, req *http.Request) {
+	if !a.adminAuthorized(req) {
+		writeErr(rw, http.StatusUnauthorized, protocol.CodeUnauthorized, msgAdminRevoke)
+		return
+	}
+	a.revokeSession(rw, req, req.PathValue("id"))
+}
+
+// handleRevokeAllSessions is the admin's revocation of every session, e.g. after rotating ADMIN_TOKEN.
+func (a *API) handleRevokeAllSessions(rw http.ResponseWriter, req *http.Request) {
+	if !a.adminAuthorized(req) {
+		writeErr(rw, http.StatusUnauthorized, protocol.CodeUnauthorized, msgAdminRevoke)
+		return
+	}
+	ctx, cancel := a.opCtx(req)
+	defer cancel()
+	if _, err := a.deps.Sessions.DeleteAllSessions(ctx); err != nil {
+		writeInternalError(rw, msgRevokeSession)
+		return
+	}
+	eventbus.PublishSessionRevoked(ctx, a.deps.Bus, "")
+	rw.WriteHeader(http.StatusNoContent)
+}
+
+func (a *API) revokeSession(rw http.ResponseWriter, req *http.Request, id string) {
+	ctx, cancel := a.opCtx(req)
+	defer cancel()
+	err := a.deps.Sessions.DeleteSession(ctx, id)
+	if errors.Is(err, store.ErrNotFound) {
+		writeNotFound(rw, msgNoSession)
+		return
+	}
+	if err != nil {
+		writeInternalError(rw, msgRevokeSession)
+		return
+	}
+	eventbus.PublishSessionRevoked(ctx, a.deps.Bus, id)
+	rw.WriteHeader(http.StatusNoContent)
 }

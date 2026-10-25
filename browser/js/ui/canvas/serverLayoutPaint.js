@@ -1,7 +1,7 @@
 import { setVal, setRadioGroup, cmToUnit } from '../../utils.js';
 import { normalizePageSize } from '../../core/settings/units.js';
 import { formulaText } from '../../core/parse/formulaEngine.js';
-import { revealControls } from '../motion.js';
+import { revealControls } from '../motion/control/revealControls.js';
 
 // ── Adopting a peer's (or the server's) layout onto the controls ─────────────
 // A server layout arrives as model + screen in one step: the editor state it names and the

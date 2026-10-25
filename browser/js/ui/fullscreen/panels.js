@@ -1,4 +1,7 @@
-import { FOLD_DUST_OUT_MS, SURFACE_IN_MS, dockAwayPoint, motionMs, settleSurface, surfaceIn, surfaceOut } from '../motion.js';
+import { motionMs } from '../motion/motionPrefs.js';
+import { SURFACE_IN_MS, dockAwayPoint } from '../motion/surface/motion.js';
+import { settleSurface, surfaceIn, surfaceOut } from '../motion/surface/surfaces.js';
+import { FOLD_DUST_OUT_MS } from '../motion/control/tips.js';
 import { EVENTS, subscribe } from '../../eventBus/appBus.js';
 // The two slide-in panels and their auto-hide timers; the hover wiring and the resizer drag
 // pause them through `pauseControlsHide` / `pausePointsHide`. Each comes and goes as dust past

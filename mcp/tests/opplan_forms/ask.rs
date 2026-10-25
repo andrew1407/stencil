@@ -2,7 +2,7 @@
 //! auto-continuation rule. The card's validation is core's.
 
 
-use stencil_mcp::opplan::{format_ask, loads_without_tracing, OpPlan};
+use stencil_mcp::plan::{format_ask, loads_without_tracing, OpPlan};
 
 use crate::common::plan_of;
 

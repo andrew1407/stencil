@@ -63,7 +63,7 @@ class MainWindowGuiTest : public QObject {
       renaming = box && box->isVisible();
       w.dlg->reject();
     });
-    win.parts.projects.openProjects();
+    win.projectHost.flows.openProjects();
     QVERIFY2(hidden, "the ⋯ is only there while a row is held");
     QVERIFY2(formed, "picking a row up brought the ⋯");
     QVERIFY2(menuUp, "held over the ⋯, the row's own menu popped up");
@@ -119,7 +119,7 @@ class MainWindowGuiTest : public QObject {
       w.list->onDragEnd();
       w.dlg->reject();
     });
-    win.parts.projects.openProjects();
+    win.projectHost.flows.openProjects();
     QVERIFY2(overlay, "the held menu carries the row menu's shimmer");
     QVERIFY2(swept, "the row lit under the drag sweeps it, as a hover does");
   }

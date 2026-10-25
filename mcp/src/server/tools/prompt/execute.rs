@@ -5,7 +5,7 @@
 use crate::llm::{self, ChatMessage, ImageAttachment, LlmConfig, Role};
 use crate::llmtransport::LlmTransport;
 use crate::pipeline::progress;
-use crate::{opplan, pipeline};
+use crate::{pipeline, plan};
 
 use super::response::PromptResult;
 
@@ -100,14 +100,14 @@ impl Drop for AbortOnDrop {
 /// Lower the plan into CLI runs and make every directory they write into. An empty result
 /// means the plan left nothing to run this turn — the notes already say why.
 pub(super) async fn prepare_outputs(
-    plan: &opplan::OpPlan,
+    plan: &plan::OpPlan,
     round_input: Option<&str>,
     output_dir: &str,
     notes: &mut Vec<String>,
-) -> Result<Vec<opplan::EditRequest>, String> {
+) -> Result<Vec<plan::EditRequest>, String> {
     // Plan coordinates are snapshot-frame (§1), so layout-drawing runs pass the CLI
     // `--layout-frame source` to re-map them through the run's crop/rotate.
-    let requests = opplan::to_edit_requests(plan, round_input, output_dir, notes)
+    let requests = plan::to_edit_requests(plan, round_input, output_dir, notes)
         .map_err(|error| error.to_string())?;
     // A plan that was ONLY §2.1 ops this turn cannot satisfy (a second attachment that
     // does not exist here) leaves nothing to run — the notes above already say why.
@@ -119,7 +119,7 @@ pub(super) async fn prepare_outputs(
 }
 
 /// `output_dir` plus each output's own parent (§10 saves nest), in one hop off the runtime.
-async fn make_output_dirs(dir: String, requests: &[opplan::EditRequest]) -> Result<(), String> {
+async fn make_output_dirs(dir: String, requests: &[plan::EditRequest]) -> Result<(), String> {
     let parents: Vec<std::path::PathBuf> = requests
         .iter()
         .filter_map(|r| std::path::Path::new(&r.params.output).parent().map(Into::into))
@@ -139,7 +139,7 @@ async fn make_output_dirs(dir: String, requests: &[opplan::EditRequest]) -> Resu
 
 /// Run every request, joined before the reply, against the real CLI.
 pub(super) async fn execute_concurrently(
-    requests: Vec<opplan::EditRequest>,
+    requests: Vec<plan::EditRequest>,
 ) -> Result<Vec<PromptResult>, String> {
     execute_plan(std::sync::Arc::new(pipeline::ProcessRunner), requests).await
 }
@@ -150,7 +150,7 @@ pub(super) async fn execute_concurrently(
 /// first failure — kills the CLI children instead of leaving them to finish detached.
 pub async fn execute_plan<R: pipeline::CliRunner + Send + 'static>(
     runner: std::sync::Arc<R>,
-    requests: Vec<opplan::EditRequest>,
+    requests: Vec<plan::EditRequest>,
 ) -> Result<Vec<PromptResult>, String> {
     let mut runs = tokio::task::JoinSet::new();
     let mut labels: Vec<Option<String>> = Vec::with_capacity(requests.len());

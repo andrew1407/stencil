@@ -6,7 +6,12 @@
       "chatPath": "/api/chat",
       "modelsPath": "/api/tags",
       "probePath": "/api/version",
-      "wire": "ollama"
+      "wire": "ollama",
+      "settings": {
+        "key": null,
+        "endpoint": "base",
+        "endpointNote": true
+      }
     },
     "openai-compat": {
       "displayName": "OpenAI API (LM Studio, vLLM, …)",
@@ -14,7 +19,12 @@
       "chatPath": "/chat/completions",
       "modelsPath": "/models",
       "probePath": "/models",
-      "wire": "openai"
+      "wire": "openai",
+      "settings": {
+        "key": "stored",
+        "endpoint": "base",
+        "endpointNote": true
+      }
     },
     "anthropic": {
       "displayName": "Anthropic API (Claude)",
@@ -26,6 +36,11 @@
       "sessionKey": {
         "ttlMinutes": 720,
         "note": "the user's own API key, held only for the session: memory, sessionStorage or chrome.storage.session, never a file, localStorage or a URL; dropped when the app, console or tab closes, or after ttlMinutes"
+      },
+      "settings": {
+        "key": "session",
+        "endpoint": "base",
+        "endpointNote": false
       }
     },
     "stencil-server": {
@@ -36,7 +51,12 @@
       "modelsPath": "/llm/info",
       "probePath": "/llm/info",
       "wire": "server",
-      "note": "base URL is the user-configured collaboration server; auth is the session bearer token"
+      "note": "base URL is the user-configured collaboration server; auth is the session bearer token",
+      "settings": {
+        "key": null,
+        "endpoint": "server",
+        "endpointNote": false
+      }
     }
   },
   "anthropicUpstream": {

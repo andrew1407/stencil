@@ -1,5 +1,5 @@
 // One-finger pan: a press on empty canvas that wanders past the tap tolerance scrolls the
-// viewport under the finger 1:1, the touch twin of the mouse's Alt+drag (pointer/controller.js).
+// viewport under the finger 1:1, the touch twin of the mouse's Alt+drag (ui/bindings/pointer/controller.js).
 // The pan is the viewport's own scroll offset; `isPanning` only stands hover and hold down.
 
 // From the press point, so the tolerance the finger wandered first is scrolled too.

@@ -3,6 +3,7 @@
 // background, so a cap is an <img> data URI drawn here.
 #include "tipContentParts.hpp"
 #include "../skinPrefs.hpp"
+#include "../LruCache.hpp"
 #include <QBuffer>
 #include <QFontMetricsF>
 #include <QGuiApplication>
@@ -53,6 +54,11 @@ namespace stencil::gui {
 
     QColor orElse(const QColor& c, const QColor& fallback) { return c.isValid() ? c : fallback; }
 
+    LruCache<QString, QString>& keycaps() {
+      static LruCache<QString, QString> cache(tipdetail::KEYCAP_CACHE_CAP);
+      return cache;
+    }
+
     // The raised box of css/webcore/tokens.css --wc-raised: white top-left, black bottom-right,
     // light and shadow one pixel in (support/skinPrefs.hpp carries the four).
     void paintBevel(QPainter& p, const QRectF& r, const Palette& pal) {
@@ -87,9 +93,7 @@ namespace stencil::gui {
                           pal.bgContainer.name(QColor::HexArgb) +   // a transparent face is a face
                           pal.borderMain.name() + pal.textKey.name() + pal.textMuted.name() +
                           pal.textMain.name();
-      static QHash<QString, QString> cache;
-      const auto hit = cache.constFind(key);
-      if (hit != cache.constEnd()) return *hit;
+      if (const QString* hit = keycaps().find(key)) return *hit;
 
       const QFontMetricsF fm(f);
       // The "+" carries 3px of air each side (browser .tip-plus margin), so caps read as ' + '.
@@ -140,13 +144,14 @@ namespace stencil::gui {
                                .arg(qRound(w + 2 * gapX))
                                .arg(qRound(h))
                                .arg(QString::fromLatin1(png.toBase64()));
-      cache.insert(key, html);
-      return html;
+      return keycaps().insert(key, html);
     }
 
   }  // namespace
 
   namespace tipdetail {
+
+    int keycapCacheSize() { return keycaps().size(); }
 
     QString keysHtml(const QString& combo, const Palette& pal, bool mac, qreal scale) {
       const QString s = combo.trimmed();

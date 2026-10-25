@@ -44,15 +44,15 @@ namespace stencil::gui {
     src.version = w.remote.session->getLink().version;
     if (src.serverUrl.isEmpty() || src.serverId.isEmpty()) {
       src.image = w.canvas->getOriginalImage();
-      src.name = w.projectBaseName();
-      src.source = w.docSource.currentSource;
-      src.resource = w.docSource.currentResource;
+      src.name = host.projectBaseName();
+      src.source = host.docSource.currentSource;
+      src.resource = host.docSource.currentResource;
       src.layout = fileStore::buildLayoutJson(
           w.canvas->imageWidth(), w.canvas->imageHeight(), w.canvas->allLines(),
           w.settings.imageFilter, w.settings.filterColor, w.canvas->getCropRect(),
           w.canvas->getRotationQuarters(), w.currentLayoutMeta(), w.canvas->getMirrored());
     }
-    src.startIncognito = w.incognito;
+    src.startIncognito = host.incognito;
     return src;
   }
 
@@ -109,13 +109,13 @@ namespace stencil::gui {
                                   const std::function<int(OpenInDialog&)>& run) {
     const QString botUsername = w.settings.telegramBotUsername.trimmed();
     const bool serverProject = !src.serverUrl.isEmpty() && !src.serverId.isEmpty();
-    OpenInDialog dlg(&w, serverProject, src.serverUrl, browserAvailable, telegramAvailable,
+    OpenInDialog dlg(w.window, serverProject, src.serverUrl, browserAvailable, telegramAvailable,
                      src.startIncognito, src.serverId);
     // The 64-char overflow stays IN the dialog (the browser's fallback row) while the bot chat opens alongside.
-    QObject::connect(&dlg, &OpenInDialog::telegramFallback, &w, [botUsername] {
+    QObject::connect(&dlg, &OpenInDialog::telegramFallback, w.window, [botUsername] {
       QDesktopServices::openUrl(QUrl(QStringLiteral("https://t.me/") + botUsername));
     });
-    QObject::connect(&dlg, &OpenInDialog::toast, &w,
+    QObject::connect(&dlg, &OpenInDialog::toast, w.window,
                      [this](const QString& text, bool fail) {
                        if (fail) w.notify->error(text);
                        else w.notify->success(text);
@@ -155,7 +155,7 @@ namespace stencil::gui {
                     "(or a Telegram bot for server projects).");
       return;
     }
-    if (!serverProject && id == w.activeProjectId && w.canvas->hasImage()) {
+    if (!serverProject && id == host.activeProjectId && w.canvas->hasImage()) {
       openInAnotherApp();
       return;
     }
@@ -172,13 +172,13 @@ namespace stencil::gui {
       });
     };
     if (serverProject) return dispatch(src);
-    Project* pr = w.findProject(id.toStdString());
+    Project* pr = host.findProject(id.toStdString());
     if (!pr) { w.notify->error("That project could not be read"); return; }
     src.name = support::shortName(QString::fromStdString(pr->meta.name));
     src.source = QString::fromStdString(pr->meta.source);
     src.resource = QString::fromStdString(pr->meta.resource);
     const auto withImage = [this, id, dispatch](OpenInSource ready) {
-      const Project* now = w.findProject(id.toStdString());
+      const Project* now = host.findProject(id.toStdString());
       if (!now) { w.notify->error("That project could not be read"); return; }
       if (ready.image.isNull()) { w.notify->error("That project's image could not be loaded"); return; }
       ready.layout = fileStore::buildLayoutJson(ready.image.width(), ready.image.height(), now->lines,
@@ -197,7 +197,7 @@ namespace stencil::gui {
       return withImage(src);
     }
     const QString path = pr->imagePath;
-    support::runOnPool<QImage>(&w, [path] { return QImage(path); }, [src, withImage](QImage img) {
+    support::runOnPool<QImage>(w.window, [path] { return QImage(path); }, [src, withImage](QImage img) {
       OpenInSource ready = src;
       ready.image = img;
       withImage(ready);

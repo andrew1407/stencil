@@ -1,4 +1,5 @@
-#include "mainWindowHelpers.hpp"
+#include "toolbarMetrics.hpp"
+#include "keySeq.hpp"
 #include "MainWindow.hpp"
 #include "ProjectTitleController.hpp"
 #include <QActionGroup>
@@ -9,6 +10,7 @@
 
 #include <QAction>
 #include <QToolButton>
+#include <QLineEdit>
 #include <algorithm>
 
 // refreshActions(): the single enable/visibility pass over every action and control.
@@ -20,7 +22,7 @@ namespace stencil::gui {
     const bool ro = canvas->compareReadOnly();
     acts.undo->setEnabled(canvas->canUndo() && !ro);
     acts.redo->setEnabled(canvas->canRedo() && !ro);
-    acts.saveProject->setEnabled(!activeProjectId.isEmpty());
+    acts.saveProject->setEnabled(!projectHost.activeProjectId.isEmpty());
     // Mirrors the browser toggleDrawing guards.
     const bool drawing = canvas->getIsDrawing();
     acts.startDraw->setEnabled(canvas->hasImage() && !drawing && !ro);

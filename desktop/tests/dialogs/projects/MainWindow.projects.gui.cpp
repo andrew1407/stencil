@@ -30,7 +30,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(!win.nameBar.field->isEnabled());
     QVERIFY(!rename->isEnabled());
     // An active project makes the name editable (updateProjectTitle), and the action follows.
-    win.activeProjectId = QStringLiteral("test-project");
+    win.projectHost.activeProjectId = QStringLiteral("test-project");
     win.refreshActions();
     QVERIFY(win.nameBar.field->isEnabled());
     QVERIFY2(rename->isEnabled(), "the action did not follow the name field");
@@ -48,16 +48,16 @@ class MainWindowGuiTest : public QObject {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    const int before = static_cast<int>(win.projectList.size());
+    const int before = static_cast<int>(win.projectHost.projectList.size());
     win.acts.incognito->setChecked(true);
-    QTRY_VERIFY(win.incognito);
+    QTRY_VERIFY(win.projectHost.incognito);
 
     // The assistant's pathless save: it promotes rather than failing.
     QString err;
     QVERIFY2(win.parts.chatAppliers.chatSaveProject(QString(), QString(), &err),
              qPrintable(QStringLiteral("save refused while incognito: %1").arg(err)));
-    QVERIFY2(!win.incognito, "the session left incognito with the save");
-    QCOMPARE(static_cast<int>(win.projectList.size()), before + 1);
+    QVERIFY2(!win.projectHost.incognito, "the session left incognito with the save");
+    QCOMPARE(static_cast<int>(win.projectHost.projectList.size()), before + 1);
     QVERIFY2(canvas->hasImage(), "the picture survived the promotion");
     beat();
   }
@@ -69,8 +69,8 @@ class MainWindowGuiTest : public QObject {
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
     win.acts.incognito->setChecked(true);
-    QTRY_VERIFY(win.incognito);
-    const int before = static_cast<int>(win.projectList.size());
+    QTRY_VERIFY(win.projectHost.incognito);
+    const int before = static_cast<int>(win.projectHost.projectList.size());
 
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
@@ -79,8 +79,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(win.parts.chatAppliers.chatSaveProject(QStringLiteral("shot"), out, &err),
              qPrintable(QStringLiteral("file save refused: %1").arg(err)));
     QVERIFY2(QFileInfo::exists(out), "the file the user asked for is on disk");
-    QVERIFY2(win.incognito, "an export is not a promotion — the session stays incognito");
-    QCOMPARE(static_cast<int>(win.projectList.size()), before);
+    QVERIFY2(win.projectHost.incognito, "an export is not a promotion — the session stays incognito");
+    QCOMPARE(static_cast<int>(win.projectHost.projectList.size()), before);
     beat();
   }
 
@@ -134,7 +134,7 @@ class MainWindowGuiTest : public QObject {
     const QString idB = win.parts.chatAppliers.addImageProjectEntry(img, "keep-me");
     QVERIFY(!idA.isEmpty() && !idB.isEmpty());
     const auto hasProject = [&win](const QString& id) {
-      for (const auto& p : win.projectList)
+      for (const auto& p : win.projectHost.projectList)
         if (QString::fromStdString(p.meta.id) == id) return true;
       return false;
     };
@@ -187,7 +187,7 @@ class MainWindowGuiTest : public QObject {
       rowGone = !rowFor(idA) && rowFor(idB) != nullptr;
       bailOut();
     });
-    win.parts.projects.openProjects();
+    win.projectHost.flows.openProjects();
     QVERIFY2(sawRow, "the seeded project row never appeared in the dialog");
     QVERIFY2(openAfterNo, "answering No closed the projects dialog");
     QVERIFY2(keptAfterNo, "answering No still removed the project");

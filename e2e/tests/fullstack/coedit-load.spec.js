@@ -174,14 +174,14 @@ test.describe('co-edit load', () => {
     const before = await project();
     expect(before.originalHash, 'the server names the original by its hash').toMatch(/^[0-9a-f]{64}$/);
 
-    // The peer: the same size, type and stored path, other pixels.
+    // The peer: the same size and type, other pixels.
     const up = await request.post(`${SERVER_URL}/projects/${projectId}/files/original?ext=png&w=320&h=240`, {
       headers: { ...bearer(token), 'Content-Type': 'application/octet-stream' },
       data: solidPng(320, 240, [0xe0, 0x30, 0x20]),
     });
     expect(up.status()).toBe(201);
     const after = await project();
-    expect([after.imageW, after.imageH, after.originalPath]).toEqual([before.imageW, before.imageH, before.originalPath]);
+    expect([after.imageW, after.imageH, after.hasImage]).toEqual([before.imageW, before.imageH, true]);
     expect(after.originalHash, 'only the hash tells the pictures apart').not.toBe(before.originalHash);
 
     await expect.poll(() => originals, { timeout: 15_000, message: 'A downloads the replaced original' }).toBeGreaterThan(0);

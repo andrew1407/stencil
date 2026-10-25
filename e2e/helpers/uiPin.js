@@ -1,8 +1,8 @@
 // UI regression pins — the no-screenshot answer to "did anything the user sees move?".
 // capturePin() records, per element, a stable path, its sorted class list, a fixed set of
-// computed styles and (for leaves) its text; expectPin() deep-equals that against
-// e2e/pins/<platform>/<name>.json and prints the first differing paths.
-// UPDATE_PINS=1 rewrites the baseline instead of asserting.
+// computed styles and (for leaves) its text; expectPin() deep-equals the platform-stable half
+// against e2e/pins/common/<name>.json and the whole against e2e/pins/<platform>/<name>.json.
+// UPDATE_PINS=1 rewrites both baselines instead of asserting.
 import { expect, test } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -15,6 +15,7 @@ export const PIN_PLATFORM = process.platform === 'darwin' ? 'macos'
 
 export const PINS_DIR = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)), '../pins', PIN_PLATFORM);
+export const COMMON_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../pins/common');
 
 // The properties a pin records. Layout box, colour, type and the flex/stack geometry —
 // enough that any visible change lands in one of them, few enough to stay readable.
@@ -29,6 +30,15 @@ export const PIN_PROPS = [
 // moves away from one still appears in the diff, as "—" → the new value.
 const DROPPED = ['none', 'normal', 'auto', '', 'static', 'visible', 'start', 'row',
   '0px', '1', '400', 'rgba(0, 0, 0, 0)'];
+
+// The box metrics an OS moves (font metrics, a wrap, a scrollbar); the rest of a pin — the tree,
+// classes, text, colours, type and flex/stack layout — is the same everywhere and runs everywhere.
+export const METRIC_PROPS = ['width', 'height', 'padding', 'margin', 'gap', 'transform'];
+// An <input> the app leaves to the user agent inks in the OS's form-control system colours.
+const SYSTEM_INK = ['color', 'border-color'];
+const platformOnly = (tag, k) => METRIC_PROPS.includes(k) || (tag === 'input' && SYSTEM_INK.includes(k));
+export const commonOf = (pin) => ({ ...pin, nodes: pin.nodes.map((n) => ({ ...n,
+  style: Object.fromEntries(Object.entries(n.style).filter(([k]) => !platformOnly(n.tag, k))) })) });
 
 const MAX_NODES = 600;      // a runaway root fails loudly instead of writing a 5 MB pin
 const MAX_DIFFS = 15;       // how many differing paths a failure prints
@@ -113,24 +123,36 @@ export function diffPins(baseline, actual) {
 }
 
 // Capture the state and assert it against its baseline (or write it under UPDATE_PINS=1).
+const expectAgainst = (file, pin, label) => {
+  const diffs = diffPins(JSON.parse(fs.readFileSync(file, 'utf8')), pin);
+  const shown = diffs.slice(0, MAX_DIFFS);
+  if (diffs.length > MAX_DIFFS) shown.push(`… and ${diffs.length - MAX_DIFFS} more`);
+  expect(shown, `UI pin "${pin.name}" (${pin.root}, ${label}) drifted — rerun with UPDATE_PINS=1 once the change is intended`).toEqual([]);
+};
+
 export async function expectPin(page, { name, root, props = PIN_PROPS }) {
   const pin = await capturePin(page, { name, root, props });
   const file = path.join(PINS_DIR, `${name}.json`);
+  const commonFile = path.join(COMMON_DIR, `${name}.json`);
   if (process.env.UPDATE_PINS) {
-    fs.mkdirSync(PINS_DIR, { recursive: true });
-    fs.writeFileSync(file, `${JSON.stringify(pin, null, 2)}\n`);
+    for (const [dir, f, body] of [[PINS_DIR, file, pin], [COMMON_DIR, commonFile, commonOf(pin)]]) {
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(f, `${JSON.stringify(body, null, 2)}\n`);
+    }
     return pin;
   }
-  // A platform nobody has baselined skips rather than fails; a pin missing from a platform
+  // The common half binds on every platform; E2E_REQUIRE_PINS=1 (CI) refuses a state without one.
+  const hasCommon = fs.existsSync(commonFile);
+  if (!hasCommon && process.env.E2E_REQUIRE_PINS) throw new Error(`No common baseline for "${name}" — record it with UPDATE_PINS=1`);
+  if (hasCommon) expectAgainst(commonFile, commonOf(pin), 'common');
+  // A platform nobody has baselined checks only the common half; a pin missing from a platform
   // that HAS baselines is a real error (it was deleted or renamed).
-  test.skip(!fs.existsSync(PINS_DIR),
-    `no ${PIN_PLATFORM} UI-pin baselines — record them on ${PIN_PLATFORM} with UPDATE_PINS=1`);
+  if (!fs.existsSync(PINS_DIR)) {
+    test.skip(!hasCommon, `no ${PIN_PLATFORM} or common UI-pin baselines — record them with UPDATE_PINS=1`);
+    return pin;
+  }
   if (!fs.existsSync(file)) throw new Error(`No ${PIN_PLATFORM} baseline for "${name}" — record it with UPDATE_PINS=1`);
-  const baseline = JSON.parse(fs.readFileSync(file, 'utf8'));
-  const diffs = diffPins(baseline, pin);
-  const shown = diffs.slice(0, MAX_DIFFS);
-  if (diffs.length > MAX_DIFFS) shown.push(`… and ${diffs.length - MAX_DIFFS} more`);
-  expect(shown, `UI pin "${name}" (${root}) drifted — rerun with UPDATE_PINS=1 once the change is intended`).toEqual([]);
+  expectAgainst(file, pin, PIN_PLATFORM);
   return pin;
 }
 

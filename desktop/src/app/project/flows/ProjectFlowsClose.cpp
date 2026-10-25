@@ -13,13 +13,13 @@ namespace stencil::gui {
 
   // Nothing is removed, so no danger; with nothing open it only says so.
   void ProjectFlows::closeActiveProject(QWidget* over, const QRect& from, bool ask) {
-    const QString id = w.activeProjectId;
+    const QString id = host.activeProjectId;
     const QString serverId = id.isEmpty() ? w.remote.session->getLink().id : QString();
     if (id.isEmpty() && serverId.isEmpty()) {
       w.notify->info(QStringLiteral("No project is open"));
       return;
     }
-    const Project* pr = id.isEmpty() ? nullptr : w.findProject(id.toStdString());
+    const Project* pr = id.isEmpty() ? nullptr : host.findProject(id.toStdString());
     QString name = pr ? QString::fromStdString(pr->meta.name) : w.remote.session->getLink().name;
     name = support::shortName(name.isEmpty() ? MainWindow::tr("Untitled") : name);
     ConfirmSpec spec;
@@ -30,11 +30,11 @@ namespace stencil::gui {
     spec.confirmIcon = QStringLiteral("x");
     spec.flight.openRect = from;
     spec.flight.closeRect = from;
-    if (ask && !confirmModal(over ? over : &w, spec)) return;
+    if (ask && !confirmModal(over ? over : w.window, spec)) return;
     // The question ran an event loop: another project opened meanwhile was not the one asked about.
-    if (w.activeProjectId != id || (!serverId.isEmpty() && w.remote.session->getLink().id != serverId)) return;
+    if (host.activeProjectId != id || (!serverId.isEmpty() && w.remote.session->getLink().id != serverId)) return;
     // The work on screen stays with the project, as when a fresh editor replaces it.
-    if (!w.incognito && w.findProject(id.toStdString())) w.saveToActiveProject();
+    if (!host.incognito && host.findProject(id.toStdString())) host.saveToActiveProject();
     resetToBlankEditor();
     w.notify->success(QStringLiteral("Closed \"%1\"").arg(name));
   }
@@ -43,15 +43,15 @@ namespace stencil::gui {
     dlg.setDragZones(w.overlays.projectZones);   // the main-window drag-out zone overlay (open/new-window/remove)
     const auto holds = [this, &dlg] {
       const RemoteLink& link = w.remote.session->getLink();
-      if (w.activeProjectId.isEmpty() && !link.id.isEmpty()) dlg.setOpenHere(link.id, link.address);
-      else dlg.setOpenHere(w.activeProjectId);
+      if (host.activeProjectId.isEmpty() && !link.id.isEmpty()) dlg.setOpenHere(link.id, link.address);
+      else dlg.setOpenHere(host.activeProjectId);
     };
     holds();
     // Closed at once, unasked; the still-open list repaints.
-    QObject::connect(&dlg, &ProjectsDialog::closeProjectRequested, &w, [this, &dlg, holds, unsavedSession] {
+    QObject::connect(&dlg, &ProjectsDialog::closeProjectRequested, w.window, [this, &dlg, holds, unsavedSession] {
       closeActiveProject(&dlg, QRect(), /*ask=*/false);
       holds();
-      dlg.setProjects(w.projectList, unsavedSession(), w.incognito);
+      dlg.setProjects(host.projectList, unsavedSession(), host.incognito);
     });
   }
 

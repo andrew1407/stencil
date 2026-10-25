@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use stencil_mcp::config::Config;
 use stencil_mcp::locate;
-use stencil_mcp::opplan::EditRequest;
+use stencil_mcp::plan::EditRequest;
 use stencil_mcp::server::{execute_plan, run_prompt};
 
 #[tokio::test]

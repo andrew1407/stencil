@@ -163,6 +163,22 @@ test('description, keywords, colour and expiry land on the saved project; a dura
     ['setProjectExpiration', 'p1', { expiresAt: new Date('2099-01-02').getTime() }]);
 });
 
+test('on a server project the fields stay local and the expiry is ignored, with one notice', async () => {
+  const local = (name) => function (id, v, opts) { this.calls.push([name, id, v, opts]); return {}; };
+  const { app, stencil } = boot('?blank=white&desc=Hello&keywords=a&color=%23ff0000&expire=1%20day', '', {
+    remoteLink: { address: 'https://team.example', remoteId: 'r1', version: 3 },
+    setProjectDescription: local('setProjectDescription'), setProjectKeywords: local('setProjectKeywords'),
+    setProjectColor: local('setProjectColor'),
+  });
+  const decode = decodeTo(app);
+  try { await applyLaunchQuery({ app, stencil }); } finally { decode.restore(); }
+  assert.deepEqual(lastCall(app, 'setProjectDescription'), ['setProjectDescription', 'p1', 'Hello', { local: true }]);
+  assert.deepEqual(lastCall(app, 'setProjectKeywords'), ['setProjectKeywords', 'p1', ['a'], { local: true }]);
+  assert.deepEqual(lastCall(app, 'setProjectColor'), ['setProjectColor', 'p1', '#ff0000', { local: true }]);
+  assert.equal(called(app, 'setProjectExpiration').length, 0, 'a link never expires a shared project');
+  assert.deepEqual(texts(), ['Launch link: expire — ignored — a link never expires a server project']);
+});
+
 test('project fields on an incognito editor are one notice, not a crash', async () => {
   const { app, stencil } = boot('?blank=white&incognito&desc=Hello');
   const decode = decodeTo(app);

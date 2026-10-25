@@ -18,6 +18,7 @@ set(STENCIL_CANVAS_SOURCES
   src/canvas/paint/CanvasGeometry.cpp
   src/canvas/input/CanvasHold.cpp
   src/canvas/input/CanvasHover.cpp
+  src/canvas/paint/CanvasFilter.cpp
   src/canvas/paint/CanvasImage.cpp
   src/canvas/draw/CanvasLineEdit.cpp
   src/canvas/input/CanvasMove.cpp

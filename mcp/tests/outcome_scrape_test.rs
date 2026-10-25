@@ -65,7 +65,7 @@ fn no_summary_leaves_dir_and_host_none() {
 fn parse_scraped_reproduces_the_golden_fixtures() {
     let raw = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../cli/testdata/scrape_fixtures.json"
+        "/../common/fixtures/cli/scrape.json"
     ))
     .expect("read shared scrape fixtures");
     let doc: serde_json::Value = serde_json::from_str(&raw).expect("valid fixtures json");

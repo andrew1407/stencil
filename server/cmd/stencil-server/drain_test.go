@@ -74,7 +74,7 @@ func joinFeed(t *testing.T, addr string, bus eventbus.Bus) transport.Conn {
 	defer close(done)
 	go func() {
 		for {
-			eventbus.PublishProjectEvent(context.Background(), bus, protocol.EventUpdated, protocol.ProjectRecord{ID: "p_probe"})
+			eventbus.PublishProjectEvent(context.Background(), bus, protocol.EventUpdated, protocol.ProjectRecord{ID: "p_probe_1"})
 			select {
 			case <-done:
 				return
@@ -83,7 +83,7 @@ func joinFeed(t *testing.T, addr string, bus eventbus.Bus) transport.Conn {
 		}
 	}()
 	for {
-		if got := awaitType(t, c, protocol.WSProjectEv); got.Project != nil && got.Project.ID == "p_probe" {
+		if got := awaitType(t, c, protocol.WSProjectEv); got.Project != nil && got.Project.ID == "p_probe_1" {
 			return c
 		}
 	}

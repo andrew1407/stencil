@@ -1,0 +1,365 @@
+{
+  "name": "popup-list",
+  "root": "#list",
+  "nodes": [
+    {
+      "path": ":root",
+      "tag": "ul",
+      "classes": "list",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "13px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "flex-direction": "column"
+      }
+    },
+    {
+      "path": ":root/li[1]",
+      "tag": "li",
+      "classes": "",
+      "style": {
+        "display": "list-item",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "13px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+      }
+    },
+    {
+      "path": ":root/li[1]/div[1]",
+      "tag": "div",
+      "classes": "reveal-entering reveal-item row",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "border-radius": "8px",
+        "font-size": "13px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/li[1]/div[1]/img[1]",
+      "tag": "img",
+      "classes": "thumb",
+      "style": {
+        "display": "block",
+        "position": "relative",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(244, 245, 247)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "6px",
+        "font-size": "13px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/li[1]/div[1]/div[1]",
+      "tag": "div",
+      "classes": "meta",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "13px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+      }
+    },
+    {
+      "path": ":root/li[1]/div[1]/div[1]/div[1]",
+      "tag": "div",
+      "classes": "clickable name",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "12px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "overflow": "hidden"
+      },
+      "text": "pixel.png"
+    },
+    {
+      "path": ":root/li[1]/div[1]/div[1]/div[2]",
+      "tag": "div",
+      "classes": "sub",
+      "style": {
+        "display": "flex",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "11px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/li[1]/div[1]/div[1]/div[2]/span[1]",
+      "tag": "span",
+      "classes": "badge img",
+      "style": {
+        "display": "flex",
+        "color": "rgb(107, 113, 128)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "4px",
+        "font-size": "10px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "align-items": "center"
+      },
+      "text": "img"
+    },
+    {
+      "path": ":root/li[1]/div[1]/div[1]/div[2]/span[2]",
+      "tag": "span",
+      "classes": "badge fmt",
+      "style": {
+        "display": "flex",
+        "color": "color(srgb 0.418196 0.195608 0.799294)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "4px",
+        "font-size": "10px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "align-items": "center"
+      },
+      "text": "png"
+    },
+    {
+      "path": ":root/li[1]/div[1]/div[1]/div[2]/span[3]",
+      "tag": "span",
+      "classes": "dim",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "11px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+      },
+      "text": "3×2"
+    },
+    {
+      "path": ":root/li[1]/div[1]/button[1]",
+      "tag": "button",
+      "classes": "pin-btn",
+      "style": {
+        "display": "flex",
+        "color": "rgb(107, 113, 128)",
+        "border-width": "1px",
+        "border-radius": "6px",
+        "font-size": "16px",
+        "font-family": "Arial",
+        "text-align": "center",
+        "justify-content": "center",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/li[1]/div[1]/button[1]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-pin",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "16px",
+        "font-family": "Arial",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/li[1]/div[1]/button[2]",
+      "tag": "button",
+      "classes": "more-btn",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-width": "1px",
+        "border-radius": "6px",
+        "font-size": "16px",
+        "font-family": "Arial",
+        "text-align": "center"
+      },
+      "text": "⋯"
+    },
+    {
+      "path": ":root/li[2]",
+      "tag": "li",
+      "classes": "",
+      "style": {
+        "display": "list-item",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "13px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+      }
+    },
+    {
+      "path": ":root/li[2]/div[1]",
+      "tag": "div",
+      "classes": "reveal-entering reveal-item row",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "border-radius": "8px",
+        "font-size": "13px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/li[2]/div[1]/img[1]",
+      "tag": "img",
+      "classes": "thumb",
+      "style": {
+        "display": "block",
+        "position": "relative",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(244, 245, 247)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "6px",
+        "font-size": "13px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/li[2]/div[1]/div[1]",
+      "tag": "div",
+      "classes": "meta",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "13px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+      }
+    },
+    {
+      "path": ":root/li[2]/div[1]/div[1]/div[1]",
+      "tag": "div",
+      "classes": "clickable name",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "12px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "overflow": "hidden"
+      },
+      "text": "pixel.png"
+    },
+    {
+      "path": ":root/li[2]/div[1]/div[1]/div[2]",
+      "tag": "div",
+      "classes": "sub",
+      "style": {
+        "display": "flex",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "11px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/li[2]/div[1]/div[1]/div[2]/span[1]",
+      "tag": "span",
+      "classes": "badge bg",
+      "style": {
+        "display": "flex",
+        "color": "rgb(166, 124, 0)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "4px",
+        "font-size": "10px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "align-items": "center"
+      },
+      "text": "bg"
+    },
+    {
+      "path": ":root/li[2]/div[1]/div[1]/div[2]/span[2]",
+      "tag": "span",
+      "classes": "badge fmt",
+      "style": {
+        "display": "flex",
+        "color": "color(srgb 0.418196 0.195608 0.799294)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "4px",
+        "font-size": "10px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "align-items": "center"
+      },
+      "text": "png"
+    },
+    {
+      "path": ":root/li[2]/div[1]/div[1]/div[2]/span[3]",
+      "tag": "span",
+      "classes": "dim",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "11px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+      },
+      "text": "3×2"
+    },
+    {
+      "path": ":root/li[2]/div[1]/button[1]",
+      "tag": "button",
+      "classes": "pin-btn",
+      "style": {
+        "display": "flex",
+        "color": "rgb(107, 113, 128)",
+        "border-width": "1px",
+        "border-radius": "6px",
+        "font-size": "16px",
+        "font-family": "Arial",
+        "text-align": "center",
+        "justify-content": "center",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/li[2]/div[1]/button[1]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-pin",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "16px",
+        "font-family": "Arial",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/li[2]/div[1]/button[2]",
+      "tag": "button",
+      "classes": "more-btn",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-width": "1px",
+        "border-radius": "6px",
+        "font-size": "16px",
+        "font-family": "Arial",
+        "text-align": "center"
+      },
+      "text": "⋯"
+    }
+  ]
+}

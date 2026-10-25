@@ -2,7 +2,7 @@
 #include <QListWidgetItem>
 
 #include "ProjectRowDelegate.hpp"
-#include "guiHelpers.hpp"
+#include "menuIconColumn.hpp"
 #include "iconSet.hpp"
 #include "DescriptionDialog.hpp"
 #include "ExpirationDialog.hpp"

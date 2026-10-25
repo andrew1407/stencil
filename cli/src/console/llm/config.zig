@@ -69,9 +69,17 @@ fn showLlm(session: *Session, cfg: *const llm.Config) void {
     logo.print("  token:  {s}\n", .{if (cfg.server_token.len != 0) "(set, hidden)" else "(not set — reuses a matching /connect token)"});
 }
 
-/// The resolved stencil-server endpoint + bearer for one call. `url` is owned by the
-/// caller; `token` borrows from the live connection or the config.
-pub const ServerAuth = struct { url: []u8, token: []const u8 };
+/// The resolved stencil-server endpoint + bearer for one turn, both owned by the caller: a plan's
+/// disconnect, reconnect or re-mint frees the connection's token before a continuation round.
+pub const ServerAuth = struct {
+    url: []u8,
+    token: []u8,
+
+    pub fn deinit(self: ServerAuth, gpa: std.mem.Allocator) void {
+        gpa.free(self.url);
+        gpa.free(self.token);
+    }
+};
 
 /// Contract §5 (cli row): when /connect-ed to the configured serverUrl (or, when empty, the first
 /// connection) reuse the live session token; else fall back to STENCIL_LLM_SERVER_TOKEN.
@@ -80,14 +88,18 @@ pub fn resolveServerAuth(session: *Session, cfg: *const llm.Config) !?ServerAuth
     if (cfg.server_url.len == 0) {
         if (session.servers.items.len != 0) {
             const c = &session.servers.items[0];
-            return .{ .url = try gpa.dupe(u8, c.base), .token = c.token };
+            return try owned(gpa, try gpa.dupe(u8, c.base), c.token);
         }
         logo.err("the stencil-server provider needs a server — '/connect <url>' first, or '/llm server <url>' / STENCIL_LLM_SERVER_URL\n", .{});
         return null;
     }
     const base = try server.normalizeBase(gpa, cfg.server_url);
-    if (session.findServer(base)) |c| return .{ .url = base, .token = c.token };
-    return .{ .url = base, .token = cfg.server_token };
+    return try owned(gpa, base, if (session.findServer(base)) |c| c.token else cfg.server_token);
+}
+
+fn owned(gpa: std.mem.Allocator, url: []u8, token: []const u8) !ServerAuth {
+    errdefer gpa.free(url);
+    return .{ .url = url, .token = try gpa.dupe(u8, token) };
 }
 
 /// Build the console-context system-prompt suffix over `arena` (caller frees): one llm.ConsoleServer
@@ -113,4 +125,27 @@ fn projectNames(c: *server.Client, arena: std.mem.Allocator) error{OutOfMemory}!
     const names = try arena.alloc([]const u8, infos.len);
     for (infos, 0..) |p, i| names[i] = try arena.dupe(u8, p.name);
     return names;
+}
+
+const testing = std.testing;
+
+test "resolveServerAuth hands back its own token, which outlives the connection it came from" {
+    const a = testing.allocator;
+    var session: Session = .{ .gpa = a };
+    defer session.deinit();
+    try session.servers.append(a, .{
+        .gpa = a,
+        .io = undefined,
+        .base = try a.dupe(u8, "http://s"),
+        .token = try a.dupe(u8, "live"),
+        .auth = try a.dupe(u8, "Bearer live"),
+        .credential = try a.dupe(u8, ""),
+    });
+    var cfg: llm.Config = .{ .provider = .stencil_server };
+    const auth = (try resolveServerAuth(&session, &cfg)).?;
+    defer auth.deinit(a);
+    var gone = session.servers.pop().?;
+    gone.deinit();
+    try testing.expectEqualStrings("http://s", auth.url);
+    try testing.expectEqualStrings("live", auth.token);
 }

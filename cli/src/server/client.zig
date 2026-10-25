@@ -52,6 +52,8 @@ pub const Client = rest.Client;
 pub const connect = connection.connect;
 pub const printConnectError = connection.printConnectError;
 pub const tokenFor = tokens.pick;
+pub const tokenChoice = tokens.choose;
+pub const TokenSource = tokens.Source;
 
 const resolveToken = connection.resolveToken;
 const testing = std.testing;

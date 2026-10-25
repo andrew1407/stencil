@@ -3,7 +3,7 @@
 //! limits and the forbidden-op boundary. Generation FROM the registry lives in
 //! `prompt_assembly_test.rs`; validating against it is core's (`opplan_fixtures_test.rs`).
 
-use stencil_mcp::opplan::{from_result, OpPlanError};
+use stencil_mcp::plan::{from_result, OpPlanError};
 use stencil_mcp::registry::{descriptor, forbidden_ops, is_forbidden, limit, op_registry};
 
 /// The contract's mcp surface: core §2 + §2.1 in §2 order, minus `undo`/`redo`/`reset` — a
@@ -61,7 +61,7 @@ fn each_bullet_carries_its_key_semantic_phrase() {
     }
 }
 
-// ── Registry names == mapper-known ops (cross-check of opplan's match arms) ──
+// ── Registry names == mapper-known ops (cross-check of plan's match arms) ──
 
 #[test]
 fn every_registered_op_is_known_to_the_typed_mapper() {

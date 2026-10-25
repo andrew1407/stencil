@@ -3,7 +3,7 @@
 //! side is the embedded registry, opSchema.zig), the forbidden-op/censor teeth, and
 //! the lazily assembled canonical + console prompts (systemPrompt.json).
 const std = @import("std");
-const opplan = @import("opplan.zig");
+const opplan = @import("plan.zig");
 const opSchema = @import("opSchema.zig");
 
 const descriptor = @import("registry/descriptor.zig");

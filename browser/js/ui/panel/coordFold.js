@@ -2,7 +2,9 @@
 // (DockChrome::panelSurfaceFlight): its card is not painted, its header and table hold their open
 // boxes as the picture the grains leave or form over, and the layout slides beneath on the one slide
 // both apps read from config/motion.json (animations/collapse.css; desktop setPanelShown).
-import { FOLD_INSTANT_CLASS, foldBox, foldDust, motionMs, motionReduced, sweepDust } from '../motion.js';
+import { motionMs, motionReduced } from '../motion/motionPrefs.js';
+import { sweepDust } from '../motion/surface/tiles.js';
+import { FOLD_INSTANT_CLASS, foldBox, foldDust } from '../motion/control/tips.js';
 import { TUNE } from '../motion/tune.js';
 
 const COLLAPSED = 'coord-collapsed';

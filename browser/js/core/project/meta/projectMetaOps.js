@@ -82,7 +82,7 @@ export async function currentRemoteVersion(c, conn, remoteId, fallback) {
 
 // The custom colour the project's NAME is painted in. Empty clears it (theme accent);
 // invalid hex is rejected. Returns updated meta (null for unknown id).
-export function setProjectColor(c, id, color) {
+export function setProjectColor(c, id, color, { local = false } = {}) {
   const raw = String(color == null ? '' : color).trim();
   let next = '';
   if (raw) {
@@ -96,25 +96,25 @@ export function setProjectColor(c, id, color) {
   if (!meta) return null;
   if (id === c.host.activeProjectId) c.host.updateProjectTitle();
   c.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
-  pushProjectFieldToServer(c, id, { color: next }, 'Could not set project color on the server');
+  if (!local) pushProjectFieldToServer(c, id, { color: next }, 'Could not set project color on the server');
   return meta;
 }
 
-// Keywords are normalized by the store. Null on unknown id.
-export function setProjectKeywords(c, id, keywords) {
+// Keywords are normalized by the store. Null on unknown id. `local` keeps any of these three off the server.
+export function setProjectKeywords(c, id, keywords, { local = false } = {}) {
   const meta = c.storage.store.setKeywords(id, keywords);
   if (!meta) return null;
   c.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
-  pushProjectFieldToServer(c, id, { keywords: meta.keywords }, 'Could not set project keywords on the server');
+  if (!local) pushProjectFieldToServer(c, id, { keywords: meta.keywords }, 'Could not set project keywords on the server');
   return meta;
 }
 
 // Trimmed by the store; '' clears. Null on unknown id.
-export function setProjectDescription(c, id, description) {
+export function setProjectDescription(c, id, description, { local = false } = {}) {
   const meta = c.storage.store.setDescription(id, description);
   if (!meta) return null;
   c.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
-  pushProjectFieldToServer(c, id, { description: meta.description }, 'Could not set project description on the server');
+  if (!local) pushProjectFieldToServer(c, id, { description: meta.description }, 'Could not set project description on the server');
   return meta;
 }
 

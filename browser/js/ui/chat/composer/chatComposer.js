@@ -3,7 +3,10 @@
 import MEDIA_TYPES from '../../../../../common/config/mediaTypes.json' with { type: 'json' };
 import UI_STRINGS from '../../../../../common/config/uiStrings.json' with { type: 'json' };
 import { DOUBLE_CLICK_MS, LONG_PRESS_MS, PRESS_SLOP_PX } from '../../tip/popover.js';
-import { SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS, rectCenter, replayWaves, surfaceIn, surfaceOut, swapContent } from '../../motion.js';
+import { replayWaves, swapContent } from '../../motion/control/fx.js';
+import { SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../../motion/surface/motion.js';
+import { surfaceIn, surfaceOut } from '../../motion/surface/surfaces.js';
+import { rectCenter } from '../../motion/control/tips.js';
 import { announcePopup, openComposerMenus } from '../row/chatRowMenu.js';
 import { applyChatSide, toggleChatSide } from '../layoutPrefs.js';
 import { icon } from '../../icons.js';

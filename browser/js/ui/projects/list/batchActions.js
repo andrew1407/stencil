@@ -1,5 +1,6 @@
 import { notify, shortName } from '../../../utils.js';
-import { leaveThenRemove, rowLeaveDust, ITEM_DUST_MS } from '../../motion.js';
+import { leaveThenRemove } from '../../motion/enterLeave.js';
+import { rowLeaveDust, ITEM_DUST_MS } from '../../motion/surface/tiles.js';
 import { deleteRemoteProject as removeRemoteProject } from '../../../net/remoteSync.js';
 import { clearedToast } from '../../../core/project/transferController.js';
 

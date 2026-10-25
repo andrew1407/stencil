@@ -29,7 +29,7 @@ const FUNCTIONS = [
   ]],
   // plan.js shares the §1 mechanics and then applies the extension's own §8/§11.2 rules, so
   // `validateAsk` and `parseOpPlan` stay out.
-  ['planParser', '../../browser/js/llm/plan/parser.js', '../src/llm/op/plan.js',
+  ['planParser', '../../browser/js/llm/plan/parser.js', '../src/llm/plan/plan.js',
     ['firstJsonObject', 'askAnswerText']],
   ['typedWords', '../../browser/js/ui/bindings/keys/typedWords.js', '../src/options/secrets/typedWords.js',
     ['LONGEST', 'matchTypedWord', 'typedLetter']],

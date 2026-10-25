@@ -21,17 +21,19 @@ type ProjectRecord struct {
 	// (blankColor != ""). "" / false for ordinary image projects. Recolourable after creation.
 	BlankColor string `json:"blankColor,omitempty"`
 	Blank      bool   `json:"blank,omitempty"`
+	// Derived (resultPath != ""): an edited result is stored, so a client may ask the files route for it.
+	HasResult bool `json:"hasResult,omitempty"`
 	// SHA-256 of the stored original, lowercase hex; "" = no original, or one stored before it was
 	// recorded. Equal hashes name the same picture, so a client may keep its history across an edit.
 	OriginalHash string `json:"originalHash,omitempty"`
 
-	// Server-only storage fields. The layout payload rides only in GET /projects/{id}; the original's
-	// bytes live in the filestore alone, served by the files route.
-	OriginalPath string          `json:"originalPath,omitempty"` // filestore-relative
-	ResultPath   string          `json:"resultPath,omitempty"`   // filestore-relative
-	Layout       json.RawMessage `json:"layout,omitempty"`       // JSON layout payload
-	Version      int64           `json:"version"`                // monotonic edit version (LWW guard)
-	OwnerSession string          `json:"ownerSession,omitempty"`
+	// Server-only storage fields never leave the server: where the files sit and whose session owns
+	// the row. The layout payload rides only in GET /projects/{id}; the bytes go by the files route.
+	OriginalPath string          `json:"-"`                // filestore-relative
+	ResultPath   string          `json:"-"`                // filestore-relative
+	Layout       json.RawMessage `json:"layout,omitempty"` // JSON layout payload
+	Version      int64           `json:"version"`          // monotonic edit version (LWW guard)
+	OwnerSession string          `json:"-"`
 }
 
 // ----- REST DTOs -----

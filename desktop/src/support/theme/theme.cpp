@@ -10,6 +10,7 @@
 #include <array>
 #include <cmath>
 #ifdef Q_OS_LINUX
+#include <QDateTime>
 #include <QProcess>
 #include "../process/childEnv.hpp"
 #endif
@@ -35,6 +36,50 @@ namespace stencil::gui {
       }
       return QString::fromUtf8(proc.readAllStandardOutput()).trimmed();
     }
+
+    // color-scheme from the portal, else gsettings: 1 dark, 0 light, -1 neither says.
+    int probeDesktop() {
+      // "(<<uint32 1>>,)": 1 = prefer dark, 2 = prefer light, 0 = none.
+      const QString portal = readCommand(
+          "gdbus",
+          {"call", "--session", "--dest", "org.freedesktop.portal.Desktop",
+           "--object-path", "/org/freedesktop/portal/desktop", "--method",
+           "org.freedesktop.portal.Settings.Read", "org.freedesktop.appearance",
+           "color-scheme"});
+      if (portal.contains("uint32 1")) return 1;
+      if (portal.contains("uint32 2")) return 0;
+      const QString gnome = readCommand(
+          "gsettings", {"get", "org.gnome.desktop.interface", "color-scheme"});
+      if (gnome.contains("dark", Qt::CaseInsensitive)) return 1;
+      if (gnome.contains("light", Qt::CaseInsensitive) || gnome.contains("default", Qt::CaseInsensitive))
+        return 0;
+      return -1;
+    }
+
+    // ms: a theme apply asks many times; the two processes run once per window of this, or again
+    // once Qt reports the scheme changed.
+    constexpr qint64 PROBE_TTL_MS = 30000;
+    struct Probe {
+      int answer = -1;
+      qint64 at = 0;
+      bool fresh = false;
+    };
+
+    int cachedProbe() {
+      static Probe probe;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+      static const bool hooked = [] {
+        if (!qGuiApp) return false;
+        QObject::connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, qGuiApp,
+                         [] { probe.fresh = false; });
+        return true;
+      }();
+      (void)hooked;
+#endif
+      const qint64 now = QDateTime::currentMSecsSinceEpoch();
+      if (!probe.fresh || now - probe.at > PROBE_TTL_MS) probe = {probeDesktop(), now, true};
+      return probe.answer;
+    }
   }  // namespace
 #endif
 
@@ -43,23 +88,7 @@ namespace stencil::gui {
   bool systemPrefersDark() {
 #ifdef Q_OS_LINUX
     // Linux-only: elsewhere Qt's hint is reliable and stray gdbus/gsettings binaries mislead.
-
-    // color-scheme: 1 = prefer dark, 2 = prefer light, 0 = none. Returned as "(<<uint32 1>>,)".
-    const QString portal = readCommand(
-        "gdbus",
-        {"call", "--session", "--dest", "org.freedesktop.portal.Desktop",
-         "--object-path", "/org/freedesktop/portal/desktop", "--method",
-         "org.freedesktop.portal.Settings.Read", "org.freedesktop.appearance",
-         "color-scheme"});
-    if (portal.contains("uint32 1")) return true;
-    if (portal.contains("uint32 2")) return false;
-
-    const QString gnome = readCommand(
-        "gsettings", {"get", "org.gnome.desktop.interface", "color-scheme"});
-    if (gnome.contains("dark", Qt::CaseInsensitive)) return true;
-    if (gnome.contains("light", Qt::CaseInsensitive) ||
-        gnome.contains("default", Qt::CaseInsensitive))
-      return false;
+    if (const int answer = cachedProbe(); answer >= 0) return answer == 1;
 #endif
 
     // Qt::ColorScheme arrived in Qt 6.5; older Qt defaults to light.

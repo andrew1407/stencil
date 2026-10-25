@@ -4,6 +4,8 @@
 #include <QHeaderView>
 #include <QTableWidget>
 #include <QTabWidget>
+#include <algorithm>
+#include <utility>
 #include <QModelIndex>
 #include <QPainter>
 #include <QPen>
@@ -75,10 +77,27 @@ namespace stencil::gui {
 
   // Every row out, its cell widgets through removeCellWidget: rows removed under them leave the
   // widgets in the view's persistent-editor set, and a later editor at a freed address skips Escape.
+  // Rows whose widgets come with the table; a longer table makes the rest as they are shown, so its
+  // cost follows the rows on screen (and LAZY_MARGIN either side, for a scroll's next frame).
+  inline constexpr int LAZY_ROWS = 200;
+  inline constexpr int LAZY_MARGIN = 20;
+
+  // The rows `t` shows, widened by LAZY_MARGIN; first > last when it has none. A viewport of height 0
+  // (its tab not the one shown) shows the top only.
+  inline std::pair<int, int> shownRows(const QTableWidget* t) {
+    const int n = t->rowCount();
+    const int h = t->viewport()->height();
+    const int top = t->rowAt(0);
+    const int bottom = h > 0 ? t->rowAt(h - 1) : top;
+    return {std::max(0, (top < 0 ? 0 : top) - LAZY_MARGIN), std::min(n - 1, (bottom < 0 ? n - 1 : bottom) + LAZY_MARGIN)};
+  }
+
+  inline void clearRowWidgets(QTableWidget* table, int r) {
+    for (int c = 0; c < table->columnCount(); ++c)
+      if (table->cellWidget(r, c)) table->removeCellWidget(r, c);
+  }
   inline void clearRows(QTableWidget* table) {
-    for (int r = 0; r < table->rowCount(); ++r)
-      for (int c = 0; c < table->columnCount(); ++c)
-        if (table->cellWidget(r, c)) table->removeCellWidget(r, c);
+    for (int r = 0; r < table->rowCount(); ++r) clearRowWidgets(table, r);
     table->setRowCount(0);
   }
 

@@ -132,7 +132,7 @@ namespace stencil::llm {
               });
         case OpKind::COPY_PROJECT:
           if (inVariant) return refuse(QStringLiteral("editor-settings ops are not allowed inside a variant"));
-          // A refused or reduced copy is a note (browser projectExecutors.js); one opened here is a fresh frame.
+          // A refused or reduced copy is a note (browser llm/plan/opExecutors.js); one opened here is a fresh frame.
           return target.copyActiveProjectThen(a, [map = &frame, opened = a.open == QLatin1String("here"), notes, err,
                                                   done](bool ok, const QString& note) {
             if (!ok) {

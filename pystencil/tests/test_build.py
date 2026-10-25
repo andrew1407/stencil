@@ -114,8 +114,7 @@ class AbiBindingTests(unittest.TestCase):
     self.assertEqual(sorted(called - self._bound()), [])
 
   def test_the_whole_script_family_is_bound(self):
-    # Unlike the row-wise kernels, which this surface deliberately leaves alone, every
-    # stencil_cli_script* call is reached from script.py.
+    # Every stencil_cli_script* call is reached from script.py.
     declared = {n for n in self._declared() if n.startswith("stencil_cli_script")}
     self.assertGreaterEqual(len(declared), 15)
     self.assertEqual(sorted(declared - self._bound()), [])

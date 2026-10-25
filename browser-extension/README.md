@@ -15,6 +15,8 @@ page-aspect crop. Vanilla JS, no build step. How it is put together:
    this `browser-extension/` folder.
 3. (Optional) **Options**: editor URL, open mode (modal / tab), default page size,
    appearance, server connections, the AI assistant, and the two scripting-API toggles.
+   The in-page modal needs an editor from this release or later; an older self-hosted editor
+   opens in its own tab instead, after the modal's wait.
 
 ## Using it
 
@@ -47,6 +49,13 @@ extension surface (**Options → Appearance** has the full System / Light / Dark
 *Open in editor*, *Open in Stencil (incognito)*, *Crop image in Stencil…*, and *Open in
 desktop app* when a desktop URL scheme is configured. It also works on CSS backgrounds, images
 under a click-catcher overlay, and links straight to an image file.
+
+**Copy Stencil link** — on an image, a CSS background or a video, *Copy Stencil link ▸ Link* puts
+a link on the clipboard that opens Stencil on that image or video (`?source=…`); *Link
+(incognito)* adds `incognito=true`, so whoever opens it edits without saving. The link points at
+`https://andrew1407.github.io/stencil/` unless **Options → Share link URL** names another address
+(`http://localhost:8080/`, your own server, any http(s) URL). An element whose source has no web
+address (a `blob:` stream, an inline `data:` image) is not copied; a note in the page says so.
 
 **How things open.** *Open in editor* opens the full editor in a new tab. *Resume in open
 editor* (on an already-opened row) focuses the editor tab you already have and switches it to

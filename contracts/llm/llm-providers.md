@@ -61,7 +61,7 @@ Per-client persistence of overrides:
 | Client | Storage | Keys |
 |---|---|---|
 | browser | localStorage | `drawingApp_llmSettings` (JSON of the shape above) |
-| desktop | fileStore Settings JSON | `llmProvider`, `llmBaseUrl`, `llmModel`, `llmApiKey`, `llmServerUrl` |
+| desktop | fileStore Settings JSON, the key in the 0600 `secrets.json` beside the connection tokens | `llmProvider`, `llmBaseUrl`, `llmModel`, `llmApiKey` (in `secrets.json`), `llmServerUrl` |
 | pystencil | `LlmConfig(...)` args, env fallback | `STENCIL_LLM_PROVIDER`, `STENCIL_LLM_BASE_URL`, `STENCIL_LLM_MODEL`, `STENCIL_LLM_API_KEY`, `STENCIL_LLM_SERVER_URL`; its console mirrors the CLI console's `/prompt`, `/p`, and `/llm …` commands |
 | bot | env/.env via `BotOptions` | same `STENCIL_LLM_*` names as pystencil, plus `STENCIL_BOT_ALLOWED_USERS` — the bot's global, fail-closed allowlist of Telegram user ids (empty = off for everyone; it gates every command, not only the assistant, because one shared key serves every chat) — and `STENCIL_LLM_SERVER_TOKEN`, the operator's bearer for a pinned `STENCIL_LLM_SERVER_URL`, used when the invoking user has no `/connect` of their own to it (the cli console's rule) |
 | mcp | env/.env via `config.rs` | same `STENCIL_LLM_*` names, plus `STENCIL_LLM_SERVER_TOKEN` (mcp has no connection store). `stencil_prompt` takes a per-call `model` only — the provider and endpoint are not caller-settable, and its plain-http transport sends credentials to loopback peers only |
@@ -84,12 +84,23 @@ mcp (a plain-http transport) and the bot (an operator service) do not offer `ant
 
 It is never written to localStorage, a settings file, the connection store, a project, an
 export, a hand-off fragment, a URL or a log; the settings shapes above persist everything
-for `anthropic` except the key. An expired key is dropped before the next request, which
+for `anthropic` except the key.
+
+**A key belongs to the base URL it was given for.** When a script (`stencil.llm`) or a launch
+link (`contracts/launch/launch-uri.md` §2) moves `baseUrl` to another origin without naming a
+new `apiKey`, the stored key — and in the browser the session key — is dropped, so the old
+endpoint's credential never reaches the new one. A path change on the same origin keeps it. The
+settings dialogs, where the user edits the fields in view, keep both. An expired key is dropped before the next request, which
 then fails as a missing key so the UI asks for it again.
 
 Note for browser users calling local providers directly: Ollama/LM Studio must allow the
 app's origin (Ollama `OLLAMA_ORIGINS`, LM Studio "enable CORS"). Documented in the
 settings UI help text.
+
+Each provider's `settings` row is what a settings form shows for it: `key` — `session` (the
+session-key rows above), `stored` (an API-key field) or `null`; `endpoint` — `base` (the base-URL
+row) or `server` (the collaboration-server picker); `endpointNote` — the local-endpoint note
+(the CORS line above). `none`, the assistant switched off, shows the provider picker alone.
 
 ## 6. Wire mappings
 
@@ -153,7 +164,7 @@ same mirror rule as the rest of the protocol package):
     {"role": "assistant", "text": "<prior reply>"}
   ],
   "model": "",          // optional; empty = server default
-  "maxTokens": 0        // optional; clamped server-side
+  "maxTokens": 0        // optional; clamped to LLM_MAX_TOKENS and sent on every wire
 }
 
 // response (protocol.LlmChatResponse)
@@ -204,7 +215,10 @@ a local Ollama or an OpenAI-compatible server behind the same bearer-authenticat
 `/llm/chat` route. From a client's point of view nothing changes: it still selects the
 `stencil-server` provider and never learns which upstream sits behind it. Non-Anthropic
 upstreams map their reply onto the same `stopReason` vocabulary (OpenAI `length` ⇒
-`max_tokens`, `content_filter` ⇒ `refusal`, otherwise `end_turn`).
+`max_tokens`, `content_filter` ⇒ `refusal`, otherwise `end_turn`). The clamped `maxTokens` reaches
+every upstream: Anthropic and OpenAI-compatible as `max_tokens`, Ollama as
+`options.num_predict` — the server's relay, not a client wire, so the client fixtures under
+`common/fixtures/llm/providerWire/` still send none on Ollama.
 
 Server-side env keys (in `server/internal/config`): `LLM_PROVIDER` (default
 `anthropic`; an unknown value leaves the proxy disabled), `LLM_API_KEY` (the upstream

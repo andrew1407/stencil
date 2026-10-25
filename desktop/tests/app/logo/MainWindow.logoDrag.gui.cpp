@@ -116,12 +116,12 @@ class MainWindowGuiTest : public QObject {
     win.applyImageFilter(QStringLiteral("none"), false);
     win.acts.showLines->setChecked(false);
     win.acts.showPoints->setChecked(true);
-    win.filterDirty = false;
+    win.projectHost.filterDirty = false;
     QSignalSpy lines(win.acts.showLines, &QAction::toggled);
     QSignalSpy points(win.acts.showPoints, &QAction::toggled);
     carry(win, canvasAt(win));
     release(win, canvasAt(win));
-    QVERIFY2(!win.filterDirty && lines.isEmpty(), "nothing already off is applied again");
+    QVERIFY2(!win.projectHost.filterDirty && lines.isEmpty(), "nothing already off is applied again");
     QCOMPARE(points.size(), 1);
     QVERIFY(!win.acts.showPoints->isChecked());
     win.acts.showLines->setChecked(true);

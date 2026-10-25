@@ -20,7 +20,7 @@ class MainWindowGuiTest : public QObject {
     QString err;
     if (!stencil::test::connectNow(*win->ensureConnections(), mock.url(), QString(), err)) return {};
     win->remoteSync->setResultTiming(50, 600000);
-    win->parts.projects.openServerProject(mock.url(), id);
+    win->projectHost.flows.openServerProject(mock.url(), id);
     return win;
   }
 
@@ -76,7 +76,7 @@ class MainWindowGuiTest : public QObject {
     const stencil::gui::RemoteLink& link = win->remote.session->getLink();
 
     bool done = false;
-    win->parts.projects.setProjectColorById(QStringLiteral("p1"), mock.url(), QStringLiteral("#ff0000"),
+    win->projectHost.flows.setProjectColorById(QStringLiteral("p1"), mock.url(), QStringLiteral("#ff0000"),
                                             [&done](bool ok) { done = ok; });
     QTRY_VERIFY(done);
     QCOMPARE(shared.version, 2);
@@ -86,7 +86,7 @@ class MainWindowGuiTest : public QObject {
     shared.layout = layoutOf({lineAt(60)});
     ++shared.version;
     done = false;
-    win->parts.projects.setProjectColorById(QStringLiteral("p1"), mock.url(), QStringLiteral("#00ff00"),
+    win->projectHost.flows.setProjectColorById(QStringLiteral("p1"), mock.url(), QStringLiteral("#00ff00"),
                                             [&done](bool ok) { done = ok; });
     QTRY_VERIFY(done);
     QCOMPARE(shared.version, 4);
@@ -115,7 +115,7 @@ class MainWindowGuiTest : public QObject {
     win->nameBar.field->setText(QStringLiteral("Moved"));
     win->projectTitle->commitProjectName();
     QTRY_COMPARE(mock.heldOriginals.size(), 1);
-    win->parts.projects.openServerProject(mock.url(), QStringLiteral("p2"));
+    win->projectHost.flows.openServerProject(mock.url(), QStringLiteral("p2"));
     QTRY_COMPARE(link.id, QStringLiteral("p2"));
     QTRY_VERIFY(!win->remote.reloading);
     const qint64 otherVersion = link.version;
@@ -147,7 +147,7 @@ class MainWindowGuiTest : public QObject {
     mock.holdPuts = true;
     win->canvas->commitLines({lineAt(20)});
     QTRY_COMPARE(mock.heldOriginals.size(), 1);
-    win->parts.projects.openServerProject(mock.url(), QStringLiteral("p2"));
+    win->projectHost.flows.openServerProject(mock.url(), QStringLiteral("p2"));
     QTRY_COMPARE(link.id, QStringLiteral("p2"));
     QTRY_VERIFY(!win->remote.reloading);
     const qint64 otherVersion = link.version;

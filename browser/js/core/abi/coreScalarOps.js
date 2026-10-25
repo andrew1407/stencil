@@ -3,7 +3,11 @@
 // close-shape hit test.
 import { heapAlloc } from './coreMarshal.js';
 
-export const buildScalarOps = (core, { I32, I64, withCString, allocPoints }) => {
+// An absent field crosses as NaN, which the core reads as "not supplied".
+const num = (v) => (Number.isFinite(v) ? v : NaN);
+const ctxArgs = (ctx) => [num(ctx?.x), num(ctx?.y), num(ctx?.pageWidthCm), num(ctx?.pageHeightCm), num(ctx?.imageWidth), num(ctx?.imageHeight), ctx?.unit ?? 'cm'];
+
+export const buildScalarOps = (core, { I32, I64, withCString, allocPoints, withF64Out }) => {
   const cParseHex       = core.cwrap('stencil_parseHex', 'number', ['string', 'number']);
   const cDist           = core.cwrap('stencil_distToSegment', 'number', ['number', 'number', 'number', 'number', 'number', 'number']);
   // The formula expr crosses as a heap pointer, not a cwrap 'string': cwrap marshals onto the
@@ -12,9 +16,6 @@ export const buildScalarOps = (core, { I32, I64, withCString, allocPoints }) => 
   const cFormulaApply   = core.cwrap('stencil_formulaApply', 'number', ['number', 'number', 'number', 'number']);
   const cFormulaValidCtx = core.cwrap('stencil_formulaValidateCtx', 'number', ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'string']);
   const cFormulaApplyCtx = core.cwrap('stencil_formulaApplyCtx', 'number', ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'string']);
-  // An absent field crosses as NaN, which the core reads as "not supplied".
-  const num = (v) => (Number.isFinite(v) ? v : NaN);
-  const ctxArgs = (ctx) => [num(ctx?.x), num(ctx?.y), num(ctx?.pageWidthCm), num(ctx?.pageHeightCm), num(ctx?.imageWidth), num(ctx?.imageHeight), ctx?.unit ?? 'cm'];
   // The spec is caller text of any length, so it crosses on the heap like the formula expr.
   const cParseDuration  = core.cwrap('stencil_parseDuration', 'number', ['number', 'number']);
   const cClampScale     = core.cwrap('stencil_clampScale', 'number', ['number']);
@@ -78,20 +79,35 @@ export const buildScalarOps = (core, { I32, I64, withCString, allocPoints }) => 
     },
 
     rectZoom(x1, y1, rectW, rectH, availW, availH) {
-      const out = heapAlloc(core, 3 * 8);
-      try {
-        cRectZoom(x1, y1, rectW, rectH, availW, availH, out);
-        return { scale: core.getValue(out, 'double'), scrollLeft: core.getValue(out + 8, 'double'),
-          scrollTop: core.getValue(out + 16, 'double') };
-      } finally {
-        core._free(out);
-      }
+      const at = withF64Out(out => cRectZoom(x1, y1, rectW, rectH, availW, availH, out));
+      return { scale: at(0), scrollLeft: at(1), scrollTop: at(2) };
     },
 
     shouldCloseShape(points, click, pointSize) {
       const { ptr, n } = allocPoints(points);
       try {
         return cShouldClose(ptr, n, click.x, click.y, pointSize) === 1;
+      } finally {
+        core._free(ptr);
+      }
+    },
+  };
+};
+
+// The formulas over a whole run of raw page points (pageMetrics.js pixelToPageCoordsAll).
+export const buildFormulaPointOps = (core, { withCString, allocPoints }) => {
+  const cFormulaApplyPoints = core.cwrap('stencil_formulaApplyPoints', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'string']);
+  return {
+    // One crossing for a whole run of raw page points. The answer is read through a fresh heap
+    // view: evaluating may grow memory, which detaches the one allocPoints made.
+    formulaApplyPoints(exprX, exprY, raws, ctx) {
+      if (!raws.length) return [];
+      const { ptr, n } = allocPoints(raws);
+      try {
+        withCString(exprX, (px) => withCString(exprY, (py) =>
+          cFormulaApplyPoints(px, py, ptr, n, ...ctxArgs(ctx).slice(2))));
+        const out = new Float64Array(core.HEAPF64.buffer, ptr, n * 2);
+        return raws.map((_, i) => ({ x: out[2 * i], y: out[2 * i + 1] }));
       } finally {
         core._free(ptr);
       }

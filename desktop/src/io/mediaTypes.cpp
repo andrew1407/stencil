@@ -3,8 +3,10 @@
 // common/fixtures/imageHeader pins (twin of cli/src/scrape/sniff.zig).
 #include "MediaLoader.hpp"
 
+#include <QBuffer>
 #include <QFile>
 #include <QFileInfo>
+#include <QImageReader>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -128,4 +130,65 @@ namespace stencil::gui {
     return h;
   }
 
-}
+
+  namespace {
+    struct DecodeLimits {
+      int maxSide = 16384;                // px; a build without the qrc
+      qint64 maxPixels = 268435456;
+    };
+    const DecodeLimits& decodeLimits() {
+      static const DecodeLimits l = [] {
+        ensureAppResources();
+        DecodeLimits out;
+        QFile f(QStringLiteral(":/config/constants.json"));
+        if (!f.open(QIODevice::ReadOnly)) return out;
+        const QJsonObject lim = QJsonDocument::fromJson(f.readAll()).object().value(QLatin1String("LIMITS")).toObject();
+        if (const int v = lim.value(QLatin1String("imageMaxSide")).toInt(0); v > 0) out.maxSide = v;
+        if (const qint64 v = lim.value(QLatin1String("imageMaxPixels")).toInteger(0); v > 0) out.maxPixels = v;
+        return out;
+      }();
+      return l;
+    }
+  }  // namespace
+
+  QString imageTooLargeMessage() {
+    const DecodeLimits& l = decodeLimits();
+    return QStringLiteral("Image is too large to open (over %1 px a side or %2 MP)")
+        .arg(l.maxSide).arg(qRound64(l.maxPixels / 1e6));
+  }
+
+  bool capReader(QImageReader& reader) {
+    const DecodeLimits& l = decodeLimits();
+    const QSize size = reader.size();
+    if (size.isValid() && (size.width() > l.maxSide || size.height() > l.maxSide ||
+                           qint64(size.width()) * size.height() > l.maxPixels))
+      return false;
+    // MB: the cap's RGBA bytes, plus a margin for a decoder's working rows.
+    reader.setAllocationLimit(int(l.maxPixels * 4 / (1024 * 1024)) + 64);
+    return true;
+  }
+
+  QImage decodeCapped(QIODevice* dev, bool* tooLarge) {
+    QImageReader reader(dev);
+    const bool fits = capReader(reader);
+    if (tooLarge) *tooLarge = !fits;
+    return fits ? reader.read() : QImage();
+  }
+
+  QImage decodeCapped(const QByteArray& bytes, bool* tooLarge) {
+    QBuffer buf;
+    buf.setData(bytes);
+    buf.open(QIODevice::ReadOnly);
+    return decodeCapped(&buf, tooLarge);
+  }
+
+  QImage decodeCappedFile(const QString& path, bool* tooLarge) {
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly)) {
+      if (tooLarge) *tooLarge = false;
+      return {};
+    }
+    return decodeCapped(&f, tooLarge);
+  }
+
+}  // namespace stencil::gui

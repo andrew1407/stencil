@@ -1,7 +1,7 @@
 #include "MainWindow.hpp"
 #include "ProjectTitleController.hpp"
 #include "SourceOpener.hpp"
-#include "mainWindowHelpers.hpp"
+#include "naturalPage.hpp"
 #include "CanvasWidget.hpp"
 #include "IncognitoOverlay.hpp"
 #include "launchOptions.hpp"
@@ -16,14 +16,14 @@ namespace stencil::gui {
 
   // Browser newEditor: persist the current content first (unless incognito), then a fresh editor in the requested mode.
   void SourceOpener::freshEditorIn(bool incognito) {
-    if (!w.incognito) {
-      if (!w.activeProjectId.isEmpty()) w.saveToActiveProject();
+    if (!w.projectHost.incognito) {
+      if (!w.projectHost.activeProjectId.isEmpty()) w.projectHost.saveToActiveProject();
       else w.saveSessionNow();
     }
     // Drop the project binding and adopt the incognito mode directly, signals blocked so the toggle slot doesn't fire.
-    w.activeProjectId.clear();
-    if (w.incognito != incognito) {
-      w.incognito = incognito;
+    w.projectHost.activeProjectId.clear();
+    if (w.projectHost.incognito != incognito) {
+      w.projectHost.incognito = incognito;
       w.overlays.incognito->setActive(incognito);
       w.acts.incognito->blockSignals(true);
       w.acts.incognito->setChecked(incognito);
@@ -37,7 +37,7 @@ namespace stencil::gui {
     loadLocalImageReset(path, [this](bool ok) {
       if (!ok) return;
       w.playImageArrival();
-      w.adoptCanvasAsLocalProject();
+      w.projectHost.adoptCanvasAsLocalProject();
     });
   }
 
@@ -86,17 +86,17 @@ namespace stencil::gui {
     const int fh = qMax(1, qRound(fit.height));
     QImage img(fw, fh, QImage::Format_RGB32);
     img.fill(color);
-    w.activeProjectId.clear();  // a new blank is a fresh editor, not the old project
+    w.projectHost.activeProjectId.clear();  // a new blank is a fresh editor, not the old project
     w.canvas->loadFromImage(img);
-    w.docSource.setBytes({}, {});  // synthetic blank → re-encode from pixels on bundle
-    w.docSource.currentSource.clear();  // a generated blank image has no provenance
-    w.docSource.currentResource.clear();
-    w.docSource.blankColor = color.name();  // mark this session as a (recolourable) blank of this fill
+    w.projectHost.docSource.setBytes({}, {});  // synthetic blank → re-encode from pixels on bundle
+    w.projectHost.docSource.currentSource.clear();  // a generated blank image has no provenance
+    w.projectHost.docSource.currentResource.clear();
+    w.projectHost.docSource.blankColor = color.name();  // mark this session as a (recolourable) blank of this fill
     w.canvas->setBlankPage(true); // compare views keep a blank's fill + tint
     w.refreshActions();
     w.fitToWindow();   // BEFORE the dust measures it (browser settle.js), or a wide page's cloud fills the viewport
     w.playImageArrival();   // a blank is an image appearing, so it assembles like any other
     w.notify->success(QString("Blank %1×%2 image created").arg(fw).arg(fh));
-    w.adoptCanvasAsLocalProject();  // persist so it appears in Projects (browser parity)
+    w.projectHost.adoptCanvasAsLocalProject();  // persist so it appears in Projects (browser parity)
   }
 }  // namespace stencil::gui

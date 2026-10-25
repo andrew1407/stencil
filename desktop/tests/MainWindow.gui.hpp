@@ -34,12 +34,13 @@
 #include "faceSwap.hpp"
 #include "controlSwap.hpp"
 #include "iconMotion.hpp"
-#include "guiHelpers.hpp"
+#include "menuIconColumn.hpp"
+#include "iconInline.hpp"
 #include <QStyleFactory>
 #include "theme.hpp"
 #include "modalReveal.hpp"
 #include "SettingsDialog.hpp"
-#include "../src/app/mainWindowHelpers.hpp"   // NAME_CHIP_BOX
+#include "theme.hpp"   // NAME_CHIP_BOX
 #include "../src/support/menu/SearchCombo.hpp"
 #include <QScopeGuard>
 #include <QtTest>

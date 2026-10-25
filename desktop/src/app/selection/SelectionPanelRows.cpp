@@ -3,6 +3,7 @@
 #include "iconSet.hpp"
 #include "../../support/motion/DisintegrateOverlay.hpp"
 #include "../../support/skinPrefs.hpp"
+#include <QLineEdit>
 #include <QPalette>
 #include <QPushButton>
 #include <QWidget>
@@ -45,10 +46,46 @@ namespace stencil::gui {
     }
   }
 
+  void SelectionPanel::addPointDelButton(int r) {
+    auto* del = new QPushButton(points);
+    del->setObjectName("pointDelBtn");
+    del->setFlat(true);
+    del->setCursor(Qt::PointingHandCursor);
+    del->setToolTip("Remove point");
+    del->setIcon(themedIcon("trash", binColor, 14));
+    connect(del, &QPushButton::clicked, this, [this, r] {
+      // A QTableWidget row has no widget — scatter its rect.
+      const QRect rowRect(0, points->rowViewportPosition(r),
+                          points->viewport()->width(), points->rowHeight(r));
+      DisintegrateOverlay::overRect(points->viewport(), rowRect, window());
+      emit pointDeleteRequested(r);
+    });
+    points->setCellWidget(r, COL_DEL, centeredCell(del, points));
+  }
+
+  // Past LAZY_ROWS a row's bin is made once it is on screen (and stays); a shorter table, every row's,
+  // a row kept from a longer one included.
+  void SelectionPanel::materializePointRows() {
+    if (!points || points->rowCount() == 0 || isEmptyRow(points, 0)) return;
+    const auto [first, last] = points->rowCount() > LAZY_ROWS ? shownRows(points) : std::pair{0, points->rowCount() - 1};
+    for (int r = first; r <= last; ++r)
+      if (!points->cellWidget(r, COL_DEL)) addPointDelButton(r);
+  }
+
   void SelectionPanel::showLine(const core::Line* line, int selectedPoint,
                                 const std::vector<PageRow>& pageRows) {
-    points->clearSpans();    // the empty-state row spans the table; a real one must not
-    clearRows(points);  // rows only (NOT clear() — that would drop the header labels)
+    const int n = line ? static_cast<int>(line->points.size()) : 0;
+    // The rows a line already lists are rewritten in place (browser coordRows.js); the empty
+    // state, or an editor open in a cell, is rebuilt from nothing as every row once was.
+    const auto editorOpen = [this] {   // a cell's editor is a line edit the delegate puts in the viewport
+      for (const QLineEdit* e : points->viewport()->findChildren<QLineEdit*>()) if (e->isVisible()) return true;
+      return false;
+    };
+    const bool reuse = n > 0 && points->rowCount() > 0 && !isEmptyRow(points, 0) && !editorOpen();
+    if (!reuse) {
+      points->clearSpans();    // the empty-state row spans the table; a real one must not
+      clearRows(points);  // rows only (NOT clear() — that would drop the header labels)
+    }
 
     if (!line || line->points.empty()) { showEmptyPoints(); return; }
     points->horizontalHeader()->show();   // …and back once there are rows to head
@@ -57,8 +94,24 @@ namespace stencil::gui {
     // `updating` suppresses itemChanged while cells are set; X/Y editable px, page read-only.
     // Mirrors browser coordTable.js.
     updating = true;
-    points->setRowCount(static_cast<int>(line->points.size()));
-    for (std::size_t i = 0; i < line->points.size(); ++i) {
+    const int keep = std::min(points->rowCount(), n);
+    for (int r = n; r < points->rowCount(); ++r)
+      for (int c = 0; c < points->columnCount(); ++c)
+        if (points->cellWidget(r, c)) points->removeCellWidget(r, c);
+    points->setRowCount(n);
+    points->clearSelection();
+    for (int r = 0; r < keep; ++r) {
+      const auto& p = line->points[static_cast<std::size_t>(r)];
+      const PageRow page = r < static_cast<int>(pageRows.size()) ? pageRows[static_cast<std::size_t>(r)] : PageRow{};
+      const QString text[] = {QString::number(r + 1), QString::number(p.x, 'f', 1), QString::number(p.y, 'f', 1), page.x, page.y};
+      const int cols[] = {COL_INDEX, COL_X, COL_Y, COL_PAGE_X, COL_PAGE_Y};
+      for (int k = 0; k < 5; ++k) {
+        QTableWidgetItem* it = points->item(r, cols[k]);
+        it->setText(text[k]);
+        it->setBackground(QBrush());   // a rebuilt row carries no hover wash
+      }
+    }
+    for (std::size_t i = static_cast<std::size_t>(keep); i < line->points.size(); ++i) {
       const auto& p = line->points[i];
       const int r = static_cast<int>(i);
       auto* idx = new QTableWidgetItem(QString::number(i + 1));
@@ -80,21 +133,9 @@ namespace stencil::gui {
         pg->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
         points->setItem(r, col, pg);
       }
-      auto* del = new QPushButton(points);
-      del->setObjectName("pointDelBtn");
-      del->setFlat(true);
-      del->setCursor(Qt::PointingHandCursor);
-      del->setToolTip("Remove point");
-      del->setIcon(themedIcon("trash", binColor, 14));
-      connect(del, &QPushButton::clicked, this, [this, r] {
-        // A QTableWidget row has no widget — scatter its rect.
-        const QRect rowRect(0, points->rowViewportPosition(r),
-                            points->viewport()->width(), points->rowHeight(r));
-        DisintegrateOverlay::overRect(points->viewport(), rowRect, window());
-        emit pointDeleteRequested(r);
-      });
-      points->setCellWidget(r, COL_DEL, centeredCell(del, points));
+      if (n <= LAZY_ROWS) addPointDelButton(r);
     }
+    materializePointRows();
     if (selectedPoint >= 0 && selectedPoint < points->rowCount())
       points->selectRow(selectedPoint);
     fitTableRows(points);

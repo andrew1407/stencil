@@ -98,9 +98,9 @@ void MainWindowGuiTest::dialogShots(MainWindow& win, const ShotSet& shots) {
   canvas->setLines(plan);
   {
     // Only the seeded projects and this one: the blank pages this run made are not the story.
-    win.projectList.erase(std::remove_if(win.projectList.begin(), win.projectList.end(),
+    win.projectHost.projectList.erase(std::remove_if(win.projectHost.projectList.begin(), win.projectHost.projectList.end(),
                                          [](const Project& p) { return p.meta.id != "p1" && p.meta.id != "p2"; }),
-                          win.projectList.end());
+                          win.projectHost.projectList.end());
     Project pr;
     pr.meta.id = "usecases-doc";
     pr.meta.name = "Kitchen plan";
@@ -114,10 +114,10 @@ void MainWindowGuiTest::dialogShots(MainWindow& win, const ShotSet& shots) {
     pr.imagePath = QDir(fileStore::stateDir()).filePath(QStringLiteral("kitchen-plan.png"));
     canvas->getImage().save(pr.imagePath, "PNG");
     pr.lines = plan;
-    win.projectList.push_back(pr);
+    win.projectHost.projectList.push_back(pr);
     SharedState::instance().saveProjects(&win);
-    win.activeProjectId = "usecases-doc";
-    fileStore::markProjectOpened(win.activeProjectId, QDateTime::currentMSecsSinceEpoch());
+    win.projectHost.activeProjectId = "usecases-doc";
+    fileStore::markProjectOpened(win.projectHost.activeProjectId, QDateTime::currentMSecsSinceEpoch());
     win.refreshActions();
   }
   fit(win);

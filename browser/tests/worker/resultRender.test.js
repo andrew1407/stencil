@@ -13,7 +13,11 @@ class RecCanvas {
   getContext() { return this.rec.ctx; }
   convertToBlob() { return Promise.resolve(encode(this.rec.calls)); }
   toBlob(cb) { cb(encode(this.rec.calls)); }
+  toDataURL(type, q) { return `data:${type};q=${q};${JSON.stringify(deep(this))}`; }
 }
+// The whole paint behind a canvas: a drawn canvas is replaced by its own record, the base by its name.
+const deep = (c) => c.rec.calls.map(([k, ...a]) => (k === 'drawImage'
+  ? [k, a[0]?.rec && a[0].tag !== 'IMG' ? deep(a[0]) : 'BASE', ...a.slice(1)] : [k, ...a]));
 globalThis.OffscreenCanvas = RecCanvas;
 globalThis.document = { createElement: () => new RecCanvas() };
 globalThis.createImageBitmap = async (src) => ({ width: src.width, height: src.height, close() { this.closed = true; } });
@@ -32,6 +36,7 @@ globalThis.self = { postMessage: (reply) => BridgedWorker.live.onmessage({ data:
 await import('../../js/worker/imageWorker.js');
 
 const { resultPngBytes } = await import('../../js/worker/imageTasks.js');
+const { makeThumbnail, renderThumbnail } = await import('../../js/core/image/thumbnail.js');
 const { restingJob } = await import('../../js/core/draw/restingPaint.js');
 const { Renderer } = await import('../../js/core/draw/renderer.js');
 const { ExportService } = await import('../../js/core/export/service.js');
@@ -94,4 +99,31 @@ test('a worker that fails paints the result on this thread instead', async () =>
   }
   globalThis.Worker = FailingWorker;
   assert.equal(await text(await resultPngBytes(restingJob(app))), inline);
+});
+
+test('the thumbnail composed in the worker is the inline one: the result, halved down to 480px', async () => {
+  const big = { image: Object.assign(new RecCanvas(2000, 1000), { tag: 'IMG' }), canvas: { width: 2000, height: 1000 } };
+  const withExport = (app) => Object.assign(app, { export: new ExportService(app) });
+  const inline = makeThumbnail(withExport(makeApp(big)));
+  assert.ok(inline, 'the inline render ran');
+  globalThis.Worker = BridgedWorker;
+  const OUT = new Map();
+  const realConvert = RecCanvas.prototype.convertToBlob;
+  RecCanvas.prototype.convertToBlob = function (opts) {
+    const b = new Blob([JSON.stringify(deep(this))], { type: opts.type });
+    OUT.set(b, opts);
+    return Promise.resolve(b);
+  };
+  try {
+    const url = await renderThumbnail(withExport(makeApp(big)));
+    assert.equal(posted.length, 1, 'the worker composed it');
+    assert.deepEqual(posted[0].msg.fit, { maxEdge: 480, halve: true });
+    const [opts] = OUT.values();
+    assert.deepEqual(opts, { type: 'image/jpeg', quality: 0.85 });
+    const body = Buffer.from(url.slice(url.indexOf(',') + 1), 'base64').toString();
+    assert.equal(`data:image/jpeg;q=0.85;${body}`, inline, 'the same paint, op for op');
+    assert.ok(inline.endsWith(',0,0,480,240]]'), 'halved down to the thumbnail');
+  } finally {
+    RecCanvas.prototype.convertToBlob = realConvert;
+  }
 });

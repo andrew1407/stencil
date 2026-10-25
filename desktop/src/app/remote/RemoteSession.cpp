@@ -1,10 +1,35 @@
 #include "RemoteSession.hpp"
 #include "Notifications.hpp"
 #include "ServerClient.hpp"
+#include "connectionStore.hpp"
 #include <QJsonObject>
 #include <QPointer>
 
 namespace stencil::gui {
+
+  stencil::net::ConnectionManager* RemoteSession::ensureConnections(QObject* owner) {
+    if (!connections) {
+      connections = new stencil::net::ConnectionManager(owner);
+      connect(connections, &stencil::net::ConnectionManager::changed, owner, [this] {
+        stencil::net::connectionStore::saveKeeping(connections->snapshot(), connections->getForgotten());
+        // A forgotten server takes its token with it.
+        if (!link.address.isEmpty() && !connections->find(link.address)) emit linkedServerForgotten();
+      });
+    }
+    return connections;
+  }
+
+  void RemoteSession::warnInsecureConnections() {
+    if (!connections) return;
+    QStringList insecure;
+    for (auto* c : connections->getClients())
+      if (stencil::net::ServerClient::isInsecureRemote(c->getBase())) insecure << c->getBase();
+    if (insecure.isEmpty()) return;
+    notify->error(
+        QString("Insecure connection: %1 uses plaintext http — your access token and "
+                "images are sent unencrypted. Use https on untrusted networks.")
+            .arg(insecure.join(", ")));
+  }
 
   stencil::net::ServerClient* RemoteSession::requireClient(const QString& url, const QString& msg) {
     stencil::net::ServerClient* c = connections ? connections->find(url) : nullptr;

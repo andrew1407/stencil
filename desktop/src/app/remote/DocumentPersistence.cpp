@@ -5,7 +5,10 @@
 #include <QComboBox>
 #include <QScrollArea>
 #include <QScrollBar>
-#include "mainWindowHelpers.hpp"
+#include "naturalPage.hpp"
+#include "windowMotion.hpp"
+#include "fileBytes.hpp"
+#include "stamps.hpp"
 #include "CanvasWidget.hpp"
 #include "Notifications.hpp"
 #include "RemoteSession.hpp"
@@ -19,9 +22,9 @@ namespace stencil::gui {
   // Incognito covers the incognito editor's own state (a desktop-only widening of the browser
   // rule), never other projects.
   SessionController::Gates DocumentPersistence::sessionGates() const {
-    return {w.incognito,
+    return {w.projectHost.incognito,
             !w.remote.session->getLink().address.isEmpty() && !w.settings.syncToServer,
-            !w.activeProjectId.isEmpty(),
+            !w.projectHost.activeProjectId.isEmpty(),
             w.canvas && w.canvas->hasImage()};
   }
 
@@ -42,8 +45,8 @@ namespace stencil::gui {
                              ? CanvasWidget::DrawMode::RECT
                              : CanvasWidget::DrawMode::LINE);
     const auto reveal = [this] {
-      if (!w.docSource.revealHeld) return;
-      w.docSource.revealHeld = false;
+      if (!w.projectHost.docSource.revealHeld) return;
+      w.projectHost.docSource.revealHeld = false;
       fadeInWindow(&w);
     };
     const Session s = *sess;
@@ -52,8 +55,8 @@ namespace stencil::gui {
       w.canvas->setPageCm(page.width, page.height);
       w.canvas->restore(s.imagePath, s.lines, s.scale, s.cropRect, s.rotationQuarters, decoded, s.mirrored);
       // Re-bind so removing that project empties the editor instead of orphaning its picture.
-      if (!s.activeProjectId.isEmpty() && w.findProject(s.activeProjectId.toStdString())) {
-        w.activeProjectId = s.activeProjectId;
+      if (!s.activeProjectId.isEmpty() && w.projectHost.findProject(s.activeProjectId.toStdString())) {
+        w.projectHost.activeProjectId = s.activeProjectId;
         fileStore::markProjectOpened(s.activeProjectId, nowMs());   // coming back to it is opening it
       }
       // Guarded: a restoring setZoom would re-persist itself and pop a stray "Saved" toast on
@@ -67,12 +70,12 @@ namespace stencil::gui {
     if (s.imagePath.isEmpty()) return land(QImage());
     const QString path = s.imagePath;
     w.decodeForCanvas([path] { return QImage(path); }, land, reveal);
-    w.docSource.sessionLoad = w.canvas->pictureGeneration();
+    w.projectHost.docSource.sessionLoad = w.canvas->pictureGeneration();
   }
 
   // Until the boot restore lands, the session on disk is the one it is restoring.
   bool DocumentPersistence::sessionRestorePending() const {
-    return w.docSource.sessionLoad != 0 && w.canvas->pictureGeneration() == w.docSource.sessionLoad;
+    return w.projectHost.docSource.sessionLoad != 0 && w.canvas->pictureGeneration() == w.projectHost.docSource.sessionLoad;
   }
 
   // Browser parity: storage.js's debounced scroll/zoom listener — a drag-pan ends in one save, not
@@ -82,7 +85,7 @@ namespace stencil::gui {
   // Touches only the view fields and never bumps the Dock "recent" list.
   void DocumentPersistence::saveActiveProjectView() {
     if (!SessionController::wantsViewWrite(sessionGates(), w.session.getRestoring())) return;
-    Project* pr = w.findProject(w.activeProjectId.toStdString());
+    Project* pr = w.projectHost.findProject(w.projectHost.activeProjectId.toStdString());
     if (!pr || !w.canvas || !w.scroll) return;
     const double zoom = w.canvas->getScale();
     const int left = w.scroll->horizontalScrollBar()->value();
@@ -136,7 +139,7 @@ namespace stencil::gui {
     const auto done = [settle = std::make_shared<Settle>(std::move(finished))] { (*settle)(); };
     const QString addr = w.remote.session->getLink().address;
     const QString id = w.remote.session->getLink().id;
-    if (!w.remote.connections || !w.remote.connections->find(addr) || !w.canvas->hasImage() || !w.settings.syncToServer) {
+    if (!w.remote.conns() || !w.remote.conns()->find(addr) || !w.canvas->hasImage() || !w.settings.syncToServer) {
       done();
       return;
     }
@@ -147,7 +150,7 @@ namespace stencil::gui {
     support::runOnPool<QByteArray>(
         &w, [scene] { return pngBytes(scene->renderToImage(true)); },
         [this, self, addr, id, width, height, done](QByteArray bytes) {
-          stencil::net::ServerClient* c = w.remote.connections ? w.remote.connections->find(addr) : nullptr;
+          stencil::net::ServerClient* c = w.remote.conns() ? w.remote.conns()->find(addr) : nullptr;
           if (!c) { done(); return; }
           const qint64 before = w.remote.session->getLink().version;
           c->uploadFileAsync(id, "result", bytes, "png", width, height, [this, self, c, addr, id, before, done](bool ok) {

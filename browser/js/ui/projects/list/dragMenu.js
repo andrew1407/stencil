@@ -4,7 +4,9 @@
 // here is read off the pointer's coordinates. Desktop twin: dialogs/projects/list/ProjectDragMenu.cpp.
 import { pointInRect } from '../../../utils.js';
 import { icon } from '../../icons.js';
-import { surfaceIn, surfaceOut, rectCenter, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../../motion.js';
+import { SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../../motion/surface/motion.js';
+import { surfaceIn, surfaceOut } from '../../motion/surface/surfaces.js';
+import { rectCenter } from '../../motion/control/tips.js';
 
 // px of slack around the ⋯ and each open list: the gap between them is not a way out.
 export const DRAG_MENU_SLACK_PX = 8;

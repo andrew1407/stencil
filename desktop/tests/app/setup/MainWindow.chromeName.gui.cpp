@@ -74,7 +74,7 @@ class MainWindowGuiTest : public QObject {
     const QString id = win.parts.chatAppliers.addImageProjectEntry(img, "hover-out");
     QVERIFY(!id.isEmpty());
     bool landed = false;   // the picture decodes off the GUI thread
-    QVERIFY(win.loadProjectIntoCanvas(id, false, [&landed](bool ok) { landed = ok; }));
+    QVERIFY(win.projectHost.loadProjectIntoCanvas(id, false, [&landed](bool ok) { landed = ok; }));
     QTRY_VERIFY_WITH_TIMEOUT(landed, 5000);
     settleLayout(&win, 300);
     const auto paintedOut = [](QWidget* w) { return w->property("stencilPaintedOut").toBool(); };
@@ -109,7 +109,7 @@ class MainWindowGuiTest : public QObject {
     const QString id = win.parts.chatAppliers.addImageProjectEntry(img, "swap-row");
     QVERIFY(!id.isEmpty());
     bool landed = false;   // the picture decodes off the GUI thread
-    QVERIFY(win.loadProjectIntoCanvas(id, false, [&landed](bool ok) { landed = ok; }));
+    QVERIFY(win.projectHost.loadProjectIntoCanvas(id, false, [&landed](bool ok) { landed = ok; }));
     QTRY_VERIFY_WITH_TIMEOUT(landed, 5000);
     settleLayout(&win, 300);
     win.nameBar.hover = true;   // ✎/🎨 are hover-revealed; pin them on for the swap

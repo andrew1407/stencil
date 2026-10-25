@@ -145,12 +145,10 @@ pub fn readText(gpa: std.mem.Allocator, io: std.Io) ![]u8 {
         else => return e,
     };
     defer gpa.free(res.stderr);
-    errdefer gpa.free(res.stdout);
-    if (!exitedOk(res.term) or res.stdout.len == 0) {
-        gpa.free(res.stdout);
-        return Error.NoImage;
-    }
-    return res.stdout;
+    if (exitedOk(res.term) and res.stdout.len != 0) return res.stdout;
+    gpa.free(res.stdout);
+    // An X11 session with wl-clipboard installed: wl-paste finds no compositor, xclip answers.
+    return if (builtin.os.tag == .linux) readTextXclip(gpa, io) else Error.NoImage;
 }
 
 fn readTextXclip(gpa: std.mem.Allocator, io: std.Io) ![]u8 {
@@ -160,9 +158,6 @@ fn readTextXclip(gpa: std.mem.Allocator, io: std.Io) ![]u8 {
     };
     defer gpa.free(res.stderr);
     errdefer gpa.free(res.stdout);
-    if (!exitedOk(res.term) or res.stdout.len == 0) {
-        gpa.free(res.stdout);
-        return Error.NoImage;
-    }
+    if (!exitedOk(res.term) or res.stdout.len == 0) return Error.NoImage;
     return res.stdout;
 }

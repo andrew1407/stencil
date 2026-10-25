@@ -6,6 +6,7 @@ package hub
 import (
 	"context"
 	"sync"
+	"time"
 
 	"stencil/server/internal/auth"
 	"stencil/server/internal/eventbus"
@@ -18,10 +19,12 @@ type Hub struct {
 	resolver auth.SessionResolver
 	ctx      context.Context
 	cancel   context.CancelFunc
-	hello    helloGuard // per-IP throttle on failed handshakes (hellolimit.go)
-	tune     Tuning     // deadlines and caps (tuning.go)
-	perIP    ipCounter  // live connections per client IP (conncap.go)
-	feed     *feed      // the one events subscription, fanned out to every connection (feed.go)
+	hello    helloGuard               // per-IP throttle on failed handshakes (hellolimit.go)
+	tune     Tuning                   // deadlines and caps (tuning.go)
+	perIP    ipCounter                // live connections per client IP and in all (conncap.go)
+	refusals refusalLog               // the refused connections, summed (conncap.go)
+	feed     *feed                    // the one events subscription, fanned out to every connection (feed.go)
+	originOK func(origin string) bool // the WebSocket Origin rule; nil admits every origin
 
 	mu    sync.Mutex
 	conns map[*connReg]struct{} // live connection cancels, guarded by mu
@@ -30,8 +33,9 @@ type Hub struct {
 // connReg is one tracked live connection; cancelling its context unwinds the handler (both transports
 // honor ctx), draining hijacked WebSocket feeds Shutdown cannot reach. The conn is kept for the notice.
 type connReg struct {
-	cancel context.CancelFunc
-	conn   transport.Conn
+	cancel  context.CancelFunc
+	conn    transport.Conn
+	session string // the authenticated session's id once its hello passed, guarded by Hub.mu
 }
 
 // New constructs a hub and takes its one subscription to the global feed. Its own context carries ctx's
@@ -44,7 +48,8 @@ func New(ctx context.Context, b eventbus.Bus, resolver auth.SessionResolver, opt
 		ctx:      hctx,
 		cancel:   cancel,
 		tune:     defaultTuning,
-		perIP:    newIPCounter(defaultMaxConnsPerIP),
+		perIP:    newIPCounter(defaultMaxConnsPerIP, defaultMaxConns),
+		refusals: refusalLog{every: time.Minute},
 		conns:    map[*connReg]struct{}{},
 	}
 	for _, opt := range opts {
@@ -60,16 +65,23 @@ func New(ctx context.Context, b eventbus.Bus, resolver auth.SessionResolver, opt
 	return h
 }
 
-// trackConn records a live connection's cancel func so CloseAll can reach it,
-// returning an untrack func to call when the connection ends.
-func (h *Hub) trackConn(conn transport.Conn, cancel context.CancelFunc) func() {
+// trackConn records a live connection's cancel func so CloseAll (and a revocation) can reach it,
+// returning the record and an untrack func to call when the connection ends.
+func (h *Hub) trackConn(conn transport.Conn, cancel context.CancelFunc) (*connReg, func()) {
 	reg := &connReg{cancel: cancel, conn: conn}
 	h.mu.Lock()
 	h.conns[reg] = struct{}{}
 	h.mu.Unlock()
-	return func() {
+	return reg, func() {
 		h.mu.Lock()
 		delete(h.conns, reg)
 		h.mu.Unlock()
 	}
+}
+
+// authenticated stamps the session a connection's hello proved, so a revocation can find it.
+func (h *Hub) authenticated(reg *connReg, session string) {
+	h.mu.Lock()
+	reg.session = session
+	h.mu.Unlock()
 }

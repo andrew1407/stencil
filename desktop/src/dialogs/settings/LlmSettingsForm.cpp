@@ -173,7 +173,9 @@ namespace stencil::gui {
       return;
     }
     const QString serverUrl = server->currentData().toString();
-    if (provider == QLatin1String("stencil-server") && serverUrl.isEmpty()) {
+    const stencil::llm::LlmSettingsRows rows = stencil::llm::llmSettingsRows(provider);
+    const bool viaServer = rows.endpoint == QLatin1String("server");
+    if (viaServer && serverUrl.isEmpty()) {
       ++probeGen;
       setStatus(STATUS_ERROR_COLOR,
                 QStringLiteral("No collaboration server configured — assistant turned off."));
@@ -182,16 +184,16 @@ namespace stencil::gui {
     stencil::llm::LlmSettings cfg;
     cfg.provider = provider;
     cfg.baseUrl = baseUrl->text().trimmed();
-    cfg.apiKey = provider == QLatin1String("anthropic") ? requestKey() : apiKey->text().trimmed();
+    cfg.apiKey = rows.key == QLatin1String("session") ? requestKey() : apiKey->text().trimmed();
     cfg.serverUrl = serverUrl;
     setStatus(STATUS_CONNECTING_COLOR, QStringLiteral("Checking the configured LLM…"));
     const int gen = ++probeGen;
     QPointer<LlmSettingsForm> self(this);
-    client->probe(cfg, [self, gen, provider, serverUrl](stencil::llm::LlmProbeResult r) {
+    client->probe(cfg, [self, gen, viaServer, serverUrl](stencil::llm::LlmProbeResult r) {
       if (!self || gen != self->probeGen) return;  // superseded by a newer edit
       if (r.ok) {
         // stencil-server: the browser's "Connected — via {url} ({model})" verbatim.
-        QString text = provider == QLatin1String("stencil-server")
+        QString text = viaServer
             ? QStringLiteral("Connected — via %1 (%2)")
                   .arg(serverUrl, r.model.isEmpty() ? QStringLiteral("server default") : r.model)
             : r.detail.isEmpty() ? QStringLiteral("Connected")

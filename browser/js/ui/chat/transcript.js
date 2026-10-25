@@ -1,6 +1,9 @@
 // Rendering the shared transcript log. Model output is DATA — every string lands via
 // textContent, never innerHTML.
-import { LEAVING_CLASS, chatIn, motionMs, observeReveal, wipeDurationMs } from '../motion.js';
+import { motionMs } from '../motion/motionPrefs.js';
+import { observeReveal } from '../motion/reveal.js';
+import { LEAVING_CLASS, wipeDurationMs } from '../motion/enterLeave.js';
+import { chatIn } from '../motion/control/chatFx.js';
 import { applyShrinkWrap, bindShrinkWrapResize, rowTextNode, setRowClass } from './row/chatRowDom.js';
 import { chatAskCard, chatAttachmentStrip, chatConfigureButton, chatReconnectButton, chatResultCard } from './row/chatCards.js';
 import { chatEmptyState, typingDots } from './empty.js';

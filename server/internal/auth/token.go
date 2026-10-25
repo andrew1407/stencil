@@ -11,10 +11,15 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+	"fmt"
 )
 
 // ErrInvalidToken is returned when a token is unknown, malformed, or expired.
 var ErrInvalidToken = errors.New("auth: invalid token")
+
+// ErrLookupFailed wraps a store failure during the lookup: the token's validity is unknown, so a
+// caller answers "retry", never "unauthorized" — a database blip must not log every client out.
+var ErrLookupFailed = errors.New("auth: token lookup failed")
 
 // Session is the authenticated principal resolved from a token.
 type Session struct {
@@ -55,8 +60,11 @@ func Verify(ctx context.Context, resolver SessionResolver, token string, nowMs i
 		return Session{}, ErrInvalidToken
 	}
 	sess, err := resolver.ResolveToken(ctx, HashToken(token))
-	if err != nil {
+	if errors.Is(err, ErrInvalidToken) {
 		return Session{}, ErrInvalidToken
+	}
+	if err != nil {
+		return Session{}, fmt.Errorf("%w: %w", ErrLookupFailed, err)
 	}
 	if sess.ExpiresAt != 0 && sess.ExpiresAt <= nowMs {
 		return Session{}, ErrInvalidToken

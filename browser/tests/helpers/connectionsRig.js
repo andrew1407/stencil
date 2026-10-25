@@ -83,7 +83,8 @@ export const makeMockServer = (opts = {}) => {
       return json(200, rec);
     }
     if (m && method === 'DELETE') {
-      state.projects.delete(decodeURIComponent(m[1]));
+      // As the server: an id that names no project is 404.
+      if (!state.projects.delete(decodeURIComponent(m[1]))) return json(404, { code: 'notFound', message: 'project not found' });
       return json(204, null);
     }
     return json(404, { code: 'notFound', message: 'no route ' + u.pathname });

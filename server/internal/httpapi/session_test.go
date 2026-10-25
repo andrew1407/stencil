@@ -53,7 +53,8 @@ func (stalledResolver) ResolveToken(ctx context.Context, _ []byte) (auth.Session
 	return auth.Session{}, ctx.Err()
 }
 
-// The guard's lookup runs under OP_TIMEOUT_SECONDS: a stuck one refuses the request instead of pinning it.
+// The guard's lookup runs under OP_TIMEOUT_SECONDS: a stuck one answers 503 (retry) instead of pinning the
+// request, and never 401, which a client reads as a dead credential.
 func TestAuthLookupHitsTheOperationTimeout(t *testing.T) {
 	fs, err := filestore.New(t.TempDir())
 	if err != nil {
@@ -66,8 +67,8 @@ func TestAuthLookupHitsTheOperationTimeout(t *testing.T) {
 	go func() { done <- do(t, api, http.MethodGet, "/auth/session", "tok", nil).Code }()
 	select {
 	case code := <-done:
-		if code != http.StatusUnauthorized {
-			t.Fatalf("code %d, want 401 once the lookup's deadline passed", code)
+		if code != http.StatusServiceUnavailable {
+			t.Fatalf("code %d, want 503 once the lookup's deadline passed", code)
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("the guard is still waiting on the session store")

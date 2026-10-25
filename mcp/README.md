@@ -28,8 +28,8 @@ the Zig CLI, so results match the other editors. For the project overview see th
 
 ## Build
 
-Needs a stable Rust toolchain and, at runtime, the Stencil CLI (`zig build` in
-[`../cli`](../cli), or `STENCIL_CLI` pointing at a binary).
+Needs Rust 1.99.1 (`rust-toolchain.toml`; rustup fetches it) and, at runtime, the Stencil CLI
+(`zig build` in [`../cli`](../cli), or `STENCIL_CLI` pointing at a binary).
 
 ```bash
 # from this directory (mcp/)

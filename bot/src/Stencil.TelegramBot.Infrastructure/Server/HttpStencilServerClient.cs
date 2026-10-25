@@ -188,6 +188,11 @@ public sealed partial class HttpStencilServerClient : IStencilServerClient
     {
         using HttpResponseMessage response = await sendAsync(HttpMethod.Delete, projectPath(id), null, ct)
             .ConfigureAwait(false);
+        // A project already gone (a peer deleted it first) is deleted: the server answers that 404.
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return;
+        }
         await ensureSuccessAsync(response, ct).ConfigureAwait(false);
     }
 

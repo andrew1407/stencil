@@ -9,6 +9,8 @@ import { parseDuration } from '../core/parse/durationParser.js';
 import { normalizeUrl } from '../net/urlRules.js';
 import { ensureLaunchConnection, applyServerLaunch } from '../core/launch/controller.js';
 import { reportIncognitoSession } from '../core/launch/incognitoFlow.js';
+import { loadLlmSettings, withSessionKey } from '../llm/settings.js';
+import { splitKeywords } from './coerce.js';
 
 const CONNECT_INTENT = { does: 'connects to', title: 'Connect to server' };
 
@@ -40,6 +42,22 @@ const renameCurrent = ({ app, stencil }, name) => {
   app.imageBaseName = name;
   reportIncognitoSession(app);
   app.updateProjectTitle?.();
+};
+
+// A link may re-point the assistant, or swap the key it bills, only after the user agrees; the key is never shown.
+const ENDPOINT_KEYS = ['provider', 'baseUrl', 'serverUrl'];
+const applyAssistant = async ({ app, stencil }, llm) => {
+  const cur = withSessionKey(loadLlmSettings());
+  const moves = ENDPOINT_KEYS.filter((k) => llm[k] != null && llm[k] !== cur[k]).map((k) => `${k} ${llm[k]}`);
+  if (llm.apiKey && llm.apiKey !== cur.apiKey) moves.push('a different API key');
+  if (moves.length) {
+    const where = moves.join(', ');
+    const ok = await app.confirm(
+      `This link changes the assistant (${where}). Your prompts and pictures would go there. Apply it?`,
+      { title: 'Change the assistant', confirmLabel: 'Apply', confirmIcon: 'chat-settings' });
+    if (!ok) throw new Error('left unchanged — the change was declined');
+  }
+  stencil.llm.setup(llm);
 };
 
 const sameOrigin = (a, b) => {
@@ -101,14 +119,24 @@ const applyLayout = async (stencil, layout) => {
   stencil.applyLayout(data);
 };
 
+// On a server project a link's fields stay on this machine and its expiry is ignored: one click
+// must not rewrite or expire a project collaborators share (launch-uri.md §2).
+const LOCAL = { local: true };
+const serverSteps = (app, project) => ({
+  description: (v) => { app.projectTransfer.setProjectDescription(project.id, v, LOCAL); },
+  keywords: (v) => { app.projectTransfer.setProjectKeywords(project.id, splitKeywords(v), LOCAL); },
+  color: (v) => { if (app.projectTransfer.setProjectColor(project.id, v, LOCAL) == null) throw new Error(`"${v}" is not a colour`); },
+  expire: () => { throw new Error('ignored — a link never expires a server project'); },
+});
+
 // The registry fields: a duration spec sets the expiry from now, anything else is read as a date.
-const applyProject = (stencil, fields, problems) => {
+const applyProject = ({ app, stencil }, fields, problems) => {
   const project = stencil.current;
   if (!project || project.incognito) {
     problems.push('description, keywords, color and expiry need a saved project — the editor is incognito or empty');
     return;
   }
-  const steps = {
+  const steps = app.remoteLink ? serverSteps(app, project) : {
     description: (v) => { project.description = v; },
     keywords: (v) => { project.keywords = v; },
     color: (v) => { project.color = v; },
@@ -120,6 +148,20 @@ const applyProject = (stencil, fields, problems) => {
   }
 };
 
+const framed = () => {
+  try { return typeof window !== 'undefined' && window.parent != null && window.parent !== window; } catch { return true; }
+};
+const CONNECTING = new Set(['server', 'project']);
+
+// Framed, a host page can dress the confirm buttons up as its own: only the picture and the look apply.
+const framedOnly = (q, problems) => {
+  const picture = CONNECTING.has(q.picture?.kind) ? null : q.picture;
+  const project = Object.values(q.project).some((v) => v != null);
+  if (!q.connect.length && !Object.keys(q.llm).length && !project && picture === q.picture) return q;
+  problems.push('inside a frame, its servers, assistant and project fields are left out');
+  return { ...q, connect: [], llm: {}, project: {}, picture };
+};
+
 const attempt = async (problems, label, run) => {
   try { await run(); } catch (err) { problems.push(`${label} — ${err?.message || err}`); }
 };
@@ -128,7 +170,7 @@ const attempt = async (problems, label, run) => {
 // reload repeats nothing — or a `query` typed at the console, which strips nothing — then applies
 // it in order: look, assistant, servers, picture, layout, project, chat.
 export const applyLaunchQuery = async ({ app, stencil, query = null }) => {
-  const q = query ?? app.launchQuery;
+  let q = query ?? app.launchQuery;
   if (!q) return;
   if (!query) {
     app.launchQuery = null;
@@ -136,9 +178,10 @@ export const applyLaunchQuery = async ({ app, stencil, query = null }) => {
   }
 
   const problems = q.warnings.map((w) => WARNING_TEXT[w.code](w.key));
+  if (!query && framed()) q = framedOnly(q, problems);
   if (q.theme) await attempt(problems, 'theme', () => app.accents.setThemeMode(q.theme));
   applySettings(stencil, q.settings, problems);
-  if (Object.keys(q.llm).length) await attempt(problems, 'assistant', () => stencil.llm.setup(q.llm));
+  if (Object.keys(q.llm).length) await attempt(problems, 'assistant', () => applyAssistant({ app, stencil }, q.llm));
   for (const { url, token } of q.connect) {
     await attempt(problems, `connect ${url}`, () => ensureLaunchConnection(app, url, { token, intent: CONNECT_INTENT }));
   }
@@ -147,7 +190,7 @@ export const applyLaunchQuery = async ({ app, stencil, query = null }) => {
     if (app.image) await attempt(problems, 'layout', () => applyLayout(stencil, q.layout));
     else problems.push('layout needs a picture — add source= or blank=');
   }
-  if (Object.values(q.project).some((v) => v != null)) applyProject(stencil, q.project, problems);
+  if (Object.values(q.project).some((v) => v != null)) applyProject({ app, stencil }, q.project, problems);
   if (q.script && !app.pendingLaunchScript) app.pendingLaunchScript = q.script;
   if (q.chat.dock) await attempt(problems, 'chat', () => stencil.chat.dock(q.chat.dock));
   if (q.chat.open) await attempt(problems, 'chat', () => stencil.chat.open());

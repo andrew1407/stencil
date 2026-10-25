@@ -14,6 +14,11 @@ namespace stencil::gui {
       }
       return premul;
     }
+    // A conversion made elsewhere (a pool thread) for `src`, so the first paint skips it.
+    void seed(const QImage& src, const QImage& converted) {
+      key = src.cacheKey();
+      premul = converted;
+    }
 
    private:
     qint64 key = 0;

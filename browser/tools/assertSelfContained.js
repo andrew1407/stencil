@@ -8,6 +8,7 @@ import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { NO_SIBLING_LOADS } from './singleFilePatterns.js';
 
 // A reference the page can resolve on its own, with nothing next to it.
 const SELF_CONTAINED = /^(?:data:|blob:|https?:|mailto:|#)/;
@@ -29,6 +30,11 @@ export const assertSelfContained = (file) => {
   // The only data: URIs the build makes are the two SVG icons; an inlined JSON asset means vite resolved a
   // `new URL(x, import.meta.url)` to a file on the builder's disk and baked it into the page.
   if (/data:application\/json/.test(html)) problems.push('an inlined JSON asset (a local file baked into the page)');
+
+  // A loader whose fallback rewrite stopped applying still names its sibling inside the module.
+  for (const sibling of NO_SIBLING_LOADS) {
+    if (modules.some(([, code]) => code.includes(sibling))) problems.push(`the inline module still loads ${sibling}`);
+  }
 
   // Parse the inline module the way the browser will. Catches a script cut short by an
   // unescaped `</script` inside a string or regex, which no amount of grepping would.

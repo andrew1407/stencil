@@ -61,6 +61,9 @@ func run() error {
 	if warn := filestoreWarning(cfg.FilestoreRoot); warn != "" {
 		log.Print(warn)
 	}
+	for _, warn := range cfg.Warnings() {
+		log.Print(warn)
+	}
 
 	// Event/edit bus: Redis when configured, otherwise in-process.
 	b, err := openBus(rootCtx, cfg)

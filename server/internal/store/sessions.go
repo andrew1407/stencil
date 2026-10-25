@@ -39,6 +39,28 @@ func (s *Store) ResolveToken(ctx context.Context, tokenHash []byte) (auth.Sessio
 	return sess, nil
 }
 
+// DeleteSession revokes one session: its token stops resolving at once, and the projects it owns keep
+// their row as the expiry sweep leaves them. ErrNotFound when no session had that id.
+func (s *Store) DeleteSession(ctx context.Context, id string) error {
+	tag, err := s.pool.Exec(ctx, `DELETE FROM sessions WHERE id = $1`, id)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// DeleteAllSessions revokes every session (a leaked admin token's aftermath), reporting how many went.
+func (s *Store) DeleteAllSessions(ctx context.Context) (int, error) {
+	tag, err := s.pool.Exec(ctx, `DELETE FROM sessions`)
+	if err != nil {
+		return 0, err
+	}
+	return int(tag.RowsAffected()), nil
+}
+
 // DeleteExpiredSessions removes up to limit sessions whose expiry has passed (expires_at in (0, now]) and
 // reports how many went; projects they own keep their row (owner_session is ON DELETE SET NULL).
 func (s *Store) DeleteExpiredSessions(ctx context.Context, now int64, limit int) (int, error) {

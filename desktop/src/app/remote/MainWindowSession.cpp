@@ -38,61 +38,36 @@ namespace stencil::gui {
     s.cropRect = canvas->getCropRect();
     s.rotationQuarters = canvas->getRotationQuarters();
     s.mirrored = canvas->getMirrored();
-    s.activeProjectId = activeProjectId;
+    s.activeProjectId = projectHost.activeProjectId;
     fileStore::saveSession(s);
   }
 
-  stencil::net::ConnectionManager* MainWindow::ensureConnections() {
-    if (!remote.connections) {
-      remote.connections = new stencil::net::ConnectionManager(this);
-      // The desktop analogue of the browser connectionManager onChange → saveServers.
-      connect(remote.connections, &stencil::net::ConnectionManager::changed, this, [this] {
-        stencil::net::connectionStore::saveKeeping(remote.connections->snapshot(),
-                                                   remote.connections->getForgotten());
-        // A forgotten server takes its token with it: the linked project stops listening to it.
-        const QString linked = remote.session->address();
-        if (!linked.isEmpty() && !remote.connections->find(linked) && remoteSync) remoteSync->stopRemotePoll();
-      });
-      // The manager starts null until this lazy creation.
-      remote.session->setConnections(remote.connections);
-    }
-    return remote.connections;
-  }
+  stencil::net::ConnectionManager* MainWindow::ensureConnections() { return remote.session->ensureConnections(this); }
 
-  void MainWindow::warnInsecureConnections() {
-    if (!remote.connections) return;
-    QStringList insecure;
-    for (auto* c : remote.connections->getClients())
-      if (stencil::net::ServerClient::isInsecureRemote(c->getBase())) insecure << c->getBase();
-    if (insecure.isEmpty()) return;
-    notify->error(
-        QString("Insecure connection: %1 uses plaintext http — your access token and "
-                "images are sent unencrypted. Use https on untrusted networks.")
-            .arg(insecure.join(", ")));
-  }
+  void MainWindow::warnInsecureConnections() { remote.session->warnInsecureConnections(); }
 
   QByteArray MainWindow::buildStencilBytes() {
     if (!canvas->hasImage()) return {};
     const QImage& orig = canvas->getOriginalImage();
     QByteArray png;
     QString ext = QStringLiteral("png");
-    if (!docSource.sourceBytes.isEmpty()) {
-      png = docSource.sourceBytes;                                  // untouched original (lossless)
-      if (!docSource.sourceExt.isEmpty()) ext = docSource.sourceExt;
+    if (!projectHost.docSource.sourceBytes.isEmpty()) {
+      png = projectHost.docSource.sourceBytes;                                  // untouched original (lossless)
+      if (!projectHost.docSource.sourceExt.isEmpty()) ext = projectHost.docSource.sourceExt;
     } else {
       QBuffer buf(&png);                                  // synthetic original — encode from pixels
       buf.open(QIODevice::WriteOnly);
       orig.save(&buf, "PNG");
     }
     fileStore::ProjectFileData pf;
-    pf.name = projectBaseName();
+    pf.name = projectHost.projectBaseName();
     pf.imageExt = ext;
     pf.imageBytes = png;
     pf.imageWidth = orig.width();
     pf.imageHeight = orig.height();
-    pf.source = docSource.currentSource;
-    pf.resource = docSource.currentResource;
-    if (const Project* pr = findProject(activeProjectId.toStdString())) {
+    pf.source = projectHost.docSource.currentSource;
+    pf.resource = projectHost.docSource.currentResource;
+    if (const Project* pr = projectHost.findProject(projectHost.activeProjectId.toStdString())) {
       pf.color = QString::fromStdString(pr->meta.color);
       for (const auto& k : pr->meta.keywords) pf.keywords << QString::fromStdString(k);
       pf.blank = pr->meta.blank;
@@ -110,7 +85,7 @@ namespace stencil::gui {
     pf.themeMode = dark ? "dark" : "light";
     pf.themeAccent = settings.accentColor;
     // Persisted chat rides into the portable file only with the opt-in on (§12.3).
-    if (settings.saveChatsWithProject && !incognito) pf.chat = chatSession->buildActiveChatDoc();
+    if (settings.saveChatsWithProject && !projectHost.incognito) pf.chat = chatSession->buildActiveChatDoc();
     return fileStore::buildProjectFile(pf);
   }
 

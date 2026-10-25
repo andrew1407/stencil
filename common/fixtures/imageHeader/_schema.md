@@ -3,7 +3,8 @@
 Pins the codec-free header read that sizes an image without decoding it: mcp
 (`src/imagesize.rs`), bot (`Application/Llm/ImageDimensionReader.cs`), pystencil
 (`codecs/sniff.py`, `image_dimensions`), cli (`src/scrape/sniff.zig`) and desktop
-(`src/io/mediaTypes.cpp`, `sniffImageHeader`).
+(`src/io/mediaTypes.cpp`, `sniffImageHeader`). The browser extension's type check
+(`src/lib/image/data.js`, `sniffImageMime`) walks it for the format alone.
 
 `cases.json` — `{ name, base64, expect }`:
 

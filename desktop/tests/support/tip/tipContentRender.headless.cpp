@@ -1,6 +1,7 @@
 // Rendering a parsed tip to HTML: the bulleted rows, the aligned term/description table, the
 // keycaps it paints, the Mac glyph forms and the escaping.
 #include "tipContentParts.hpp"
+#include "../../../src/support/tip/tipContentParts.hpp"   // keycapCacheSize
 
 void renderCases(const Palette& pal) {
   {  // The compare control: heading, bulleted rows, and a parenthesised key hint.
@@ -131,5 +132,13 @@ void renderCases(const Palette& pal) {
     // Outside parentheses it still splits, which is what the separator is for.
     const Tip d = parseTip("Drag to reorder · drag out to disconnect");
     check(d.title == "Drag to reorder" && d.blocks.size() == 1, "a plain \u00B7 list still splits");
+  }
+
+  {  // A custom accent mints new cap pictures; cycling through many must not grow them for the session.
+    using namespace stencil::gui::tipdetail;
+    for (int i = 0; i < 700; ++i)
+      renderTip("Redo (Ctrl+Shift+Z)", themePalette(i % 2, QColor::fromHsv(i % 360, 90 + i % 150, 200).name()), false);
+    check(keycapCacheSize() > 0 && keycapCacheSize() <= KEYCAP_CACHE_CAP,
+          "the painted keycaps are held in a bounded cache, not one per accent ever shown");
   }
 }

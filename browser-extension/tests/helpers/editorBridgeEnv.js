@@ -8,13 +8,15 @@ export const MSG = { EDITOR_STATE: 'stencil-editor-state', EDITOR_IMPORT: 'stenc
 // `swResponse` is what chrome.runtime.sendMessage resolves with (undefined = no receiver).
 export const setupEnv = ({ swResponse, editorPageApi = true, editorUrl = 'http://localhost:5173/' } = {}) => {
   const posted = [];
-  const messageListeners = [];
+  const listeners = {};
   const win = {
-    addEventListener(type, fn) { if (type === 'message') messageListeners.push(fn); },
+    addEventListener(type, fn) { (listeners[type] ||= []).push(fn); },
+    removeEventListener(type, fn) { listeners[type] = (listeners[type] || []).filter((f) => f !== fn); },
+    dispatchEvent(ev) { for (const fn of [...(listeners[ev.type] || [])]) fn(ev); return true; },
     postMessage: (m) => posted.push(m),
   };
   // Deliver a window 'message' as the editor app's postMessage would (same-window source).
-  const dispatch = (data, source = win) => { for (const fn of messageListeners) fn({ source, data }); };
+  const dispatch = (data, source = win) => { for (const fn of [...(listeners.message || [])]) fn({ source, data }); };
   globalThis.window = win;
   globalThis.localStorage = { getItem: () => null };   // no registry → empty publishRegistry
   // The page-API relay rides on the editorPageApi setting (see editorBridge.js): the
@@ -30,11 +32,15 @@ export const setupEnv = ({ swResponse, editorPageApi = true, editorUrl = 'http:/
     const kept = stub.runtimeListeners.map((fn) => fn(msg, {}, (r) => replies.push(r)));
     return { replies, kept };
   };
-  return { sent: stub.sent, posted, win, dispatch, send };
+  return { sent: stub.sent, posted, win, dispatch, send, listeners };
 };
 
 let caseId = 0;
-export const loadBridge = async () => { await import(`../../src/content/editorBridge.js?case=${caseId++}`); };
+export const loadBridge = async () => {
+  const id = caseId++;
+  await import(`../../src/content/orphan.js?case=${id}`);   // registered ahead of the bridge
+  await import(`../../src/content/editorBridge.js?case=${id}`);
+};
 // Let the bridge's promise chains settle (a round-trip is a couple of microtasks).
 export const flush = () => new Promise((r) => setImmediate(r));
 // The EXT_REQ envelopes the bridge posted at the editor page.

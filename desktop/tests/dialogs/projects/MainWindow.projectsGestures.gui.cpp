@@ -102,7 +102,7 @@ class MainWindowGuiTest : public QObject {
                QApplication::doubleClickInterval() + 250);
         bailOut();  // gesture did not open anything → don't hang the test
       });
-      win.parts.projects.openProjects();
+      win.projectHost.flows.openProjects();
     };
 
     const int baseWindows = mainWindowCount();

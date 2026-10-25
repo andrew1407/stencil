@@ -69,6 +69,7 @@ func scanProject(row rowScanner, payload rowPayload) (protocol.ProjectRecord, er
 	}
 	rec.Layout = layout
 	rec.Blank = rec.BlankColor != "" // derived: a non-empty fill means a blank-image project
+	rec.HasResult = rec.ResultPath != ""
 	if owner != nil {
 		rec.OwnerSession = *owner
 	}

@@ -15,17 +15,15 @@ import { AccentController } from '../ui/accent/controller.js';
 import { wireControls } from '../ui/bindings/index.js';
 import { createEditorState } from './editorState.js';
 import { DEFAULT_ACCENT, isAccent } from './settings/accents.js';
-import { readOpenProjectId, buildExternalLaunchUrl } from './launch/deepLink.js';
-import { parseLaunchQuery } from './launch/query.js';
+import { buildExternalLaunchUrl } from './launch/deepLink.js';
 import * as launch from './launch/controller.js';
 import { wireExtensionBridge } from './launch/extensionBridge.js';
-import { leaveThenRemove } from '../ui/motion.js';
-import { wireViewportSync } from './zoom/viewportSync.js';
+import { leaveThenRemove } from '../ui/motion/enterLeave.js';
 import { OPEN_IN_DEFAULTS, loadOpenInConfig } from '../config/openInConfig.js';
 import { EVENTS } from '../eventBus/appBus.js';
 import { installGestureFlags } from './pointer/gesture.js';
-import { installDelegates, installMethods } from './app/delegates.js';
-import { EditingMethods } from './app/editing.js';
+import { installDelegates } from './app/delegates.js';
+import { EditingBase } from './app/editing.js';
 import { canToggleIncognito, reportIncognitoSession } from './launch/incognitoFlow.js';
 import { CHANGE, changed } from './app/changes.js';
 import { settleReplacedLines } from './line/selection.js';
@@ -47,9 +45,9 @@ const VIEW_SEAM = Object.freeze({
   updateInfo: projectTitle.updateInfo,
 });
 
-// DrawingApp: the mediator owning state + DOM wiring. What it does without the DOM is
+// DrawingApp: the mediator owning state + DOM wiring. What it does without the DOM is its base,
 // app/editing.js; its view seam is VIEW_SEAM above; the rest is here.
-export class DrawingApp {
+export class DrawingApp extends EditingBase {
   draggingPoint = null;
   dragJustEnded = false;
   draggingSegment = null;
@@ -66,27 +64,26 @@ export class DrawingApp {
 // lines-only save preserves the shared server filter instead of clobbering a peer's.
   filterDirty = false;
 
-  constructor() {
-    this.canvas = document.getElementById('canvas');
+  #view;
+
+// `view`: the shell's nodes and html state, the viewport sync and the pointer controllers (ui/app/viewPorts.js).
+  constructor(view) {
+    super();
+    this.#view = view;
+    Object.assign(this, view.shellNodes());
     this.ctx = this.canvas.getContext('2d');
-    this.tooltip = document.getElementById('tooltip');
-    this.coordinatesBody = document.getElementById('coordinates-body');
 
     Object.assign(this, createEditorState());
 
     this.#wireCollaborators();
     this.initEventListeners();
-    wireViewportSync(this);
+    view.wireViewportSync(this);
 // Boot synchronously into a blank temporary editor; the projects component decides
 // whether to offer a chooser after readiness.
     this.storage.restore();
     this.storage.newTemporary();
-// The launch query and "?open=<id>" are read before any component wires, so the chooser stays
-// closed; a query that names a picture wins over the project id. Applied once everything is wired.
-    this.launchQuery = parseLaunchQuery(location.search, location.hash);
-    this.pendingOpenProjectId = this.launchQuery?.picture ? null : readOpenProjectId(location.search);
-// Likewise a `#stencil=` hand-off keeps the chooser closed; read before applyExternalLaunch() strips it.
-    this.hasExternalLaunch = (location.hash || '').startsWith('#stencil=') || !!this.launchQuery?.opensSession;
+// Read before any component wires, so the chooser stays closed; applied once everything is wired.
+    Object.assign(this, launch.readLaunchState(location.search, location.hash));
 // A .stc handed over with it; applyExternalLaunch fills this, index.js opens it in the Script
 // window once the image lands — a link never runs a script.
     this.pendingLaunchScript = '';
@@ -97,10 +94,10 @@ export class DrawingApp {
     this.applyUnitToUI();
   }
 
-// The view-layer pair is injected, so collaborators.js stays inside the core layer.
+// The view-layer collaborators are injected, so collaborators.js stays inside the core layer.
   #wireCollaborators() {
     wireCollaborators(this, {
-      CoordTable, AccentController,
+      CoordTable, AccentController, InputController: this.#view.InputController, PointerController: this.#view.PointerController,
       onProjectsChanged: (detail) => onRemoteProjectsChange(this, detail),
     });
   }
@@ -126,17 +123,15 @@ export class DrawingApp {
     });
   }
 
-  get theme() { return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; }
+  get theme() { return this.#view.htmlTheme(); }
 
   get accent() {
-    const a = document.documentElement.getAttribute('data-accent');
+    const a = this.#view.htmlAccent();
     return isAccent(a) ? a : DEFAULT_ACCENT;
   }
 
 // The inline --accent override string, or null when a named preset is active.
-  get customAccent() {
-    return document.documentElement.style.getPropertyValue('--accent').trim() || null;
-  }
+  get customAccent() { return this.#view.htmlCustomAccent() || null; }
 
   adjustThicknessAtCursor(e) {
     return lineEditOps.adjustThicknessAtCursor(this, e, () => {
@@ -219,5 +214,4 @@ export class DrawingApp {
   }
 }
 installDelegates(DrawingApp.prototype, VIEW_SEAM);
-installMethods(DrawingApp.prototype, EditingMethods);
 installGestureFlags(DrawingApp.prototype);

@@ -46,7 +46,8 @@ namespace stencil::core::markers {
       std::size_t work = 0;
       // powers[j][ch][v]: channel ch after 2^j full-coverage fill blends (blendPixel's arithmetic).
       // A blend moves a channel toward the fill or leaves it for good, so 255 of them are final.
-      std::array<std::array<std::array<std::uint8_t, 256>, 4>, 8> powers{};
+      // Filled by the first layRun, before settle can read it: never value-initialised per line.
+      std::array<std::array<std::array<std::uint8_t, 256>, 4>, 8> powers;
 
       Row(std::uint8_t* buf, int w, int h, const Rgba& fill) : buf(buf), w(w), h(h), fill(fill) {}
 

@@ -7,15 +7,6 @@ import { heapAlloc } from './abi/coreMarshal.js';
 const I32 = 4;
 const nums = (n) => Array.from({ length: n }, () => 'number');
 
-export const scriptExports = [
-  'stencil_scriptParse', 'stencil_scriptDestroy', 'stencil_scriptErrorCount',
-  'stencil_scriptDiagCount', 'stencil_scriptDiagAt', 'stencil_scriptTokenCount',
-  'stencil_scriptTokenAt', 'stencil_scriptBlockCount', 'stencil_scriptBlockAt',
-  'stencil_scriptOpCount', 'stencil_scriptOpAt', 'stencil_scriptOpStr',
-  'stencil_scriptOpNum', 'stencil_scriptOpResolve', 'stencil_scriptDump',
-  'stencil_scriptOpTokCount', 'stencil_scriptOpTok', 'stencil_scriptDiagRelated',
-];
-
 export const buildScriptOps = (core, { withCString }) => {
   const c = {
     parse: (ptr, len) => core.ccall('stencil_scriptParse', 'number', ['number', 'number'], [ptr, len]),
@@ -25,7 +16,7 @@ export const buildScriptOps = (core, { withCString }) => {
     diagAt: core.cwrap('stencil_scriptDiagAt', 'string', nums(7)),
     diagRelated: core.cwrap('stencil_scriptDiagRelated', 'number', nums(5)),
     tokenCount: core.cwrap('stencil_scriptTokenCount', 'number', ['number']),
-    tokenAt: core.cwrap('stencil_scriptTokenAt', 'number', nums(6)),
+    tokens: core.cwrap('stencil_scriptTokens', 'number', nums(3)),
     blockCount: core.cwrap('stencil_scriptBlockCount', 'number', ['number']),
     blockAt: core.cwrap('stencil_scriptBlockAt', 'string', nums(6)),
     opCount: core.cwrap('stencil_scriptOpCount', 'number', ['number']),
@@ -75,19 +66,27 @@ export const buildScriptOps = (core, { withCString }) => {
     return list;
   };
 
+  // One crossing: (kind, line, col, len) per token, read over the heap the call wrote.
   const readTokens = (h, n) => {
-    const list = [];
-    for (let i = 0; i < n; i += 1) {
-      c.tokenAt(h, i, slot(0), slot(1), slot(2), slot(3));
-      list.push({
-        kind: TOKEN_KINDS[readInt(0)] ?? 'ident',
-        line: readInt(1),
-        col: readInt(2),
-        len: readInt(3),
-        text: '',   // the span is what an editor paints by; only the fallback fills the lexeme
-      });
+    if (n === 0) return [];
+    const buf = heapAlloc(core, n * 4 * I32);
+    try {
+      const got = Math.max(0, c.tokens(h, buf, n));
+      const q = new Int32Array(core.HEAPU8.buffer, buf, got * 4);
+      const list = new Array(got);
+      for (let i = 0; i < got; i += 1) {
+        list[i] = {
+          kind: TOKEN_KINDS[q[4 * i]] ?? 'ident',
+          line: q[4 * i + 1],
+          col: q[4 * i + 2],
+          len: q[4 * i + 3],
+          text: '',   // the span is what an editor paints by; only the fallback fills the lexeme
+        };
+      }
+      return list;
+    } finally {
+      core._free(buf);
     }
-    return list;
   };
 
   const readBlocks = (h, n) => {

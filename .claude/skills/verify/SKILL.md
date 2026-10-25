@@ -115,7 +115,7 @@ scratch folder and run that `zig` for chunk 5 and the CLI builds below.
   with **0 skipped** — a nonzero `skipped` means the module was not built and the gate proved
   nothing. Run the whole directory: `wasm-parity.test.js`
   alone is only a fraction, the rest living in the other specs beside it. If `core/` did not change, running them against the
-  existing `browser/js/wasm/stencilCore.js` is enough.
+  existing `browser/js/wasm/stencilCore.js` and `.wasm` are enough.
 - **e2e** — `cd e2e && nice -n 10 npm test`; the skips are the stack specs, which
   `E2E_STACK=1 npm test` runs under docker compose with none skipped. Kill a stale static server first (`lsof -nP -iTCP:8188 -sTCP:LISTEN -t
   | xargs -r kill`) or the run may serve another tree's `browser/`.
