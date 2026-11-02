@@ -127,6 +127,7 @@ namespace stencil::gui {
   void SelectionPanel::showEmptyPoints() {
     points->clearSpans();
     clearRows(points);
+    pointRowsMade.clear();
     points->setRowCount(1);
     points->setItem(0, COL_INDEX, emptyMessage(QStringLiteral("No points yet.")));
     points->setSpan(0, COL_INDEX, 1, COL_COUNT);

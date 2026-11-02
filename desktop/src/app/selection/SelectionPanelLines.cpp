@@ -143,6 +143,7 @@ namespace stencil::gui {
     if (!keepRows) {
       this->lines->clearSpans();
       clearRows(this->lines);
+      lineRowsMade.clear();
     }
     fitTableRows(this->lines);
     linesSelected = selected;   // styleLineRow's selection snapshot
@@ -162,6 +163,7 @@ namespace stencil::gui {
     const int n = static_cast<int>(lines.size());
     for (int r = n; r < this->lines->rowCount(); ++r) clearRowWidgets(this->lines, r);
     this->lines->setRowCount(n);
+    lineRowsMade.erase(lineRowsMade.lower_bound(n), lineRowsMade.end());
     for (int i = 0; i < n; ++i) {
       if (!keepRows || i >= static_cast<int>(was.size()) || i == eyeFlipRow || !sameRow(lines[i], was[i])) {
         clearRowWidgets(this->lines, i);

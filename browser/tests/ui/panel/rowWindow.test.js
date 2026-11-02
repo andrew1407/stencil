@@ -14,6 +14,7 @@ globalThis.document = {
   createDocumentFragment: () => node('#fragment'),
 };
 const { RowWindow, VIRTUAL_ROWS } = await import('../../../js/ui/panel/rowWindow.js');
+const { makeTableWindow } = await import('../../../js/ui/panel/tableWindow.js');
 
 const rig = ({ clientHeight = 280 } = {}) => {
   const listeners = {};
@@ -32,7 +33,7 @@ const rig = ({ clientHeight = 280 } = {}) => {
     querySelectorAll() { return this.children.filter((r) => r.dataset.ptIdx !== undefined); },
   };
   const built = [];
-  const win = new RowWindow(body, { columns: 6, indexAttr: 'data-pt-idx', build: (i) => {
+  const win = makeTableWindow(body, { columns: 6, indexAttr: 'data-pt-idx', build: (i) => {
     built.push(i);
     const row = node('tr');
     row.dataset.ptIdx = String(i);
@@ -98,9 +99,74 @@ test('reveal scrolls a far row clear of the sticky header and hands it back', ()
 test('a sizer row goes last, after the spacers, and only for a long list', () => {
   const { body } = rig();
   const sizer = node('tr');
-  const win = new RowWindow(body, { columns: 6, indexAttr: 'data-pt-idx', sizer: () => sizer,
+  const win = makeTableWindow(body, { columns: 6, indexAttr: 'data-pt-idx', sizer: () => sizer,
     build: (i) => Object.assign(node('tr'), { dataset: { ptIdx: String(i) }, offsetTop: i * ROW_PX }) });
   win.show(10000);
   assert.equal(body.children[body.children.length - 1], sizer);
   assert.equal(win.show(10), false);
+});
+
+test('a hidden body ignores its shared scroller: its count may be stale until the next show', () => {
+  const { scroller, body, win, built, scroll } = rig();
+  win.show(10000);
+  built.length = 0;
+  body.checkVisibility = () => false;
+  scroller.scrollTop = 5000 * ROW_PX;
+  scroll();
+  assert.deepEqual(built, [], 'nothing built while hidden');
+  body.checkVisibility = () => true;
+  scroll();
+  assert.ok(built.includes(5000));
+});
+
+// The extension's image list: <li> rows in a <ul> that is its own scroller, no stripes, its own threshold.
+const listRig = () => {
+  const listeners = {};
+  const body = {
+    scrollTop: 0, clientHeight: 280, children: [],
+    addEventListener: (t, fn) => { listeners[t] = fn; },
+    replaceChildren(frag) { this.children = frag.children; },
+    querySelector(sel) {
+      if (sel === 'input') return null;
+      const i = /"(\d+)"/.exec(sel)?.[1];
+      return this.children.find((r) => r.dataset.idx === i) ?? null;
+    },
+    querySelectorAll() { return this.children.filter((r) => r.dataset.idx !== undefined); },
+  };
+  const shape = { tag: 'li', scroller: (b) => b, spacer: (px) => Object.assign(node('li'), { px }) };
+  const win = new RowWindow(body, { shape, indexAttr: 'data-idx', threshold: 100,
+    build: (i) => Object.assign(node('li'), { dataset: { idx: String(i) }, offsetTop: i * ROW_PX }) });
+  const indices = () => body.children.filter((r) => r.dataset.idx !== undefined).map((r) => Number(r.dataset.idx));
+  return { body, win, indices, scroll: () => listeners.scroll() };
+};
+
+test('a list that is its own scroller windows past its own threshold, from its first row', () => {
+  const { body, win, indices, scroll } = listRig();
+  assert.equal(win.show(100), false, 'at the threshold every row is the caller\'s');
+  assert.equal(win.show(1000), true);
+  assert.equal(indices()[0], 0);
+  body.scrollTop = 500 * ROW_PX;
+  scroll();
+  const shown = indices();
+  assert.ok(shown[0] <= 500 && shown[shown.length - 1] >= 509, `${shown[0]}…${shown[shown.length - 1]}`);
+  assert.equal(shown[0], 500 - 20, 'no stripes: the first row is the overscan\'s, even or odd');
+  assert.equal(body.children[0].px, shown[0] * ROW_PX);
+  assert.equal(body.children[0].className, 'row-window-spacer');
+});
+
+test('reveal on a self-scrolling list brings a far row into view with no header to clear', () => {
+  const { body, win } = listRig();
+  win.show(1000);
+  assert.equal(win.reveal(800)?.dataset.idx, '800');
+  assert.equal(body.scrollTop, 801 * ROW_PX - body.clientHeight);
+});
+
+test('reveal under CSS smooth scrolling still jumps at once and hands back the far row', () => {
+  const { body, win } = listRig();
+  // A scrollTop write animates under scroll-behavior:smooth; only an 'instant' scrollTo lands at once.
+  const writes = [];
+  body.scrollTo = ({ top, behavior }) => { writes.push(behavior); if (behavior === 'instant') body.scrollTop = top; };
+  win.show(1000);
+  assert.equal(win.reveal(800)?.dataset.idx, '800');
+  assert.deepEqual(writes, ['instant']);
 });

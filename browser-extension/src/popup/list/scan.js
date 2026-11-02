@@ -4,9 +4,10 @@ import { loadPins, isPinnedIn, siteOf } from '../../lib/prefs/pins.js';
 import { scanPageForImages, mergeScanFrames, MAX_IMAGES, BLOCKED_SCHEMES } from '../../lib/image/scan.js';
 import { isEditorTab } from '../../lib/menu/editorTabs.js';
 import { sourceOf, pinnable } from '../../lib/image/model.js';
-import { listEl, statusEl, IS_DEVTOOLS } from '../panelDom.js';
+import { statusEl, IS_DEVTOOLS } from '../panelDom.js';
 import { state, rowResource } from './model.js';
 import { filterUi, applyFilters } from './filters.js';
+import { clearRows } from './rows.js';
 import { loadShared, startSharedPolling } from '../pin/sharedPins.js';
 import { editorMode } from '../editor/handle.js';
 import { createScanTurns } from './scanTurns.js';
@@ -55,7 +56,7 @@ const resolveScanTab = async (isCurrent) => {
 
 export const scan = async () => {
   const isCurrent = scanTurns.begin();
-  listEl.innerHTML = '';
+  clearRows();
   statusEl.textContent = 'Scanning…';
   // The format checkboxes render up front so they exist even on an unscannable page.
   state.all = [];

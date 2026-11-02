@@ -206,8 +206,9 @@ classDiagram
   appliers, one undo step each, and own their delete keys through `ShortcutOverride`. A removal,
   clear, new picture or new layout leaves no stale index in the selection; a turn, flip, undo or
   redo keeps it on the lines that still exist. The lines list rebuilds only a row whose look or
-  point count changed; past `LAZY_ROWS` either table makes a row's widgets (chips, bin, eye) once
-  it is on screen, and a shorter one every row's.
+  point count changed; past `LAZY_ROWS` either table holds a row's widgets (chips, bin, eye) only
+  while it is on screen or within `LAZY_MARGIN` of it, made as it scrolls in and dropped as it
+  scrolls well out, and a shorter one every row's.
 - **Open and save `.stencil`.** `openProjectFile` reads, parses and decodes on the pool, fills the
   canvas, creates a local `Project` and links the file. The save writes
   `fileStore::buildProjectFile` over the untouched source bytes (or a PNG re-encode) and links the

@@ -5,6 +5,7 @@
 #include <QTableWidget>
 #include <QTabWidget>
 #include <algorithm>
+#include <set>
 #include <utility>
 #include <QModelIndex>
 #include <QPainter>
@@ -99,6 +100,18 @@ namespace stencil::gui {
   inline void clearRows(QTableWidget* table) {
     for (int r = 0; r < table->rowCount(); ++r) clearRowWidgets(table, r);
     table->setRowCount(0);
+  }
+
+  // A long table keeps widgets only on the rows `shown` names and LAZY_MARGIN more either side, so a
+  // scroll back and forth does not remake them; `made` lists the rows that have them.
+  inline void dropRowWidgetsOutside(QTableWidget* table, std::set<int>& made, std::pair<int, int> shown) {
+    const int lo = shown.first - LAZY_MARGIN;
+    const int hi = shown.second + LAZY_MARGIN;
+    for (auto it = made.begin(); it != made.end();) {
+      if (*it >= lo && *it <= hi && *it < table->rowCount()) { ++it; continue; }
+      if (*it < table->rowCount()) clearRowWidgets(table, *it);
+      it = made.erase(it);
+    }
   }
 
   // A cell widget held at the cell's centre (browser td text-align/vertical-align center); a

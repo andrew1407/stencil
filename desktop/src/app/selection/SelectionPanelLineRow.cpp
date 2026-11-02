@@ -1,6 +1,6 @@
 // One row of the Lines tab, built from its line: its number, name, colour and thickness, its points'
 // colour and size, its point count, its bin and its eye (browser ui/panel/lines/list.js rowOf); past
-// LAZY_ROWS a row's widgets are made once it scrolls into view.
+// LAZY_ROWS a row's widgets are made once it scrolls into view and dropped once it is well out of it.
 #include "SelectionPanel.hpp"
 #include "linesTableParts.hpp"
 #include "cssColor.hpp"
@@ -88,6 +88,7 @@ namespace stencil::gui {
     this->lines->setCellWidget(i, LCOL_DEL, centeredCell(rm, this->lines));
     addLineEye(i, ln.hidden);
     if (ln.hidden) dimHiddenRow(i);
+    lineRowsMade.insert(i);
   }
 
   void SelectionPanel::ensureLineRowWidgets(int i) {
@@ -105,8 +106,10 @@ namespace stencil::gui {
 
   void SelectionPanel::materializeLineRows() {
     if (!lines || builtRows.empty()) return;
-    const auto [first, last] = lazyLineRows() ? shownRows(lines) : std::pair{0, lines->rowCount() - 1};
-    for (int i = first; i <= last; ++i) ensureLineRowWidgets(i);
+    const bool lazy = lazyLineRows();
+    const auto shown = lazy ? shownRows(lines) : std::pair{0, lines->rowCount() - 1};
+    for (int i = shown.first; i <= shown.second; ++i) ensureLineRowWidgets(i);
+    if (lazy) dropRowWidgetsOutside(lines, lineRowsMade, shown);
   }
 
 }  // namespace stencil::gui

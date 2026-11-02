@@ -1,11 +1,5 @@
 // Shapes for popup/row/row.js — one list row: thumbnail, name, badges, pin/actions buttons.
 import type { PopupImage } from '../list/model.js';
 
-export interface FilterTransition {
-  begin(): string[];
-  end(opts?: { skipEnter?: string[] }): unknown;
-}
-
-/** Unregisters a leaving ghost from the lazy-measure observer (row.js owns both). */
-export declare const filterTransition: FilterTransition;
-export declare const renderRow: (image: PopupImage) => void;
+/** `image`'s row as a detached <li> keyed by data-key; popup/list/rows.js places it. */
+export declare const buildRow: (image: PopupImage) => HTMLLIElement;

@@ -1,6 +1,6 @@
 // A long list or line in the selection panel (SelectionPanelLineRow.cpp, SelectionPanelRows.cpp): every
-// row's cells at once, its widgets only for the rows on screen and those a scroll brings in, or a
-// picker anchors on; a short one makes them all, as it always did.
+// row's cells at once, its widgets only for the rows near the screen — made as a scroll brings them in,
+// dropped as it takes them away, or made for a picker's anchor; a short one makes them all, as it always did.
 #include "SelectionPanel.hpp"
 
 #include <QApplication>
@@ -66,8 +66,18 @@ int main(int argc, char** argv) {
   table->verticalScrollBar()->setValue(table->verticalScrollBar()->maximum());
   QApplication::processEvents();
   check(table->cellWidget(2999, COL_DEL) != nullptr, "a scroll to the end makes the rows it shows");
+  check(table->cellWidget(0, COL_DEL) == nullptr && withWidgets(table) < 300,
+        "…and drops the rows it left, so the widgets stay the rows near the screen");
   const QWidget* hiddenChip = table->cellWidget(2999, COL_COLOR);   // 2999 % 7 == 3: a hidden line
   check(hiddenChip && hiddenChip->graphicsEffect(), "a hidden line's row fades as its widgets are made");
+  for (int pass = 0; pass < 12; ++pass) {   // back and forth across the list
+    auto* bar = table->verticalScrollBar();
+    bar->setValue(pass % 2 ? bar->maximum() * pass / 12 : bar->maximum() - bar->maximum() * pass / 12);
+    QApplication::processEvents();
+  }
+  QApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+  check(withWidgets(table) < 300 && table->findChildren<QWidget*>("linesSwatch").size() < 300,
+        "scrolling a long list back and forth keeps its widgets to the rows near the screen");
 
   check(panel.lineSwatchCell(1500) != nullptr && panel.pointSwatchCell(1600) != nullptr,
         "a picker's anchor row is made on demand");
@@ -76,7 +86,8 @@ int main(int argc, char** argv) {
   lines[2999].thickness = 9;
   panel.setLines(lines, {});
   QApplication::processEvents();
-  check(withWidgets(table) == before, "an edit rebuilds its row and makes no others");
+  check(withWidgets(table) == before - 2 && !table->cellWidget(1500, COL_DEL),
+        "an edit rebuilds its row and makes no others; the picker anchors far off screen are dropped");
   lines.resize(150);   // rows kept from the long list, scrolled past and never shown, are short-list rows now
   panel.setLines(lines, {});
   QApplication::processEvents();
@@ -96,6 +107,12 @@ int main(int argc, char** argv) {
   points->verticalScrollBar()->setValue(points->verticalScrollBar()->maximum());
   QApplication::processEvents();
   check(points->cellWidget(19999, POINT_DEL) != nullptr, "a scroll to the end makes its bins");
+  QApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+  bins = 0;
+  for (int r = 0; r < points->rowCount(); ++r) bins += points->cellWidget(r, POINT_DEL) != nullptr;
+  check(points->cellWidget(0, POINT_DEL) == nullptr && bins > 0 && bins < 300
+            && points->findChildren<QWidget*>("pointDelBtn").size() < 300,
+        "…and drops the bins of the rows it left");
   core::Line shortLine;
   for (int i = 0; i < 50; ++i) shortLine.points.push_back({1.0 * i, 1});
   panel.showLine(&shortLine, -1, std::vector<gui::SelectionPanel::PageRow>(50));

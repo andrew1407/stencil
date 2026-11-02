@@ -3,7 +3,7 @@ import { sharedMatchesSearch } from '../../lib/image/model.js';
 import { createFilterUi } from '../../lib/highlight/filterUi.js';
 import { listEl, countEl, clearStatus } from '../panelDom.js';
 import { state, isPinned, isOpened } from './model.js';
-import { renderRow, filterTransition } from '../row/row.js';
+import { showRows, clearRows, filterTransition } from './rows.js';
 
 export const filterUi = createFilterUi({ doc: document, onChange: () => applyFilters() });
 
@@ -29,17 +29,19 @@ export const applyFilters = () => {
   if (!state.showServerPins) sharedRows = [];
   else if (store !== 'all') sharedRows = sharedRows.filter(s => s.serverUrl === store);
   state.filtered = state.filtered.concat(sharedRows);
-  // The list is rebuilt wholesale; the transition diffs the outgoing render against the new set.
+  // The list is rebuilt in place, never emptied first, so its scroll holds; the transition diffs the
+  // outgoing render against the new set.
   filterTransition.begin();
-  listEl.innerHTML = '';
   renderCount();
   if (!state.all.length && !sharedRows.length) {
+    clearRows();
     listEl.innerHTML = '<li class="empty">No images found on this page.</li>';
   } else if (!state.filtered.length) {
+    clearRows();
     listEl.innerHTML = '<li class="empty">No images match the filters.</li>';
   } else {
     clearStatus();
-    state.filtered.forEach(renderRow);
+    showRows();
   }
   filterTransition.end();
 };

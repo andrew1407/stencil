@@ -6,6 +6,7 @@
 #include <QString>
 #include <QTimer>
 #include <functional>
+#include <set>
 #include <utility>
 #include <vector>
 
@@ -142,6 +143,9 @@ namespace stencil::gui {
     qint64 builtPalette = -1;
     QColor builtStroke;   // the default stroke the built rows' chips fell back to
     int eyeFlipRow = -1;   // the row whose eye was just clicked: its next build plays the toggle once
+    // The rows holding widgets now; a long table drops those scrolled well out of view.
+    std::set<int> pointRowsMade;
+    std::set<int> lineRowsMade;
   };
 
 }

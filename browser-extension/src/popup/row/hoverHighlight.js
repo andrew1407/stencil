@@ -3,7 +3,8 @@ import { highlightSourceOnTab } from '../../lib/highlight/hoverHighlight.js';
 import { MSG } from '../../lib/messages.js';
 import { sameSource } from '../../lib/drop/entry.js';
 import { sourceOf, pinnable } from '../../lib/image/model.js';
-import { state, rowElFor } from '../list/model.js';
+import { state } from '../list/model.js';
+import { revealRow } from '../list/rows.js';
 
 // All row hovers share ONE debounced scheduler, so a sweep collapses to the last hovered
 // source and a single injected call clears the old outline and sets the new (no race).
@@ -45,7 +46,7 @@ export const highlightListRowForSource = (source) => {
   if (!source) return;
   const image = state.filtered.find((im) => !im.shared && pinnable(im) && sameSource(sourceOf(im), source));
   if (!image) return;
-  const row = rowElFor(image);
+  const row = revealRow(image);
   if (!row) return;
   row.classList.add('list-hl');
   row.scrollIntoView({ block: 'nearest' });

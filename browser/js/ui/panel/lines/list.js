@@ -7,7 +7,7 @@ import { pointColorOf } from '../../../core/line/render.js';
 import { selectionPredicate } from '../../../core/line/selection.js';
 import { wireLinesList, takeEyeToggled } from './events.js';
 import { paintNameCell } from './nameEdit.js';
-import { RowWindow } from '../rowWindow.js';
+import { makeTableWindow } from '../tableWindow.js';
 import constants from '../../../../../common/config/constants.json' with { type: 'json' };
 
 const STROKE = constants.DEFAULT_VISUALS.color;
@@ -126,7 +126,7 @@ const rowOf = (app, line, i, selected, flipped) => {
 const windows = new WeakMap();
 const windowOf = (body, app) => {
   if (!windows.has(body)) {
-    windows.set(body, new RowWindow(body, { columns: COLUMNS, indexAttr: 'data-idx', build: (i) => {
+    windows.set(body, makeTableWindow(body, { columns: COLUMNS, indexAttr: 'data-idx', build: (i) => {
       const line = app.lines[i];
       const sel = selectionPredicate(app)(i);
       const flipped = takeEyeToggled(i);

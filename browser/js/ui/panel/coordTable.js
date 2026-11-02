@@ -1,7 +1,7 @@
 import { isTypingTarget, perFrame } from '../../utils.js';
 import { leaveThenRemove } from '../motion/enterLeave.js';
 import { buildCoordRow, reuseCoordRows, paintCoordRow, coordSizerRow } from './coordRows.js';
-import { RowWindow } from './rowWindow.js';
+import { makeTableWindow } from './tableWindow.js';
 import { setPointCoord, removePoint } from '../../core/line/editOps.js';
 // The points table DOM + per-row interactions.
 export class CoordTable {
@@ -50,7 +50,7 @@ export class CoordTable {
 
   #windowOf(body) {
     if (this.#window?.body !== body) {
-      this.#window = new RowWindow(body, { columns: 6, indexAttr: 'data-pt-idx',
+      this.#window = makeTableWindow(body, { columns: 6, indexAttr: 'data-pt-idx',
         build: (i) => buildCoordRow(this.app, this.#points[i], i), sizer: () => coordSizerRow(this.app, this.#points),
         onRender: () => this.applyRowHighlight() });
     }

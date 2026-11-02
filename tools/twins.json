@@ -212,6 +212,11 @@
       "to": "browser-extension/src/lib/rectTween.js"
     },
     {
+      "name": "rowWindow",
+      "from": "browser/js/ui/panel/rowWindow.js",
+      "to": "browser-extension/src/lib/virtualList/rowWindow.js"
+    },
+    {
       "name": "quarterTurn",
       "from": "browser/js/ui/motion/quarterTurn.js",
       "to": "browser-extension/src/lib/motion/quarterTurn.js"
@@ -315,6 +320,11 @@
       "name": "rectTweenDts",
       "from": "browser/js/ui/motion/rectTween.d.ts",
       "to": "browser-extension/src/lib/rectTween.d.ts"
+    },
+    {
+      "name": "rowWindowDts",
+      "from": "browser/js/ui/panel/rowWindow.d.ts",
+      "to": "browser-extension/src/lib/virtualList/rowWindow.d.ts"
     },
     {
       "name": "quarterTurnDts",

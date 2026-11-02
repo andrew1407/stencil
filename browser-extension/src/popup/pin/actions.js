@@ -7,7 +7,8 @@ import { entryFromUrl, sameSource } from '../../lib/drop/entry.js';
 import { URL_DRAG_TYPES } from '../../lib/chat/drop.js';
 import { flashLanding } from '../../lib/motion.js';
 import { listEl, statusEl, IS_SIDE_PANEL, IS_DEVTOOLS } from '../panelDom.js';
-import { state, rowElFor, rowResource } from '../list/model.js';
+import { state, rowResource } from '../list/model.js';
+import { revealRow } from '../list/rows.js';
 import { applyFilters } from '../list/filters.js';
 import { annotatePinned } from '../list/scan.js';
 
@@ -74,7 +75,7 @@ const enableShowPinned = async () => {
 };
 
 export const flashRow = (image, { landing = false } = {}) => {
-  const row = state.filtered.includes(image) ? rowElFor(image) : null;
+  const row = revealRow(image);
   if (!row) return;
   row.scrollIntoView({ behavior: 'smooth', block: 'center' });
   flashLanding(row, landing ? 'just-dropped' : 'just-pinned', 900);

@@ -61,15 +61,18 @@ namespace stencil::gui {
       emit pointDeleteRequested(r);
     });
     points->setCellWidget(r, COL_DEL, centeredCell(del, points));
+    pointRowsMade.insert(r);
   }
 
-  // Past LAZY_ROWS a row's bin is made once it is on screen (and stays); a shorter table, every row's,
-  // a row kept from a longer one included.
+  // Past LAZY_ROWS a row's bin is made once it is on screen and dropped once it is well off it; a
+  // shorter table has every row's, a row kept from a longer one included.
   void SelectionPanel::materializePointRows() {
     if (!points || points->rowCount() == 0 || isEmptyRow(points, 0)) return;
-    const auto [first, last] = points->rowCount() > LAZY_ROWS ? shownRows(points) : std::pair{0, points->rowCount() - 1};
-    for (int r = first; r <= last; ++r)
+    const bool lazy = points->rowCount() > LAZY_ROWS;
+    const auto shown = lazy ? shownRows(points) : std::pair{0, points->rowCount() - 1};
+    for (int r = shown.first; r <= shown.second; ++r)
       if (!points->cellWidget(r, COL_DEL)) addPointDelButton(r);
+    if (lazy) dropRowWidgetsOutside(points, pointRowsMade, shown);
   }
 
   void SelectionPanel::showLine(const core::Line* line, int selectedPoint,
@@ -84,6 +87,7 @@ namespace stencil::gui {
     const bool reuse = n > 0 && points->rowCount() > 0 && !isEmptyRow(points, 0) && !editorOpen();
     if (!reuse) {
       points->clearSpans();    // the empty-state row spans the table; a real one must not
+      pointRowsMade.clear();
       clearRows(points);  // rows only (NOT clear() — that would drop the header labels)
     }
 
@@ -99,6 +103,7 @@ namespace stencil::gui {
       for (int c = 0; c < points->columnCount(); ++c)
         if (points->cellWidget(r, c)) points->removeCellWidget(r, c);
     points->setRowCount(n);
+    pointRowsMade.erase(pointRowsMade.lower_bound(n), pointRowsMade.end());
     points->clearSelection();
     for (int r = 0; r < keep; ++r) {
       const auto& p = line->points[static_cast<std::size_t>(r)];

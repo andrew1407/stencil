@@ -46,7 +46,7 @@
     "browser-extension/src/popup/editor/mode.js#createEditorMode": 113,
     "browser-extension/src/popup/list/sourceTabsList.js#createSourceTabs": 130,
     "browser-extension/src/popup/pin/sharedLive.js#createSharedLive": 86,
-    "browser-extension/src/popup/row/row.js#renderRow": 108,
+    "browser-extension/src/popup/row/row.js#buildRow": 102,
     "browser/js/console/api/assistantApi.js#createAssistantApi": 122,
     "browser/js/console/editorActions.js#createEditorActions": 83,
     "browser/js/console/lineAndPoint.js#createLineWrappers": 173,

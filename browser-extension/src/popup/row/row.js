@@ -4,36 +4,19 @@ import { icon } from '../../lib/icons.js';
 import { setTip } from '../../lib/tip/tip.js';
 import { editableSrc, pinnable } from '../../lib/image/model.js';
 import { pinTargetMode } from '../../lib/connection/connections.js';
-import { passesFilters } from '../../lib/highlight/filters.js';
 import { rowTitle, thumbInitialSrc, dimText, rowBadges, rowOutlineClass } from '../../lib/rowModel.js';
-import { filterLeave, createFilterTransition } from '../../lib/motion.js';
-import { listEl, PLAY_THUMB } from '../panelDom.js';
+import { PLAY_THUMB } from '../panelDom.js';
 import { state, rowKey, rowResource, isPinned, isOpened, isProjectRow } from '../list/model.js';
 import { previewCache, bindPreview } from './preview.js';
 import { resolveSharedThumb } from '../pin/sharedPins.js';
-import { filters, renderCount } from '../list/filters.js';
 import { openMenu, openMenuAt } from './menu.js';
 import { togglePin } from '../pin/actions.js';
 import { pinWithPrompt } from '../pin/dialog.js';
 import { bindRowGestures, bindRowDrag } from '../gestures.js';
 import { bindHoverHighlight } from './hoverHighlight.js';
 
-// Unknown-size images are measured only once their row scrolls into view.
-const measureObs = new IntersectionObserver((entries) => {
-  for (const e of entries) {
-    if (!e.isIntersecting) continue;
-    measureObs.unobserve(e.target);
-    measure(e.target._image, e.target._dimEl, e.target);
-  }
-}, { root: listEl, rootMargin: '200px' });
-
-// A leaving ghost belongs to no image, so it must not be measured any more.
-export const filterTransition = createFilterTransition({
-  list: listEl,
-  onLeave: (li) => measureObs.unobserve(li),
-});
-
-export const renderRow = (image) => {
+// One list row for `image`, detached: the list (popup/list/rows.js) places it.
+export const buildRow = (image) => {
   const li = document.createElement('li');
   li.dataset.key = rowKey(image);   // the filter transition diffs renders by this
   const row = document.createElement('div');
@@ -133,30 +116,5 @@ export const renderRow = (image) => {
   bindHoverHighlight(row, image);
   bindRowDrag(row, image);
   li.appendChild(row);
-  listEl.appendChild(li);
-
-  if (!image.measured) {
-    li._image = image;
-    li._dimEl = dim;
-    measureObs.observe(li);
-  }
-};
-
-const measure = (image, dimEl, li) => {
-  const probe = new Image();
-  probe.onload = () => {
-    image.w = probe.naturalWidth;
-    image.h = probe.naturalHeight;
-    image.measured = true;
-    dimEl.textContent = dimText(image);
-    // A filter dropping the row, not a delete: the light fade, not the scatter.
-    if (!passesFilters(image, filters)) {
-      filterLeave(li, () => {
-        li.remove();
-        state.filtered = state.filtered.filter(it => it !== image);
-        renderCount();
-      });
-    }
-  };
-  probe.src = image.src;
+  return li;
 };
