@@ -24,17 +24,28 @@ export const isHexColorWord = (word) => {
   return true;
 };
 
-// The §1 number, -?\d+(\.\d+)?, as a prefix of `s`: its end, or 0 when there is none.
-const numberEnd = (s) => {
-  let i = s[0] === '-' ? 1 : 0;
+// \d+(\.\d+)? at `i`: its end, or `i` when there is none.
+const decimalEnd = (s, i) => {
   const digits = i;
   while (i < s.length && isDigit(s.charCodeAt(i))) i += 1;
-  if (i === digits) return 0;
+  if (i === digits) return digits;
   if (s[i] === '.' && isDigit(s.charCodeAt(i + 1))) {
     i += 2;
     while (i < s.length && isDigit(s.charCodeAt(i))) i += 1;
   }
   return i;
+};
+
+// The §1 number, -?D(/D)? with D = \d+(\.\d+)? and a non-zero denominator, as a prefix of
+// `s`: its end, or 0 when there is none.
+const numberEnd = (s) => {
+  const sign = s[0] === '-' ? 1 : 0;
+  const i = decimalEnd(s, sign);
+  if (i === sign) return 0;
+  if (s[i] !== '/') return i;
+  const den = decimalEnd(s, i + 1);
+  if (den === i + 1) return i;
+  return /[1-9]/.test(s.slice(i + 1, den)) ? den : i;
 };
 
 const isUnit = (u) => {

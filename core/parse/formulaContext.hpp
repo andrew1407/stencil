@@ -18,7 +18,7 @@ namespace stencil::core {
     double pageHeightCm = kFormulaUnset;
     double imageWidth = kFormulaUnset;
     double imageHeight = kFormulaUnset;
-    std::string unit = "cm";  // "in" converts; every other word reads as cm (cmToUnit)
+    std::string unit = "cm";  // "in" / "mm" convert; every other word reads as cm (cmToUnit)
   };
 
   // A blank formula is the identity: valid, and apply() returns its input unchanged.
@@ -30,7 +30,7 @@ namespace stencil::core {
   }
 
   // `varName` first, so the context-free entry points keep their exact behaviour; then
-  // x, y, PAGE_WIDTH / PAGE_HEIGHT (+ _CM / _IN), IMAGE_WIDTH / IMAGE_HEIGHT. Case-sensitive.
+  // x, y, PAGE_WIDTH / PAGE_HEIGHT (+ _CM / _IN / _MM), IMAGE_WIDTH / IMAGE_HEIGHT. Case-sensitive.
   bool formulaConstant(const FormulaContext& ctx, const std::string& name, char varName,
                        double varValue, double& out);
 

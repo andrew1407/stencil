@@ -1,5 +1,4 @@
 #include "args.hpp"
-#include "decimal.hpp"
 #include "diagnostics.hpp"
 #include "values.hpp"
 #include "text.hpp"
@@ -26,7 +25,7 @@ namespace stencil::core::script {
         if (t.kind == TokenKind::NUMBER) {
           std::string number, unit;
           readLengthRaw(c, number, unit);
-          state.style.thickness = parseDecimalPrefix(number).value_or(0.0);
+          state.style.thickness = numberValue(number);
           continue;
         }
         if (isStyleWord(low)) {
@@ -58,7 +57,7 @@ namespace stencil::core::script {
           if (!c.atEnd() && c.peek().kind == TokenKind::NUMBER) {
             std::string number, unit;
             readLengthRaw(c, number, unit);
-            state.style.pointSize = parseDecimalPrefix(number).value_or(0.0);
+            state.style.pointSize = numberValue(number);
           }
           continue;
         }

@@ -17,9 +17,8 @@ namespace stencil::gui {
 
     // Mirrors View ▸ Units; data carries the canonical code, both route through applyUnits().
     w.units.unitCombo = new SearchComboBox(&w, /*searchable=*/false);
-    w.units.unitCombo->addItem("cm", "cm");
-    w.units.unitCombo->addItem("in", "in");
-    w.units.unitCombo->setToolTip("Display units (cm / inches)");   // its own caption
+    for (const char* u : {"cm", "mm", "in"}) w.units.unitCombo->addItem(u, u);
+    w.units.unitCombo->setToolTip("Display units (cm / mm / inches)");   // its own caption
     QObject::connect(w.units.unitCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), &w,
                      [this](int) { w.parts.view.applyUnits(w.units.unitCombo->currentData().toString()); });
     addWrappedSeparator(row);
@@ -60,7 +59,7 @@ namespace stencil::gui {
       cl->addWidget(w.units.customW, 0, Qt::AlignVCenter);
       cl->addWidget(new QLabel("×", w.units.customGroup), 0, Qt::AlignVCenter);
       cl->addWidget(w.units.customH, 0, Qt::AlignVCenter);
-      // No unit suffix (browser twin): the units combo already says cm / in.
+      // No unit suffix (browser twin): the units combo already says cm / mm / in.
     }
     w.units.customGroup->setVisible(false);   // revealed by the "custom" page size
     // One named section, no inline captions (browser twin): each combo spells its own answer out.

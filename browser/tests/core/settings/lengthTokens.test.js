@@ -28,6 +28,17 @@ test('parseLengthToken: percent + bad input', () => {
   assert.equal(parseLengthToken(null), null);
 });
 
+test('parseLengthToken: N/D fractions, a zero denominator refused', () => {
+  assert.deepEqual(parseLengthToken('1/2in'), { kind: 'cm', value: 1.27, fromEnd: false });
+  assert.deepEqual(parseLengthToken('25/2mm'), { kind: 'cm', value: 1.25, fromEnd: false });
+  assert.deepEqual(parseLengthToken('-3/4cm'), { kind: 'cm', value: 0.75, fromEnd: true });
+  assert.deepEqual(parseLengthToken('1/2%'), { kind: 'percent', value: 0.5, fromEnd: false });
+  assert.deepEqual(parseLengthToken('-1/4'), { kind: 'delta', value: -0.25 });
+  for (const bad of ['1/0in', '1/0.0cm', '1/in', '/2in', '1//2in', '1/2/3in', '1 /2in', '1/2.in']) {
+    assert.equal(parseLengthToken(bad), null, bad);
+  }
+});
+
 test('resolveAxisPx: deltas add to current; absolutes from start/end', () => {
   const ctx = { lengthPx: 1000, pxPerCm: 10, currentPx: 100 };
   assert.equal(resolveAxisPx(25, ctx), 125);              // +25 px from current

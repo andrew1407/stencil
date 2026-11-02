@@ -104,6 +104,11 @@ class CropTokenTests(_ScriptFixture):
     self.assertEqual(spec, {"x1": "37.79527559055118px", "x2": "-18.89763779527559px",
                             "y1": "10%", "y2": "-2px"})
 
+  def test_a_fraction_resolves_like_its_decimal(self):
+    spec = self._spec("@source shots/a.png:\n  @crop x1=2/2cm x2=-10/2mm y1=1/2% y2=-3/2px\n")
+    self.assertEqual(spec, {"x1": "37.79527559055118px", "x2": "-18.89763779527559px",
+                            "y1": "1/2%", "y2": "-3/2px"})
+
   def test_a_one_axis_crop_gains_the_axis_the_script_derives(self):
     spec = self._spec("@source shots/a.png:\n  @crop x1=10% x2=-10% album\n")
     self.assertEqual(spec, {"x1": "10%", "x2": "-10%", "y1": "0px", "y2": "24px"})

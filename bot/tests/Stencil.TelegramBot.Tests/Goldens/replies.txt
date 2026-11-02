@@ -130,7 +130,7 @@ none — clear the filter
 …or a colour name/#hex for a duotone tint, e.g. /filter #ff5623
 
 == FormatCustomUsage()
-Usage: /format custom <width> <height> (cm), e.g. /format custom 10 15
+Usage: /format custom <width> <height> (cm, or add mm/in; fractions like 21/2 work), e.g. /format custom 10 15
 
 == FrameGrabbed()
 Grabbed frame 0 — use /frame n to pick another.

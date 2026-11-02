@@ -55,6 +55,10 @@ TEST_CASE("opplan twin drift: the grammar sources and the JSON caps are the regi
 TEST_CASE("opplan grammars: the edges the JS reference draws") {
   CHECK(matches(Grammar::CROP_TOKEN, "-.5in"));
   CHECK_FALSE(matches(Grammar::CROP_TOKEN, "1."));
+  CHECK(matches(Grammar::CROP_TOKEN, "-25/2mm"));
+  CHECK(matches(Grammar::CROP_TOKEN, "1/0.5in"));
+  for (const char* zero : {"1/0in", "1/00", "1/0.0cm", "1/.0", "1/"})
+    CHECK_FALSE_MESSAGE(matches(Grammar::CROP_TOKEN, zero), zero);
   CHECK_FALSE(matches(Grammar::CROP_TOKEN, "\xd9\xa3"));
   CHECK(matches(Grammar::CROP_ASPECT, "007:1"));
   CHECK_FALSE(matches(Grammar::CROP_ASPECT, "00:1"));

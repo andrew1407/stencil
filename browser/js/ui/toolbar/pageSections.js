@@ -13,8 +13,9 @@ export const toolbarPageSectionsHtml = () => `            <!-- ── Section: P
                         <option value="custom">Custom</option>
                         ${pageFormatOptions()}
                     </select>
-                    <select id="unit-select" data-title="Display units (cm / inches)">
+                    <select id="unit-select" data-title="Display units (cm / mm / inches)">
                         <option value="cm">cm</option>
+                        <option value="mm">mm</option>
                         <option value="in">in</option>
                     </select>
                     <span id="custom-size-group" style="display:none;align-items:center;gap:6px;">

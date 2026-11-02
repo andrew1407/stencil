@@ -4,7 +4,8 @@ import { whereOf } from './args.js';
 import { makeDiag } from './diagnostics.js';
 import { isUnitWord } from './types.js';
 import {
-  cursorOf, isColorToken, isMalformedNumber, isPunct, malformedNumberMessage, readLengthRaw,
+  cursorOf, isColorToken, isMalformedNumber, isPunct, malformedNumberMessage, numberValue,
+  readLengthRaw,
 } from './values.js';
 
 const isStyleWord = (w) => w === 'solid' || w === 'dashed' || w === 'dotted';
@@ -19,7 +20,7 @@ const applyGroup = (group, state, seen, diags) => {
 
     if (t.kind === 'number') {
       const raw = readLengthRaw(c);
-      state.style.thickness = parseFloat(raw.number);
+      state.style.thickness = numberValue(raw.number);
       continue;
     }
     if (isStyleWord(low)) {
@@ -50,7 +51,7 @@ const applyGroup = (group, state, seen, diags) => {
       }
       if (c.i < c.args.length && c.args[c.i].kind === 'number') {
         const raw = readLengthRaw(c);
-        state.style.pointSize = parseFloat(raw.number);
+        state.style.pointSize = numberValue(raw.number);
       }
       continue;
     }

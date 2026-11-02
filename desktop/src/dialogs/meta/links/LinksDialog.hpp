@@ -29,7 +29,7 @@ namespace stencil::gui {
     Q_OBJECT
    public:
     // `hasImage` selects the mode: edit the links, or (no image) the add-by-URL loader only. `pageSeed`
-    // preselects the quick-crop page size (unknown names fall back to A3); `units` is "cm"/"in".
+    // preselects the quick-crop page size (unknown names fall back to A3); `units` is "cm"/"mm"/"in".
     explicit LinksDialog(const QString& source, const QString& resource,
                          bool hasImage, const QString& pageSeed = "A3",
                          const QString& units = "cm",

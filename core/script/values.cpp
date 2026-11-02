@@ -1,6 +1,7 @@
 #include "values.hpp"
 
 #include "colorNames.hpp"
+#include "decimal.hpp"
 #include "diagnostics.hpp"
 #include "lexer.hpp"
 #include "text.hpp"
@@ -62,6 +63,13 @@ namespace stencil::core::script {
     return static_cast<int>(v);
   }
 
+  double numberValue(const std::string& text) {
+    const std::size_t slash = text.find('/');
+    const double num = parseDecimalPrefix(text.substr(0, slash)).value_or(0.0);
+    if (slash == std::string::npos) return num;
+    return num / parseDecimalPrefix(text.substr(slash + 1)).value_or(1.0);
+  }
+
   bool isMalformedNumber(const Token& t) {
     if (t.kind != TokenKind::IDENT || t.text.empty()) return false;
     std::size_t i = (t.text[0] == '-' || t.text[0] == '+') ? 1 : 0;
@@ -70,7 +78,7 @@ namespace stencil::core::script {
   }
 
   std::string malformedNumberMessage(const Token& t) {
-    return "'" + t.text + "' is not a number: write digits, an optional .digits, then px, cm, " +
+    return "'" + t.text + "' is not a number: write digits, an optional .digits or /digits, then px, cm, " +
            "mm, in or %";
   }
 

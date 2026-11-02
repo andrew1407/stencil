@@ -6,6 +6,7 @@ export const joinWords: (args: ScriptToken[]) => string;
 export const parseIntClamped: (text: string) => number;
 export const isPunct: (t: ScriptToken, text: string) => boolean;
 export const gluedWords: (args: ScriptToken[]) => ScriptToken[];
+export const numberValue: (text: string) => number;
 export const isMalformedNumber: (t: ScriptToken) => boolean;
 export const malformedNumberMessage: (t: ScriptToken) => string;
 export const skipPunct: (c: ArgCursor, text: string) => void;

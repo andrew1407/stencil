@@ -6886,7 +6886,7 @@
     ]
    },
    "expect": "invalid",
-   "reason": "\"value\" must be one of cm, in"
+   "reason": "\"value\" must be one of cm, mm, in"
   },
   {
    "name": "gen-view-minimal",

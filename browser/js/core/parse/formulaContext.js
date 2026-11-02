@@ -12,7 +12,7 @@ export const withProbeAxes = (ctx) => ({
 });
 
 // `varName` first, so the context-free entry points keep their exact behaviour; then
-// x, y, PAGE_WIDTH / PAGE_HEIGHT (+ _CM / _IN), IMAGE_WIDTH / IMAGE_HEIGHT. Case-sensitive.
+// x, y, PAGE_WIDTH / PAGE_HEIGHT (+ _CM / _IN / _MM), IMAGE_WIDTH / IMAGE_HEIGHT. Case-sensitive.
 // null for an unknown name and for a name whose field is absent or non-finite.
 export const formulaConstant = (ctx, name, varName, varValue) => {
   if (name.length === 1 && name === varName) return varValue;
@@ -26,6 +26,8 @@ export const formulaConstant = (ctx, name, varName, varValue) => {
   else if (name === 'PAGE_HEIGHT_CM') v = c.pageHeightCm;
   else if (name === 'PAGE_WIDTH_IN') v = cmToUnit(c.pageWidthCm, 'in');
   else if (name === 'PAGE_HEIGHT_IN') v = cmToUnit(c.pageHeightCm, 'in');
+  else if (name === 'PAGE_WIDTH_MM') v = cmToUnit(c.pageWidthCm, 'mm');
+  else if (name === 'PAGE_HEIGHT_MM') v = cmToUnit(c.pageHeightCm, 'mm');
   else if (name === 'IMAGE_WIDTH') v = c.imageWidth;
   else if (name === 'IMAGE_HEIGHT') v = c.imageHeight;
   else return null;

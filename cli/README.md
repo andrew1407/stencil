@@ -82,7 +82,7 @@ stencil [options] <output>
 | `-i, --input <path\|url>` | Image or video source (file or `http(s)://` URL) |
 | `--blank [format] [w h] [color]` | Create a blank page; a leading page-format name (`a0`…`c10`, case-insensitive) **or** explicit `w h` picks the size (omit both for A4), color is a name or `#hex` (default white) |
 | `-f, --frame <n>` | Video frame index to grab (default 0) |
-| `-c, --crop "<spec>"` | Crop, e.g. `"x1=10% x2=90% y1=10% y2=90%"`. Each edge is a length token: `px`, `cm`, `mm`, `in`, `%`, or a bare pixel delta. Omit an edge to keep the image bound. |
+| `-c, --crop "<spec>"` | Crop, e.g. `"x1=10% x2=90% y1=10% y2=90%"`. Each edge is a length token: `px`, `cm`, `mm`, `in`, `%`, or a bare pixel delta; the number may be a decimal or a fraction (`3/4in`). Omit an edge to keep the image bound. |
 | `--album` | When only one crop axis is given, derive the other from the page proportion (landscape) |
 | `--flip` | Mirror the image left-right (after the crop, before the rotation) |
 | `-r, --rotate <int>` | Rotate `int × 90°` (e.g. `-1` = −90°, `3` = 270°) |

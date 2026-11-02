@@ -1,13 +1,16 @@
 // ── open.actions → editor launch options (contract §8 translation) ──────────
 
 // One §2 crop token to an absolute pixel coordinate on an axis of `length` px; mirrors
-// core/settings/units.js resolveAxisPx minus cm/in (no page metrics here). null = unsupported.
+// core/settings/units.js resolveAxisPx minus cm/mm/in (no page metrics here). null = unsupported.
 const resolveCropToken = (tok, length) => {
-  const m = /^(-?)(\d+(?:\.\d+)?|\.\d+)(%|px|cm|in)?$/.exec(String(tok));
+  const D = '(\\d+(?:\\.\\d+)?|\\.\\d+)';
+  const m = new RegExp(`^(-?)${D}(?:/${D})?(%|px|cm|mm|in)?$`).exec(String(tok));
   if (!m) return null;
-  const unit = m[3] || 'px';
-  if (unit === 'cm' || unit === 'in') return null;
-  const v = parseFloat(m[2]);
+  const unit = m[4] || 'px';
+  if (unit === 'cm' || unit === 'mm' || unit === 'in') return null;
+  const den = m[3] === undefined ? 1 : parseFloat(m[3]);
+  if (den === 0) return null;
+  const v = parseFloat(m[2]) / den;
   const px = unit === '%' ? (v / 100) * length : v;
   return m[1] === '-' ? length - px : px;
 };
@@ -31,7 +34,7 @@ const STEPS = Object.freeze({
       next[key] = px;
     }
     if (bad != null) {
-      st.warnings.push(`Skipped "crop" — cm/in crop units can't be resolved in the extension (token "${bad}"); crop in the editor instead`);
+      st.warnings.push(`Skipped "crop" — cm/mm/in crop units can't be resolved in the extension (token "${bad}"); crop in the editor instead`);
       return;
     }
     st.rect = next;

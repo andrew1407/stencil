@@ -27,10 +27,14 @@ namespace llmopplan {
                      "{\"z\":\"1\"}}]}")
              .ok,
         "unknown crop spec key fails");
+  check(parseOpPlan("{\"reply\":\"c\",\"actions\":[{\"op\":\"crop\",\"spec\":"
+                    "{\"x1\":\"10mm\",\"x2\":\"-1/2in\"}}]}")
+            .ok,
+        "mm and N/D tokens pass (contract allows % px cm mm in)");
   check(!parseOpPlan("{\"reply\":\"c\",\"actions\":[{\"op\":\"crop\",\"spec\":"
-                     "{\"x1\":\"10mm\"}}]}")
+                     "{\"x1\":\"10pt\"}}]}")
              .ok,
-        "mm unit rejected (contract allows % px cm in)");
+        "an unknown unit is rejected");
   check(!parseOpPlan("{\"reply\":\"c\",\"actions\":[{\"op\":\"crop\",\"spec\":"
                      "{\"x1\":\"abc\"}}]}")
              .ok,

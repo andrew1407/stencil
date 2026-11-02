@@ -18,7 +18,7 @@ pub const FormulaCtx = struct {
     page_h_cm: f64 = unset,
     image_w: f64 = unset,
     image_h: f64 = unset,
-    unit: ?[:0]const u8 = null, // "cm" | "in"; null reads as cm
+    unit: ?[:0]const u8 = null, // "cm" | "mm" | "in"; null reads as cm
 
     fn unitPtr(self: FormulaCtx) [*c]const u8 {
         return if (self.unit) |u| u.ptr else null;

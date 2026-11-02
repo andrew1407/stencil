@@ -82,7 +82,7 @@ namespace stencil::gui {
     return p;
   }
 
-  // Inches scale cm by 1/2.54. Shared with the hover tooltip via core::buildTooltipRows.
+  // Inches scale cm by 1/2.54, millimetres by 10. Shared with the hover tooltip via core::buildTooltipRows.
   core::UnitFormat MainWindow::unitFormat() const {
     return {UnitsController::factor(settings.units), UnitsController::label(settings.units)};
   }

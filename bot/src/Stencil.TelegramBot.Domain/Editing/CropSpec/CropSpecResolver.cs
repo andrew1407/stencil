@@ -6,7 +6,6 @@ public sealed record CropRect(int X, int Y, int Width, int Height);
 // rounding/clamping. Page metrics are A4 oriented to the image, as the CLI's pipeline.namedPageForImage.
 public static partial class CropSpecResolver
 {
-    private const double _cmPerInch = 2.54;
     private const double _a4ShortCm = 21.0;
     private const double _a4LongCm = 29.7;
 

@@ -39,11 +39,17 @@ export const gluedWords = (args) => {
   return out;
 };
 
+// A §1 number's value: N, or N/D for a fraction (the lexer refuses a zero D).
+export const numberValue = (text) => {
+  const [num, den] = String(text).split('/');
+  return den === undefined ? parseFloat(num) : parseFloat(num) / parseFloat(den);
+};
+
 // A word that starts like a number but broke the §1 grammar ('10foo', '+5', '1e3', '.5').
 export const isMalformedNumber = (t) => t.kind === 'ident' && /^[+-]?\.?[0-9]/.test(t.text);
 
 export const malformedNumberMessage = (t) =>
-  `'${t.text}' is not a number: write digits, an optional .digits, then px, cm, mm, in or %`;
+  `'${t.text}' is not a number: write digits, an optional .digits or /digits, then px, cm, mm, in or %`;
 
 export const skipPunct = (c, text) => {
   while (c.i < c.args.length && isPunct(c.args[c.i], text)) c.i += 1;

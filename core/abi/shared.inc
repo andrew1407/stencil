@@ -26,7 +26,7 @@ double STENCIL_ABI(formulaApply, applyFormula)(const char* expr, int varName,
 // binds `varName`), PAGE_WIDTH / PAGE_HEIGHT in `unit` plus their _CM / _IN forms, and
 // IMAGE_WIDTH / IMAGE_HEIGHT in pixels. A non-finite context value is "not supplied": that
 // name stays unknown, so the formula is invalid and apply() returns `value`. `unit` is the
-// selected display unit — "in" converts, anything else (and NULL) reads as cm.
+// selected display unit — "in" and "mm" convert, anything else (and NULL) reads as cm.
 int STENCIL_ABI(formulaValidateCtx, validateFormulaCtx)(const char* expr, double x, double y,
                                                         double pageWcm, double pageHcm,
                                                         double imageW, double imageH,

@@ -14,6 +14,7 @@ test('theme / units / view: accept + reject tables', () => {
   bad({ op: 'theme', mode: 'dark', extra: 1 });          // unknown action field
   assert.deepStrictEqual(ok({ op: 'units', value: 'in' }), { op: 'units', value: 'in' });
   assert.deepStrictEqual(ok({ op: 'units', value: 'cm' }), { op: 'units', value: 'cm' });
+  assert.deepStrictEqual(ok({ op: 'units', value: 'mm' }), { op: 'units', value: 'mm' });
   bad({ op: 'units', value: 'px' });
   bad({ op: 'units' });
   assert.deepStrictEqual(ok({ op: 'view', points: true, lines: false }), { op: 'view', points: true, lines: false });

@@ -135,7 +135,7 @@ assistant:
     @save out/                # → out/<name>-stencil.png
 ```
 
-Units are `px % cm mm in`, `#` starts a comment (except in a hex colour), `;` separates
+Units are `px % cm mm in` (a number may be a fraction, `3/4in`), `#` starts a comment (except in a hex colour), `;` separates
 statements on one line, `@stencil` defines a reusable template and `@undo` / `@redo` take
 edits back. The parser lives in the shared core, so a script does the same thing on every
 surface, and a script with **any error runs nothing**.

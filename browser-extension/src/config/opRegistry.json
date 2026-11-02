@@ -56,7 +56,7 @@
     }
   },
   "regexes": {
-    "CROP_TOKEN": "^-?(\\d+(\\.\\d+)?|\\.\\d+)(%|px|cm|in)?$",
+    "CROP_TOKEN": "^-?(\\d+(\\.\\d+)?|\\.\\d+)(/0*([1-9]\\d*(\\.\\d+)?|\\.\\d*[1-9]\\d*))?(%|px|cm|mm|in)?$",
     "CROP_ASPECT": "^0*[1-9]\\d*:0*[1-9]\\d*$",
     "PAGE_FORMAT": "^[abc](10|[0-9])$",
     "HEX": "^#[0-9a-fA-F]{6}$",
@@ -66,7 +66,7 @@
     "HTTP_URL": "^[hH][tT][tT][pP][sS]?://\\S+$",
     "URL_SCHEME": "^[a-zA-Z][a-zA-Z0-9+.\\-]*://",
     "describe": {
-      "CROP_TOKEN": "a crop token (number with optional % / px / cm / in, leading \"-\" from the far side)",
+      "CROP_TOKEN": "a crop token (number or N/D fraction with optional % / px / cm / mm / in, leading \"-\" from the far side)",
       "CROP_ASPECT": "a \"W:H\" aspect with both sides > 0",
       "PAGE_FORMAT": "a lowercase ISO name a0–a10, b0–b10 or c0–c10",
       "HEX": "#rrggbb",
@@ -568,7 +568,7 @@
         "mcp"
       ],
       "baseline": "browser",
-      "bullet": "- {\"op\":\"crop\",\"spec\":{\"x1\":\"10%\",\"x2\":\"-10%\",\"aspect\":\"3:4\"}} — move edges inward;\n  tokens are numbers with optional unit % / px / cm / in; a leading \"-\" measures from the\n  opposite side. Include only the edges you want to move. For a target aspect ratio add\n  \"aspect\":\"W:H\" INSIDE \"spec\", never beside it (portrait \"3:4\", album/landscape \"4:3\",\n  square \"1:1\") — the editor cuts the resolved crop to that exact ratio about its centre,\n  so NEVER derive ratio tokens yourself; combine it with edge tokens when a specific\n  region should be kept.",
+      "bullet": "- {\"op\":\"crop\",\"spec\":{\"x1\":\"10%\",\"x2\":\"-10%\",\"aspect\":\"3:4\"}} — move edges inward;\n  tokens are numbers or N/D, unit optional % / px / cm / mm / in; a leading \"-\" measures from the\n  opposite side. Include only the edges you want to move. For a target aspect ratio add\n  \"aspect\":\"W:H\" INSIDE \"spec\", never beside it (portrait \"3:4\", album/landscape \"4:3\",\n  square \"1:1\") — the editor cuts the resolved crop to that exact ratio about its centre,\n  so NEVER derive ratio tokens yourself; combine it with edge tokens when a specific\n  region should be kept.",
       "flags": {},
       "keys": {
         "spec": {
@@ -1379,7 +1379,7 @@
         "editor"
       ],
       "baseline": "browser",
-      "bullet": "- {\"op\":\"units\",\"value\":\"cm\"|\"in\"} — display units.",
+      "bullet": "- {\"op\":\"units\",\"value\":\"cm\"|\"mm\"|\"in\"} — display units.",
       "flags": {
         "editorSetting": true
       },
@@ -1389,6 +1389,7 @@
           "required": true,
           "enum": [
             "cm",
+            "mm",
             "in"
           ]
         }
@@ -2199,7 +2200,7 @@
         "extension"
       ],
       "baseline": "extension",
-      "bullet": "- {\"op\":\"open\",\"image\":3,\"mode\":\"copy\",\"actions\":[...],\"incognito\":false} — open image 3 in\n  the Stencil editor. \"mode\":\"resume\" focuses the editor tab ALREADY holding that image\n  instead of opening a fresh copy — prefer it when the image was opened before (it is the\n  non-destructive path); \"copy\" (the default) always opens fresh. \"actions\" is an optional\n  list of editor operations applied on open, drawn from\n  the core op set crop / rotate / filter / layout / page:\n  - {\"op\":\"crop\",\"spec\":{\"x1\":\"10%\",\"x2\":\"-10%\",\"y1\":\"0\",\"y2\":\"90%\"}} — move edges inward;\n    tokens are numbers with optional unit % / px / cm / in; a leading \"-\" measures from the\n    opposite side. Include only the edges you want to move.\n  - {\"op\":\"rotate\",\"dir\":\"left\"|\"right\",\"times\":1..3} — quarter turns only.\n  - {\"op\":\"filter\",\"mode\":\"none\"|\"bw\"|\"sepia\"|\"invert\"|\"contour\"|\"custom\",\"tint\":\"#rrggbb\"}\n    — \"custom\" is a duotone tint and requires \"tint\"; \"contour\" is edge detection.\n  - {\"op\":\"layout\",\"lines\":[{\"points\":[{\"x\":0,\"y\":0},...],\"color\":\"#FFFF00\",\"thickness\":2,\n    \"pointSize\":4,\"style\":\"solid\"|\"dashed\"|\"dotted\",\"locked\":false,\"fillColor\":\"transparent\"}]}\n    — draw annotation polylines in image-pixel coordinates.\n  - {\"op\":\"page\",\"format\":\"a4\"} — ISO page formats a0–a10, b0–b10, c0–c10.",
+      "bullet": "- {\"op\":\"open\",\"image\":3,\"mode\":\"copy\",\"actions\":[...],\"incognito\":false} — open image 3 in\n  the Stencil editor. \"mode\":\"resume\" focuses the editor tab ALREADY holding that image\n  instead of opening a fresh copy — prefer it when the image was opened before (it is the\n  non-destructive path); \"copy\" (the default) always opens fresh. \"actions\" is an optional\n  list of editor operations applied on open, drawn from\n  the core op set crop / rotate / filter / layout / page:\n  - {\"op\":\"crop\",\"spec\":{\"x1\":\"10%\",\"x2\":\"-10%\",\"y1\":\"0\",\"y2\":\"90%\"}} — move edges inward;\n    tokens are numbers or N/D, unit optional % / px / cm / mm / in; a leading \"-\" measures from the\n    opposite side. Include only the edges you want to move.\n  - {\"op\":\"rotate\",\"dir\":\"left\"|\"right\",\"times\":1..3} — quarter turns only.\n  - {\"op\":\"filter\",\"mode\":\"none\"|\"bw\"|\"sepia\"|\"invert\"|\"contour\"|\"custom\",\"tint\":\"#rrggbb\"}\n    — \"custom\" is a duotone tint and requires \"tint\"; \"contour\" is edge detection.\n  - {\"op\":\"layout\",\"lines\":[{\"points\":[{\"x\":0,\"y\":0},...],\"color\":\"#FFFF00\",\"thickness\":2,\n    \"pointSize\":4,\"style\":\"solid\"|\"dashed\"|\"dotted\",\"locked\":false,\"fillColor\":\"transparent\"}]}\n    — draw annotation polylines in image-pixel coordinates.\n  - {\"op\":\"page\",\"format\":\"a4\"} — ISO page formats a0–a10, b0–b10, c0–c10.",
       "flags": {},
       "keys": {
         "image": {

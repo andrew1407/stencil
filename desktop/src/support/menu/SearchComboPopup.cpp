@@ -29,8 +29,8 @@ namespace stencil::gui {
     const int bodyH = rows > 0 ? rowH * rows + 2 * list->frameWidth()
                                : noMatch->sizeHint().height();
     const int h = qMin(MAX_POPUP_HEIGHT, chromeH + bodyH);
-    // The bar's width is reserved only when the rows actually overflow; on a two-item picker
-    // ("cm"/"in") that unconditional reserve made the popup visibly wider than its own trigger.
+    // The bar's width is reserved only when the rows actually overflow; on a short picker
+    // ("cm"/"mm"/"in") that unconditional reserve made the popup visibly wider than its own trigger.
     const bool scrolls = chromeH + bodyH > MAX_POPUP_HEIGHT;
     const int w = qMax(width(), list->sizeHintForColumn(0) + POPUP_PADDING * 4 +
                                     (scrolls ? list->verticalScrollBar()->sizeHint().width() : 0));

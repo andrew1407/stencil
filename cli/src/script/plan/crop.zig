@@ -20,15 +20,27 @@ const CM_UNITS = [_]Unit{
 
 const KEYS = [_][]const u8{ "x1", "x2", "y1", "y2" };
 
-/// A lowered length token: `-` (from the far end), the number, the unit as the lowerer wrote it.
+/// A lowered length token: `-` (from the far end), the number (N or N/D), the unit as written.
 const Token = struct { from_end: bool, value: f64, unit: []const u8 };
+
+fn decimalEnd(tok: []const u8, start: usize) usize {
+    var end = start;
+    while (end < tok.len and (std.ascii.isDigit(tok[end]) or tok[end] == '.')) end += 1;
+    return end;
+}
 
 fn split(tok: []const u8) ?Token {
     const from_end = tok.len != 0 and tok[0] == '-';
     const start: usize = @intFromBool(from_end);
-    var end = start;
-    while (end < tok.len and (std.ascii.isDigit(tok[end]) or tok[end] == '.')) end += 1;
-    const value = std.fmt.parseFloat(f64, tok[start..end]) catch return null;
+    var end = decimalEnd(tok, start);
+    var value = std.fmt.parseFloat(f64, tok[start..end]) catch return null;
+    if (end < tok.len and tok[end] == '/') {
+        const den_end = decimalEnd(tok, end + 1);
+        const den = std.fmt.parseFloat(f64, tok[end + 1 .. den_end]) catch return null;
+        if (den == 0) return null;
+        value /= den;
+        end = den_end;
+    }
     return .{ .from_end = from_end, .value = value, .unit = tok[end..] };
 }
 
@@ -131,6 +143,16 @@ test "an absolute unit goes out as the px --script resolves it to, its far-edge 
     try testing.expectEqualStrings("-18.89763779527559px", r.spec.get("x2").?.string);
     try testing.expectEqualStrings("10%", r.spec.get("y1").?.string);
     try testing.expectEqualStrings("-2px", r.spec.get("y2").?.string);
+}
+
+test "a fraction resolves like its decimal; % and px fractions stay as written" {
+    var r: Probe = undefined;
+    try r.init("@source a.png:\n  @crop x1=2/2cm x2=-10/2mm y1=1/2% y2=-3/2px\n", .{ .w = 200, .h = 100 });
+    defer r.deinit();
+    try testing.expectEqualStrings("37.79527559055118px", r.spec.get("x1").?.string);
+    try testing.expectEqualStrings("-18.89763779527559px", r.spec.get("x2").?.string);
+    try testing.expectEqualStrings("1/2%", r.spec.get("y1").?.string);
+    try testing.expectEqualStrings("-3/2px", r.spec.get("y2").?.string);
 }
 
 test "a one-axis crop gains the axis --script derives, and album then has no say" {

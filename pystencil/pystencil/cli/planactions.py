@@ -74,13 +74,19 @@ def lines_action(shapes: list, dx: float, dy: float) -> dict:
 
 
 def _split(tok: str) -> (tuple | NoneType):
-  """A lowered length token as ``(from_end, value, unit)``."""
+  """A lowered length token as ``(from_end, value, unit)``; the number is N or N/D."""
   from_end = tok.startswith("-")
   end = start = int(from_end)
   while end < len(tok) and (tok[end].isdigit() or tok[end] == "."): end += 1
   try:
-    return from_end, float(tok[start:end]), tok[end:]
-  except ValueError:
+    value = float(tok[start:end])
+    if tok[end:end + 1] == "/":
+      den = end + 1
+      while den < len(tok) and (tok[den].isdigit() or tok[den] == "."): den += 1
+      value /= float(tok[end + 1:den])
+      end = den
+    return from_end, value, tok[end:]
+  except (ValueError, ZeroDivisionError):
     return None
 
 

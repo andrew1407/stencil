@@ -10,7 +10,7 @@ export interface FormulaContext {
   pageHeightCm?: number;
   imageWidth?: number;
   imageHeight?: number;
-  /** 'in' converts; every other word reads as cm. */
+  /** 'in' / 'mm' convert; every other word reads as cm. */
   unit?: string;
 }
 

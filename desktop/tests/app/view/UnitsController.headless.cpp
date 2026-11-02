@@ -16,7 +16,7 @@ static bool near(double a, double b) { return std::fabs(a - b) < 1e-9; }
 int main(int argc, char** argv) {
   QCoreApplication app(argc, argv);
 
-  // ── The two codes, and what an unknown one falls back to.
+  // ── The three codes, and what an unknown one falls back to.
   check(UnitsController::isInches(QStringLiteral("in")), "\"in\" is inches");
   check(!UnitsController::isInches(QStringLiteral("cm")), "\"cm\" is not");
   check(!UnitsController::isInches(QString()), "an unset unit is not inches");
@@ -24,8 +24,16 @@ int main(int argc, char** argv) {
         "inches canonicalises to itself");
   check(UnitsController::canonicalUnit(QStringLiteral("cm")) == QStringLiteral("cm"),
         "…and so does centimetres");
-  check(UnitsController::canonicalUnit(QStringLiteral("mm")) == QStringLiteral("cm"),
-        "anything else reads as centimetres, never as a third unit");
+  check(UnitsController::canonicalUnit(QStringLiteral("mm")) == QStringLiteral("mm"),
+        "millimetres canonicalise to themselves");
+  check(UnitsController::isMillimetres(QStringLiteral("mm")), "\"mm\" is millimetres");
+  check(!UnitsController::isMillimetres(QStringLiteral("cm")) &&
+            !UnitsController::isInches(QStringLiteral("mm")),
+        "…and neither of the other two");
+  check(UnitsController::canonicalUnit(QStringLiteral("pt")) == QStringLiteral("cm"),
+        "anything else reads as centimetres");
+  check(UnitsController::canonicalUnit(QStringLiteral("MM")) == QStringLiteral("cm"),
+        "a stored \"MM\" is not millimetres either");
   check(UnitsController::canonicalUnit(QStringLiteral("IN")) == QStringLiteral("cm"),
         "the comparison is exact, so a stored \"IN\" is not silently accepted");
 
@@ -41,10 +49,24 @@ int main(int argc, char** argv) {
         "the inch label is the one the status bar prints");
   check(QLatin1String(UnitsController::label(QStringLiteral("cm"))) == QLatin1String("cm"),
         "…and so is the centimetre one");
+  check(near(UnitsController::factor(QStringLiteral("mm")), 10.0), "millimetres scale by exactly 10");
+  check(QLatin1String(UnitsController::label(QStringLiteral("mm"))) == QLatin1String("mm"),
+        "…and print as mm");
+  check(near(UnitsController::factor(QStringLiteral("pt")), 1.0) &&
+            QLatin1String(UnitsController::label(QStringLiteral("pt"))) == QLatin1String("cm"),
+        "an unknown code formats as centimetres");
 
   // ── Inches need the extra digit to carry what one centimetre decimal does.
   check(UnitsController::decimalsFor(QStringLiteral("cm")) == 1, "centimetres show one decimal");
   check(UnitsController::decimalsFor(QStringLiteral("in")) == 2, "inches show two");
+  check(UnitsController::decimalsFor(QStringLiteral("mm")) == 1, "millimetres show one");
+
+  // ── The combo and menu order: cm, mm, in.
+  check(UnitsController::indexOf(QStringLiteral("cm")) == 0 &&
+            UnitsController::indexOf(QStringLiteral("mm")) == 1 &&
+            UnitsController::indexOf(QStringLiteral("in")) == 2,
+        "cm, mm, in");
+  check(UnitsController::indexOf(QString()) == 0, "an unset unit selects cm");
 
   // ── The px→cm scale: per axis, from the page box and the image size.
   {
@@ -91,7 +113,7 @@ int main(int argc, char** argv) {
   {
     UnitsController u;
     check(!u.pageSize && !u.customGroup && !u.customW && !u.customH, "no page controls yet");
-    check(!u.unitCombo && !u.unitCm && !u.unitIn, "and no unit switch in either of its places");
+    check(!u.unitCombo && !u.unitCm && !u.unitMm && !u.unitIn, "and no unit switch in either of its places");
   }
 
   std::printf(failures ? "\nFAILED (%d)\n" : "\nOK\n", failures);

@@ -43,8 +43,10 @@ export const applyUnitToUI = (app) => {
   }
   const w = document.getElementById('custom-page-width');
   const h = document.getElementById('custom-page-height');
-  if (w) w.value = +cmToUnit(app.customPageWidth, app.unit).toFixed(2);
-  if (h) h.value = +cmToUnit(app.customPageHeight, app.unit).toFixed(2);
+  // The 500 cm cap reads 5000 in mm; inches keep the bare 500 (desktop EditorViewUnits.cpp).
+  const max = 500 * Math.max(1, cmToUnit(1, app.unit));
+  if (w) { w.max = max; w.value = +cmToUnit(app.customPageWidth, app.unit).toFixed(2); }
+  if (h) { h.max = max; h.value = +cmToUnit(app.customPageHeight, app.unit).toFixed(2); }
   const ths = document.querySelectorAll('#coordinates-table thead th');
   if (ths[3]) ths[3].textContent = `X ${lbl}`;
   if (ths[4]) ths[4].textContent = `Y ${lbl}`;

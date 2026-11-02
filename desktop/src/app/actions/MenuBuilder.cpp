@@ -113,8 +113,7 @@ namespace stencil::gui {
     view->addAction(w.acts.tooltip);
     view->addAction(w.acts.allowFormulas);
     auto* units = view->addMenu("&Units");
-    units->addAction(w.units.unitCm);
-    units->addAction(w.units.unitIn);
+    units->addActions({w.units.unitCm, w.units.unitMm, w.units.unitIn});
     support::revealSubmenu(*units, *view, *units->menuAction());
     view->addSeparator();
     view->addAction(w.acts.theme);

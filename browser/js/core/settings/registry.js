@@ -115,7 +115,7 @@ export const SETTINGS = Object.freeze({
     redraw: true, save: true, remoteSync: true,
   },
   unit: {
-    field: 'unit', parse: u => (u === 'in' ? 'in' : 'cm'),
+    field: 'unit', parse: u => (u === 'in' || u === 'mm' ? u : 'cm'),
     mirror: [{ id: 'unit-select', kind: 'value' }],
     afterSet: (self) => {
       const app = self.app;

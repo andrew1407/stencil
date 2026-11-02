@@ -27,6 +27,11 @@ const preamble =
     \\  while digits < len(body) and (body[digits].isdigit() or body[digits] == "."): digits += 1
     \\  if digits == 0: return 0.0
     \\  value = float(body[:digits])
+    \\  if body[digits:digits + 1] == "/":
+    \\    den = digits + 1
+    \\    while den < len(body) and (body[den].isdigit() or body[den] == "."): den += 1
+    \\    value /= float(body[digits + 1:den])
+    \\    digits = den
     \\  unit = body[digits:].strip()
     \\  if unit == "": return -value if from_end else value
     \\  if unit == "%": px = value / 100.0 * extent

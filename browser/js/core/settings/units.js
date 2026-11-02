@@ -12,11 +12,14 @@ export const parseLengthToken = (token) => {
   if (typeof token !== 'string') return null;
   const s = token.trim().toLowerCase();
   if (!s) return null;
-  const m = /^(-)?\s*(\d*\.?\d+)\s*(px|cm|mm|in|%)?$/.exec(s);
+  // `N/D` is a fraction (D non-zero): '3/4in' is 0.75 in.
+  const m = /^(-)?\s*(\d*\.?\d+)(?:\/(\d*\.?\d+))?\s*(px|cm|mm|in|%)?$/.exec(s);
   if (!m) return null;
+  const den = m[3] === undefined ? 1 : parseFloat(m[3]);
+  if (den === 0) return null;
   const fromEnd = m[1] === '-';
-  const value = parseFloat(m[2]);
-  const unit = m[3];
+  const value = m[3] === undefined ? parseFloat(m[2]) : parseFloat(m[2]) / den;
+  const unit = m[4];
   if (unit === '%') return { kind: 'percent', value, fromEnd };
   if (unit === 'cm') return { kind: 'cm', value, fromEnd };
   if (unit === 'mm') return { kind: 'cm', value: value / 10, fromEnd };

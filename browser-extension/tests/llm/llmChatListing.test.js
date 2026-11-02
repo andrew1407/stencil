@@ -88,7 +88,17 @@ test('crop: cm/in tokens cannot resolve in the extension → dropped with a warn
   const { launch, warnings } = translateOpenActions(
     [{ op: 'crop', spec: { x1: '2cm' } }], { width: 1000, height: 500 });
   assert.equal(launch.crop, undefined);
-  assert.match(warnings[0], /cm\/in/);
+  assert.match(warnings[0], /cm\/mm\/in/);
+});
+
+test('crop: N/D fractions resolve; mm joins cm/in as unresolvable', () => {
+  const dims = { width: 1000, height: 500 };
+  const { launch } = translateOpenActions([{ op: 'crop', spec: { x1: '1/4', x2: '-1/10%' } }], dims);
+  assert.deepEqual(launch.crop, { x: 0, y: 0, w: 999, h: 500 });
+  const mm = translateOpenActions([{ op: 'crop', spec: { x1: '5mm' } }], dims);
+  assert.equal(mm.launch.crop, undefined);
+  const zero = translateOpenActions([{ op: 'crop', spec: { x1: '1/0' } }], dims);
+  assert.equal(zero.launch.crop, undefined);
 });
 
 test('crop: unknown image dimensions → dropped with a warning', () => {

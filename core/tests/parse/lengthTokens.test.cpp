@@ -46,6 +46,23 @@ TEST_CASE("parseLengthToken: rejects malformed input and unknown units") {
   CHECK_FALSE(parseLengthToken("10 p x"));
 }
 
+TEST_CASE("parseLengthToken: N/D fractions") {
+  CHECK(parseLengthToken("1/2in")->value == doctest::Approx(1.27));
+  CHECK(parseLengthToken("25/2mm")->value == doctest::Approx(1.25));
+  CHECK(parseLengthToken("1.5/3cm")->value == doctest::Approx(0.5));
+  CHECK(parseLengthToken("3/4 IN")->value == doctest::Approx(0.75 * 2.54));
+  auto end = parseLengthToken("-3/4in");
+  REQUIRE(end);
+  CHECK(end->fromEnd);
+  CHECK(end->value == doctest::Approx(0.75 * 2.54));
+  auto delta = parseLengthToken("-1/4");
+  REQUIRE(delta);
+  CHECK(delta->kind == LengthKind::DELTA);
+  CHECK(delta->value == doctest::Approx(-0.25));
+  for (const char* bad : {"1/0in", "1/0.0cm", "1/in", "/2in", "1//2in", "1/2/3in", "1 /2in", "1/2.in"})
+    CHECK_FALSE(parseLengthToken(bad));
+}
+
 TEST_CASE("resolveAxisPx: absolute and relative resolution") {
   // 50% of a 200px axis = 100px; from-end mirrors it (still 100 here).
   CHECK(*resolveAxisPx("50%", 200, 10, 0) == doctest::Approx(100.0));
@@ -55,5 +72,6 @@ TEST_CASE("resolveAxisPx: absolute and relative resolution") {
   CHECK(*resolveAxisPx("37px", 200, 10, 0) == doctest::Approx(37.0));
   // A bare number is a delta from currentPx.
   CHECK(*resolveAxisPx("5", 200, 10, 100) == doctest::Approx(105.0));
+  CHECK(*resolveAxisPx("-1/2cm", 200, 10, 0) == doctest::Approx(195.0));
   CHECK_FALSE(resolveAxisPx("nope", 200, 10, 0));
 }

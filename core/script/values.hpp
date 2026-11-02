@@ -52,6 +52,9 @@ namespace stencil::core::script {
   // Replaces std::atoi, which is undefined on an overflowing digit run.
   int parseIntClamped(const std::string& text);
 
+  // A §1 number's value: N, or N/D for a fraction (the lexer refuses a zero D).
+  double numberValue(const std::string& text);
+
   // A word that starts like a number but broke the §1 grammar ("10foo", "+5", "1e3", ".5").
   bool isMalformedNumber(const Token& t);
   std::string malformedNumberMessage(const Token& t);

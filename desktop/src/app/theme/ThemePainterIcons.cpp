@@ -113,8 +113,7 @@ namespace stencil::gui {
     set(w.acts.fullscreen, w.fs.active ? "minimize" : "maximize");
     set(w.acts.tooltip, "message");
     set(w.acts.allowFormulas, "function");
-    set(w.units.unitCm, "ruler");
-    set(w.units.unitIn, "ruler");
+    for (QAction* u : {w.units.unitCm, w.units.unitMm, w.units.unitIn}) set(u, "ruler");
     // Always the mask glyph, but REGISTERED like the rest: the ghost toggle's ink flips to
     // on-accent when it lights up, and only a named glyph is repainted for that.
     set(w.acts.incognito, "incognito");

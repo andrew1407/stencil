@@ -4,6 +4,7 @@
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QLineEdit>
+#include <algorithm>
 #include "naturalPage.hpp"
 #include "CanvasWidget.hpp"
 #include "pageSizeCombo.hpp"
@@ -67,23 +68,28 @@ namespace stencil::gui {
     if (!w.units.customW || !w.units.customH) return;
     const auto u = w.unitFormat();
     const int decimals = UnitsController::decimalsFor(w.settings.units);
+    // Display units: the 500 cm cap reads 5000 in mm; inches keep the bare 500.
+    const double maxV = 500.0 * std::max(1.0, u.factor);
     QSignalBlocker bw(w.units.customW), bh(w.units.customH);
-    w.units.customW->setDecimals(decimals);
-    w.units.customH->setDecimals(decimals);
+    for (QDoubleSpinBox* box : {w.units.customW, w.units.customH}) {
+      box->setDecimals(decimals);
+      box->setRange(0.1, maxV);
+    }
     w.units.customW->setValue(w.settings.customPageWidth * u.factor);
     w.units.customH->setValue(w.settings.customPageHeight * u.factor);
   }
 
   void EditorView::syncUnitControls() {
-    const bool inches = UnitsController::isInches(w.settings.units);
-    if (w.units.unitCm && w.units.unitIn) {
-      QSignalBlocker bc(w.units.unitCm), bi(w.units.unitIn);
-      w.units.unitIn->setChecked(inches);
-      w.units.unitCm->setChecked(!inches);
+    const int idx = UnitsController::indexOf(w.settings.units);
+    if (w.units.unitCm && w.units.unitMm && w.units.unitIn) {
+      QSignalBlocker bc(w.units.unitCm), bm(w.units.unitMm), bi(w.units.unitIn);
+      w.units.unitCm->setChecked(idx == 0);
+      w.units.unitMm->setChecked(idx == 1);
+      w.units.unitIn->setChecked(idx == 2);
     }
     if (w.units.unitCombo) {
       QSignalBlocker b(w.units.unitCombo);
-      w.units.unitCombo->setCurrentIndex(inches ? 1 : 0);
+      w.units.unitCombo->setCurrentIndex(idx);
     }
   }
 

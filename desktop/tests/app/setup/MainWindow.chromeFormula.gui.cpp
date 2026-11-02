@@ -155,6 +155,9 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(near(at("PAGE_WIDTH_IN", "").x, 29.7 / 2.54), "_IN converts while showing cm");
     win.settings.units = QStringLiteral("in");
     QVERIFY2(near(at("PAGE_WIDTH", "").x, 29.7 / 2.54), "PAGE_WIDTH follows the display unit");
+    win.settings.units = QStringLiteral("mm");
+    QVERIFY2(near(at("PAGE_WIDTH", "").x, 297.0), "…in millimetres too");
+    QVERIFY2(near(at("PAGE_WIDTH_MM", "").x, 297.0), "_MM is always millimetres");
     win.settings.units = QStringLiteral("cm");
     QVERIFY2(near(at("PAGE_WIDTH", "").x, 29.7), "…and reads cm again");
     QVERIFY2(near(at("PAGE_WIDTHS", "").x, rawX), "an unknown name leaves the raw coordinate");

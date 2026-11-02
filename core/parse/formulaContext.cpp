@@ -8,9 +8,10 @@ namespace stencil::core {
 
     constexpr double CM_PER_INCH = 2.54;  // browser/js/utils/math.js CM_PER_INCH
 
-    // Twin of cmToUnit(): only "in" converts, every other unit word reads as cm.
+    // Twin of cmToUnit(): "in" and "mm" convert, every other unit word reads as cm.
     double inUnit(double cm, const std::string& unit) {
-      return unit == "in" ? cm / CM_PER_INCH : cm;
+      if (unit == "in") return cm / CM_PER_INCH;
+      return unit == "mm" ? cm * 10.0 : cm;
     }
 
     // Validation has no live coordinates: an unbound axis probes at 1, as it always has.
@@ -37,6 +38,8 @@ namespace stencil::core {
     else if (name == "PAGE_HEIGHT_CM") v = ctx.pageHeightCm;
     else if (name == "PAGE_WIDTH_IN") v = inUnit(ctx.pageWidthCm, "in");
     else if (name == "PAGE_HEIGHT_IN") v = inUnit(ctx.pageHeightCm, "in");
+    else if (name == "PAGE_WIDTH_MM") v = inUnit(ctx.pageWidthCm, "mm");
+    else if (name == "PAGE_HEIGHT_MM") v = inUnit(ctx.pageHeightCm, "mm");
     else if (name == "IMAGE_WIDTH") v = ctx.imageWidth;
     else if (name == "IMAGE_HEIGHT") v = ctx.imageHeight;
     else return false;

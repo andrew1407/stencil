@@ -17,9 +17,10 @@ const preamble =
     \\  const text = String(token).trim().toLowerCase();
     \\  const fromEnd = text.startsWith('-');
     \\  const body = (fromEnd ? text.slice(1) : text).trim();
-    \\  const value = parseFloat(body);
+    \\  const [num, den] = body.match(/^[0-9.]+(?:\/[0-9.]+)?/)?.[0].split('/') ?? [];
+    \\  const value = parseFloat(num) / (den === undefined ? 1 : parseFloat(den));
     \\  if (!Number.isFinite(value)) return 0;
-    \\  const unit = body.replace(/^[0-9.]+/, '').trim();
+    \\  const unit = body.replace(/^[0-9.]+(?:\/[0-9.]+)?/, '').trim();
     \\  if (unit === '') return fromEnd ? -value : value;
     \\  let px = value;
     \\  if (unit === '%') px = (value / 100) * extent;

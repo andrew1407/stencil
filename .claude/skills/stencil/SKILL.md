@@ -69,7 +69,7 @@ guessing. What you need to *choose* a command:
 | use this image/video | `-i, --input <path\|url>` (local file or `http(s)://`) |
 | blank canvas | `--blank [fmt] [w h] [color]` — a page format (`a0`…`c10`) **or** explicit `w h`, not both; default A4, default white |
 | a frame from a video | `-f, --frame <n>` (0-based; needs `ffmpeg` on PATH; direct media, not a streaming page URL) |
-| crop | `-c, --crop "x1=… x2=… y1=… y2=…"` — each edge is `px`/`cm`/`mm`/`in`/`%` or a bare pixel delta; a leading `-` measures from the far edge; omit an edge to keep the image bound |
+| crop | `-c, --crop "x1=… x2=… y1=… y2=…"` — each edge is `px`/`cm`/`mm`/`in`/`%` (decimal or `N/D` fraction, `3/4in`) or a bare pixel delta; a leading `-` measures from the far edge; omit an edge to keep the image bound |
 | keep page aspect on a 1-axis crop | `--album` |
 | rotate | `-r, --rotate <int>` |
 | draw something on it | `-l, --layout <path\|url>` (see below) |

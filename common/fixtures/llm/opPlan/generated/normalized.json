@@ -1284,7 +1284,7 @@
       "bot",
       "mcp"
      ],
-     "json": "{\"status\":\"invalid\",\"reply\":\"\",\"actions\":[],\"variants\":[],\"ask\":null,\"warnings\":[],\"error\":{\"code\":\"E_ACTION\",\"op\":\"crop\",\"detail\":\"\\\"x1\\\" in spec must be a crop token (number with optional % / px / cm / in, leading \\\"-\\\" from the far side)\",\"message\":\"Invalid crop action: \\\"x1\\\" in spec must be a crop token (number with optional % / px / cm / in, leading \\\"-\\\" from the far side)\"}}"
+     "json": "{\"status\":\"invalid\",\"reply\":\"\",\"actions\":[],\"variants\":[],\"ask\":null,\"warnings\":[],\"error\":{\"code\":\"E_ACTION\",\"op\":\"crop\",\"detail\":\"\\\"x1\\\" in spec must be a crop token (number or N/D fraction with optional % / px / cm / mm / in, leading \\\"-\\\" from the far side)\",\"message\":\"Invalid crop action: \\\"x1\\\" in spec must be a crop token (number or N/D fraction with optional % / px / cm / mm / in, leading \\\"-\\\" from the far side)\"}}"
     }
    ]
   },
@@ -1301,7 +1301,7 @@
       "bot",
       "mcp"
      ],
-     "json": "{\"status\":\"invalid\",\"reply\":\"\",\"actions\":[],\"variants\":[],\"ask\":null,\"warnings\":[],\"error\":{\"code\":\"E_ACTION\",\"op\":\"crop\",\"detail\":\"\\\"x1\\\" in spec must be a crop token (number with optional % / px / cm / in, leading \\\"-\\\" from the far side)\",\"message\":\"Invalid crop action: \\\"x1\\\" in spec must be a crop token (number with optional % / px / cm / in, leading \\\"-\\\" from the far side)\"}}"
+     "json": "{\"status\":\"invalid\",\"reply\":\"\",\"actions\":[],\"variants\":[],\"ask\":null,\"warnings\":[],\"error\":{\"code\":\"E_ACTION\",\"op\":\"crop\",\"detail\":\"\\\"x1\\\" in spec must be a crop token (number or N/D fraction with optional % / px / cm / mm / in, leading \\\"-\\\" from the far side)\",\"message\":\"Invalid crop action: \\\"x1\\\" in spec must be a crop token (number or N/D fraction with optional % / px / cm / mm / in, leading \\\"-\\\" from the far side)\"}}"
     }
    ]
   },
@@ -1318,7 +1318,7 @@
       "bot",
       "mcp"
      ],
-     "json": "{\"status\":\"invalid\",\"reply\":\"\",\"actions\":[],\"variants\":[],\"ask\":null,\"warnings\":[],\"error\":{\"code\":\"E_ACTION\",\"op\":\"crop\",\"detail\":\"\\\"x1\\\" in spec must be a crop token (number with optional % / px / cm / in, leading \\\"-\\\" from the far side)\",\"message\":\"Invalid crop action: \\\"x1\\\" in spec must be a crop token (number with optional % / px / cm / in, leading \\\"-\\\" from the far side)\"}}"
+     "json": "{\"status\":\"invalid\",\"reply\":\"\",\"actions\":[],\"variants\":[],\"ask\":null,\"warnings\":[],\"error\":{\"code\":\"E_ACTION\",\"op\":\"crop\",\"detail\":\"\\\"x1\\\" in spec must be a crop token (number or N/D fraction with optional % / px / cm / mm / in, leading \\\"-\\\" from the far side)\",\"message\":\"Invalid crop action: \\\"x1\\\" in spec must be a crop token (number or N/D fraction with optional % / px / cm / mm / in, leading \\\"-\\\" from the far side)\"}}"
     }
    ]
   },
@@ -3179,6 +3179,40 @@
       "mcp"
      ],
      "json": "{\"status\":\"valid\",\"reply\":\"ok\",\"actions\":[{\"op\":\"layout\",\"lines\":[{\"points\":[{\"x\":0,\"y\":0},{\"x\":10,\"y\":20}],\"thickness\":0.5,\"pointSize\":0}]}],\"variants\":[],\"ask\":null,\"warnings\":[],\"error\":null}"
+    }
+   ]
+  },
+  {
+   "name": "crop-token-fraction-valid",
+   "source": "hand",
+   "results": [
+    {
+     "surfaces": [
+      "browser",
+      "desktop",
+      "cli",
+      "pystencil",
+      "bot",
+      "mcp"
+     ],
+     "json": "{\"status\":\"valid\",\"reply\":\"ok\",\"actions\":[{\"op\":\"crop\",\"spec\":{\"x1\":\"3/4in\",\"x2\":\"-25/2mm\"}}],\"variants\":[],\"ask\":null,\"warnings\":[],\"error\":null}"
+    }
+   ]
+  },
+  {
+   "name": "crop-token-zero-denominator-invalid",
+   "source": "hand",
+   "results": [
+    {
+     "surfaces": [
+      "browser",
+      "desktop",
+      "cli",
+      "pystencil",
+      "bot",
+      "mcp"
+     ],
+     "json": "{\"status\":\"invalid\",\"reply\":\"\",\"actions\":[],\"variants\":[],\"ask\":null,\"warnings\":[],\"error\":{\"code\":\"E_ACTION\",\"op\":\"crop\",\"detail\":\"\\\"x1\\\" in spec must be a crop token (number or N/D fraction with optional % / px / cm / mm / in, leading \\\"-\\\" from the far side)\",\"message\":\"Invalid crop action: \\\"x1\\\" in spec must be a crop token (number or N/D fraction with optional % / px / cm / mm / in, leading \\\"-\\\" from the far side)\"}}"
     }
    ]
   },
@@ -5865,7 +5899,7 @@
       "browser",
       "desktop"
      ],
-     "json": "{\"status\":\"invalid\",\"reply\":\"\",\"actions\":[],\"variants\":[],\"ask\":null,\"warnings\":[],\"error\":{\"code\":\"E_ACTION\",\"op\":\"units\",\"detail\":\"\\\"value\\\" must be one of \\\"cm\\\", \\\"in\\\"\",\"message\":\"Invalid units action: \\\"value\\\" must be one of \\\"cm\\\", \\\"in\\\"\"}}"
+     "json": "{\"status\":\"invalid\",\"reply\":\"\",\"actions\":[],\"variants\":[],\"ask\":null,\"warnings\":[],\"error\":{\"code\":\"E_ACTION\",\"op\":\"units\",\"detail\":\"\\\"value\\\" must be one of \\\"cm\\\", \\\"mm\\\", \\\"in\\\"\",\"message\":\"Invalid units action: \\\"value\\\" must be one of \\\"cm\\\", \\\"mm\\\", \\\"in\\\"\"}}"
     }
    ]
   },
@@ -9761,7 +9795,7 @@
       "bot",
       "mcp"
      ],
-     "json": "{\"status\":\"invalid\",\"reply\":\"\",\"actions\":[],\"variants\":[],\"ask\":null,\"warnings\":[],\"error\":{\"code\":\"E_ACTION\",\"op\":\"crop\",\"detail\":\"\\\"x1\\\" in spec must be a crop token (number with optional % / px / cm / in, leading \\\"-\\\" from the far side)\",\"message\":\"Invalid crop action: \\\"x1\\\" in spec must be a crop token (number with optional % / px / cm / in, leading \\\"-\\\" from the far side)\"}}"
+     "json": "{\"status\":\"invalid\",\"reply\":\"\",\"actions\":[],\"variants\":[],\"ask\":null,\"warnings\":[],\"error\":{\"code\":\"E_ACTION\",\"op\":\"crop\",\"detail\":\"\\\"x1\\\" in spec must be a crop token (number or N/D fraction with optional % / px / cm / mm / in, leading \\\"-\\\" from the far side)\",\"message\":\"Invalid crop action: \\\"x1\\\" in spec must be a crop token (number or N/D fraction with optional % / px / cm / mm / in, leading \\\"-\\\" from the far side)\"}}"
     }
    ]
   },

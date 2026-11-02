@@ -2246,7 +2246,7 @@
     ]
    },
    "expect": "invalid",
-   "reason": "only % / px / cm / in units"
+   "reason": "only % / px / cm / mm / in units"
   },
   {
    "file": "111-crop-token-plus-sign-invalid.json",
@@ -4586,6 +4586,55 @@
    },
    "expect": "valid",
    "reason": "a stored layout keeps what a script draws: a fraction under 1, and pointSize 0, which hides the points"
+  },
+  {
+   "file": "244-crop-token-fraction-valid.json",
+   "name": "crop-token-fraction-valid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "crop",
+      "spec": {
+       "x1": "3/4in",
+       "x2": "-25/2mm"
+      }
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "a token may be an N/D fraction, with mm as a unit"
+  },
+  {
+   "file": "245-crop-token-zero-denominator-invalid.json",
+   "name": "crop-token-zero-denominator-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "crop",
+      "spec": {
+       "x1": "1/0in"
+      }
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "a fraction's denominator is not zero"
   }
  ]
 }

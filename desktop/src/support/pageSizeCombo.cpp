@@ -11,8 +11,9 @@ namespace stencil::gui {
   void fillPageSizeCombo(QComboBox* combo, bool includeCustom,
                          const QString& units) {
     if (!combo) return;
-    const bool inches = (units == QLatin1String("in"));
-    const double factor = inches ? 1.0 / 2.54 : 1.0;
+    // Display units per cm (app/view/UnitsController.hpp factor; support sits below app).
+    const double factor = units == QLatin1String("in") ? 1.0 / 2.54
+                          : units == QLatin1String("mm") ? 10.0 : 1.0;
     // ≤2 decimals, trailing zeros trimmed — the option-label contract with the browser dropdown.
     const auto num = [](double v) {
       return QString::number(std::round(v * 100.0) / 100.0);
@@ -31,7 +32,7 @@ namespace stencil::gui {
       if (name == QLatin1String("custom")) continue;  // label stays "Custom"
       const core::PageSize ps = core::namedPageSize(name.toStdString());
       // No trailing unit word: this combo always sits beside its own unit combo, which already says
-      // "cm"/"in" once for the whole row (user report; browser twin: units.js pageFormatLabel).
+      // "cm"/"mm"/"in" once for the whole row (user report; browser twin: units.js pageFormatLabel).
       combo->setItemText(i, QString("%1 (%2 × %3)")
                                 .arg(name, num(ps.width * factor), num(ps.height * factor)));
     }

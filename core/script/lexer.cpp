@@ -9,7 +9,6 @@
 namespace stencil::core::script {
 
   namespace {
-
     // ASCII only: std::isspace follows a locale the host may set, and could split UTF-8.
     bool isSpaceByte(char c) {
       return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v';
@@ -28,24 +27,32 @@ namespace stencil::core::script {
       return from < s.size();
     }
 
-    // The §1 number, -?\d+(\.\d+)?, as a prefix of `s`: its end, or 0 when there is none.
+    // \d+(\.\d+)? at `i`: its end, or `i` when there is none.
+    std::size_t decimalEnd(std::string_view s, std::size_t i) {
+      const auto digitsFrom = [s](std::size_t k) {
+        while (k < s.size() && isDigitByte(s[k])) ++k;
+        return k;
+      };
+      const std::size_t whole = digitsFrom(i);
+      if (whole == i || whole + 1 >= s.size() || s[whole] != '.' || !isDigitByte(s[whole + 1]))
+        return whole;
+      return digitsFrom(whole + 1);
+    }
+
+    // The §1 number, -?D(/D)? with D = \d+(\.\d+)? and a non-zero denominator, as a prefix of
+    // `s`: its end, or 0 when there is none.
     std::size_t numberEnd(std::string_view s) {
-      std::size_t i = (!s.empty() && s[0] == '-') ? 1 : 0;
-      const std::size_t digits = i;
-      while (i < s.size() && isDigitByte(s[i])) ++i;
-      if (i == digits) return 0;
-      if (i + 1 < s.size() && s[i] == '.' && isDigitByte(s[i + 1])) {
-        i += 2;
-        while (i < s.size() && isDigitByte(s[i])) ++i;
-      }
-      return i;
+      const std::size_t sign = (!s.empty() && s[0] == '-') ? 1 : 0;
+      const std::size_t i = decimalEnd(s, sign);
+      if (i == sign) return 0;
+      if (i >= s.size() || s[i] != '/') return i;
+      const std::size_t den = decimalEnd(s, i + 1);
+      const bool nonZero = s.substr(i + 1, den - i - 1).find_first_of("123456789") != s.npos;
+      return nonZero ? den : i;
     }
 
     bool isParamWord(std::string_view s) {
-      if (s.size() < 2 || s[0] != '@') return false;
-      for (std::size_t i = 1; i < s.size(); ++i)
-        if (!isDigitByte(s[i])) return false;
-      return true;
+      return s.size() >= 2 && s[0] == '@' && std::all_of(s.begin() + 1, s.end(), isDigitByte);
     }
 
     // "C:\a.png" and "C:/a.png": a drive letter's ':' belongs to the path, not the block.
@@ -54,7 +61,6 @@ namespace stencil::core::script {
       return j == wordStart + 1 && ((d >= 'A' && d <= 'Z') || (d >= 'a' && d <= 'z')) &&
              j + 1 < src.size() && (src[j + 1] == '\\' || src[j + 1] == '/');
     }
-
   }  // namespace
 
   bool isHexColorWord(std::string_view word) {
@@ -101,13 +107,7 @@ namespace stencil::core::script {
                                        std::to_string(MAX_TOKENS) + ")"});
         return;
       }
-      Token tok;
-      tok.line = atLine;
-      tok.col = atCol;
-      tok.len = static_cast<int>(t.size());
-      tok.kind = k;
-      tok.text = t;
-      out.tokens.push_back(std::move(tok));
+      out.tokens.push_back(Token{atLine, atCol, static_cast<int>(t.size()), k, std::string(t)});
     };
 
     while (i < src.size()) {

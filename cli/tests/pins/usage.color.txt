@@ -11,7 +11,8 @@
 [1mOptions[0m
   -f, --frame <n>            Video frame index to grab (default 0)
   -c, --crop "<spec>"        Crop, e.g. "x1=10% x2=90% y1=10% y2=90%"
-                             (units: px, cm, mm, in, %, or a bare pixel delta)
+                             (units: px, cm, mm, in, %, or a bare pixel delta;
+                              a number may be a fraction, e.g. 3/4in)
       --album                With one crop axis, derive the other (landscape)
       --flip                 Mirror the image left-right (after the crop, before
                              the rotation)

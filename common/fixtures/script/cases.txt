@@ -64,6 +64,22 @@ block 0 file "a.png"
 block 0 file "a.png"
   op open "a.png" 1
   op crop edit=1 "" [10% -10% 2cm -1in] 0
+=== fraction-lengths
+--- script
+@source a.png:
+    @crop 1/2in 3/4cm
+    @crop x1=-1/2in x2=25/2mm y1=1/3 y2=0.5/2%
+    @use line 1/2, point 5/2
+    @use in
+    @line (1/2, 25/2mm) (3/4, 1)
+    @line (1/4, 1/8) (1, 2)cm
+--- dump
+block 0 file "a.png"
+  op open "a.png" 1
+  op crop edit=1 "" [1/2in -1/2in 3/4cm -3/4cm] 0
+  op crop edit=2 "" [-1/2in 25/2mm 1/3px 0.5/2%] 0
+  op line edit=3 "#FFFF00" "solid" "transparent" "" [1/2in 25/2mm 3/4in 1in] 0.5 2.5 0
+  op line edit=4 "#FFFF00" "solid" "transparent" "" [1/4in 1/8in 1cm 2cm] 0.5 2.5 0
 === dump-numbers
 --- script
 @source clip.mp4:
@@ -439,14 +455,31 @@ block 0 project ""
 block 0 file "a.png"
   op open "a.png" 1
 --- diagnostics
-2:11:5: error: '10foo' is not a number: write digits, an optional .digits, then px, cm, mm, in or % [E_BAD_TOKEN]
-3:11:2: error: '+5' is not a number: write digits, an optional .digits, then px, cm, mm, in or % [E_BAD_TOKEN]
-4:15:5: error: '1.2.3' is not a number: write digits, an optional .digits, then px, cm, mm, in or % [E_BAD_TOKEN]
-5:11:2: error: '5.' is not a number: write digits, an optional .digits, then px, cm, mm, in or % [E_BAD_TOKEN]
-6:15:4: error: '0x10' is not a number: write digits, an optional .digits, then px, cm, mm, in or % [E_BAD_TOKEN]
-7:11:5: error: '1e999' is not a number: write digits, an optional .digits, then px, cm, mm, in or % [E_BAD_TOKEN]
+2:11:5: error: '10foo' is not a number: write digits, an optional .digits or /digits, then px, cm, mm, in or % [E_BAD_TOKEN]
+3:11:2: error: '+5' is not a number: write digits, an optional .digits or /digits, then px, cm, mm, in or % [E_BAD_TOKEN]
+4:15:5: error: '1.2.3' is not a number: write digits, an optional .digits or /digits, then px, cm, mm, in or % [E_BAD_TOKEN]
+5:11:2: error: '5.' is not a number: write digits, an optional .digits or /digits, then px, cm, mm, in or % [E_BAD_TOKEN]
+6:15:4: error: '0x10' is not a number: write digits, an optional .digits or /digits, then px, cm, mm, in or % [E_BAD_TOKEN]
+7:11:5: error: '1e999' is not a number: write digits, an optional .digits or /digits, then px, cm, mm, in or % [E_BAD_TOKEN]
 8:12:2: error: expected a number for x [E_BAD_TOKEN]
 9:11:2: error: '+1' is not an edit number [E_BAD_TOKEN]
+=== err-fraction-grammar
+--- script
+@source a.png:
+    @crop 1/0in
+    @crop 1//2in
+    @crop 1/2.in
+    @crop 1/0.0
+    @use line 1/2/3
+--- dump
+block 0 file "a.png"
+  op open "a.png" 1
+--- diagnostics
+2:11:5: error: '1/0in' is not a number: write digits, an optional .digits or /digits, then px, cm, mm, in or % [E_BAD_TOKEN]
+3:11:6: error: '1//2in' is not a number: write digits, an optional .digits or /digits, then px, cm, mm, in or % [E_BAD_TOKEN]
+4:11:6: error: '1/2.in' is not a number: write digits, an optional .digits or /digits, then px, cm, mm, in or % [E_BAD_TOKEN]
+5:11:5: error: '1/0.0' is not a number: write digits, an optional .digits or /digits, then px, cm, mm, in or % [E_BAD_TOKEN]
+6:15:5: error: '1/2/3' is not a number: write digits, an optional .digits or /digits, then px, cm, mm, in or % [E_BAD_TOKEN]
 === err-redo-count
 --- script
 @source a.png:
@@ -509,7 +542,7 @@ block 0 file "a.png"
 block 1 file "b.png"
   op open "b.png" 1
 --- diagnostics
-2:11:2: error: '10foo' is not a number: write digits, an optional .digits, then px, cm, mm, in or % (from the @use stencil at 6:5) [E_BAD_TOKEN]
+2:11:2: error: '10foo' is not a number: write digits, an optional .digits or /digits, then px, cm, mm, in or % (from the @use stencil at 6:5) [E_BAD_TOKEN]
 4:12:2: error: expected a number for x (from the @use stencil at 7:5) [E_BAD_TOKEN]
 === err-template-param-index
 --- script

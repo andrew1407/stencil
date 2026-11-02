@@ -8,7 +8,7 @@ export type Line = CodecLine;
 export type CompareMode = 'none' | 'original' | 'vertical' | 'horizontal';
 export type ImageFilter = 'none' | 'bw' | 'sepia' | 'invert' | 'contour' | 'custom';
 export type DrawModeKind = 'line' | 'rect';
-export type Unit = 'cm' | 'in';
+export type Unit = 'cm' | 'mm' | 'in';
 
 /** A point hit with its owning line; lineIdx -1 = the in-progress line. */
 export interface PointHit { lineIdx: number; ptIdx: number; point: Point; }

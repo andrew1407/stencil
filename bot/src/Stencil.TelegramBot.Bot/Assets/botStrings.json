@@ -140,7 +140,7 @@
     "layoutCommandNeedsImage": "Upload an image (or use /blank) before applying a layout.",
     "layoutFetchFailed": "Could not fetch the layout from that link.",
     "layoutInvalid": "That isn't a valid Stencil layout JSON.",
-    "formatCustomUsage": "Usage: /format custom <width> <height> (cm), e.g. /format custom 10 15",
+    "formatCustomUsage": "Usage: /format custom <width> <height> (cm, or add mm/in; fractions like 21/2 work), e.g. /format custom 10 15",
     "formatCustomSet": "Page format set to custom ({0}×{1} cm) — saved into the project layout.",
     "formatUnknown": "Unknown page format '{0}' — type /format to list formats.",
     "formatSet": "Page format set to {0} ({1}×{2} cm) — the /blank default, saved into the project layout.",

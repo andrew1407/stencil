@@ -32,10 +32,12 @@ or writes one — the adapters do that, driving the op stream this document defi
   **case-insensitive** (`@CROP` ≡ `@crop`, `BW` ≡ `bw`). **Paths, URLs and template names are
   case-sensitive.**
 - **Strings** are double-quoted, with `\"` and `\\` as the only escapes.
-- **Numbers** are `-?\d+(\.\d+)?` with an optional directly attached unit `px`, `cm`, `mm`,
-  `in` or `%`. A bare number takes the current `@use` unit. Any other run that starts with a
-  digit (`10foo`, `+5`, `.5`, `5.`, `1.2.3`, `0x10`, `1e3`) is a plain word: where a number is
-  expected it is `E_BAD_TOKEN`, and as a path (`@save 1.5x.png`) it is simply a word.
+- **Numbers** are `-?D(/D)?` with `D` = `\d+(\.\d+)?` — a decimal, or a fraction `N/D` whose
+  denominator is not zero (`3/4in` is 0.75 in) — with an optional directly attached unit `px`,
+  `cm`, `mm`, `in` or `%`. A bare number takes the current `@use` unit. Any other run that starts
+  with a digit (`10foo`, `+5`, `.5`, `5.`, `1.2.3`, `0x10`, `1e3`, `1/0`, `1//2`) is a plain
+  word: where a number is expected it is `E_BAD_TOKEN`, and as a path (`@save 1.5x.png`) it is
+  simply a word.
 - **`://` never breaks a word and never opens a block**, so a URL survives lexing intact.
   Nor does a drive letter's `:` before `\` or `/`, so `@source C:\shots\a.png:` names one path.
 - **Points** are `(x, y)`. A unit may attach to a component (`(14px, 50%)`) or to the pair
@@ -91,7 +93,8 @@ incognito session, which keeps nothing, is saved without a rename.
 
 `px`, `cm`, `mm`, `in` and `%` are accepted everywhere a length is. A bare number means the
 current `@use` unit, which starts at `px` and lasts to the end of its block. Lowering makes
-every length explicit, so `23` under `@use %` becomes `23%`.
+every length explicit, so `23` under `@use %` becomes `23%`; a fraction stays as written
+(`1/2` under `@use in` becomes `1/2in`).
 
 A leading `-` on a **united** length means *measured from the far end of that axis*, not a
 negative length: on a 200px-wide image, `-10%` is x = 180.

@@ -7,11 +7,14 @@ test('cmToUnit / unitToCm round-trip', () => {
   assert.equal(cmToUnit(5, 'cm'), 5);
   assert.equal(unitToCm(1, 'in'), CM_PER_INCH);
   assert.equal(unitToCm(5, 'cm'), 5);
+  assert.equal(cmToUnit(21, 'mm'), 210);
+  assert.equal(unitToCm(210, 'mm'), 21);
 });
 
 test('unitLabel', () => {
   assert.equal(unitLabel('in'), 'in');
   assert.equal(unitLabel('cm'), 'cm');
+  assert.equal(unitLabel('mm'), 'mm');
   assert.equal(unitLabel('anything-else'), 'cm');
 });
 

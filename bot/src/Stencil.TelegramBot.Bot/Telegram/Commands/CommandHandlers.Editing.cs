@@ -104,8 +104,8 @@ public sealed partial class CommandHandlers
         if (first.Equals("custom", StringComparison.OrdinalIgnoreCase))
         {
             if (cmd.Args.Count < 3
-                || !double.TryParse(cmd.Args[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double w)
-                || !double.TryParse(cmd.Args[2], NumberStyles.Float, CultureInfo.InvariantCulture, out double h)
+                || !tryParseDimCm(cmd.Args[1], out double w)
+                || !tryParseDimCm(cmd.Args[2], out double h)
                 || w <= 0 || h <= 0)
             {
                 await _bot.SendMessage(chatId, Replies.FormatCustomUsage(), cancellationToken: ct);
@@ -123,6 +123,11 @@ public sealed partial class CommandHandlers
         await _editing.SetPageFormatAsync(userId, name, null, null, ct);
         await _bot.SendMessage(chatId, Replies.FormatSet(name, PageFormats.Cm(wcm), PageFormats.Cm(hcm)), cancellationToken: ct);
     }
+
+    // 21/2, 5in, 148mm; any other number double.Parse took before is still cm.
+    private static bool tryParseDimCm(string arg, out double cm) =>
+        LengthNumber.TryParseCm(arg, out cm)
+        || double.TryParse(arg, NumberStyles.Float, CultureInfo.InvariantCulture, out cm);
 
     private async Task cropAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {

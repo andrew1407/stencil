@@ -42,7 +42,7 @@ namespace stencil::gui {
     QString pageSize = "A3";          // a named ISO format ("A3", "B5", …) | custom
     double customPageWidth = 21.0;
     double customPageHeight = 29.7;
-    // "cm" | "in"; lengths are always STORED in cm.
+    // "cm" | "mm" | "in"; lengths are always STORED in cm.
     QString units = "cm";
     bool allowFormulas = false;
     QString formulaX;

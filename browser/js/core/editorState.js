@@ -76,7 +76,7 @@ export const createEditorState = () => ({
   formulaX: '',
   formulaY: '',
 
-// Lengths are always stored in cm; 'cm' | 'in' affects display/entry only. Seeded from
+// Lengths are always stored in cm; 'cm' | 'mm' | 'in' affects display/entry only. Seeded from
 // locale; a restored layout's saved unit overrides it.
   unit: defaultUnitFromLocale(),
 

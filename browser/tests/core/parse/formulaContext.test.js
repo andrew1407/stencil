@@ -44,11 +44,13 @@ test('PAGE_WIDTH / PAGE_HEIGHT follow the selected unit; the suffixed forms do n
   near(fe.applyCtx('PAGE_HEIGHT', 'x', 0, true, a4('in')), 29.7 / 2.54, 'in');
   near(fe.applyCtx('PAGE_HEIGHT_CM', 'x', 0, true, a4('in')), 29.7, '_CM under in');
   near(fe.applyCtx('PAGE_WIDTH_IN', 'x', 0, true, a4('cm')), 21 / 2.54, '_IN under cm');
+  near(fe.applyCtx('PAGE_WIDTH', 'x', 0, true, a4('mm')), 210, 'mm');
+  near(fe.applyCtx('PAGE_HEIGHT_MM', 'x', 0, true, a4('in')), 297, '_MM under in');
 });
 
 test('names are case-sensitive and matched whole', () => {
   for (const expr of ['PAGE_WIDTHS', 'page_width', 'Page_Width', 'PAGE', 'X', 'Y',
-    'PAGE_WIDTH_MM', 'IMAGE_WIDTH2', 'foo']) {
+    'PAGE_WIDTH_PT', 'IMAGE_WIDTH2', 'foo']) {
     assert.strictEqual(fe.validateCtx(expr, a4()), false, expr);
     assert.strictEqual(fe.applyCtx(expr, 'x', 42, true, a4()), 42, expr);
   }

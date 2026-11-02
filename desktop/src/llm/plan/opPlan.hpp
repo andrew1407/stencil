@@ -70,7 +70,7 @@ namespace stencil::llm {
     bool pointColorSet = false;
     QString drawMode;   // "line" | "rect" ("" = absent)
     QString fillColor;  // "#rrggbb" | "transparent" ("" = absent)
-    QString value;  // "cm" | "in"
+    QString value;  // "cm" | "mm" | "in"
     // compare (`mode` reused); split 0 = absent
     double split = 0;
     // zoom (exactly one of the two)

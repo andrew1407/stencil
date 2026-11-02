@@ -9,7 +9,8 @@ namespace stencil::core::opplan {
 
   namespace {
     constexpr std::array<GrammarRow, 9> GRAMMARS{{
-        {"CROP_TOKEN", "^-?(\\d+(\\.\\d+)?|\\.\\d+)(%|px|cm|in)?$", Grammar::CROP_TOKEN},
+        {"CROP_TOKEN", "^-?(\\d+(\\.\\d+)?|\\.\\d+)(/0*([1-9]\\d*(\\.\\d+)?|\\.\\d*[1-9]\\d*))?(%|px|cm|mm|in)?$",
+         Grammar::CROP_TOKEN},
         {"CROP_ASPECT", "^0*[1-9]\\d*:0*[1-9]\\d*$", Grammar::CROP_ASPECT},
         {"PAGE_FORMAT", "^[abc](10|[0-9])$", Grammar::PAGE_FORMAT},
         {"HEX", "^#[0-9a-fA-F]{6}$", Grammar::HEX},
@@ -30,20 +31,30 @@ namespace stencil::core::opplan {
       return n;
     }
 
-    // -?(\d+(\.\d+)?|\.\d+)(%|px|cm|in)?
-    bool cropToken(std::string_view s) {
-      std::size_t i = s.size() > 0 && s[0] == '-' ? 1 : 0;
+    // \d+(\.\d+)?|\.\d+ at `i`: its end, or npos when there is none.
+    std::size_t decimalEnd(std::string_view s, std::size_t i) {
       const std::size_t whole = digitRun(s, i);
       i += whole;
       if (i < s.size() && s[i] == '.') {
         const std::size_t frac = digitRun(s, i + 1);
-        if (frac == 0) return false;
-        i += 1 + frac;
-      } else if (whole == 0) {
-        return false;
+        return frac == 0 ? std::string_view::npos : i + 1 + frac;
+      }
+      return whole == 0 ? std::string_view::npos : i;
+    }
+
+    // -?D(/D)?(%|px|cm|mm|in)? with D = \d+(\.\d+)?|\.\d+ and the denominator not zero
+    bool cropToken(std::string_view s) {
+      std::size_t i = decimalEnd(s, s.size() > 0 && s[0] == '-' ? 1 : 0);
+      if (i == std::string_view::npos) return false;
+      if (i < s.size() && s[i] == '/') {
+        const std::size_t den = i + 1;
+        i = decimalEnd(s, den);
+        if (i == std::string_view::npos) return false;
+        if (s.substr(den, i - den).find_first_of("123456789") == std::string_view::npos) return false;
       }
       const std::string_view unit = s.substr(i);
-      return unit.empty() || unit == "%" || unit == "px" || unit == "cm" || unit == "in";
+      return unit.empty() || unit == "%" || unit == "px" || unit == "cm" || unit == "mm" ||
+             unit == "in";
     }
 
     // 0*[1-9]\d* — digits, not all of them zero.

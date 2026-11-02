@@ -62,11 +62,14 @@ TEST_CASE("PAGE_WIDTH / PAGE_HEIGHT follow the selected unit; the suffixed forms
   CHECK(*FormulaParser::evaluate("PAGE_HEIGHT", a4("in")) == doctest::Approx(29.7 / 2.54));
   CHECK(*FormulaParser::evaluate("PAGE_HEIGHT_CM", a4("in")) == doctest::Approx(29.7));
   CHECK(*FormulaParser::evaluate("PAGE_WIDTH_IN", a4("cm")) == doctest::Approx(21.0 / 2.54));
+  CHECK(*FormulaParser::evaluate("PAGE_WIDTH", a4("mm")) == doctest::Approx(210.0));
+  CHECK(*FormulaParser::evaluate("PAGE_HEIGHT_MM", a4("in")) == doctest::Approx(297.0));
+  CHECK(*FormulaParser::evaluate("PAGE_WIDTH_MM", a4("cm")) == doctest::Approx(210.0));
 }
 
 TEST_CASE("names are case-sensitive and matched whole") {
   for (const char* expr : {"PAGE_WIDTHS", "page_width", "Page_Width", "PAGE", "X", "Y",
-                           "PAGE_WIDTH_MM", "IMAGE_WIDTH2", "foo"}) {
+                           "PAGE_WIDTH_PT", "IMAGE_WIDTH2", "foo"}) {
     CHECK_FALSE_MESSAGE(FormulaParser::validate(expr, a4()), expr);
     CHECK_MESSAGE(FormulaParser::apply(expr, 'x', 42.0, true, a4()) == doctest::Approx(42.0),
                   expr);

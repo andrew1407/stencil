@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 
 namespace Stencil.TelegramBot.Domain.Editing;
@@ -122,7 +121,7 @@ public static partial class CropSpecResolver
         return t.FromEnd ? lengthPx - px : px;
     }
 
-    // The hand-rolled equivalent of /^(-)?\s*(\d*\.?\d+)\s*(px|cm|mm|in|%)?$/.
+    // The hand-rolled equivalent of /^(-)?\s*(\d+(\.\d+)?|\.\d+)(\/(\d+(\.\d+)?|\.\d+))?\s*(px|cm|mm|in|%)?$/ (D ≠ 0).
     private static LengthToken? parseLengthToken(string token)
     {
         string s = token.Trim().ToLowerInvariant();
@@ -141,40 +140,11 @@ public static partial class CropSpecResolver
         {
             i++;
         }
-        // Number: \d*\.?\d+ (at least one digit, at most one dot, no trailing dot).
-        int numStart = i;
-        int dots = 0, digitsAfterDot = 0, digits = 0;
-        while (i < s.Length)
-        {
-            char c = s[i];
-            if (c is >= '0' and <= '9')
-            {
-                digits++;
-                if (dots > 0)
-                {
-                    digitsAfterDot++;
-                }
-                i++;
-            }
-            else if (c == '.')
-            {
-                if (dots > 0)
-                {
-                    break;
-                }
-                dots++;
-                i++;
-            }
-            else
-            {
-                break;
-            }
-        }
-        if (digits == 0 || (dots > 0 && digitsAfterDot == 0))
+        i = LengthNumber.Scan(s, i, out double value);
+        if (i < 0)
         {
             return null;
         }
-        double value = double.Parse(s[numStart..i], CultureInfo.InvariantCulture);
         while (i < s.Length && char.IsWhiteSpace(s[i]))
         {
             i++;
@@ -184,7 +154,7 @@ public static partial class CropSpecResolver
             "%" => new LengthToken(LengthKind.PERCENT, value, fromEnd),
             "cm" => new LengthToken(LengthKind.CM, value, fromEnd),
             "mm" => new LengthToken(LengthKind.CM, value / 10.0, fromEnd),
-            "in" => new LengthToken(LengthKind.CM, value * _cmPerInch, fromEnd),
+            "in" => new LengthToken(LengthKind.CM, value * LengthNumber.CmPerInch, fromEnd),
             "px" => new LengthToken(LengthKind.PX, value, fromEnd),
             "" => new LengthToken(LengthKind.DELTA, fromEnd ? -value : value, false),
             _ => null,   // unknown unit suffix

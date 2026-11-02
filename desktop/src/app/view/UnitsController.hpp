@@ -17,21 +17,31 @@ namespace stencil::gui {
     QWidget* customGroup = nullptr;   // shown only for the "custom" format
     QDoubleSpinBox* customW = nullptr;
     QDoubleSpinBox* customH = nullptr;
-    QComboBox* unitCombo = nullptr;   // toolbar cm/in switch (mirrors the menu)
+    QComboBox* unitCombo = nullptr;   // toolbar cm/mm/in switch (mirrors the menu)
     QAction* unitCm = nullptr;
+    QAction* unitMm = nullptr;
     QAction* unitIn = nullptr;
 
     static constexpr double INCH_PER_CM = 1.0 / 2.54;
+    static constexpr double MM_PER_CM = 10.0;
 
     static bool isInches(const QString& code) { return code == QLatin1String("in"); }
+    static bool isMillimetres(const QString& code) { return code == QLatin1String("mm"); }
+    // Anything but an exact "mm" or "in" reads as centimetres.
     static QString canonicalUnit(const QString& code) {
-      return isInches(code) ? QStringLiteral("in") : QStringLiteral("cm");
+      return QLatin1String(label(code));
     }
     // Model values are always centimetres.
-    static double factor(const QString& code) { return isInches(code) ? INCH_PER_CM : 1.0; }
-    static const char* label(const QString& code) { return isInches(code) ? "in" : "cm"; }
-    // Inches need the extra digit to carry as much as one centimetre decimal.
+    static double factor(const QString& code) {
+      return isInches(code) ? INCH_PER_CM : isMillimetres(code) ? MM_PER_CM : 1.0;
+    }
+    static const char* label(const QString& code) {
+      return isInches(code) ? "in" : isMillimetres(code) ? "mm" : "cm";
+    }
+    // Inches need the extra digit to carry as much as one centimetre decimal; mm keeps one.
     static int decimalsFor(const QString& code) { return isInches(code) ? 2 : 1; }
+    // Combo / menu order: cm, mm, in.
+    static int indexOf(const QString& code) { return isInches(code) ? 2 : isMillimetres(code) ? 1 : 0; }
 
     // The scale behind core::pixelToPageRaw, not the formula path, so lengths are unit- and
     // formula-independent (browser units.js layoutLineLengthCm). 0 when nothing to measure.

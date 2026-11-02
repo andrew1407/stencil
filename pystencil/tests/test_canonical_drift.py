@@ -174,9 +174,9 @@ class OpRegistryAssetDriftTests(unittest.TestCase):
       LLM_SYSTEM_PROMPT,
     )
 
-    self.assertEqual(len(LLM_SYSTEM_PROMPT.encode()), 8814)
+    self.assertEqual(len(LLM_SYSTEM_PROMPT.encode()), 8822)
     self.assertEqual(len(CONSOLE_SETTINGS_PROMPT.encode()), 1532)
-    self.assertEqual(len(CONSOLE_SYSTEM_PROMPT.encode()), 10347)
+    self.assertEqual(len(CONSOLE_SYSTEM_PROMPT.encode()), 10355)
     self.assertIn("\n" + CONSOLE_SETTINGS_PROMPT + CONSOLE_SPLICE_ANCHOR, CONSOLE_SYSTEM_PROMPT)
 
 

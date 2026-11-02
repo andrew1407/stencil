@@ -26,9 +26,31 @@ namespace stencil::core {
         {"in", {LengthKind::CM, CM_PER_INCH, 1.0}},
         {"px", {LengthKind::PX, 1.0, 1.0}},
     }};
+
+    // \d*\.?\d+ at `i` (at least one digit, at most one dot, no trailing dot); advances `i`.
+    std::optional<double> scanDecimal(const std::string& s, std::size_t& i) {
+      const std::size_t start = i;
+      int dots = 0, digitsAfterDot = 0, digits = 0;
+      while (i < s.size()) {
+        const char c = s[i];
+        if (c >= '0' && c <= '9') {
+          ++digits;
+          if (dots) ++digitsAfterDot;
+          ++i;
+        } else if (c == '.' && !dots) {
+          ++dots;
+          ++i;
+        } else {
+          break;
+        }
+      }
+      if (digits == 0 || (dots > 0 && digitsAfterDot == 0)) return std::nullopt;
+      return parseDecimalPrefix(std::string_view(s).substr(start, i - start)).value_or(0.0);
+    }
   }  // namespace
 
-  // Hand-rolled /^(-)?\s*(\d*\.?\d+)\s*(px|cm|mm|in|%)?$/ — no <regex> in the wasm build.
+  // Hand-rolled /^(-)?\s*(\d*\.?\d+)(?:\/(\d*\.?\d+))?\s*(px|cm|mm|in|%)?$/ — no <regex> in
+  // the wasm build. `N/D` is a fraction (D non-zero), so '3/4in' is 0.75 in.
   std::optional<LengthToken> parseLengthToken(const std::string& token) {
     const std::string s = trimLowerAscii(token);
     if (s.empty()) return std::nullopt;
@@ -38,28 +60,15 @@ namespace stencil::core {
     if (s[i] == '-') { fromEnd = true; ++i; }
     while (i < s.size() && isAsciiSpace(s[i])) ++i;
 
-    // Number: \d*\.?\d+ (at least one digit, at most one dot, no trailing dot).
-    const std::size_t numStart = i;
-    int dots = 0, digitsAfterDot = 0, digits = 0;
-    while (i < s.size()) {
-      const char c = s[i];
-      if (c >= '0' && c <= '9') {
-        ++digits;
-        if (dots) ++digitsAfterDot;
-        ++i;
-      } else if (c == '.') {
-        if (dots) break;
-        ++dots;
-        ++i;
-      } else {
-        break;
-      }
+    const auto num = scanDecimal(s, i);
+    if (!num) return std::nullopt;
+    double value = *num;
+    if (i < s.size() && s[i] == '/') {
+      ++i;
+      const auto den = scanDecimal(s, i);
+      if (!den || *den == 0.0) return std::nullopt;
+      value /= *den;
     }
-    if (digits == 0) return std::nullopt;                 // no number at all
-    if (dots > 0 && digitsAfterDot == 0) return std::nullopt;  // trailing dot ("5.")
-
-    const std::string_view digitsRun = std::string_view(s).substr(numStart, i - numStart);
-    const double value = parseDecimalPrefix(digitsRun).value_or(0.0);
 
     while (i < s.size() && isAsciiSpace(s[i])) ++i;
     const std::string unit = s.substr(i);

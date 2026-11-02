@@ -8,7 +8,7 @@ import type { Gesture } from './pointer/gesture.js';
 export interface DualPoint { imgX: number; imgY: number; cssX: number; cssY: number; }
 export type ImageFilter = 'none' | 'bw' | 'sepia' | 'invert' | 'contour' | 'custom';
 export type CompareMode = 'none' | 'original' | 'vertical' | 'horizontal';
-export type Unit = 'cm' | 'in';
+export type Unit = 'cm' | 'mm' | 'in';
 /** The stroke being drawn: a CodecLine minus the fields it gains on commit. */
 export type CurrentLine = Pick<CodecLine, 'points' | 'color' | 'pointColor' | 'thickness' | 'pointSize' | 'style'>
   & Partial<Pick<CodecLine, 'locked' | 'fillColor'>>;

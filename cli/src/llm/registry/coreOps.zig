@@ -10,7 +10,7 @@ pub const ops = [_]OpDescriptor{
         .tag = .crop,
         .bullet =
         \\- {"op":"crop","spec":{"x1":"10%","x2":"-10%","aspect":"3:4"}} — move edges inward;
-        \\  tokens are numbers with optional unit % / px / cm / in; a leading "-" measures from the
+        \\  tokens are numbers or N/D, unit optional % / px / cm / mm / in; a leading "-" measures from the
         \\  opposite side. Include only the edges you want to move. For a target aspect ratio add
         \\  "aspect":"W:H" INSIDE "spec", never beside it (portrait "3:4", album/landscape "4:3",
         \\  square "1:1") — the editor cuts the resolved crop to that exact ratio about its centre,

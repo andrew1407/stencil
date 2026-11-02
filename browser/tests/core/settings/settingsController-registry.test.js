@@ -158,16 +158,18 @@ test('setCustomPageHeight: NaN aborts; a number updates coord table, redraws, sa
   assert.equal(app.rec.remoteSync, 1);
 });
 
-test('setUnit: only in/cm accepted; updates coord table, redraws, saves — no remote sync', () => {
+test('setUnit: only in/mm/cm accepted; updates coord table, redraws, saves — no remote sync', () => {
   const app = makeApp();
   const s = new SettingsController(app);
   s.setUnit('in');
   assert.equal(app.unit, 'in');
+  s.setUnit('mm');
+  assert.equal(app.unit, 'mm');
   s.setUnit('parsecs');   // anything not 'in' → 'cm'
   assert.equal(app.unit, 'cm');
-  assert.equal(app.rec.coordUpdate, 2);
-  assert.equal(app.rec.redraw, 2);
-  assert.equal(app.rec.save, 2);
+  assert.equal(app.rec.coordUpdate, 3);
+  assert.equal(app.rec.redraw, 3);
+  assert.equal(app.rec.save, 3);
   assert.equal(app.rec.remoteSync, 0);   // unit is a local display preference
 });
 

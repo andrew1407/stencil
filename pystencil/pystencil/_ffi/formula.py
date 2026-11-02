@@ -27,7 +27,7 @@ class FormulaContext:
   page_height_cm: float = UNSET
   image_width: float = UNSET
   image_height: float = UNSET
-  unit: str = "cm"  # "in" converts; every other word reads as cm
+  unit: str = "cm"  # "in" / "mm" convert; every other word reads as cm
 
 
 def ctx_args(ctx: FormulaContext) -> tuple:

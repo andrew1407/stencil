@@ -67,3 +67,15 @@ test('applyUnitToUI tolerates the toolbar select not being in the DOM', () => {
   elements.clear();                                      // no selects at all
   assert.doesNotThrow(() => runApplyUnitToUI('in'));
 });
+
+// The numericInput clamp reads `max`, so a fixed 500 would snap A0 in mm (841 × 1189) to 500.
+test('applyUnitToUI shows the custom page in the active unit, its max following it', () => {
+  const w = { value: '', max: '500' }, h = { value: '', max: '500' };
+  elements.clear();
+  elements.set('custom-page-width', w);
+  elements.set('custom-page-height', h);
+  for (const [unit, wv, hv, max] of [['mm', 210, 297, 5000], ['in', 8.27, 11.69, 500], ['cm', 21, 29.7, 500]]) {
+    runApplyUnitToUI(unit);
+    assert.deepEqual([w.value, h.value, w.max, h.max], [wv, hv, max, max], unit);
+  }
+});

@@ -103,7 +103,7 @@ namespace stencil::gui {
   }
 
   void CanvasContextMenu::buildUnitActions() {
-    // Units: cm | inches; the custom page spinboxes stay backed by cm internally.
+    // Units: cm | mm | inches; the custom page spinboxes stay backed by cm internally.
     auto* unitGroup = new QActionGroup(&w);
     unitGroup->setExclusive(true);
     auto mkUnit = [this, unitGroup](const QString& text, const QString& code) {
@@ -117,6 +117,7 @@ namespace stencil::gui {
       return a;
     };
     w.units.unitCm = mkUnit("Centimeters (cm)", "cm");
+    w.units.unitMm = mkUnit("Millimeters (mm)", "mm");
     w.units.unitIn = mkUnit("Inches (in)", "in");
   }
 

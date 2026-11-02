@@ -7,7 +7,7 @@ namespace llmclient {
 // assembly order and joins are proven against a copy independent of the qrc prose canon.
 static const char LEGACY_CORE_OPS_BLOCK[] =
     R"__(- {"op":"crop","spec":{"x1":"10%","x2":"-10%","aspect":"3:4"}} — move edges inward;
-  tokens are numbers with optional unit % / px / cm / in; a leading "-" measures from the
+  tokens are numbers or N/D, unit optional % / px / cm / mm / in; a leading "-" measures from the
   opposite side. Include only the edges you want to move. For a target aspect ratio add
   "aspect":"W:H" INSIDE "spec", never beside it (portrait "3:4", album/landscape "4:3",
   square "1:1") — the editor cuts the resolved crop to that exact ratio about its centre,
@@ -53,7 +53,7 @@ static const char LEGACY_EDITOR_OPS_BLOCK[] =
   a #rrggbb hex, so translate colour names yourself (cyan = "#00ffff").
 - {"op":"lineStyle","color":"#00ff00","thickness":3,"pointSize":6,"style":"dashed"} —
   change the DEFAULT style for new lines (any subset of fields).
-- {"op":"units","value":"cm"|"in"} — display units.
+- {"op":"units","value":"cm"|"mm"|"in"} — display units.
 - {"op":"view","points":true,"lines":false} — show or hide points and lines.
 - {"op":"clear"} — REMOVE the working image and its lines, leaving the editor empty.
   This is what "remove/delete/clear the image" means. Never answer that with
