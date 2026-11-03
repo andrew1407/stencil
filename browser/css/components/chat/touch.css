@@ -46,10 +46,10 @@ body:has(stencil-chat-panel.chat-gesturing) { transition: background 0.3s, color
    390px viewport overflows the document sideways — which makes a mobile browser
    widen the LAYOUT VIEWPORT, so the fixed panel then hangs off the screen. */
 @media (min-width: 681px) {
-    body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-left) { padding-left: calc(var(--chat-size, 340px) + 10px); }
-    body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-right) { padding-right: calc(var(--chat-size, 340px) + 10px); }
-    body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-top) { padding-top: calc(var(--chat-size, 300px) + 10px); }
-    body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-bottom) { padding-bottom: calc(var(--chat-size, 300px) + 10px); }
+    body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing):not(.chat-pour-wait).chat-dock-left) { padding-left: calc(var(--chat-size, 340px) + 10px); }
+    body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing):not(.chat-pour-wait).chat-dock-right) { padding-right: calc(var(--chat-size, 340px) + 10px); }
+    body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing):not(.chat-pour-wait).chat-dock-top) { padding-top: calc(var(--chat-size, 300px) + 10px); }
+    body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing):not(.chat-pour-wait).chat-dock-bottom) { padding-bottom: calc(var(--chat-size, 300px) + 10px); }
     /* The drop overlay gives up the same band, so the docked panel's own drop target stays
        readable during one drag; float/fullscreen keep the full-bleed overlay. */
     body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-left) #global-drop-overlay { left: var(--chat-size, 340px); }
@@ -60,6 +60,10 @@ body:has(stencil-chat-panel.chat-gesturing) { transition: background 0.3s, color
 /* Closing plays the reverse slide (.chat-closing keeps .chat-open), so the padding
    releases on the out-duration, in step with the panel and starting with it. */
 body:has(stencil-chat-panel.chat-closing) { transition: background 0.3s, color 0.3s, padding 0.39s ease; }
+/* Sliding: the space moves on the genie's own clock and curve (motion/genie/flight.js GENIE_OPEN_MS / GENIE_CLOSE_MS);
+   closing, it waits out the first 40% for the picture's far edge (motion/control/tips.js SPACE_CLOSE_WAIT). */
+body:has(stencil-chat-panel.chat-open.genie-driven) { transition: background 0.3s, color 0.3s, padding 560ms cubic-bezier(0.39, 0.575, 0.565, 1); }
+body:has(stencil-chat-panel.chat-closing.genie-driven) { transition: background 0.3s, color 0.3s, padding 288ms cubic-bezier(0.37, 0, 0.63, 1) 192ms; }
 
 /* Gear provider-status tooltip: a themed table plus a pre-line footer, above the gear. */
 .chat-status-tip {

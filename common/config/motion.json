@@ -9,7 +9,7 @@
   "consoleSpeed": {
     "min": 0.01,
     "max": 1,
-    "default": 0.25,
+    "default": 0.27,
     "step": 0.01
   },
   "ui": {
@@ -79,6 +79,8 @@
     "FOLD_DUST_OUT_MS": 705,
     "CONTROLS_DUST_IN_MS": 585,
     "CONTROLS_DUST_OUT_MS": 542,
+    "CONTROLS_FOLD_IN_MS": 362,
+    "CONTROLS_FOLD_OUT_MS": 542,
     "PANEL_FOLD_IN_MS": 420,
     "PANEL_FOLD_OUT_MS": 630,
     "PANEL_DUST_IN_MS": 450,

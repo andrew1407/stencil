@@ -3,6 +3,7 @@
 #include "popupSlide.hpp"
 
 #include <QComboBox>
+#include <QGuiApplication>
 #include <QCursor>
 #include <QMenuBar>
 #include <QPointer>
@@ -13,6 +14,12 @@ namespace stencil::support {
   namespace {
     // A COMBO's motes leave from the caret at its right edge (browser dropdownMenu.js
     // dustPoint parity); everything else keeps its centre.
+    // A menu's reveal is installed as it is built and picks dust, the Sliding pour or nothing as it
+    // opens, so a mode chosen later still moves it. Never on the compositor-less offscreen platform.
+    bool menuMotionPossible() {
+      return QGuiApplication::platformName() != QLatin1String("offscreen") && !showMotionReduced();
+    }
+
     QPoint popupOriginGlobal(QWidget* anchor) {
       const QRect r = anchor->rect();
       if (qobject_cast<QComboBox*>(anchor))
@@ -24,7 +31,7 @@ namespace stencil::support {
 
   bool revealPopup(QWidget& popup, QWidget* anchor, int ms) {
     if (!anchor || !anchor->isVisible()) return false;
-    if (isSlideMotionOk()) {   // no exit in slide: the browser's selects have none
+    if (isSlideMotionOk() || isTransitionMotionOk()) {   // poured in Sliding, grown in Transition
       slidePopupIn(popup, popupOriginGlobal(anchor));
       return true;
     }
@@ -34,6 +41,8 @@ namespace stencil::support {
   }
 
   bool dismissPopup(QWidget& popup, QWidget* anchor, int ms) {
+    if (isSlideMotionOk()) return anchor && slidePopupOut(popup, anchor, popupOriginGlobal(anchor));
+    if (isTransitionMotionOk()) return anchor && anchor->isVisible() && shrinkPopupOut(popup, popupOriginGlobal(anchor));
     if (!isDustMotionOk()) return false;
     if (!anchor || !anchor->isVisible()) return false;
     // No isVisible() gate: a Qt::Popup Qt closed itself is already hidden by its Hide event.
@@ -42,14 +51,14 @@ namespace stencil::support {
 
   void revealMenu(QMenu& menu, const QPoint& origin, int ms) {
     menu.setProperty(DUST_MS_PROP, ms);
-    if (!isDustMotionOk()) return;   // offscreen has no compositor for windowOpacity
+    if (!menuMotionPossible()) return;   // offscreen has no compositor for windowOpacity
     new MenuReveal(&menu, [origin] { return origin; }, ms);  // owned by the menu
   }
 
   void revealSubmenu(QMenu& sub, QMenu& parent, QAction& parentAction, int ms) {
     new SubmenuCloseGuard(&sub, &parent, &parentAction);   // owned by sub
     sub.setProperty(DUST_MS_PROP, ms);
-    if (!isDustMotionOk()) return;
+    if (!menuMotionPossible()) return;
     QPointer<QMenu> parentGuard(&parent);
     QPointer<QAction> actionGuard(&parentAction);
     // The row's ▸ caret at its RIGHT edge (browser contextMenu.js subPoint parity).
@@ -63,7 +72,7 @@ namespace stencil::support {
 
   void revealMenuBarMenu(QMenu& menu, QMenuBar& bar) {
     menu.setProperty(DUST_MS_PROP, MENU_POPUP_DUST_MS);
-    if (!isDustMotionOk()) return;
+    if (!menuMotionPossible()) return;
     if (bar.isNativeMenuBar()) return;   // natively drawn: nothing Qt-rendered to grab
     QPointer<QMenuBar> barGuard(&bar);
     QPointer<QMenu> menuGuard(&menu);

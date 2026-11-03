@@ -35,7 +35,7 @@
     const saved = JSON.parse(localStorage.getItem('drawingApp_motion') || 'null');
     const mode = saved && typeof saved === 'object' ? String(saved.mode) : '';
     root.setAttribute('data-motion',
-      ['particles', 'water', 'fire', 'slide', 'none'].includes(mode) ? mode : 'particles');
+      ['particles', 'water', 'fire', 'slide', 'transition', 'none'].includes(mode) ? mode : 'particles');
   } catch {
     root.setAttribute('data-motion', 'particles');   /* storage blocked or junk — the default */
   }

@@ -37,7 +37,8 @@ export const assistantSrc = () => [read('../../src/popup/assistant.js')]
 
 const motionDir = fileURLToPath(new URL('../../src/lib/motion/', import.meta.url));
 export const motionSrc = () => [read('../../src/lib/prefs/motionPrefs.js')]
-  .concat(readdirSync(motionDir).sort().map((f) => readFileSync(motionDir + f, 'utf8'))).join('\n');
+  .concat(readdirSync(motionDir).filter((f) => f.endsWith('.js')).sort()
+    .map((f) => readFileSync(motionDir + f, 'utf8'))).join('\n');
 
 // The browser's animation sheets are a set, linked by its index.html; read in that link order so
 // a parity assertion can slice a section that now spans two of them.

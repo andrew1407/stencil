@@ -1,7 +1,7 @@
 // The extension pages' accent, applied before first paint, plus the window.StencilAccent facade.
-// Sixth of SEVEN classic <script>s (MV3 forbids inline page scripts; a module would defer and
+// Eighth of NINE classic <script>s (MV3 forbids inline page scripts; a module would defer and
 // flash) loaded in each page's <head> BEFORE lib/theme/, sharing one scope through
-// window.StencilKit — in order: prefs, swapGeometry, dustGrains, dustWake, themeSwap, this, shellPrefs.
+// window.StencilKit — in order: prefs, swapGeometry, swapGenie, swapWindows, dustGrains, dustWake, themeSwap, this, shellPrefs.
 (function () {
   const K = window.StencilKit;
   const ACCENTS = K.ACCENTS, DEFAULT = K.DEFAULT, KEY = K.KEY, applyFavicon = K.applyFavicon, faviconSvg = K.faviconSvg;
@@ -62,7 +62,7 @@
       previewSnap = null;
       writePref(KEY, next);
       if (shown) apply(next);
-      else swap(function () { apply(next); }, from || 'theme-toggle');
+      else swap(function () { apply(next); }, from || 'theme-toggle', true);
       announce(next);
       return next;
     },
@@ -75,7 +75,7 @@
         document.documentElement.style.setProperty('--accent', norm);
         applyAccentInk(norm);
         setFaviconHex(norm);
-      }, from || 'theme-toggle');
+      }, from || 'theme-toggle', true);
       announce(norm);
       return norm;
     },
@@ -90,7 +90,7 @@
         el.style.removeProperty('--accent');
         el.setAttribute('data-accent', key);
         applyAccentInk(hexOf(key));
-      }, from || 'theme-toggle');
+      }, from || 'theme-toggle', true);
     },
     endAccentPreview: function (from) {
       if (!previewSnap) return;
@@ -100,7 +100,7 @@
         if (snap.inline) el.style.setProperty('--accent', snap.inline); else el.style.removeProperty('--accent');
         if (snap.data) el.setAttribute('data-accent', snap.data); else el.removeAttribute('data-accent');
         applyAccentInk(snap.inline || hexOf(snap.data || DEFAULT));
-      }, from || 'theme-toggle');
+      }, from || 'theme-toggle', true);
     },
   };
 

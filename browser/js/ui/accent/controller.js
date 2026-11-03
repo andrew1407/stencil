@@ -15,6 +15,8 @@ export const resolveThemeMode = (mode, prefersDark = typeof matchMedia === 'func
   (mode === 'dark' || mode === 'light') ? mode : (prefersDark ? 'dark' : 'light');
 
 // Wipe origin: whichever of these toolbar icons is on screen; null ⇒ viewport centre.
+// Sliding pours an accent change down from the top (motion/surface/themeSwapShape.js).
+const ACCENT_POUR = { fromTop: true };
 const themeOrigin = () => originOfId('theme-toggle') || originOfId('visuals-btn') || originOfId('settings-btn');
 const accentOrigin = () => originOfId('visuals-btn') || originOfId('theme-toggle') || originOfId('settings-btn');
 
@@ -100,7 +102,7 @@ export class AccentController {
       this.applyGlyphContrast(accentHex(next));
     };
     if (shown) paint();
-    else themeSwap(paint, () => originOf(originEl) || accentOrigin());
+    else themeSwap(paint, () => originOf(originEl) || accentOrigin(), ACCENT_POUR);
     return next;
   }
 
@@ -115,7 +117,7 @@ export class AccentController {
       el.style.removeProperty('--accent');
       el.setAttribute('data-accent', key);
       this.applyGlyphContrast(accentHex(key));
-    }, () => originOf(originEl) || accentOrigin());
+    }, () => originOf(originEl) || accentOrigin(), ACCENT_POUR);
   }
 
   endAccentPreview(originEl = null) {
@@ -127,7 +129,7 @@ export class AccentController {
       if (inline) el.style.setProperty('--accent', inline); else el.style.removeProperty('--accent');
       if (data) el.setAttribute('data-accent', data); else el.removeAttribute('data-accent');
       this.applyGlyphContrast(inline || accentHex(data || DEFAULT_ACCENT));
-    }, () => originOf(originEl) || accentOrigin());
+    }, () => originOf(originEl) || accentOrigin(), ACCENT_POUR);
   }
 
 // Page-only: no persistence, no broadcast. Returns '#rrggbb' or null when invalid.
@@ -139,7 +141,7 @@ export class AccentController {
       document.documentElement.style.setProperty('--accent', norm);
       applyFaviconHex(norm);
       this.applyGlyphContrast(norm);
-    }, () => originOf(originEl) || accentOrigin());
+    }, () => originOf(originEl) || accentOrigin(), ACCENT_POUR);
     this.announce(norm);
     return norm;
   }

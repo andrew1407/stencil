@@ -6,6 +6,17 @@ stencil_headless_test(stencil_scrollreveal_headless
   SOURCES tests/support/motion/scrollReveal.headless.cpp
   LIBS Qt6::Widgets)
 
+# The genie warp (support/genie/genieWarp.hpp): the Sliding mode's window funnel into its icon.
+stencil_headless_test(stencil_geniewarp_headless
+  SOURCES tests/support/motion/genieWarp.headless.cpp
+  LIBS Qt6::Core)
+
+# The display-synced frame clock (support/vsync/): steps in lockstep and order, the ticker, Qt's
+# animations driven off it, and every step gone once its owner is.
+stencil_headless_test(stencil_framepulse_headless
+  SOURCES tests/support/vsync/framePulse.headless.cpp
+  LIBS Qt6::Widgets)
+
 # Name display-shortening (support/displayName.hpp): the middle-ellipsis of dialogs and notices.
 stencil_headless_test(stencil_displayname_headless
   SOURCES tests/support/displayName.headless.cpp

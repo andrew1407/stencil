@@ -40,6 +40,7 @@ namespace stencil::gui {
     parts.actionsBuilder.buildActions();
     parts.canvasMenu.buildContextActions();  // nested context-menu submenu actions
     parts.menuBuilder.buildMenus();
+    parts.menuBuilder.addDesktopSwitches();
     parts.toolbarBuilder.buildToolbar();
     parts.exportMenus.wireExportOptionsPopups();  // needs the copy/save-image buttons buildToolbar() just made
     parts.dockChrome.buildOverlayArrows();   // sync the Controls-pill chevron glyph (after the toolbar exists)

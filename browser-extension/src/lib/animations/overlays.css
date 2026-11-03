@@ -1,22 +1,38 @@
 /* ── Dropdown lists (browser/css/animations/overlay/overlays.css menuFromAnchor) ──
    Full opacity by 22%, so the eye follows the box growing out of its trigger's corner. */
 @keyframes stMenuFromAnchor {
-  0%   { opacity: 0; transform: translateY(-6px) scale(0.66); }
+  0%   { opacity: 0; transform: translateY(-6px) scale(0.05); }
   22%  { opacity: 1; }
   100% { opacity: 1; transform: none; }
 }
 @keyframes stMenuToAnchor {
   0%   { opacity: 1; transform: none; }
   60%  { opacity: 0.85; }
-  100% { opacity: 0; transform: translateY(-6px) scale(0.66); }
+  100% { opacity: 0; transform: translateY(-6px) scale(0.05); }
 }
 .accent-dd-menu { transform-origin: left top; }
 .accent-dd-menu.dd-above { transform-origin: left bottom; }
-.accent-dd-menu:not([hidden]) { animation: stMenuFromAnchor 0.22s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.accent-dd-menu:not([hidden]) { animation: stMenuFromAnchor 0.26s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
 /* Declared after the entrance so it wins while .dd-closing is up. */
 .accent-dd-menu.dd-closing { animation: stMenuToAnchor 0.18s ease both; }
+/* Transition's exit for a list hidden at once: its stand-in copy shrinks back (motion/leaveCopy.js). */
+.leave-copy.dd-leaving { animation: stMenuToAnchor 0.18s ease both !important; }
 @media (prefers-reduced-motion: reduce) {
   .accent-dd-menu:not([hidden]), .accent-dd-menu.dd-closing { animation: none; }
+}
+
+/* ── Sliding's CSS fallback flight (lib/motion/surfaces.js genieIn / genieOut; GENIE_IN_MS / GENIE_OUT_MS) ── */
+/* The vars measure from the box's centre, so an inline origin (a popover's anchor corner) gives way. */
+.genie-in, .genie-out { transform-origin: 50% 50% !important; }
+.genie-in { animation: stGenieIn 0.52s linear both; will-change: transform, opacity; }
+.genie-out { animation: stGenieOut 0.44s linear both; will-change: transform, opacity; pointer-events: none; }
+/* Photographed for the genie (lib/motion/genie/), its own flight stilled; flying, hidden under the canvas. */
+.genie-hold { animation: none !important; }
+.genie-driven { animation: none !important; opacity: 0 !important; }
+/* Its backdrop fades under it and stops taking presses; the window keeps its own opacity. */
+.genie-leaving { pointer-events: none; background: transparent !important; transition: background-color 0.3s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .genie-in, .genie-out { animation: none; }
 }
 
 /* ── Surfaces made of dust (lib/motion.js surfaceIn / surfaceOut) ───────────

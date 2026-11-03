@@ -4,6 +4,7 @@ import { createModalOpenGesture } from '../tip/popover.js';
 import { motionMs, motionReduced } from '../motion/motionPrefs.js';
 import { SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../motion/surface/motion.js';
 import { surfaceIn, surfaceOut } from '../motion/surface/surfaces.js';
+import { genieAway, menuIn, settleGenie, MENU_GENIE_MS } from '../motion/genie/window.js';
 import { rectCenter } from '../motion/control/tips.js';
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';
 import { attachMenuScrollbar } from '../control/menuScrollbar.js';
@@ -11,6 +12,13 @@ import { growFrom } from '../control/dropdownMenu.js';
 import { onAltKeys, pointerIn, wirePeekBox, wireReleasePick } from '../tip/altPeek.js';
 // The logo's accent preset menu (right-click / Alt-hover): the Visuals dialog's rows on the
 // shared popup motion.
+// Sliding pours the menu out of the logo and back; true when it flew home.
+const pourHome = (menu, logo) => {
+  const poured = genieAway(menu, logo, { ms: MENU_GENIE_MS });
+  settleGenie(menu);
+  return poured;
+};
+
 export function wireLogoAccentMenu(logo, wrap, app) {
   // Non-modal — it only borrows the shared popup motion. Selecting applies through the same
   // setAccent path as the click-cycle, with the logo as the swap origin.
@@ -40,7 +48,7 @@ export function wireLogoAccentMenu(logo, wrap, app) {
   const dustMenu = (enter) => {
     if (!menu) return;
     const point = reducedMotion() ? null : logoPoint();
-    (enter ? surfaceIn : surfaceOut)(menu, point, { ms: enter ? MENU_IN_MS : MENU_OUT_MS });
+    if (!(enter ? surfaceIn : surfaceOut)(menu, point, { ms: enter ? MENU_IN_MS : MENU_OUT_MS }) && enter && point) menuIn(menu, wrap);
   };
   const openMenu = () => {
     if (!menu) return;
@@ -93,8 +101,8 @@ export function wireLogoAccentMenu(logo, wrap, app) {
       menu.classList.remove('dd-closing');
       menu.__ddSbOff?.();
     };
-    // Reduced motion: animations/overlay/overlays.css neutralises the exit, so hide outright.
-    if (reducedMotion()) { menuCloseDone(); return; }
+    // Reduced motion neutralises the exit (overlays.css), and Sliding flies its picture home: both hide now.
+    if (reducedMotion() || pourHome(menu, wrap)) { menuCloseDone(); return; }
     // Hidden once the exit has played, with a timer fallback so a neutralised animation
     // can never wedge the menu open.
     menu.classList.add('dd-closing');

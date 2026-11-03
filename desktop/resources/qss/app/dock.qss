@@ -14,10 +14,11 @@
         background: %BG_CONTROLS%;
         border-bottom-left-radius: 5px; border-bottom-right-radius: 5px;
       }
-      QToolButton#panelCollapseBtn {
+      /* The panel's chevron, and the one that reopens it from the canvas edge: one rounded square. */
+      QToolButton#panelCollapseBtn, QToolButton#panelReopenBtn {
         background: transparent; border: 1px solid %BORDER%; border-radius: 8px; padding: 0;
       }
-      QToolButton#panelCollapseBtn:hover { background: %ACCENT_SOFT%; border-color: %ACCENT_RING%; }
+      QToolButton#panelCollapseBtn:hover, QToolButton#panelReopenBtn:hover { background: %ACCENT_SOFT%; border-color: %ACCENT_RING%; }
       /* On the header's surface, not the body's (browser .coord-panel-header). */
       QTabBar#selectionTabBar { background: transparent; }
       /* No pane frame: the browser's table is the box. */

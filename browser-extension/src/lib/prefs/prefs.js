@@ -50,13 +50,13 @@
   // before first paint for lib/animations/motionModes.css; prefers-reduced-motion still wins.
   const MKEY = 'stencil_motion';
   const MOTION_DEFAULT = 'particles';
-  const MOTION_MODES = ['particles', 'water', 'fire', 'slide', 'none'];
+  const MOTION_MODES = ['particles', 'water', 'fire', 'slide', 'transition', 'none'];
   // The browser's MOTION_MODE_LABELS, in its order.
   const MOTION_LABELS = [
     ['particles', 'Dust'],
     ['water', 'Water'],
     ['fire', 'Fire'],
-    ['slide', 'Sliding'],
+    ['slide', 'Sliding'], ['transition', 'Transition'],
     ['none', 'None'],
   ];
   const PARTICLE_STYLE = { particles: 'dust', water: 'water', fire: 'fire' };

@@ -60,10 +60,11 @@ stencil_headless_test(stencil_pointercursor_headless
   SOURCES tests/support/cursor/pointerCursor.headless.cpp
   LIBS stencil_gui_objs Qt6::Test)
 
-# The 'slide' entrance of a selector's list (support/menu/popupSlide.hpp): the first frame's maths.
+# The 'slide' entrance of a selector's list (support/menu/popupSlide.hpp): the first frame's maths, and
+# Transition's shrink-away ghost.
 stencil_headless_test(stencil_popupslide_headless
   SOURCES tests/support/menu/popupSlide.headless.cpp
-  LIBS Qt6::Gui
+  LIBS stencil_gui_objs Qt6::Test
   INCLUDE_TESTS)
 
 # Dragging a toolbar control (support/drag/iconDrag): slop, drop, cancel and Escape on a live button.
@@ -130,3 +131,10 @@ set_tests_properties(stencil_uipins_hidpi_headless PROPERTIES
 stencil_headless_test(stencil_lineslazy_headless
   SOURCES tests/app/selection/linesLazyRows.headless.cpp
   LIBS stencil_gui_objs Qt6::Widgets)
+
+# A selector's list scrolled under a still pointer: the row landing under it takes the hover and its slide.
+stencil_headless_test(stencil_comboscrollhover_headless
+  SOURCES tests/support/menu/comboScrollHover.headless.cpp
+  LIBS stencil_gui_objs Qt6::Test
+  INCLUDE_TESTS
+  ENV STENCIL_NO_ANIM=1)

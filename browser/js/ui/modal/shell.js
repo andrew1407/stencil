@@ -4,6 +4,7 @@ import { wireModalDrag } from './drag.js';
 import { wireModalResize } from './resize.js';
 import { sweepDust } from '../motion/surface/tiles.js';
 import { isTypingTarget } from '../../utils.js';
+import { onScreenViewport } from '../../utils/viewportMetrics.js';
 import { modalShells, wireEscapeOnce, wireCollapseOnce, closeOpenModal, closeOpenPopovers, raiseWindow } from './registry.js';
 import { motionMs, multiWindow } from '../motion/motionPrefs.js';
 import { createModalFlight, shownRect, MODAL_CLOSE_MS } from './flight.js';
@@ -125,7 +126,7 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
       const p = popoverPosition({
         anchor: anchorEl.getBoundingClientRect(),
         box: box.getBoundingClientRect(),
-        viewport: { width: window.innerWidth, height: window.innerHeight },
+        viewport: onScreenViewport(),
       });
       box.style.left = `${p.left}px`;
       box.style.top = `${p.top}px`;

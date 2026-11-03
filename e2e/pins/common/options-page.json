@@ -517,6 +517,20 @@
         "font-weight": "700",
         "font-family": "system-ui, sans-serif"
       },
+      "text": "Transition"
+    },
+    {
+      "path": ":root/div[1]/div[5]/b[6]",
+      "tag": "b",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-weight": "700",
+        "font-family": "system-ui, sans-serif"
+      },
       "text": "None"
     },
     {

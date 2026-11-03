@@ -406,7 +406,7 @@
       "name": "reveal-speed",
       "aliases": [],
       "arg": "[0.01-1]",
-      "help": "how fast output is revealed (1 = instantly, 0.25 default)",
+      "help": "how fast output is revealed (1 = instantly, 0.27 default)",
       "section": "System",
       "surfaces": [
         "browser",

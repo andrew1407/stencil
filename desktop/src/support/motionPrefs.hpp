@@ -16,9 +16,10 @@
 
 namespace stencil::support {
 
-  // Particles (default) / Water / Fire / Slide (no particles, each surface's own ghost
-  // flight) / None (what STENCIL_NO_ANIM has always meant).
-  enum class MotionMode { PARTICLES, WATER, FIRE, SLIDE, NONE };
+  // Particles (default) / Water / Fire / Slide (a window's picture poured out of its opener,
+  // support/genie) / Transition (each surface's own size-and-fade flight) / None (what
+  // STENCIL_NO_ANIM has always meant).
+  enum class MotionMode { PARTICLES, WATER, FIRE, SLIDE, TRANSITION, NONE };
 
   // Browser dust/cloud.js PARTICLE_STYLES.
   enum class ParticleStyle { DUST, WATER, FIRE };
@@ -76,6 +77,7 @@ namespace stencil::support {
     if (key == QLatin1String("water")) return MotionMode::WATER;
     if (key == QLatin1String("fire")) return MotionMode::FIRE;
     if (key == QLatin1String("slide")) return MotionMode::SLIDE;
+    if (key == QLatin1String("transition")) return MotionMode::TRANSITION;
     if (key == QLatin1String("none")) return MotionMode::NONE;
     return MotionMode::PARTICLES;
   }
@@ -84,6 +86,7 @@ namespace stencil::support {
       case MotionMode::WATER: return QStringLiteral("water");
       case MotionMode::FIRE: return QStringLiteral("fire");
       case MotionMode::SLIDE: return QStringLiteral("slide");
+      case MotionMode::TRANSITION: return QStringLiteral("transition");
       case MotionMode::NONE: return QStringLiteral("none");
       case MotionMode::PARTICLES: break;
     }
@@ -179,7 +182,7 @@ namespace stencil::support {
   // Checked inside the DisintegrateOverlay factories, so every cloud is behind it.
   inline bool isDustAllowed() {
     const MotionMode m = motionMode();
-    return m != MotionMode::SLIDE && m != MotionMode::NONE && !motionReduced();
+    return m != MotionMode::SLIDE && m != MotionMode::TRANSITION && m != MotionMode::NONE && !motionReduced();
   }
 
   // Dust for any mode that flies none — callers ask isDustAllowed() first.
@@ -200,7 +203,7 @@ namespace stencil::support {
   // never a cloud. Browser twin: motionPrefs.js showDustAllowed().
   inline bool showDustAllowed() {
     const MotionMode m = motionMode();
-    return m != MotionMode::SLIDE && m != MotionMode::NONE && !showMotionReduced();
+    return m != MotionMode::SLIDE && m != MotionMode::TRANSITION && m != MotionMode::NONE && !showMotionReduced();
   }
   inline ParticleStyle showParticleStyle() { return particleStyleOf(motionMode()); }
 
@@ -209,9 +212,15 @@ namespace stencil::support {
     return isDustAllowed() && QGuiApplication::platformName() != QLatin1String("offscreen");
   }
 
-  // 'slide' in force for a popup's grow-from-its-origin entrance, on the same platform terms.
+  // 'slide' in force for the genie (support/genie), on the same platform terms.
   inline bool isSlideMotionOk() {
     return motionMode() == MotionMode::SLIDE && !motionReduced() &&
+           QGuiApplication::platformName() != QLatin1String("offscreen");
+  }
+
+  // 'transition' in force for a popup's grow-from-its-origin entrance, on the same platform terms.
+  inline bool isTransitionMotionOk() {
+    return motionMode() == MotionMode::TRANSITION && !motionReduced() &&
            QGuiApplication::platformName() != QLatin1String("offscreen");
   }
 

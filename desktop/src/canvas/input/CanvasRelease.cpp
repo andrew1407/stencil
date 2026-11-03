@@ -10,6 +10,15 @@
 namespace stencil::gui {
 
   void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
+    // A window opened under a held press leaves Qt thinking the button is still down here, and the
+    // window's own buttons then get no Enter: no hover, no icon motion. So the card fires on release.
+    if (idle.armed) {
+      idle.armed = false;
+      if (event->button() == Qt::LeftButton && image.isNull() && !idle.hidden
+          && idle.cardRect().contains(event->position()))
+        emit blankImageRequested();
+      return;
+    }
     // The divider's drag outranks a hold, and a hold every other gesture. Releasing after a stroke
     // commits the line and exits drawing; a quick or aborted hold just tears down.
     if (!gesture.is(Gesture::COMPARE_SPLIT) && (hold.timer.isActive() || hold.ctl.engaged())) {

@@ -80,6 +80,12 @@ class _QuietHandler(SimpleHTTPRequestHandler):
       pass  # the guard hangs up as soon as it has one byte too many
 
 
+class _Server(ThreadingHTTPServer):
+  # The scan fetches MAX_FETCH_WORKERS (8) at once; past the default backlog of 5 macOS resets a
+  # connect, and a reset fetch leaves its item unmeasured.
+  request_queue_size = 64
+
+
 class ServedSiteCase(unittest.TestCase):
   """Serves the fixture for the class's life; ``cls.base`` is the site root, ``cls.page`` the page."""
 
@@ -94,7 +100,7 @@ class ServedSiteCase(unittest.TestCase):
     (root / "clip.mp4").write_bytes(b"\x00\x00\x00\x18ftypmp42" + b"\x00" * 32)
 
     handler = lambda *a, **k: _QuietHandler(*a, directory=str(root), **k)  # noqa: E731
-    cls._server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    cls._server = _Server(("127.0.0.1", 0), handler)
     cls._thread = Thread(target=cls._server.serve_forever, daemon=True)
     cls._thread.start()
     _host, port = cls._server.server_address

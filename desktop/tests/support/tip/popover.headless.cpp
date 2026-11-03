@@ -8,6 +8,7 @@
 #include <cstdio>
 
 using stencil::support::popoverRect;
+using stencil::support::visiblePart;
 
 #include "../../support/check.hpp"
 
@@ -42,6 +43,16 @@ int main(int argc, char** argv) {
     const QRect second(1440, 100, 1280, 800);
     const QRect r = popoverRect(QRect(1440, 100, 24, 24), box, second);
     check(r.left() == 1448 && r.top() >= second.top() + 8, "clamps within an offset screen");
+  }
+  {
+    // A window hanging off the screen's right edge: the popover stays where the screen shows it (user report).
+    const QRect avail(0, 25, 1728, 1092);
+    const QRect window(1000, 100, 1400, 900);   // its right 672px are off-screen
+    const QRect seen = visiblePart(window, avail);
+    check(seen == QRect(1000, 100, 728, 900), "the visible part is the window cut at the screen edge");
+    const QRect r = popoverRect(QRect(1600, 150, 24, 24), box, seen);
+    check(r.right() <= avail.right() - 8 + 1 && r.left() >= window.left(), "a popover from an icon near that edge opens on screen");
+    check(visiblePart(QRect(3000, 0, 400, 300), avail) == QRect(3000, 0, 400, 300), "a window wholly off this screen keeps its own box");
   }
 
   std::printf("\n%s (%d failure%s)\n", failures ? "FAILURE" : "SUCCESS", failures,

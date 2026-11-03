@@ -5,6 +5,25 @@
 /* .mm-play: a trigger whose value just changed plays once (customSelect.js). */
 .accent-dd-opt:hover .mm-line, .accent-dd-trigger:hover .mm-line, .mm-play .mm-line { animation: mmLineDraw 0.45s ease-out both; }
 @keyframes mmLineDraw { from { stroke-dashoffset: 11.4; } to { stroke-dashoffset: 0; } }
+/* Sliding: the genie itself, poured out of the dock line on the window flight's own curve (lib/motionIcons.js
+   genieGlyphKeyframes, generated; each step a point on the curve, so the time between them is linear). */
+.accent-dd-opt:hover .mm-genie, .accent-dd-trigger:hover .mm-genie, .mm-play .mm-genie { animation: mmGenie 0.45s linear both; }
+@keyframes mmGenie {
+    0%   { d: path("M10 13.2 L10 13.35 L10 13.5 L10 13.65 L10 13.8 L10 13.95 L10 14.1 L10 14.25 L10 14.4 L12.4 14.4 L12.4 14.25 L12.4 14.1 L12.4 13.95 L12.4 13.8 L12.4 13.65 L12.4 13.5 L12.4 13.35 L12.4 13.2 Z"); }
+    8%   { d: path("M9.62 12.62 L9.89 13.2 L10 13.5 L10 13.65 L10 13.8 L10 13.95 L10 14.1 L10 14.25 L10 14.4 L12.4 14.4 L12.4 14.25 L12.4 14.1 L12.4 13.95 L12.4 13.8 L12.4 13.65 L12.4 13.5 L12.41 13.2 L12.43 12.62 Z"); }
+    17%  { d: path("M8.65 11.14 L9.19 12.21 L9.61 13 L9.89 13.52 L10 13.8 L10 13.95 L10 14.1 L10 14.25 L10 14.4 L12.4 14.4 L12.4 14.25 L12.4 14.1 L12.4 13.95 L12.4 13.8 L12.41 13.52 L12.43 13 L12.47 12.21 L12.52 11.14 Z"); }
+    25%  { d: path("M7.38 9.2 L8.06 10.62 L8.68 11.8 L9.21 12.73 L9.63 13.41 L9.9 13.86 L10 14.1 L10 14.25 L10 14.4 L12.4 14.4 L12.4 14.25 L12.4 14.1 L12.41 13.86 L12.43 13.41 L12.47 12.73 L12.51 11.8 L12.57 10.62 L12.62 9.2 Z"); }
+    33%  { d: path("M6.05 7.17 L6.78 8.81 L7.49 10.27 L8.16 11.51 L8.77 12.51 L9.28 13.29 L9.68 13.84 L9.92 14.2 L10 14.4 L12.4 14.4 L12.41 14.2 L12.43 13.84 L12.46 13.29 L12.51 12.51 L12.56 11.51 L12.62 10.27 L12.68 8.81 L12.74 7.17 Z"); }
+    42%  { d: path("M4.87 5.36 L5.55 7.08 L6.26 8.69 L6.98 10.13 L7.68 11.38 L8.34 12.42 L8.92 13.24 L9.41 13.85 L9.76 14.27 L12.42 14.27 L12.45 13.85 L12.49 13.24 L12.54 12.42 L12.6 11.38 L12.66 10.13 L12.72 8.69 L12.78 7.08 L12.84 5.36 Z"); }
+    50%  { d: path("M3.96 3.97 L4.53 5.65 L5.17 7.29 L5.86 8.83 L6.58 10.24 L7.3 11.46 L8.02 12.49 L8.69 13.31 L9.15 13.93 L12.47 13.93 L12.51 13.31 L12.57 12.49 L12.63 11.46 L12.69 10.24 L12.75 8.83 L12.81 7.29 L12.87 5.65 L12.92 3.97 Z"); }
+    58%  { d: path("M3.37 3.06 L3.78 4.6 L4.31 6.19 L4.93 7.75 L5.97 9.22 L7.07 10.56 L8.02 11.73 L8.69 12.72 L8.95 13.5 L12.49 13.5 L12.51 12.72 L12.57 11.73 L12.65 10.56 L12.75 9.22 L12.83 7.75 L12.89 6.19 L12.93 4.6 L12.97 3.06 Z"); }
+    67%  { d: path("M3.07 2.61 L3.32 3.95 L3.93 5.42 L4.88 6.93 L5.97 8.41 L7.06 9.81 L8.02 11.07 L8.69 12.17 L8.95 13.09 L12.49 13.09 L12.51 12.17 L12.57 11.07 L12.65 9.81 L12.75 8.41 L12.84 6.93 L12.92 5.42 L12.97 3.95 L12.99 2.61 Z"); }
+    75%  { d: path("M3 2.5 L3.25 3.62 L3.89 4.95 L4.81 6.38 L5.86 7.83 L6.91 9.24 L7.83 10.55 L8.48 11.72 L8.73 12.73 L12.51 12.73 L12.53 11.72 L12.59 10.55 L12.66 9.24 L12.75 7.83 L12.84 6.38 L12.92 4.95 L12.98 3.62 L13 2.5 Z"); }
+    83%  { d: path("M3 2.5 L3.23 3.51 L3.84 4.7 L4.7 6.05 L5.69 7.46 L6.68 8.86 L7.54 10.19 L8.15 11.4 L8.39 12.46 L12.54 12.46 L12.56 11.4 L12.61 10.19 L12.68 8.86 L12.77 7.46 L12.85 6.05 L12.93 4.7 L12.98 3.51 L13 2.5 Z"); }
+    92%  { d: path("M3 2.5 L3.22 3.5 L3.8 4.6 L4.62 5.88 L5.56 7.25 L6.5 8.64 L7.32 9.98 L7.9 11.21 L8.12 12.3 L12.56 12.3 L12.58 11.21 L12.63 9.98 L12.7 8.64 L12.78 7.25 L12.86 5.88 L12.93 4.6 L12.98 3.5 L13 2.5 Z"); }
+    100% { d: path("M3 2.5 L3.22 3.5 L3.78 4.57 L4.59 5.83 L5.51 7.19 L6.43 8.57 L7.24 9.91 L7.8 11.15 L8.02 12.25 L12.57 12.25 L12.59 11.15 L12.64 9.91 L12.71 8.57 L12.78 7.19 L12.86 5.83 L12.93 4.57 L12.98 3.5 L13 2.5 Z"); }
+}
+/* Transition: the arrow's shaft draws in from its bottom-left end, then its head shows. */
 .mm-shaft { stroke-dashoffset: 0; }
 .accent-dd-opt:hover .mm-shaft, .accent-dd-trigger:hover .mm-shaft, .mm-play .mm-shaft { animation: mmShaft 0.35s ease-out both; }
 @keyframes mmShaft { from { stroke-dashoffset: 9.9; } to { stroke-dashoffset: 0; } }

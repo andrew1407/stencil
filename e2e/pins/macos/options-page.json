@@ -15,7 +15,7 @@
         "font-family": "system-ui, sans-serif",
         "padding": "32px",
         "width": "380px",
-        "height": "4479.5px"
+        "height": "4515.5px"
       }
     },
     {
@@ -33,7 +33,7 @@
         "font-family": "system-ui, sans-serif",
         "padding": "12px 24px 24px 12px",
         "width": "316px",
-        "height": "2498.5px",
+        "height": "2534.5px",
         "transform": "matrix(1, 0, 0, 1, 0, 0)"
       }
     },
@@ -533,7 +533,7 @@
         "font-family": "system-ui, sans-serif",
         "margin": "6px 0px 0px",
         "width": "278px",
-        "height": "198px"
+        "height": "234px"
       }
     },
     {
@@ -594,6 +594,20 @@
     },
     {
       "path": ":root/div[1]/div[5]/b[5]",
+      "tag": "b",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-weight": "700",
+        "font-family": "system-ui, sans-serif"
+      },
+      "text": "Transition"
+    },
+    {
+      "path": ":root/div[1]/div[5]/b[6]",
       "tag": "b",
       "classes": "",
       "style": {

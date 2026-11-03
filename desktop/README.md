@@ -63,8 +63,8 @@ size) work as in the browser app, with the same keyboard shortcuts.
 
 - **Light / dark theme** — `Ctrl+D` or Settings; a per-project accent colour can be set from
   the swatch next to the project name.
-- **Dialogs** — **Visuals & Settings** (`Alt+V`: theme, motion, menu-bar placement,
-  autosave, defaults, page size, AI assistant), **Projects** (save / open / delete, one-week
+- **Dialogs** — **Visuals & Settings** (`Alt+V`: theme, motion, notifications, drawing
+  defaults and highlight colours, the same rows as the browser app), **Projects** (save / open / delete, one-week
   expiry; a dragged row offers its menu from a ⋯ by the title, and the open project dropped on
   Close — or **Project ▸ Close Project**, `Alt+Shift+W` — closes it here and stays saved),
   **Controls & Shortcuts Info** (`Alt+H`), and the **Keyboard Shortcuts** editor (`Alt+K`: click
@@ -76,11 +76,12 @@ size) work as in the browser app, with the same keyboard shortcuts.
 - **Notifications** — Settings → Notifications: *In the app* (the corner toasts, the default) or
   *System notifications* (the OS notification centre, through a tray icon shown while chosen).
   Where the OS offers none, the toasts stay.
-- **Menu bar** — *Use the system menu bar* (default on) puts the menus where the platform
+- **Menu bar** — **View ▸ Use System Menu Bar** (default on) puts the menus where the platform
   does; turn it off to keep them in the window (takes effect on restart).
 - **Project actions** — `Ctrl+Alt+R` removes the current project from the editor,
   `Ctrl+Alt+N` renames it.
-- **Autosave** — the in-progress drawing is restored on next launch.
+- **Autosave** — **File ▸ Autosave** (default on): the in-progress drawing is restored on next
+  launch.
 
 ### Console
 
@@ -195,8 +196,8 @@ server the machine has never used. A `src` link opens an http(s) or `data:` URL,
 local path.
 
 Outbound, **Project ▸ Open In…** (also on the toolbar) hands the current session to the
-**browser app** (base URL in Settings → "Browser app URL") or the **Telegram bot** (server
-projects only; set Settings → "Telegram bot" to your bot's username).
+**browser app** or the **Telegram bot** (server projects only). **Project ▸ Open In Targets…**
+sets both: the browser app's base URL and your bot's username; an empty field hides that target.
 
 ### OS-shell integration
 

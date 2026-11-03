@@ -26,6 +26,7 @@ namespace stencil::gui {
     const QRectF& cardRect() const { return cardBox; }
 
     bool hidden = false;   // off while the clear's dust falls (.canvas-clearing)
+    bool armed = false;    // pressed on the card: a release still over it fires, as a button's click
 
    private:
     QWidget* host;

@@ -10,12 +10,13 @@
 #include <QPainterPath>
 #include <QPaintEvent>
 #include <QPixmap>
+#include <QPointer>
+#include <QList>
 #include <QPointF>
-#include <QTimer>
 #include <QVariantAnimation>
 #include <QWidget>
 
-#include "dustKit.hpp"   // support::bezierY / MoteSprites / frameIntervalMs
+#include "dustKit.hpp"   // support::bezierY / MoteSprites
 
 #include <algorithm>
 #include <array>
@@ -80,6 +81,12 @@ namespace stencil::gui {
     void seedDust(const QColor& accent, const QColor& shade = QColor(), bool dark = false);
 
     static ThemeSwapOverlay* capture(QWidget* host, QPoint origin = QPoint(-1, -1));
+    // `owner` first (its entry null when nothing was worth photographing), then every inner window it has
+    // open (its dialogs, a floated dock), so the new palette floods those too, as the browser's whole-page
+    // transition does: each from the control used inside it, else its centre. Particle modes seed the wake
+    // from the palette being erased; start() each after the restyle.
+    static QList<QPointer<ThemeSwapOverlay>> captureWindows(QWidget* owner, QPoint origin, const QColor& accent,
+                                                            const QColor& shade, bool dark, bool fromTop = false);
 
     void start();
 
@@ -101,6 +108,14 @@ namespace stencil::gui {
     bool dustDark = false;   // …from the theme it is erasing, which two tints follow
     // Read when the wipe is captured, so a 'slide' swap still cuts its style's edge.
     support::ParticleStyle style = support::particleStyle();
+    // The hole per interface animation (browser motion/surface/themeSwapShape.js): Transition's band from
+    // the left edge, Sliding's genie silhouette out of the control (down from the top for an accent), the
+    // particle modes' ragged ring.
+    enum class Shape { RING, WIPE, GENIE };
+    Shape shape = Shape::RING;
+    bool fromTop = false;   // an accent change: Sliding pours it down from the top, a theme change out of its control
+    int wipeMs() const;
+    QRegion holeAt(double t, const QPoint& c) const;
   };
 
 }  // namespace stencil::gui

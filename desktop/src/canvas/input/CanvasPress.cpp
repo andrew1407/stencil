@@ -20,10 +20,10 @@ namespace stencil::gui {
       return;
     }
     if (image.isNull()) {
-      // Only the CARD opens the creator; nothing is clickable while the hint is held back or unpainted.
-      if (event->button() == Qt::LeftButton && !idle.hidden &&
-          idle.cardRect().contains(event->position()))
-        emit blankImageRequested();
+      // Only the CARD opens the creator, on the release (CanvasRelease.cpp); nothing is clickable
+      // while the hint is held back or unpainted.
+      idle.armed = event->button() == Qt::LeftButton && !idle.hidden &&
+                   idle.cardRect().contains(event->position());
       return;
     }
 

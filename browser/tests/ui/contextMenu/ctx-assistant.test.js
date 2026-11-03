@@ -120,7 +120,7 @@ test('the menu pops out of the click point, and Escape (consumed) closes it', as
   assert.strictEqual(m.menu.style.transformOrigin, menuPopOrigin(1000, 700, { left: 918, top: 700, width: 100, height: 20 }),
     'the origin is the click point relative to the clamped position');
   const anims = ANIMATIONS_CSS;
-  assert.match(anims, /@keyframes menuPop \{ from \{ opacity: 0; transform: scale\(0\.62\); \} to \{ opacity: 1; transform: none; \} \}/,
+  assert.match(anims, /@keyframes menuPop \{ 0% \{ opacity: 0; transform: scale\(0\.05\); \} 8% \{ opacity: 1; \} 100% \{ opacity: 1; transform: none; \} \}/,
     'the pop scales up from the origin');
   assert.match(anims, /prefers-reduced-motion: reduce\) \{\s*#ctx-menu\.ctx-open, \.chat-row-menu \{ animation: none; \}/,
     'both menus opt out under prefers-reduced-motion');

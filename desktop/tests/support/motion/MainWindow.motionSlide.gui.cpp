@@ -12,13 +12,15 @@ class MainWindowGuiTest : public QObject {
 
   // Slide flies the window's photograph: it MAGNIFIES out of its anchor on an ease-out and is
   // up by the browser's time over 1.5; the close is as quick and lands easing out too.
-  void slideMagnifiesTheWindowQuicklyBothWays() {
+  // Transition (Sliding's picture flight is the genie, which needs a real screen): the window grows out of
+  // its icon, solid while still small, so it is seen growing rather than first appearing already large.
+  void transitionMagnifiesTheWindowQuicklyBothWays() {
     const auto motion = withMotion();
     MainWindow win(nullptr, false);
     win.resize(1000, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    stencil::support::setMotionMode(stencil::support::MotionMode::SLIDE);
+    stencil::support::setMotionMode(stencil::support::MotionMode::TRANSITION);
     QDialog dlg(&win);
     dlg.resize(300, 200);
     const QRect anchor(win.mapToGlobal(QPoint(40, 40)), QSize(26, 26));
@@ -41,9 +43,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(sizes.size() > 3, "the open flight played");
     QVERIFY2(sizes.first().width() < 150, "it starts small, at its anchor");
     for (int i = 1; i < sizes.size(); ++i) QVERIFY2(sizes[i].width() >= sizes[i - 1].width(), "it only grows");
-    QVERIFY2(alphas.first() < 0.6, "it fades in with the growth, not already solid");
-    for (int i = 1; i < alphas.size(); ++i) QVERIFY2(alphas[i] >= alphas[i - 1] - 1e-9, "…brightening all the way");
-    QVERIFY2(alphas[alphas.size() / 2] < 0.999, "still fading in mid-flight");
+    for (int i = 1; i < alphas.size(); ++i) QVERIFY2(alphas[i] >= alphas[i - 1] - 1e-9, "it never dims on the way");
+    QVERIFY2(alphas[alphas.size() / 2] > 0.999, "solid by mid-flight: seen growing, not fading up once large");
     QVERIFY2(opened < 420, qPrintable(QStringLiteral("up in %1ms").arg(opened)));
     t.restart();
     dlg.hide();

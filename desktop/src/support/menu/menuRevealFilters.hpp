@@ -2,6 +2,7 @@
 // The three event filters behind a revealed menu: the reveal itself (grab, dust, fade), the guard
 // that keeps a submenu from closing under the pointer, and the flight a menu takes from its anchor.
 // Private to the menuReveal TUs.
+#include "popupSlide.hpp"
 #include "menuRevealDust.hpp"
 
 #include <QAbstractAnimation>
@@ -32,7 +33,9 @@ namespace stencil::support {
       menu->installEventFilter(this);
       // aboutToHide, NOT QEvent::Hide: the popup must still be on screen to photograph.
       QObject::connect(menu, &QMenu::aboutToHide, this, [this] {
-        if (this->menu) dustMenuOut(this->menu, this->origin(), this->ms);
+        if (!this->menu || pourMenuOut(this->menu, this->origin())) return;
+        if (isTransitionMotionOk() && this->menu->isVisible()) shrinkPopupOut(*this->menu, this->origin());   // Transition: back into it
+        else dustMenuOut(this->menu, this->origin(), this->ms);
       });
     }
 
@@ -63,15 +66,11 @@ namespace stencil::support {
       target = m->geometry();
       if (!target.isValid()) { m->setWindowOpacity(1.0); return; }
       const QPoint origin = this->origin();
-      if (dustMenuIn(m, origin, ms)) { settled = true; return; }
-      // ~1/3 size, keeping the click point at the same fractional spot as in the final rect.
-      const QPoint a(qBound(target.left(), origin.x(), target.right()),
-                     qBound(target.top(), origin.y(), target.bottom()));
-      const int w = qMax(target.width() / 3, 24);
-      const int h = qMax(target.height() / 3, 24);
-      const double fx = double(a.x() - target.left()) / qMax(target.width(), 1);
-      const double fy = double(a.y() - target.top()) / qMax(target.height(), 1);
-      const QRect start(QPoint(a.x() - int(fx * w), a.y() - int(fy * h)), QSize(w, h));
+      // Decided as it opens: the motion mode may have changed since the menu was built.
+      if (motionReduced()) { m->setWindowOpacity(1.0); settled = true; return; }
+      if (pourMenuIn(m, origin) || dustMenuIn(m, origin, ms)) { settled = true; return; }
+      // A speck at the click point, held at the same fractional spot as in the final rect (popupSlide.hpp).
+      const QRect start = slideStartRect(target, origin);
       // The chat menu is fixed-width and setGeometry clamps to constraints; settle() restores.
       savedMin = m->minimumSize();
       m->setMinimumSize(1, 1);
@@ -85,9 +84,9 @@ namespace stencil::support {
       geo->setEasingCurve(QEasingCurve::OutCubic);
       auto* fade = new QPropertyAnimation(m, "windowOpacity", this);
       fade->setDuration(motionMs(MENU_MS * ms / MENU_POPUP_DUST_MS));
-      fade->setStartValue(0.0);
-      fade->setEndValue(1.0);
-      fade->setEasingCurve(QEasingCurve::OutCubic);
+      fade->setKeyValueAt(0.0, 0.0);   // opaque while still small, so it is seen growing
+      fade->setKeyValueAt(0.08, 1.0);
+      fade->setKeyValueAt(1.0, 1.0);
       group = new QParallelAnimationGroup(this);
       group->addAnimation(geo);
       group->addAnimation(fade);

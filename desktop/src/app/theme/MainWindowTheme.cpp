@@ -65,6 +65,7 @@ namespace stencil::gui {
     // Start the wipe at the icon that owns the change, as the browser blooms from its toggle; the
     // cursor may be up at the menu bar.
     ThemeSwapOverlay* wipe = nullptr;
+    QList<QPointer<ThemeSwapOverlay>> wipes;
     if (swapping) {
       const bool themeFlipped = dark != painted.dark;
       QWidget* anchor = themeFlipped ? buttonForAction(acts.theme) : nullptr;
@@ -76,14 +77,10 @@ namespace stencil::gui {
         const QPoint c = mapFromGlobal(QCursor::pos());   // last resort: the pointer
         if (rect().contains(c)) origin = c;
       }
-      wipe = ThemeSwapOverlay::capture(this, origin);
-      // Wake particles take the accent and shade being erased, read before the restyle moves them;
-      // 'slide' drops the grain (browser parity).
-      if (wipe && support::isDustAllowed()) {
-        const Palette old = themePalette(painted.dark, painted.accent);
-        wipe->seedDust(old.accent, old.textKey, painted.dark);
-      }
-      painted.wipe = wipe;
+      // Its open dialogs too; an accent alone pours from the top; the wake takes the palette being erased, read first.
+      const Palette old = themePalette(painted.dark, painted.accent);
+      wipes = ThemeSwapOverlay::captureWindows(this, origin, old.accent, old.textKey, painted.dark, !themeFlipped);
+      painted.wipe = wipe = wipes.value(0);
     }
     // The global re-polish depends only on (dark, accent); keyed off paletteMoved, not `swapping`:
     // a change mid-wipe skips the wipe but must still restyle.
@@ -185,7 +182,7 @@ namespace stencil::gui {
     if (restyleApp)
       support::ModalBackdrop::retakeOn(this, wipe ? QList<QWidget*>{wipe} : QList<QWidget*>{});
 
-    if (wipe) wipe->start();
+    for (const QPointer<ThemeSwapOverlay>& fx : wipes) if (fx) fx->start();
   }
 
   // A toolbar glyph takes its ground's on-colour (theme.hpp onAccentInk, or white on danger red).

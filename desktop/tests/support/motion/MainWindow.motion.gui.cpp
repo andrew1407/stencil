@@ -89,7 +89,7 @@ class MainWindowGuiTest : public QObject {
     auto* combo = static_cast<stencil::gui::SearchComboBox*>(   // no Q_OBJECT on the combo: found as its base
         dlg.findChild<QComboBox*>(QStringLiteral("motionModeCombo")));
     QVERIFY(combo);
-    QCOMPARE(combo->count(), 5);
+    QCOMPARE(combo->count(), 6);   // Dust, Water, Fire, Sliding, Transition, None
     QVERIFY2(combo->toolTip().isEmpty(), "the browser's dropdown carries no tooltip");
     for (int i = 0; i < combo->count(); ++i) QVERIFY(!combo->itemIcon(i).isNull());
     combo->showPopup();
@@ -103,9 +103,10 @@ class MainWindowGuiTest : public QObject {
                            .scaled(shot.width() / dpr, shot.height() / dpr, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
     // Per row: the ICON slot's lit columns (the label starts past 36px), as runs. One
     // glyph is one run no wider than a 16px icon; a second icon would be a second run.
-    const int rowH = img.height() / 5;
+    const int rows = combo->count();
+    const int rowH = img.height() / rows;
     QVERIFY(rowH > 10);
-    for (int r = 0; r < 5; ++r) {
+    for (int r = 0; r < rows; ++r) {
       QString cols;
       // Ink is whatever differs from the ROW's own background (a selected row wears the
       // accent wash), sampled just inside the popup's border.

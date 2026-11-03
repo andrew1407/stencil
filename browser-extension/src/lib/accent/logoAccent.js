@@ -1,10 +1,11 @@
-import { surfaceIn, surfaceOut, centerOf } from '../motion.js';
+import { surfaceIn, surfaceOut, centerOf, menuIn, menuAway } from '../motion.js';
 import { icon } from '../icons.js';
 import { createAccentPreview } from './preview.js';
 import { attachMenuScrollbar } from '../control/menuScrollbar.js';
 import { createModalOpenGesture } from '../tip/popover.js';
 import { growFrom } from '../control/dropdownMenu.js';
 import { onAltKeys, pointerIn, wirePeekBox, wireReleasePick } from '../tip/altPeek.js';
+
 
 export function wireLogoAccent(logo) {
   const A = typeof window !== 'undefined' && window.StencilAccent;
@@ -62,7 +63,7 @@ export function wireLogoAccent(logo) {
     growFrom(menu, logoPoint);   // the slide grows out of the logo, as the motes do
     attachMenuScrollbar(menu);   // measurable only once shown
     wrap.classList.add('logo-menu-open');   // lifts the badge's stacking context over the page
-    surfaceIn(menu, logoPoint);
+    if (!surfaceIn(menu, logoPoint)) menuIn(menu, wrap.getBoundingClientRect());   // Sliding: out of the logo
     document.addEventListener('pointerdown', onDocDown, true);
     document.addEventListener('keydown', onKey);
   };
@@ -71,7 +72,7 @@ export function wireLogoAccent(logo) {
     kind = null;
     g.notifyClosed();
     restore();
-    surfaceOut(menu, centerOf(wrap));
+    if (!menuAway(menu, wrap.getBoundingClientRect())) surfaceOut(menu, centerOf(wrap));
     menu.hidden = true;
     wrap.classList.remove('logo-menu-open');
     document.removeEventListener('pointerdown', onDocDown, true);

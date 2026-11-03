@@ -8,7 +8,6 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDoubleSpinBox>
-#include <QElapsedTimer>
 #include <QEvent>
 #include <QMenu>
 #include <QLineEdit>
@@ -116,8 +115,9 @@ namespace stencil::support {
     return true;
   }
 
-  // A combo opens on the press, so two presses on it inside the double-click interval are read as
-  // one; a check toggles on each click, so its reset waits for the release after the double-click.
+  // A combo with a default opens its list only once the double-click window (POPOVER.doubleClickMs) passes, as
+  // a colour field does (browser dblReset.js): an open list would take the second press, and the list blink.
+  // A check toggles on each click, so its reset waits for the release after the double-click.
   class DblResetFilter : public QObject {
    public:
     using QObject::QObject;
@@ -125,30 +125,27 @@ namespace stencil::support {
    protected:
     bool eventFilter(QObject* obj, QEvent* ev) override {
       const QEvent::Type t = ev->type();
-      if (t == QEvent::MouseButtonPress) {
+      // The platform sends a double-click's second press as MouseButtonDblClick, a synthetic pair as two presses.
+      if (t == QEvent::MouseButtonPress || t == QEvent::MouseButtonDblClick) {
+        if (!obj->isWidgetType()) return false;   // the window's copy of a press: its widget's copy follows
         QComboBox* c = comboOf(obj);
-        if (!c) return false;
-        const bool second = c == lastCombo && sinceCombo.isValid() &&
-                            sinceCombo.elapsed() < QApplication::doubleClickInterval();
-        lastCombo = c;
-        sinceCombo.start();
-        if (second && resetCombo(c)) { lastCombo.clear(); return true; }
-        return false;
-      }
-      // An ignored double-click climbs to the parents: only a hit is recorded, never a miss.
-      if (t == QEvent::MouseButtonDblClick && !pendingCheck && !pendingAction) {
-        if (auto* m = qobject_cast<QMenu*>(obj))
-          pendingAction = m->actionAt(static_cast<QMouseEvent*>(ev)->position().toPoint());
-        else if (auto* b = qobject_cast<QCheckBox*>(obj)) pendingCheck = b;
-        else if (auto* cap = qobject_cast<QWidget*>(obj)) {
-          pendingCheck = qobject_cast<QAbstractButton*>(cap->property(CAPTION_BOX_PROPERTY).value<QObject*>());
-          QPointer<QWidget> field = qobject_cast<QWidget*>(cap->property(CAPTION_FIELD_PROPERTY).value<QObject*>());
-          if (!pendingCheck && field) {
-            if (auto* box = qobject_cast<QAbstractButton*>(field.data())) pendingCheck = box;
-            else QTimer::singleShot(0, field, [field] { if (field) resetToDefault(field); });
-          }
+        if (!c || c->isEditable() || !c->isEnabled() || static_cast<QMouseEvent*>(ev)->button() != Qt::LeftButton)
+          return t == QEvent::MouseButtonDblClick ? dblClick(obj, ev) : false;
+        if (opening && opening->isActive() && openFor == c) {   // the double-click's second press
+          opening->stop();
+          resetCombo(c);
+          return true;
         }
-        return false;
+        if (t == QEvent::MouseButtonDblClick) return true;   // one after a reset, or past the window: no open
+        c->setFocus(Qt::MouseFocusReason);
+        openFor = c;
+        if (!opening) {
+          opening = new QTimer(this);
+          opening->setSingleShot(true);
+          connect(opening, &QTimer::timeout, this, [this] { if (openFor && openFor->isVisible()) openFor->showPopup(); });
+        }
+        opening->start(uiTimings().doubleClickMs);
+        return true;
       }
       if (t == QEvent::MouseButtonRelease && pendingAction) {
         QPointer<QAction> a = pendingAction;
@@ -164,6 +161,22 @@ namespace stencil::support {
     }
 
    private:
+    // An ignored double-click climbs to the parents: only a hit is recorded, never a miss.
+    bool dblClick(QObject* obj, QEvent* ev) {
+      if (pendingCheck || pendingAction) return false;
+      if (auto* m = qobject_cast<QMenu*>(obj))
+        pendingAction = m->actionAt(static_cast<QMouseEvent*>(ev)->position().toPoint());
+      else if (auto* b = qobject_cast<QCheckBox*>(obj)) pendingCheck = b;
+      else if (auto* cap = qobject_cast<QWidget*>(obj)) {
+        pendingCheck = qobject_cast<QAbstractButton*>(cap->property(CAPTION_BOX_PROPERTY).value<QObject*>());
+        QPointer<QWidget> field = qobject_cast<QWidget*>(cap->property(CAPTION_FIELD_PROPERTY).value<QObject*>());
+        if (!pendingCheck && field) {
+          if (auto* box = qobject_cast<QAbstractButton*>(field.data())) pendingCheck = box;
+          else QTimer::singleShot(0, field, [field] { if (field) resetToDefault(field); });
+        }
+      }
+      return false;
+    }
     static QComboBox* comboOf(QObject* obj) {
       for (QObject* o = obj; o; o = o->parent()) {
         if (auto* c = qobject_cast<QComboBox*>(o)) return c->property(RESET_DEFAULT_PROPERTY).isValid() ? c : nullptr;
@@ -171,8 +184,8 @@ namespace stencil::support {
       }
       return nullptr;
     }
-    QPointer<QComboBox> lastCombo;
-    QElapsedTimer sinceCombo;
+    QPointer<QTimer> opening;      // a plain click's list, opened once no second click came
+    QPointer<QComboBox> openFor;
     QPointer<QAbstractButton> pendingCheck;
     QPointer<QAction> pendingAction;
   };

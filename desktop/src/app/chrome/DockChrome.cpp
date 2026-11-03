@@ -16,6 +16,24 @@
 
 namespace stencil::gui {
 
+  namespace {
+    // Raised over the window's own children, yet never over what floats above them: a dialog's blurred backdrop
+    // (support/modal/ModalBackdrop.hpp), a toolbar popover (MainWindowExecPopover.cpp) or a genie in flight.
+    void raiseUnderBackdrop(QWidget* overlay) {
+      overlay->raise();
+      const QWidget* host = overlay->parentWidget();
+      if (!host) return;
+      static const QStringList above = {QStringLiteral("modalBackdrop"), QStringLiteral("popoverOverlay"),
+                                        QStringLiteral("stencilModalGenie")};
+      for (QObject* o : host->children())   // bottom first: under the lowest of them is under them all
+        if (auto* top = qobject_cast<QWidget*>(o); top && top != overlay && top->isVisible()
+                                                   && above.contains(top->objectName())) {
+          overlay->stackUnder(top);
+          return;
+        }
+    }
+  }  // namespace
+
   // The panel re-opens from a floating chevron flush to the canvas' right edge — shown ONLY while the panel is hidden.
   void DockChrome::buildOverlayArrows() {
     w.tools.panelReopenBtn = new QToolButton(&w);
@@ -24,7 +42,7 @@ namespace stencil::gui {
     w.tools.panelReopenBtn->setFixedSize(PANEL_TOGGLE_BOX, PANEL_TOGGLE_BOX);   // same rounded square as the panel-header chevron
     w.tools.panelReopenBtn->setIconSize(QSize(PANEL_TOGGLE_GLYPH, PANEL_TOGGLE_GLYPH));
     w.tools.panelReopenBtn->setToolTip(QString("Show Last Line Points (%1)").arg(w.keys.value("togglePointsList", "Alt+X")));   // browser mainContent.js
-    w.tools.panelReopenBtn->setStyleSheet(panelToggleQss());
+    w.tools.panelReopenBtn->setObjectName(QStringLiteral("panelReopenBtn"));
     // Its angle is STATE — no icon-motion on hover.
     w.tools.panelReopenBtn->setProperty(NO_ICON_MOTION_PROPERTY, true);
     QObject::connect(w.tools.panelReopenBtn, &QToolButton::clicked, &w,
@@ -98,7 +116,7 @@ namespace stencil::gui {
     panelGrip->setGeometry(area == Qt::LeftDockWidgetArea
                                 ? QRect(pr.right() + 1, pr.top(), SEP_W, pr.height())
                                 : QRect(pr.left() - SEP_W, pr.top(), SEP_W, pr.height()));
-    panelGrip->raise();
+    raiseUnderBackdrop(panelGrip);
   }
 
   // The strip lies INSIDE the dock along the edge it is docked by (browser .chat-resizer): the
@@ -125,7 +143,7 @@ namespace stencil::gui {
     // Placed BEFORE it shows: a widget shown at its old box under the pointer takes an Enter.
     chatEdge->setGeometry(band);
     chatEdge->show();
-    chatEdge->raise();
+    raiseUnderBackdrop(chatEdge);
   }
 
   // The stack hangs off the WINDOW's bottom-left, so it is told to clear the status bar's coord readout.

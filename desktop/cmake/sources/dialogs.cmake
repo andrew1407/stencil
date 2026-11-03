@@ -72,7 +72,6 @@ list(APPEND STENCIL_GUI_SOURCES
   src/dialogs/settings/SettingsDialog.cpp
   src/dialogs/settings/SettingsDialogMotionRows.cpp
   src/dialogs/settings/SettingsDialogDrawRows.cpp
-  src/dialogs/settings/SettingsDialogPrefRows.cpp
   src/dialogs/settings/SettingsDialogState.cpp
   src/dialogs/settings/AssistantSettingsDialog.cpp
   src/dialogs/settings/LlmSettingsForm.cpp
@@ -101,6 +100,7 @@ list(APPEND STENCIL_GUI_SOURCES
   src/dialogs/settings/ShortcutsDialogRows.cpp
   ${STENCIL_CONNECTDIALOG_SOURCES}
   src/dialogs/meta/OpenInDialog.cpp
+  src/dialogs/meta/OpenInTargetsDialog.cpp
   src/dialogs/projects/copy/CopyProjectDialog.cpp
   src/dialogs/console/ConsoleWindow.cpp
   src/dialogs/console/ConsoleWindowInput.cpp

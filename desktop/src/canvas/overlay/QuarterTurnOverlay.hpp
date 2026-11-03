@@ -2,7 +2,8 @@
 // The image rotate's motion: a click-through child of the scroll viewport that turns a snapshot of
 // the refitted canvas upright from the old box while the real canvas is veiled; `dir` 0 is a flip,
 // turned over edge-on. Browser twins: js/ui/motion/quarterTurn.js, js/ui/motion/mirrorFlip.js.
-#include "dustKit.hpp"   // support::bezierY / frameIntervalMs
+#include "dustKit.hpp"   // support::bezierY
+#include "../../support/vsync/FramePulse.hpp"
 #include "motionPrefs.hpp"
 #include "quarterTurn.hpp"
 
@@ -11,7 +12,6 @@
 #include <QPainter>
 #include <QPixmap>
 #include <QPointer>
-#include <QTimer>
 #include <QWidget>
 
 #include <algorithm>
@@ -46,10 +46,7 @@ namespace stencil::gui {
       canvas->setGraphicsEffect(veil);
       span = support::motionMs(quarterTurn::clock().ms);
       clockStart.start();
-      ticker = new QTimer(this);
-      ticker->setTimerType(Qt::PreciseTimer);
-      ticker->setInterval(support::frameIntervalMs(this));
-      QObject::connect(ticker, &QTimer::timeout, this, [this] { tick(); });
+      ticker = new support::FrameTicker(this, [this] { tick(); });
       show();
       raise();
       ticker->start();
@@ -92,7 +89,7 @@ namespace stencil::gui {
 
     QPointer<QWidget> canvas;
     QPointer<QGraphicsOpacityEffect> veil;
-    QTimer* ticker = nullptr;
+    support::FrameTicker* ticker = nullptr;
     QElapsedTimer clockStart;
     int span = 1;
     QRect from;

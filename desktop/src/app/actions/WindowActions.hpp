@@ -53,11 +53,14 @@ namespace stencil::gui {
     QAction* projectColor = nullptr;
     QAction* projectColorClear = nullptr;
     QAction* saveSession = nullptr;
+    QAction* autosave = nullptr;        // File ▸ Autosave (checkable)
+    QAction* nativeMenuBar = nullptr;   // View ▸ Use System Menu Bar (checkable; takes effect on restart)
     QAction* info = nullptr;
     QAction* incognito = nullptr;
     QAction* shortcuts = nullptr;
     QAction* contextMenu = nullptr;
     QAction* openIn = nullptr;
+    QAction* openInTargets = nullptr;   // where Open In… hands off: the browser URL and the bot
     QAction* copyProject = nullptr;   // the Image section's "Make a copy" (its scopes pop from the button)
     QAction* chat = nullptr;
     QAction* assistantSettings = nullptr;

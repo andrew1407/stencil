@@ -11,32 +11,32 @@
 \x1b[19;1H\x1b[2K
 \x1b[20;1H\x1b[2K
 \x1b[21;1H\x1b[2K\x1b8
-~wait 39
-@39 22B a68e88f0edd14891
+~wait 35
+@35 22B a68e88f0edd14891
 \x1b7
 \x1b[16;1Ha li\x1b[0m\x1b[K\x1b8
-~wait 39
-@78 26B 67f8059816f7e6e8
+~wait 35
+@70 26B 67f8059816f7e6e8
 \x1b7
 \x1b[16;1Ha line s\x1b[0m\x1b[K\x1b8
-~wait 39
-@117 30B 5c6d46dbfe576700
+~wait 35
+@105 30B 5c6d46dbfe576700
 \x1b7
 \x1b[16;1Ha line sweep\x1b[0m\x1b[K\x1b8
-~wait 39
-@156 34B 1f3413c59938fb40
+~wait 35
+@140 34B 1f3413c59938fb40
 \x1b7
 \x1b[16;1Ha line sweeping \x1b[0m\x1b[K\x1b8
-~wait 39
-@195 38B b667ba50a8cbab69
+~wait 35
+@175 38B b667ba50a8cbab69
 \x1b7
 \x1b[16;1Ha line sweeping in f\x1b[0m\x1b[K\x1b8
-~wait 39
-@234 42B 8c281a280cc8f722
+~wait 35
+@210 42B 8c281a280cc8f722
 \x1b7
 \x1b[16;1Ha line sweeping in from \x1b[0m\x1b[K\x1b8
-~wait 39
-@273 930B cfccea7186e8dfd9
+~wait 35
+@245 930B cfccea7186e8dfd9
 \x1b7
 \x1b[16;1Ha line sweeping in from the \x1b[0m\x1b[K
 \x1b[12;1H\x1b[38;2;124;58;237m> \x1b[0m/theme\x1b[0m\x1b[K
@@ -52,7 +52,7 @@
 \x1b[22;1H\x1b[2K\x1b[38;2;124;58;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\x1b[2m\x1b[0m
 \x1b[24;1H\x1b[2K\x1b[38;2;124;58;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\x1b[2m\x1b[0m
 # burst
-@273 329B 72cedd869a3015aa
+@245 329B 72cedd869a3015aa
 \x1b7
 \x1b[12;1H\x1b[38;2;124;58;237m> \x1b[0m/theme\x1b[0m\x1b[K
 \x1b[13;1Hwrote out.png (640x480 px · A4 29.7×21cm)\x1b[0m\x1b[K
@@ -64,8 +64,8 @@
 \x1b[19;1H\x1b[2K
 \x1b[20;1H\x1b[2K
 \x1b[21;1H\x1b[2K\x1b8
-~wait 39
-@312 1286B d66e3617b305c5ed
+~wait 35
+@280 1286B d66e3617b305c5ed
 \x1b7
 \x1b[17;1Hhard on i\x1b[0m\x1b[K
 \x1b[12;1H\x1b[38;2;124;58;237m> \x1b[0m/theme\x1b[0m\x1b[K
@@ -90,8 +90,8 @@
 \x1b[19;1H\x1b[0m\x1b[K
 \x1b[20;1H\x1b[0m\x1b[K
 \x1b[21;1H\x1b[2K\x1b8
-~wait 39
-@351 988B 33db20db8cfd806d
+~wait 35
+@315 988B 33db20db8cfd806d
 \x1b7
 \x1b[18;1Hthre\x1b[0m\x1b[K
 \x1b[19;1Hline\x1b[0m\x1b[K
@@ -110,7 +110,7 @@
 \x1b[24;1H\x1b[2K\x1b[38;2;124;58;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\x1b[2m\x1b[0m
 ~pause 400
 # after a pause
-@751 375B a3d4a8d5217d7ab5
+@715 375B a3d4a8d5217d7ab5
 \x1b7
 \x1b[12;1H\x1b[38;2;124;58;237m> \x1b[0m/theme\x1b[0m\x1b[K
 \x1b[13;1Hwrote out.png (640x480 px · A4 29.7×21cm)\x1b[0m\x1b[K
@@ -122,8 +122,8 @@
 \x1b[19;1Hlines\x1b[0m\x1b[K
 \x1b[20;1Hat once\x1b[0m\x1b[K
 \x1b[21;1H\x1b[0m\x1b[K\x1b8
-~wait 39
-@790 1115B b29743889ca7e9ce
+~wait 35
+@750 1115B b29743889ca7e9ce
 \x1b7
 \x1b[21;1H\x1b[38;2;124;58;237maccented\x1b[0m and a line long enough to wrap \x1b[0m\x1b[K
 \x1b[12;1H\x1b[38;2;124;58;237m> \x1b[0m/theme\x1b[0m\x1b[K

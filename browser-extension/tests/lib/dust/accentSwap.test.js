@@ -157,3 +157,46 @@ test('the wipe and its wake run on the motion table the browser reads', () => {
     GRAIN_STEPS: 'SWAP_DUST_STEPS', GRAIN_FLARE: 'SWAP_DUST_FLARE' };
   for (const [name, key] of Object.entries(pairs)) assert.equal(kit[name], ui[key], `${name} is motion.json ${key}`);
 });
+
+// Transition wipes in from the left edge; Sliding's silhouette is the browser's own (themeSwapShape.js over
+// genie/warp.js genieOutline), the classic copy in lib/dust/swapGeometry.js held to it point for point.
+test('Transition wipes from the left and Sliding pours the browser\'s genie silhouette', async () => {
+  const shape = await import('../../../../browser/js/ui/motion/surface/themeSwapShape.js');
+  const kit = loadAccent().kit;
+  // A theme change pours out of its control, an accent change (`fromTop`) down from the top edge above it.
+  for (const fromTop of [false, true]) {
+    for (const [x, y, p] of [[290, 40, 0.5], [100, 650, 0.2], [470, 300, 0.8], [240, 350, 0], [12, 12, 1]])
+      assert.equal(kit.swapGeniePolygon(x, y, 480, 700, p, fromTop), shape.swapGeniePolygon(x, y, 480, 700, p, fromTop), `at ${x},${y} p ${p}`);
+    assert.equal(kit.swapGenieKeyframes(290, 40, 480, 700, fromTop), shape.swapGenieKeyframes(290, 40, 480, 700, fromTop));
+  }
+  assert.notEqual(shape.swapGeniePolygon(100, 650, 480, 700, 0.5, true), shape.swapGeniePolygon(100, 650, 480, 700, 0.5, false),
+    'the two pours differ');
+  const page = wipePage({ stored: { stencil_motion: 'transition' } });
+  page.theme.set('dark');
+  assert.equal(page.swapClip('from'), shape.WIPE_CLIP_FROM);
+  assert.equal(page.swapClip('to'), shape.WIPE_CLIP_TO);
+});
+
+// Every open window gets its own reveal, from the control used inside it (desktop ThemeSwapOverlay::captureWindows);
+// the classic copy in lib/dust/swapWindows.js writes the browser's themeSwapWindows.js CSS byte for byte.
+test('each open window plays its own reveal, as the browser writes it', async () => {
+  const { nameSwapWindows } = await import('../../../../browser/js/ui/motion/surface/themeSwapWindows.js');
+  const kit = loadAccent().kit;
+  const box = (left, top, width, height) => ({ left, top, width, height, right: left + width, bottom: top + height });
+  const page = (focusBox) => {
+    const focus = focusBox && { getBoundingClientRect: () => focusBox };
+    const wins = [box(40, 60, 300, 200), box(400, 80, 4, 4), box(120, 300, 220, 160)].map((r, i) => ({
+      style: {}, getBoundingClientRect: () => r, contains: (el) => i === 0 && el === focus }));
+    return { wins, doc: { activeElement: focus, querySelectorAll: () => wins } };
+  };
+  for (const mode of ['slide', 'transition', 'particles']) {
+    const a = page(box(250, 120, 40, 20)), b = page(box(250, 120, 40, 20));
+    const ours = kit.nameSwapWindows({ x: 200, y: 360 }, mode, 300, 'ease', '.w', a.doc, mode === 'slide');
+    const theirs = nameSwapWindows({ x: 200, y: 360 }, mode, 300, 'ease', '.w', b.doc, mode === 'slide');
+    assert.ok(ours.css.includes('::view-transition-new(swap-win-1)') && ours.css.includes('@keyframes swap-win-0-reveal'), mode);
+    assert.equal(ours.css, theirs.css, mode);
+    assert.deepEqual(a.wins.map((w) => w.style.viewTransitionName), ['swap-win-0', undefined, 'swap-win-1'], 'a speck is no window');
+    ours.release();
+    assert.ok(a.wins.every((w) => !w.style.viewTransitionName), 'the names go with the swap');
+  }
+});

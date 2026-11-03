@@ -208,7 +208,7 @@
         "border-color": "rgb(0, 0, 0)",
         "font-size": "16px",
         "font-family": "Arial, sans-serif",
-        "width": "166px",
+        "width": "170px",
         "height": "34px"
       }
     },
@@ -228,7 +228,7 @@
         "font-family": "Arial, sans-serif",
         "padding": "8px 12px",
         "gap": "6px",
-        "width": "166px",
+        "width": "170px",
         "height": "34px",
         "text-align": "left",
         "align-items": "center",
@@ -245,7 +245,7 @@
         "border-color": "rgb(0, 0, 0)",
         "font-size": "14px",
         "font-family": "Arial, sans-serif",
-        "width": "121px",
+        "width": "125px",
         "height": "16px",
         "text-align": "left"
       },
@@ -293,7 +293,7 @@
         "border-color": "rgb(0, 0, 0)",
         "font-size": "16px",
         "font-family": "Arial, sans-serif",
-        "width": "178px",
+        "width": "183px",
         "height": "34px"
       }
     },
@@ -313,7 +313,7 @@
         "font-family": "Arial, sans-serif",
         "padding": "8px 12px",
         "gap": "6px",
-        "width": "178px",
+        "width": "183px",
         "height": "34px",
         "text-align": "left",
         "align-items": "center",
@@ -330,7 +330,7 @@
         "border-color": "rgb(0, 0, 0)",
         "font-size": "14px",
         "font-family": "Arial, sans-serif",
-        "width": "133px",
+        "width": "138px",
         "height": "16px",
         "text-align": "left"
       },
@@ -378,7 +378,7 @@
         "border-color": "rgb(0, 0, 0)",
         "font-size": "16px",
         "font-family": "Arial, sans-serif",
-        "width": "157.4px",
+        "width": "158px",
         "height": "34px"
       }
     },
@@ -398,7 +398,7 @@
         "font-family": "Arial, sans-serif",
         "padding": "8px 12px",
         "gap": "6px",
-        "width": "157.4px",
+        "width": "158px",
         "height": "34px",
         "text-align": "left",
         "align-items": "center",
@@ -415,7 +415,7 @@
         "border-color": "rgb(0, 0, 0)",
         "font-size": "14px",
         "font-family": "Arial, sans-serif",
-        "width": "112.4px",
+        "width": "113px",
         "height": "16px",
         "text-align": "left"
       },

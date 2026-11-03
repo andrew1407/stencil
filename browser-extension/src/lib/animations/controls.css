@@ -15,6 +15,6 @@
 .badge { transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease; }
 
 .preview { animation: stPopIn 0.14s ease both; }
-.action-menu { animation: stMenuRise 0.16s cubic-bezier(0.16, 1, 0.3, 1) both; transform-origin: top right; }
+.action-menu { animation: stMenuFromAnchor 0.26s cubic-bezier(0.22, 0.61, 0.36, 1) both; transform-origin: top right; }
 .action-menu button { transition: background 0.14s ease, color 0.14s ease, padding-left 0.14s ease; }
 .action-menu button:hover { padding-left: 12px; }

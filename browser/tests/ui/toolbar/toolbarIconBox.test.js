@@ -206,9 +206,8 @@ test('the points-panel chevron is one centred square in both states', () => {
   const h = base.match(/height:\s*(\d+)px/)?.[1];
   assert.ok(w && h, 'the chevron has no explicit box, so its height follows the font');
   assert.equal(w, h, `the chevron is ${w}x${h}, not square`);
-  // Collapsing may drop the outline, but it must NOT re-open the box.
+  // A folded-state rule, if one comes back, must NOT re-open the box (today the folded chevron is the open one).
   const rail = css.match(/\.coordinates-panel\.coord-collapsed #toggle-coord-panel \{([^}]*)\}/)?.[1] || '';
-  assert.ok(rail, 'the collapsed rule is gone');
   for (const prop of ['width', 'height', 'padding', 'font-size', 'display'])
     assert.ok(!new RegExp(`${prop}\\s*:`).test(rail),
               `the collapsed rule re-declares ${prop}, so the two states can drift apart`);

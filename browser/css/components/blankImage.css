@@ -8,7 +8,9 @@
     align-items: center;
     justify-content: center;
     pointer-events: none;
+    container-type: size;
 }
+
 .idle-create-btn {
     pointer-events: auto;
     display: flex;
@@ -30,7 +32,11 @@
    selection around the card; hover/active already say where the pointer is. */
 .idle-create-btn:focus, .idle-create-btn:focus-visible { outline: none; }
 .idle-create-icon { font-size: 32px; line-height: 1; }
-/* White/black preset chips in the blank-image modal */
+/* Shown only where the card (144×93 at rest) fits whole with 16px clear on every side, never squeezed or
+   clipped (desktop IdleCard.cpp IDLE_CARD_CLEAR_PX). Scoped to its wrap so it outranks the card's own rule. */
+@container (max-width: 176px) or (max-height: 125px) {
+    .idle-create .idle-create-btn { display: none; }
+}/* White/black preset chips in the blank-image modal */
 .bi-presets { display: flex; gap: 8px; }
 .bi-preset {
     width: 54px;

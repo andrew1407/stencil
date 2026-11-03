@@ -28,8 +28,8 @@ test('the opened menu carries the click-point transform-origin, and CSS pops it 
     'the origin is the click inside the flipped box — the menu grows out of the cursor');
   // The animation itself is CSS: the shared menuPop keyframe, reduced-motion aware.
   const anims = ANIMATIONS_CSS;
-  assert.match(anims, /@keyframes menuPop \{ from \{ opacity: 0; transform: scale\(0\.62\); \}/);
-  assert.match(anims, /\.chat-row-menu \{ animation: menuPop 0\.14s ease-out; \}/);
+  assert.match(anims, /@keyframes menuPop \{ 0% \{ opacity: 0; transform: scale\(0\.05\); \} 8% \{ opacity: 1; \}/);
+  assert.match(anims, /\.chat-row-menu \{ animation: menuPop 0\.26s cubic-bezier\(0\.22, 0\.61, 0\.36, 1\); \}/);
   assert.match(anims, /prefers-reduced-motion: reduce\) \{\s*#ctx-menu\.ctx-open, \.chat-row-menu \{ animation: none; \}/);
 });
 

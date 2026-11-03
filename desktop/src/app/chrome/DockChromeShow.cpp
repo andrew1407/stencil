@@ -6,14 +6,23 @@
 #include "windowMotion.hpp"
 #include "SelectionPanel.hpp"
 #include "ChatDock.hpp"
+#include "../../support/genie/GenieGhost.hpp"   // support::genie::flightEase
+#include "../../support/motion/DisintegrateOverlay.hpp"
+#include <QLayout>
 #include <QGraphicsOpacityEffect>
 
 // The chat panel's show/hide slide.
 
 namespace stencil::gui {
 
+  namespace {
+    // Sliding pours the docked chat on the window flight's own lengths, as the browser's (chat/touch.css).
+    int chatPourMs(bool show) { return show ? support::genie::OPEN_MS : support::genie::CLOSE_MS; }
+  }  // namespace
+
   // The veil must never outlive the flight, or an interrupted slide leaves an invisible panel.
   void DockChrome::releasePanelVeil() {
+    delete panelCover.data();
     if (!panelVeil) return;
     if (w.selPanel && w.selPanel->graphicsEffect() == panelVeil) w.selPanel->setGraphicsEffect(nullptr);
     panelVeil = nullptr;
@@ -25,6 +34,7 @@ namespace stencil::gui {
    * clock starts before the slide's, so waiting for the slide left a beat with the overlay
    * destroyed and the dock still veiled, drawing neither. Idempotent: stopChatAnim repeats it. */
   void DockChrome::dropChatVeil() {
+    delete chatCover.data();
     if (!chatVeil) return;
     if (w.chatDock && w.chatDock->graphicsEffect() == chatVeil) w.chatDock->setGraphicsEffect(nullptr);
     chatVeil = nullptr;
@@ -33,6 +43,7 @@ namespace stencil::gui {
   void DockChrome::stopChatAnim() {
     // An INTERRUPTED slide never runs its completion, so "leaving" is released here too.
     chatClosing = false;
+    ++chatPourRun;
     if (w.chatDock) w.chatDock->setClosing(false);
     dropChatVeil();
     if (!chatAnim) return;
@@ -106,13 +117,14 @@ namespace stencil::gui {
     // of the two. Shown BEFORE it is measured: a HIDDEN dock contributes no space to the layout.
     const int slideMs = show ? chatSlideClocks().inMs : chatCloseMs();
     if (show) w.chatDock->show();
+    const bool poured = pourDockedChat(show, chatPourMs(show), pin, show ? full : from);
     QPointer<gui::DisintegrateOverlay> dustFx =
-        chatSurfaceFlight(area, /*gather=*/show, slideMs, pin, show ? full : from);
+        poured ? nullptr : chatSurfaceFlight(area, /*gather=*/show, slideMs, pin, show ? full : from);
     if (show) pin(from);
     // A dock mid-slide is already "away" for results: it stays isVisible() for the whole slide.
     if (!show) { chatClosing = true; w.chatDock->setClosing(true); }
-    chatAnim = startExtentSlide(&w, from, to,
-                                 slideMs,   // the dust flight above runs the same clock
+    const support::genie::SpaceClock space = support::genie::spaceClock(show || !poured, poured ? chatPourMs(show) : slideMs);
+    chatAnim = startExtentSlide(&w, from, to, space.ms,   // the dust flight above runs the same clock
                                  pinAndRaiseDust(pin, dustFx), [this, show] {
                                    stopChatAnim();  // releases the pinned constraints
                                    if (!show) w.chatDock->hide();
@@ -122,7 +134,9 @@ namespace stencil::gui {
                                    if (show) w.chatDock->focusInput();
                                  },
                                  // Close eases OUT (InOutQuad): OutCubic front-loads the collapse and reads as a slam.
-                                 show ? QEasingCurve::OutCubic : QEasingCurve::InOutQuad);
+                                 poured ? support::genie::flightEase(show)
+                                        : show ? QEasingCurve::OutCubic : QEasingCurve::InOutQuad,
+                                 space.delayMs);
   }
 
 }  // namespace stencil::gui

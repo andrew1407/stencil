@@ -42,6 +42,14 @@ const MANIFEST = [
   ['rowWindow', '../../browser/js/ui/panel/rowWindow.js', '../src/lib/virtualList/rowWindow.js'],
   // The picture's quarter turn: one WAAPI flight on the clock its caller hands it.
   ['quarterTurn', '../../browser/js/ui/motion/quarterTurn.js', '../src/lib/motion/quarterTurn.js'],
+  // The Sliding mode's window flight vars: pure, so the copy is the whole file.
+  ['genie', '../../browser/js/ui/motion/genie/vars.js', '../src/lib/motion/genie/vars.js'],
+  ['genieWarp', '../../browser/js/ui/motion/genie/warp.js', '../src/lib/motion/genie/warp.js'],
+  ['genieShot', '../../browser/js/ui/motion/genie/shot.js', '../src/lib/motion/genie/shot.js'],
+  ['genieFlight', '../../browser/js/ui/motion/genie/flight.js', '../src/lib/motion/genie/flight.js'],
+  // A surface held as a copy while it leaves (Sliding's fresh picture, Transition's exit): pure DOM, the whole file.
+  ['leaveCopy', '../../browser/js/ui/motion/surface/leaveCopy.js', '../src/lib/motion/leaveCopy.js'],
+  ['leaveCopyDts', '../../browser/js/ui/motion/surface/leaveCopy.d.ts', '../src/lib/motion/leaveCopy.d.ts'],
   // The shared LLM client: per-surface wording/token defaults live in surface.js,
   // so the client itself differs only in its header + providers.json import path.
   ['llmClient', '../../browser/js/llm/client.js', '../src/llm/client.js'],
@@ -78,6 +86,10 @@ const MANIFEST = [
   ['rectTweenDts', '../../browser/js/ui/motion/rectTween.d.ts', '../src/lib/rectTween.d.ts'],
   ['rowWindowDts', '../../browser/js/ui/panel/rowWindow.d.ts', '../src/lib/virtualList/rowWindow.d.ts'],
   ['quarterTurnDts', '../../browser/js/ui/motion/quarterTurn.d.ts', '../src/lib/motion/quarterTurn.d.ts'],
+  ['genieDts', '../../browser/js/ui/motion/genie/vars.d.ts', '../src/lib/motion/genie/vars.d.ts'],
+  ['genieWarpDts', '../../browser/js/ui/motion/genie/warp.d.ts', '../src/lib/motion/genie/warp.d.ts'],
+  ['genieShotDts', '../../browser/js/ui/motion/genie/shot.d.ts', '../src/lib/motion/genie/shot.d.ts'],
+  ['genieFlightDts', '../../browser/js/ui/motion/genie/flight.d.ts', '../src/lib/motion/genie/flight.d.ts'],
   ['cappedBodyDts', '../../browser/js/net/cappedBody.d.ts', '../src/lib/connection/cappedBody.d.ts'],
   ['stageRulesDts', '../../browser/js/ui/logo/stageRules.d.ts', '../src/lib/logo/stageRules.d.ts'],
   ['stageMotionDts', '../../browser/js/ui/logo/stageMotion.d.ts', '../src/lib/logo/stageMotion.d.ts'],

@@ -60,7 +60,8 @@ body.controls-collapsed:not(.fullscreen-mode) .canvas-viewport { transition: mar
 .coordinates-panel {
     transition: width var(--panel-slide-ms) var(--fold-ease),
                 min-width var(--panel-slide-ms) var(--fold-ease),
-                padding var(--panel-slide-ms) var(--fold-ease);
+                padding var(--panel-slide-ms) var(--fold-ease),
+                margin-right var(--panel-slide-ms) var(--fold-ease);
 }
 .main-content:has(.panel-resizer.dragging) .coordinates-panel,
 body:has(#fs-panel-resizer.dragging) .coordinates-panel { transition: none; }
@@ -100,6 +101,25 @@ body:has(#fs-panel-resizer.dragging) .coordinates-panel { transition: none; }
     .coordinates-panel.coord-veiled #coord-body { display: block; opacity: 1; transition: none; }
     .coordinates-panel.coord-veiled .coord-tabs { display: inline-flex; opacity: 1; transition: none; }
     .coordinates-panel.coord-veiled #toggle-coord-panel { border: 1px solid var(--border-main) !important; }
+    /* A fold spans the column to its bottom, as the desktop's dock (panel/coordFold.js): the box takes the room
+       (--coord-panel-room) unpainted, and the card is drawn behind its content at its own height (--coord-card-h). */
+    .coordinates-panel.coord-tall {
+        height: var(--coord-panel-room, auto);
+        background: var(--coord-tall-fill, transparent);
+        isolation: isolate;
+    }
+    .coordinates-panel.coord-tall::before {
+        content: '';
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: var(--coord-card-h, 100%);
+        background: var(--bg-coord-panel);
+        border-radius: inherit;
+        z-index: -1;
+        pointer-events: none;
+    }
+    .coordinates-panel.coord-tall.coord-collapsed::before,
+    .coordinates-panel.coord-tall.coord-veiled::before { display: none; }
 }
 @starting-style {
     .coordinates-panel:not(.coord-collapsed) #coord-body,
@@ -117,4 +137,5 @@ body:has(#fs-panel-resizer.dragging) .coordinates-panel { transition: none; }
 #controls-body.fold-instant, #controls-body.fold-instant > *,
 .coordinates-panel.fold-instant,
 .coordinates-panel.fold-instant #coord-body,
-.coordinates-panel.fold-instant .coord-tabs { transition: none !important; }
+.coordinates-panel.fold-instant .coord-tabs,
+.coordinates-panel.fold-instant #toggle-coord-panel .ic { transition: none !important; }

@@ -118,6 +118,4 @@ namespace stencil::support {
     double dpr = 0;
   };
 
-  int frameIntervalMs(const QWidget* w);
-
 }  // namespace stencil::support

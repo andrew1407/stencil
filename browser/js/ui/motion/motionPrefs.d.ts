@@ -1,4 +1,4 @@
-export type MotionMode = 'particles' | 'water' | 'fire' | 'slide' | 'none';
+export type MotionMode = 'particles' | 'water' | 'fire' | 'slide' | 'transition' | 'none';
 export interface MotionPrefs { mode: MotionMode; drawing: boolean;
   multiWindow: boolean; speed: number; consoleSpeed: number; }
 
@@ -44,13 +44,13 @@ export declare const motionMs: (ms: number) => number;
 export declare const motionClock: (real?: () => number) => () => number;
 export declare const storedMotionMode: () => MotionMode;
 export declare const showMotionStyle: () => string;
-/** Whether a logo show may fly a cloud: false in 'slide' and 'none'. */
+/** Whether a logo show may fly a cloud: false in 'slide', 'transition' and 'none'. */
 export declare const showDustAllowed: () => boolean;
 /** Reads prefers-reduced-motion live, at call time. */
 export declare const prefersReducedMotion: () => boolean;
 /** True when mode is 'none' or the OS prefers reduced motion. */
 export declare const motionReduced: () => boolean;
-/** False in 'slide'/'none': the surface's own CSS entrance is in charge instead. */
+/** False in 'slide'/'transition'/'none': the surface's own CSS entrance is in charge instead. */
 export declare const dustEnabled: () => boolean;
 /** 'dust' | 'water' | 'fire', or null when no particles fly. */
 export declare const particleStyle: () => string | null;

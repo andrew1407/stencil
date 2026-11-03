@@ -35,6 +35,8 @@ const FUNCTIONS = [
     ['LONGEST', 'matchTypedWord', 'typedLetter']],
   ['typingTarget', '../../browser/js/utils/dom.js', '../src/options/secrets/typedWords.js', ['isTypingTarget']],
   ['stageAccents', '../../browser/js/core/settings/accents.js', '../src/lib/logo/accents.js', ['normalizeHex']],
+  // A selector's list waits out the double-click window: the dblclick reset's other half.
+  ['dblReset', '../../browser/js/ui/control/dblReset.js', '../src/lib/control/dblReset.js', ['deferSelectOpens']],
   // The stage's lock and lifecycle; only the bare-window test and the mark's selector are the page's own.
   ['logoStage', '../../browser/js/ui/logo/stage.js', '../src/lib/logo/stage.js', [
     'STAGE_CLASS', 'OPEN_CLASS', 'logoStageOpen', 'SWALLOWED', 'closeLogoStage', 'openLogoStage', 'currentLogoStage']],

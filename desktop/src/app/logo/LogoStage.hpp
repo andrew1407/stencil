@@ -19,6 +19,7 @@
 class QKeyEvent;
 class QTimer;
 class QToolButton;
+namespace stencil::support { class FrameTicker; }
 
 namespace stencil::gui {
 
@@ -102,7 +103,7 @@ namespace stencil::gui {
     QToolButton* logo;
     Hooks hooks;
     QTimer* hold = nullptr;     // "logoHold": the press that opens a showWord
-    QTimer* clock = nullptr;
+    support::FrameTicker* clock = nullptr;
     QTimer* way = nullptr;      // polls for the bare window a cleared way leaves
     QString pending;
     int wayTries = 0;

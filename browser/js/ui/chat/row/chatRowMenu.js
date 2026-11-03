@@ -2,6 +2,7 @@
 import { menuPopOrigin } from '../../motion/flip.js';
 import { SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../../motion/surface/motion.js';
 import { surfaceIn, surfaceOut } from '../../motion/surface/surfaces.js';
+import { menuIn, menuAway, pointBox } from '../../motion/genie/window.js';
 import { chatRowMenuItems, copyChatText, selectionCoversRow } from './chatRowMenuModel.js';
 import { icon } from '../../icons.js';
 import { notify } from '../../../utils.js';
@@ -34,8 +35,8 @@ const openChatRowMenu = (row, x, y, hooks) => {
     if (rowMenuEl !== menu) return;
     rowMenuEl = null;
     rowMenuClose = null;
-// Back into the point it grew out of; its own layer, so the node still goes now.
-    surfaceOut(menu, { x, y }, { ms: SURFACE_MENU_OUT_MS });
+// Back into the point it grew out of: its picture or its copy fly on their own, so the node still goes now.
+    if (!menuAway(menu, pointBox({ x, y }))) surfaceOut(menu, { x, y }, { ms: SURFACE_MENU_OUT_MS });
     menu.remove();
     announcePopup();
     document.removeEventListener('pointerdown', onDown, true);
@@ -73,7 +74,7 @@ const openChatRowMenu = (row, x, y, hooks) => {
 // The entry pop (animations/overlay/overlays.css menuPop) grows out of the open point; the plain
 // pop is the fallback when motion.js cannot play dust.
   menu.style.transformOrigin = menuPopOrigin(x, y, { left, top, width: mw, height: mh });
-  surfaceIn(menu, { x, y }, { ms: SURFACE_MENU_IN_MS });
+  if (!surfaceIn(menu, { x, y }, { ms: SURFACE_MENU_IN_MS })) menuIn(menu, pointBox({ x, y }));
   rowMenuEl = menu;
   rowMenuClose = close;
   announcePopup();

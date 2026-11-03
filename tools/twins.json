@@ -222,6 +222,36 @@
       "to": "browser-extension/src/lib/motion/quarterTurn.js"
     },
     {
+      "name": "genie",
+      "from": "browser/js/ui/motion/genie/vars.js",
+      "to": "browser-extension/src/lib/motion/genie/vars.js"
+    },
+    {
+      "name": "genieWarp",
+      "from": "browser/js/ui/motion/genie/warp.js",
+      "to": "browser-extension/src/lib/motion/genie/warp.js"
+    },
+    {
+      "name": "genieShot",
+      "from": "browser/js/ui/motion/genie/shot.js",
+      "to": "browser-extension/src/lib/motion/genie/shot.js"
+    },
+    {
+      "name": "genieFlight",
+      "from": "browser/js/ui/motion/genie/flight.js",
+      "to": "browser-extension/src/lib/motion/genie/flight.js"
+    },
+    {
+      "name": "leaveCopy",
+      "from": "browser/js/ui/motion/surface/leaveCopy.js",
+      "to": "browser-extension/src/lib/motion/leaveCopy.js"
+    },
+    {
+      "name": "leaveCopyDts",
+      "from": "browser/js/ui/motion/surface/leaveCopy.d.ts",
+      "to": "browser-extension/src/lib/motion/leaveCopy.d.ts"
+    },
+    {
       "name": "llmClient",
       "from": "browser/js/llm/client.js",
       "to": "browser-extension/src/llm/client.js"
@@ -330,6 +360,26 @@
       "name": "quarterTurnDts",
       "from": "browser/js/ui/motion/quarterTurn.d.ts",
       "to": "browser-extension/src/lib/motion/quarterTurn.d.ts"
+    },
+    {
+      "name": "genieDts",
+      "from": "browser/js/ui/motion/genie/vars.d.ts",
+      "to": "browser-extension/src/lib/motion/genie/vars.d.ts"
+    },
+    {
+      "name": "genieWarpDts",
+      "from": "browser/js/ui/motion/genie/warp.d.ts",
+      "to": "browser-extension/src/lib/motion/genie/warp.d.ts"
+    },
+    {
+      "name": "genieShotDts",
+      "from": "browser/js/ui/motion/genie/shot.d.ts",
+      "to": "browser-extension/src/lib/motion/genie/shot.d.ts"
+    },
+    {
+      "name": "genieFlightDts",
+      "from": "browser/js/ui/motion/genie/flight.d.ts",
+      "to": "browser-extension/src/lib/motion/genie/flight.d.ts"
     },
     {
       "name": "cappedBodyDts",
@@ -503,6 +553,14 @@
       "to": "browser-extension/src/lib/logo/accents.js",
       "names": [
         "normalizeHex"
+      ]
+    },
+    {
+      "name": "dblReset",
+      "from": "browser/js/ui/control/dblReset.js",
+      "to": "browser-extension/src/lib/control/dblReset.js",
+      "names": [
+        "deferSelectOpens"
       ]
     },
     {

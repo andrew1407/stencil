@@ -4,6 +4,7 @@
 #include "motionPrefs.hpp"   // support::motionReduced()
 
 #include <QAbstractItemView>
+#include <QCursor>
 #include <QEasingCurve>
 #include <QEvent>
 #include <QHoverEvent>
@@ -12,6 +13,7 @@
 #include <QObject>
 #include <QPainter>
 #include <QPersistentModelIndex>
+#include <QScrollBar>
 #include <QPointer>
 #include <QStyledItemDelegate>
 #include <QVariantAnimation>
@@ -45,6 +47,10 @@ namespace stencil::gui {
       view->setMouseTracking(true);
       view->viewport()->setMouseTracking(true);
       view->viewport()->installEventFilter(this);
+      // A scroll moves rows under a still pointer and sends no move: the row now under it takes the slide, as
+      // the browser's :hover does and Qt's own hover state already does.
+      for (QScrollBar* bar : {view->verticalScrollBar(), view->horizontalScrollBar()})
+        QObject::connect(bar, &QScrollBar::valueChanged, this, [this] { underPointer(); });
     }
 
     int offsetFor(const QModelIndex& idx) const {
@@ -71,6 +77,12 @@ namespace stencil::gui {
     }
 
    private:
+    void underPointer() {
+      if (!view || !view->isVisible()) return;
+      const QPoint at = view->viewport()->mapFromGlobal(QCursor::pos());
+      if (view->viewport()->rect().contains(at)) enter(view->indexAt(at));
+    }
+
     void enter(const QModelIndex& idx) {
       if (row.isValid() && QModelIndex(row) == idx) return;
       // The row left behind drops back at once: two rows easing reads as the list wobbling.

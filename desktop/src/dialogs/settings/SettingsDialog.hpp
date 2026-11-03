@@ -20,8 +20,8 @@ class QWidget;
 // Settings editor — the browser's "Visuals & Settings" modal (js/ui/visuals/modal.js):
 // the shared shell, its search box, .vs-section captions over hairline .vs-row rows,
 // and a footer hint beside Reset All. Live-apply, like the browser — no Save/Cancel,
-// just Close. Desktop-only preferences ride along as extra sections. The AI-assistant
-// rows are commit/discard and live in AssistantSettingsDialog (the chat dock's gear).
+// just Close. The same rows as the browser's; the AI-assistant rows are commit/discard
+// and live in AssistantSettingsDialog (the chat dock's gear).
 
 namespace stencil::gui {
 
@@ -29,7 +29,9 @@ namespace stencil::gui {
     Q_OBJECT
    public:
     explicit SettingsDialog(const Settings& current, QWidget* parent = nullptr);
-    Settings result() const;
+    Settings result() const;   // applyTo() over the settings the dialog opened with
+    // Writes the rows' values into `s`, leaving every field they do not edit as it is.
+    void applyTo(Settings& s) const;
     // Fired with result() on every change — MainWindow wires this to applySettings().
     void setOnChange(std::function<void(const Settings&)> cb) { onChange = std::move(cb); }
 
@@ -65,7 +67,6 @@ namespace stencil::gui {
     void setMotionSpeedRow(double speed) { setSpeedPair(motionSpeedSpin, motionSpeed, speed); }
     void buildNotifyRows(Rows& r, const Settings& current);
     void buildDrawingRows(Rows& r, const Settings& current);
-    void buildPreferenceRows(Rows& r, const Settings& current);
 
     // Opens an animated picker anchored on `btn` and takes the chosen color.
     void pickColorInto(QPushButton* btn, QString& hex, const QString& title);
@@ -94,18 +95,11 @@ namespace stencil::gui {
     Settings base;  // preserves fields this dialog doesn't edit (formulas, llm*…)
     QComboBox* theme = nullptr;
     QComboBox* accent = nullptr;
-    QCheckBox* nativeMenuBar = nullptr;
-    QCheckBox* autosave = nullptr;
-    QCheckBox* showPoints = nullptr;
-    QCheckBox* showLines = nullptr;
     QPushButton* color = nullptr;
     QDoubleSpinBox* thickness = nullptr;
     QDoubleSpinBox* pointSize = nullptr;
     QComboBox* style = nullptr;
     QPushButton* fillColor = nullptr;      // area fill for newly-locked shapes
-    QComboBox* page = nullptr;
-    QDoubleSpinBox* customW = nullptr;
-    QDoubleSpinBox* customH = nullptr;
     QSpinBox* holdDelay = nullptr;
     QCheckBox* drawAnim = nullptr;         // canvas stroke motion (browser vs-draw-anim)
     QCheckBox* multiWindow = nullptr;      // windows side by side (browser vs-multi-window)
@@ -119,8 +113,6 @@ namespace stencil::gui {
     QPushButton* selGlow = nullptr;        // selection highlight glow
     QPushButton* hoverRing = nullptr;      // point hover ring
     QPushButton* focusRing = nullptr;      // focused/clicked point ring
-    QLineEdit* browserUrl = nullptr;   // "Open in…" browser-app base URL
-    QLineEdit* botUsername = nullptr;  // "Open in…" Telegram bot username
     QString colorHex;
     QString fillHex;
     QString selGlowHex;

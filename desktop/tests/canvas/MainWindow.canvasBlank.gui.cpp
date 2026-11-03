@@ -100,12 +100,17 @@ class MainWindowGuiTest : public QObject {
     watchdog.start(20);
 
     QSignalSpy asked(canvas, &CanvasWidget::blankImageRequested);
-    const auto pressAt = [&](const QPoint& p) {
+    // A click is a press and a release; the card fires on the release, as a button does.
+    const auto clickAt = [&](const QPoint& p, const QPoint& releaseAt) {
       QMouseEvent press(QEvent::MouseButtonPress, QPointF(p), canvas->mapToGlobal(p),
                         Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
       QApplication::sendEvent(canvas, &press);
+      QMouseEvent release(QEvent::MouseButtonRelease, QPointF(releaseAt), canvas->mapToGlobal(releaseAt),
+                          Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+      QApplication::sendEvent(canvas, &release);
       QTest::qWait(60);
     };
+    const auto clickOn = [&](const QPoint& p) { clickAt(p, p); };
     const auto moveTo = [&](const QPoint& p) {
       QMouseEvent move(QEvent::MouseMove, QPointF(p), canvas->mapToGlobal(p), Qt::NoButton,
                        Qt::NoButton, Qt::NoModifier);
@@ -128,7 +133,7 @@ class MainWindowGuiTest : public QObject {
       moveTo(p);
       QVERIFY2(canvas->cursor().shape() != Qt::PointingHandCursor,
                qPrintable(QString("hand cursor on bare canvas at %1,%2").arg(p.x()).arg(p.y())));
-      pressAt(p);
+      clickOn(p);
       QVERIFY2(asked.isEmpty(),
                qPrintable(QString("a click on bare canvas at %1,%2 asked for a blank image")
                               .arg(p.x()).arg(p.y())));
@@ -139,12 +144,15 @@ class MainWindowGuiTest : public QObject {
     // ── ON the card: the button works, cursor and all ──
     moveTo(card.center());
     QCOMPARE(canvas->cursor().shape(), Qt::PointingHandCursor);
-    pressAt(card.center());
+    // Pressed on it but released off it is no click, as on any button.
+    clickAt(card.center(), outside.first());
+    QVERIFY2(asked.isEmpty(), "a press on the card released off it asked for a blank image");
+    clickOn(card.center());
     QCOMPARE(asked.size(), 1);
     QTRY_VERIFY2(dialogs >= 1, "clicking the card did not open the blank-image creator");
     // …and its edges belong to it too (one pixel inside each corner).
     asked.clear();
-    pressAt(card.topLeft() + QPoint(2, 2));
+    clickOn(card.topLeft() + QPoint(2, 2));
     QCOMPARE(asked.size(), 1);
     watchdog.stop();
     QTest::qWait(50);

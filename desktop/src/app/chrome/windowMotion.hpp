@@ -2,13 +2,13 @@
 
 // The window's own motion: a dock's extent slide, the chat's opening extent and the window fade-in.
 
-#include "../../support/dust/dustKit.hpp"   // support::frameIntervalMs
+#include "../../support/vsync/FramePulse.hpp"
 #include "../../support/motionPrefs.hpp"   // support::motionMs
 
 #include <QEasingCurve>
 #include <QElapsedTimer>
+#include <QPointer>
 #include <QPropertyAnimation>
-#include <QTimer>
 #include <QVariantAnimation>
 #include <QWidget>
 #include <algorithm>
@@ -20,12 +20,13 @@ namespace stencil::gui {
   inline int chatOpenExtent(int remembered, bool horiz) { return remembered > 80 ? remembered : (horiz ? 345 : 320); }
 
   // QMainWindow overrides a child's min/max during its own layout passes, so `apply` pins every frame and `done` releases.
-  // One frame per screen refresh (support::frameIntervalMs), as the browser's slide gets, not Qt's fixed 16ms:
-  // held paused and stepped by its own timer; stop() still cancels it without `done`.
+  // One frame per screen refresh, as the browser's slide gets, not Qt's fixed 16ms: held paused and stepped on
+  // the app's frame pulse (support/vsync), so a fold's picture and its space repaint as one frame; stop() still cancels it.
   inline QVariantAnimation* startExtentSlide(QObject* owner, int from, int to, int ms,
                                              std::function<void(int)> apply,
                                              std::function<void()> done,
-                                             const QEasingCurve& easing = QEasingCurve::OutCubic) {
+                                             const QEasingCurve& easing = QEasingCurve::OutCubic,
+                                             int delayMs = 0) {
     auto* anim = new QVariantAnimation(owner);
     anim->setDuration(support::motionMs(ms));
     anim->setEasingCurve(easing);
@@ -37,16 +38,15 @@ namespace stencil::gui {
     anim->start(QAbstractAnimation::DeleteWhenStopped);
     if (anim->state() != QAbstractAnimation::Running) return anim;   // zero-length: already done
     anim->pause();
-    auto* tick = new QTimer(anim);
-    tick->setTimerType(Qt::PreciseTimer);
-    tick->setInterval(support::frameIntervalMs(qobject_cast<QWidget*>(owner)));
     QElapsedTimer clock;
     clock.start();
-    QObject::connect(tick, &QTimer::timeout, anim, [anim, clock] {
-      if (anim->state() == QAbstractAnimation::Paused)
-        anim->setCurrentTime(int(std::min<qint64>(clock.elapsed(), anim->duration())));
+    const int wait = support::motionMs(delayMs);   // `delayMs`: held at `from` that long first
+    QPointer<QVariantAnimation> live(anim);
+    support::FramePulse::instance().join(anim, [live, clock, wait] {
+      if (!live || live->state() != QAbstractAnimation::Paused) return false;
+      live->setCurrentTime(int(std::clamp<qint64>(clock.elapsed() - wait, 0, live->duration())));
+      return live && live->state() == QAbstractAnimation::Paused;
     });
-    tick->start();
     return anim;
   }
 

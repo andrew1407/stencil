@@ -6,6 +6,27 @@
 @keyframes stMenuRise { from { opacity: 0; transform: translateY(8px); }              to { opacity: 1; transform: none; } }
 @keyframes stFade     { from { opacity: 0; }                                          to { opacity: 1; } }
 @keyframes stRowIn    { from { opacity: 0; transform: translateX(-6px); }             to { opacity: 1; transform: none; } }
+/* Sliding's fallback flight (lib/motion/genie/vars.js stamps the vars; browser keyframes.css modalFromIcon /
+   modalToIcon): stretched and pinched toward the opener, a landing squash, a settle; opaque throughout. */
+@keyframes stGenieIn {
+    0%   { opacity: 0; transform: translate(var(--modal-dx, 0px), var(--modal-dy, 18px)) perspective(var(--modal-persp, 1000px)) rotateX(var(--modal-rx, 0deg)) rotateY(var(--modal-ry, 0deg)) scale(var(--modal-sx, 0.05), var(--modal-sy, 0.05));
+           animation-timing-function: cubic-bezier(0.3, 0, 0.6, 1); }
+    9%   { opacity: 1; }
+    48%  { transform: translate(calc(var(--modal-dx, 0px) * 0.28), calc(var(--modal-dy, 18px) * 0.28)) perspective(var(--modal-persp, 1000px)) rotateX(calc(var(--modal-rx, 0deg) * 0.55)) rotateY(calc(var(--modal-ry, 0deg) * 0.55)) scale(var(--modal-kx, 1), var(--modal-ky, 1));
+           animation-timing-function: cubic-bezier(0.25, 0.6, 0.4, 1); }
+    78%  { transform: translate(0px, 0px) perspective(var(--modal-persp, 1000px)) rotateX(0deg) rotateY(0deg) scale(var(--modal-ox, 1), var(--modal-oy, 1));
+           animation-timing-function: cubic-bezier(0.4, 0, 0.4, 1); }
+    100% { opacity: 1; transform: none; }
+}
+@keyframes stGenieOut {
+    0%   { opacity: 1; transform: none; animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1); }
+    16%  { transform: translate(0px, 0px) perspective(var(--modal-persp, 1000px)) rotateX(0deg) rotateY(0deg) scale(var(--modal-ox, 1), var(--modal-oy, 1));
+           animation-timing-function: cubic-bezier(0.5, 0, 0.7, 0.4); }
+    54%  { transform: translate(calc(var(--modal-dx, 0px) * 0.28), calc(var(--modal-dy, 18px) * 0.28)) perspective(var(--modal-persp, 1000px)) rotateX(calc(var(--modal-rx, 0deg) * 0.55)) rotateY(calc(var(--modal-ry, 0deg) * 0.55)) scale(var(--modal-kx, 1), var(--modal-ky, 1));
+           animation-timing-function: cubic-bezier(0.3, 0.4, 0.7, 1); }
+    90%  { opacity: 1; }
+    100% { opacity: 0; transform: translate(var(--modal-dx, 0px), var(--modal-dy, 18px)) perspective(var(--modal-persp, 1000px)) rotateX(var(--modal-rx, 0deg)) rotateY(var(--modal-ry, 0deg)) scale(var(--modal-sx, 0.05), var(--modal-sy, 0.05)); }
+}
 @keyframes stCardIn   { from { opacity: 0; transform: translateY(12px) scale(0.985); } to { opacity: 1; transform: none; } }
 
 .list, .formats, .viewport, .panel { scroll-behavior: smooth; }

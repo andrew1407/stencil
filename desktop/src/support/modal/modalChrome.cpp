@@ -16,6 +16,7 @@
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QAbstractSpinBox>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QScreen>
@@ -181,6 +182,13 @@ namespace stencil::gui {
     form->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     form->setFormAlignment(Qt::AlignLeft | Qt::AlignTop);
     if (growFields) form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+  }
+
+  void insetModalSpinText(QWidget* root) {
+    if (!root) return;
+    for (QAbstractSpinBox* spin : root->findChildren<QAbstractSpinBox*>())
+      if (auto* edit = spin->findChild<QLineEdit*>(QString(), Qt::FindDirectChildrenOnly))
+        edit->setTextMargins(SPIN_TEXT_INSET_PX, 0, 0, 0);
   }
 
   void makeModalCta(QPushButton* btn, const QString& iconName) {

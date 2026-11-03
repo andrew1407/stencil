@@ -22,7 +22,7 @@
 #include <QVariantAnimation>
 #include <QWidget>
 
-#include "dustKit.hpp"       // support::EaseLut / MoteSprites / frameIntervalMs
+#include "dustKit.hpp"       // support::EaseLut / MoteSprites
 #include "dustTunings.hpp"   // the tip clocks + DisintegrateTunings
 #include "motionPrefs.hpp"   // support::isDustAllowed()
 

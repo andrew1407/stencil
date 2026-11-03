@@ -8,8 +8,8 @@ Mac they use ⌘ instead.
 
 The window has a header with the logo and the project name, the toolbar sections, the canvas
 with its **Blank image** card, and the points table. Where the system keeps a menu bar of its own,
-as macOS does, the menus sit there; switch off **Use the system menu bar** in **Visuals &
-Settings** to keep them in the window, as in these pictures. Appearance follows the OS;
+as macOS does, the menus sit there; switch off **View ▸ Use System Menu Bar** to keep them in
+the window, as in these pictures. Appearance follows the OS;
 **View ▸ Dark Theme** (`Ctrl+D`) flips it, and reads **Light Theme** while the dark one is on.
 
 | Light | Dark |

@@ -61,6 +61,7 @@ namespace stencil::gui {
     // Browser toggle: the outside-press auto-close fires first, so without this timestamp
     // the combo click would instantly reopen the popup.
     QElapsedTimer lastHide;
+    void armDragPick(const QPoint& from);   // GLOBAL: where the held press stands as the list opens
     QPoint dragFrom;            // the press that opened the list, while its button is held
     bool dragArmed = false;
     bool dragging = false;      // …and has moved past the slop

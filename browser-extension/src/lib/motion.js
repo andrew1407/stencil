@@ -11,4 +11,5 @@ export * from './motion/disintegrate.js';
 export * from './motion/enterLeave.js';
 export * from './motion/chatFx.js';
 export * from './motion/surfaces.js';
+export { cssAway } from './motion/leaveCopy.js';
 export * from './motion/tips.js';

@@ -1,8 +1,8 @@
 // Accent, theme and interface animation live in localStorage via lib/accent/accent.js, not the saved
 // settings, so they apply instantly and flash-free across the extension's pages — no Save.
-import { surfaceIn, surfaceOut } from '../lib/motion.js';
+import { surfaceIn, surfaceOut, menuIn, menuAway } from '../lib/motion.js';
 import { icon } from '../lib/icons.js';
-import { menuDustPoint, growFrom, wireDragPick } from '../lib/control/dropdownMenu.js';
+import { arrowBox, menuDustPoint, growFrom, wireDragPick } from '../lib/control/dropdownMenu.js';
 import { wireLogoAccent } from '../lib/accent/logoAccent.js';
 import { wireAltPeek } from '../lib/tip/altPeek.js';
 
@@ -54,9 +54,10 @@ if (accent) {
   };
   const onDocPtr = (e) => { if (!mount.contains(e.target)) close(); };
   const onKey = (e) => { if (e.key === 'Escape') close(); };
-  // The list pours out of the CARET (dropdownMenu.js menuDustPoint), like every enhanced select here.
-  const open = () => { menu.hidden = false; const caret = menuDustPoint(trigger); growFrom(menu, caret); surfaceIn(menu, caret); trigger.setAttribute('aria-expanded', 'true'); document.addEventListener('pointerdown', onDocPtr, true); document.addEventListener('keydown', onKey); };
-  const close = () => { peek.notifyClosed(); if (!menu.hidden) surfaceOut(menu, menuDustPoint(trigger)); menu.hidden = true; trigger.setAttribute('aria-expanded', 'false'); document.removeEventListener('pointerdown', onDocPtr, true); document.removeEventListener('keydown', onKey); };
+  // The list pours out of the CARET (dropdownMenu.js menuDustPoint), like every enhanced select here;
+  // Sliding's genie from a box around it, on a menu's quicker clock (lib/motion/surfaces.js menuIn).
+  const open = () => { menu.hidden = false; const caret = menuDustPoint(trigger); growFrom(menu, caret); if (!surfaceIn(menu, caret)) menuIn(menu, arrowBox(caret)); trigger.setAttribute('aria-expanded', 'true'); document.addEventListener('pointerdown', onDocPtr, true); document.addEventListener('keydown', onKey); };
+  const close = () => { peek.notifyClosed(); if (!menu.hidden && !menuAway(menu, arrowBox(menuDustPoint(trigger)))) surfaceOut(menu, menuDustPoint(trigger)); menu.hidden = true; trigger.setAttribute('aria-expanded', 'false'); document.removeEventListener('pointerdown', onDocPtr, true); document.removeEventListener('keydown', onKey); };
   // The wipe starts at the trigger's colour SWATCH: the menu is gone by the time the palette
   // floods, and the new colour should visibly pour out of the rect that shows it.
   const choose = (key) => { customHex = null; value = accent.set(key, trigger.querySelector('.js-cur-sw') || trigger); sync(); close(); };

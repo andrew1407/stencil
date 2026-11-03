@@ -9,11 +9,10 @@
 #include <QLabel>
 #include <QPainter>
 #include <QPointer>
-#include <QTimer>
 #include <QWidget>
 #include <cmath>
 
-#include "dustKit.hpp"           // frameIntervalMs
+#include "../vsync/FramePulse.hpp"
 #include "logoStageRules.hpp"    // the beat and the gold
 #include "modalReveal.hpp"       // motionReduced
 #include "skinPrefs.hpp"         // isWebcore
@@ -38,10 +37,7 @@ namespace stencil::support {
       connect(this->toast, &QObject::destroyed, this, &QObject::deleteLater);
       follow();
       if (!motionReduced()) {
-        auto* clock = new QTimer(this);
-        clock->setTimerType(Qt::PreciseTimer);
-        connect(clock, &QTimer::timeout, this, [this] { tick(); });
-        clock->start(frameIntervalMs(this));
+        (new FrameTicker(this, [this] { tick(); }))->start();
       }
       since.restart();
       stackUnder(this->toast);   // just under the pill: a halo round it, never over the words

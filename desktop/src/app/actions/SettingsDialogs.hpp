@@ -10,7 +10,7 @@ namespace stencil::gui {
   class MainWindow;
 
   // The settings windows the menus open: Settings, the assistant's own settings, keyboard
-  // shortcuts and the Info window.
+  // shortcuts, the Info window and the Open In targets.
   class SettingsDialogs {
    public:
     explicit SettingsDialogs(MainWindow& w) : w(w) {}
@@ -20,6 +20,7 @@ namespace stencil::gui {
     void openAssistantSettingsFrom(QWidget* anchor, const QRect& anchorRect = QRect());
     void openInfo();
     void openShortcuts();
+    void openInTargets();   // the browser app URL and Telegram bot Open In… hands off to
     void applyHotkeyOverrides(const QHash<QString, QString>& overrides);
 
    private:

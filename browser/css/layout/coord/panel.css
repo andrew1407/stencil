@@ -59,13 +59,16 @@
     /* --panel-slide-out-ms (panel/coordFold.js), declared on the after-change style so only the way out takes it. */
     transition: width var(--panel-slide-out-ms) var(--fold-ease),
                 min-width var(--panel-slide-out-ms) var(--fold-ease),
-                padding var(--panel-slide-out-ms) var(--fold-ease);
+                padding var(--panel-slide-out-ms) var(--fold-ease),
+                margin-right var(--panel-slide-out-ms) var(--fold-ease);
     /* 0, not `unset`: `min-width: auto` cannot interpolate, and the 240px floor snapped back at once. */
     min-width: 0;
     max-width: unset;
-    /* No card on the rail, only the button (user report; desktop: the bare chevron). */
-    width: 40px;
-    padding: 10px 12px 10px 0;
+    /* No card on the rail, only the button (user report). 10px from the canvas and from the window edge, 5px under the
+       canvas top, as the desktop's (PANEL_TOGGLE_INSET/TOP): 4px main gap + 6px, and 10px into the page's 20px padding. */
+    width: 34px;
+    padding: 5px 0 5px 6px;
+    margin-right: -10px;
     background: transparent;
     overflow: hidden;
 }
@@ -95,7 +98,8 @@
     margin-left: auto;
 }
 #toggle-coord-panel:hover { background: var(--bg-info); }
-.coordinates-panel.coord-collapsed #toggle-coord-panel { border: none !important; }
+/* Inside its own edge: the folded rail clips what overflows it. */
+#toggle-coord-panel:focus-visible { outline-offset: -2px; }
 .coordinates-panel.coord-collapsed #coord-body { display: none; }
 .coordinates-panel.coord-collapsed .coord-tabs { display: none; }
 .coordinates-panel.coord-collapsed .coord-panel-header { margin-bottom: 0; }

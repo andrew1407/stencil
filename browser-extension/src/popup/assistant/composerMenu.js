@@ -3,7 +3,7 @@
 // moved. Both edges of the menu fly, like every other surface here.
 import { applyChatSide, toggleChatSide } from '../../lib/chat/layoutPrefs.js';
 import { dismissTip } from '../../lib/tip/controlTooltip.js';
-import { surfaceIn, surfaceOut, centerOf, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../../lib/motion.js';
+import { surfaceIn, surfaceOut, centerOf, menuIn, menuAway, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../../lib/motion.js';
 
 export const wireComposerMenu = ({ transcriptEl, gearTip, queueFiles, state }) => {
   const moreBtn = document.getElementById('chat-more-btn');
@@ -14,8 +14,8 @@ export const wireComposerMenu = ({ transcriptEl, gearTip, queueFiles, state }) =
   const setMoreOpen = (on) => {
     if (on === !moreMenu.hidden) return;
     if (on) moreMenu.hidden = false;
-    if (on) surfaceIn(moreMenu, centerOf(moreBtn), { ms: SURFACE_MENU_IN_MS });
-    else surfaceOut(moreMenu, centerOf(moreBtn), { ms: SURFACE_MENU_OUT_MS });
+    if (on && !surfaceIn(moreMenu, centerOf(moreBtn), { ms: SURFACE_MENU_IN_MS })) menuIn(moreMenu, moreBtn);
+    else if (!on && !menuAway(moreMenu, moreBtn)) surfaceOut(moreMenu, centerOf(moreBtn), { ms: SURFACE_MENU_OUT_MS });
     if (!on) moreMenu.hidden = true;
     moreBtn.setAttribute('aria-expanded', String(on));
   };

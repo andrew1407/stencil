@@ -56,13 +56,15 @@ namespace stencil::gui {
   }
 
   Settings SettingsDialog::result() const {
-    Settings s = base;  // keep fields not exposed here (formulas, tooltip, llm*…)
+    Settings s = base;
+    applyTo(s);
+    return s;
+  }
+
+  // Only the fields these rows edit: the page, the menu bar, the Open In targets and llm* ride through.
+  void SettingsDialog::applyTo(Settings& s) const {
     s.themeMode = theme->currentData().toString();
     s.accentColor = accent->currentData().toString();
-    s.nativeMenuBar = nativeMenuBar->isChecked();
-    s.autosave = autosave->isChecked();
-    s.showPoints = showPoints->isChecked();
-    s.showLines = showLines->isChecked();
     s.defaultColor = colorHex;
     s.defaultThickness = thickness->value();
     s.defaultPointSize = pointSize->value();
@@ -71,9 +73,6 @@ namespace stencil::gui {
     s.selGlowColor = selGlowHex;
     s.hoverRingColor = hoverRingHex;
     s.focusRingColor = focusRingHex;
-    s.pageSize = page->currentData().toString();
-    s.customPageWidth = customW->value();
-    s.customPageHeight = customH->value();
     s.holdDrawDelay = holdDelay->value();
     // Untouched, the motion rows hand back what is STORED: they were seeded from what is in
     // force, and a skin's stillness must not persist through an unrelated edit.
@@ -83,9 +82,6 @@ namespace stencil::gui {
     s.motionSpeed = support::clampMotionSpeed(motionSpeedSpin->value());
     s.consoleSpeed = support::clampConsoleSpeed(consoleSpeedSpin->value());
     s.notifyChannel = notifyChannel->currentData().toString();
-    s.browserBaseUrl = browserUrl->text().trimmed();
-    s.telegramBotUsername = botUsername->text().trimmed().remove(QLatin1Char('@'));
-    return s;
   }
 }
 

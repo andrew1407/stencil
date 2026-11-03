@@ -11,22 +11,27 @@ const css = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 test('every icon-anchored surface dusts from — and back into — its own control', () => {
   const cases = [
     // [file, what opens it, the point it is aimed at]
-    ['../../../src/lib/control/actionMenu.js', 'surfaceIn(menuEl, openOrigin);', 'surfaceOut(menuEl, openOrigin);'],
-    ['../../../src/lib/control/actionMenu.js', 'surfaceIn(fly, centerOf(head));', 'surfaceOut(fly, centerOf(head));'],
+    // …and when the dust declines, Sliding pours each out of the same place and Transition shrinks it back.
+    ['../../../src/lib/control/actionMenu.js', 'if (!surfaceIn(menuEl, openOrigin)) menuIn(menuEl, pointBox(openOrigin));',
+                                  'if (!menuEl.hidden && !menuAway(menuEl, pointBox(openOrigin))) surfaceOut(menuEl, openOrigin);'],
+    ['../../../src/lib/control/actionMenu.js', 'if (!surfaceIn(fly, centerOf(head))) menuIn(fly, head);',
+                                  'if (!menuAway(fly, head)) surfaceOut(fly, centerOf(head));'],
     // customSelect hands both halves to showMenu/hideMenu, which aim at the trigger too.
     // The way back aims at the trigger's box the list was placed against: a pick may re-lay it first.
     ['../../../src/lib/control/dropdownMenu.js', 'surfaceIn(menu, menuDustPoint(trigger), { ms: MENU_IN_MS, anchor: trigger',
                                    'surfaceOut(menu, menu.hidden ? null : caretPoint(at), { ms: MENU_OUT_MS, anchor: menu.__ddTrigger'],
-    ['../../../src/lib/chat/msgMenu.js', 'surfaceIn(el, openOrigin);', 'surfaceOut(el, openOrigin);'],
-    ['../../../src/popup/editor/dialogShell.js', 'surfaceIn(box, origin', 'surfaceOut(box, origin);'],
-    ['../../../src/options/confirmDialog.js', 'surfaceIn(box, origin);', 'surfaceOut(box, origin);'],
+    ['../../../src/lib/chat/msgMenu.js', 'if (!surfaceIn(el, openOrigin)) menuIn(el, pointBox(openOrigin));',
+                                  'if (!el.hidden && !menuAway(el, pointBox(openOrigin))) surfaceOut(el, openOrigin);'],
+    ['../../../src/popup/editor/dialogShell.js', 'surfaceIn(box, origin', 'surfaceOut(box, origin)'],
+    ['../../../src/options/confirmDialog.js', 'surfaceIn(box, origin)', 'surfaceOut(box, origin)'],
     // The Main-theme picker drives its own open/close but borrows the SAME caret point showMenu aims
     // at: its trigger is a full-width field, so the centre put the motes in the middle of the label.
-    ['../../../src/options/appearance.js', 'const caret = menuDustPoint(trigger); growFrom(menu, caret); surfaceIn(menu, caret);',
-                                  'surfaceOut(menu, menuDustPoint(trigger));'],
-    // The chat composer's "…" — the last one still hard-cutting on both edges.
-    ['../../../src/popup/assistant/composerMenu.js', 'surfaceIn(moreMenu, centerOf(moreBtn), { ms: SURFACE_MENU_IN_MS })',
-                                  'surfaceOut(moreMenu, centerOf(moreBtn), { ms: SURFACE_MENU_OUT_MS })'],
+    // Sliding pours it out of a box round that caret instead, and back into it.
+    ['../../../src/options/appearance.js', 'const caret = menuDustPoint(trigger); growFrom(menu, caret); if (!surfaceIn(menu, caret)) menuIn(menu, arrowBox(caret));',
+                                  '!menuAway(menu, arrowBox(menuDustPoint(trigger)))) surfaceOut(menu, menuDustPoint(trigger));'],
+    // The chat composer's "…", out of and back into its button.
+    ['../../../src/popup/assistant/composerMenu.js', 'if (on && !surfaceIn(moreMenu, centerOf(moreBtn), { ms: SURFACE_MENU_IN_MS })) menuIn(moreMenu, moreBtn);',
+                                  'else if (!on && !menuAway(moreMenu, moreBtn)) surfaceOut(moreMenu, centerOf(moreBtn), { ms: SURFACE_MENU_OUT_MS });'],
   ];
   for (const [rel, opens, closes] of cases) {
     const s = css(rel);
@@ -36,6 +41,19 @@ test('every icon-anchored surface dusts from — and back into — its own contr
   // The logo's drag menu names the MARK as its point, not the menu's top-left corner.
   assert.match(css('../../../src/lib/accent/logoDragMenu.js'),
     /placeMenu\(r\.left, r\.bottom \+ 6, \{ x: r\.left \+ r\.width \/ 2, y: r\.top \+ r\.height \/ 2 \}\)/);
+});
+
+// No dust: both dialogs fly the genie out of their anchor in Sliding and grow out of it in Transition (its CSS
+// flight), and unmount only as they land.
+test('the dialogs fly the genie from — and back into — their anchor when the dust declines', () => {
+  const shell = css('../../../src/popup/editor/dialogShell.js');
+  assert.ok(shell.includes('if (!surfaceIn(box, origin || centerOf(box)) && !genieIn(box, anchor)) growIn(box, anchor);'));
+  assert.ok(shell.includes('if (surfaceOut(box, origin) || !(genieOut(box, anchor, leave, back) || growOut(box, anchor, leave, back))) leave();'));
+  const confirm = css('../../../src/options/confirmDialog.js');
+  assert.ok(confirm.includes('if (!surfaceIn(box, origin) && !genieIn(box, anchor)) growIn(box, anchor);'));
+  assert.ok(confirm.includes('if (surfaceOut(box, origin) || !(genieOut(box, anchor, hide, overlay) || growOut(box, anchor, hide, overlay))) hide();'));
+  assert.ok(confirm.indexOf('settleGenie(box);') < confirm.indexOf('overlay.hidden = false;'),
+    'a close still in the air settles before the next open unhides the overlay');
 });
 
 // `hidden` is display:none, so there is nothing left to copy once it is set — the order

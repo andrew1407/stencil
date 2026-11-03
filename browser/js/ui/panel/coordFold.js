@@ -4,12 +4,15 @@
 // both apps read from config/motion.json (animations/collapse.css; desktop setPanelShown).
 import { motionMs, motionReduced } from '../motion/motionPrefs.js';
 import { sweepDust } from '../motion/surface/tiles.js';
-import { FOLD_INSTANT_CLASS, foldBox, foldDust } from '../motion/control/tips.js';
+import { FOLD_INSTANT_CLASS, FOLD_POURED, foldBox, foldDust } from '../motion/control/tips.js';
 import { TUNE } from '../motion/tune.js';
+import { genieEnabled } from '../motion/genie/window.js';
 
 const COLLAPSED = 'coord-collapsed';
 const FOLDING = 'coord-folding';
 export const VEILED_CLASS = 'coord-veiled';
+// A fold spans the column to its bottom, the card drawn at its own height (animations/collapse.css).
+export const TALL_CLASS = 'coord-tall';
 // The grains' flight, the layout's slide (under the veil or not) and the content fade; closing is no
 // slower than opening (user report). The desktop reads the same keys (app/chrome/PanelSlide.hpp).
 export const PANEL_DUST_IN_MS = TUNE.PANEL_DUST_IN_MS;
@@ -22,8 +25,18 @@ export const PANEL_CLOCK_VARS = Object.freeze({
   '--panel-slide-ms': PANEL_SLIDE_IN_MS, '--panel-slide-out-ms': PANEL_SLIDE_OUT_MS,
   '--panel-fade-ms': PANEL_FADE_MS,
 });
+// Past the longest fold clock, so no flight still measures or pictures the column when it goes (ms).
+const TALL_HOLD_MS = Math.max(PANEL_DUST_IN_MS, PANEL_DUST_OUT_MS, PANEL_SLIDE_IN_MS, PANEL_SLIDE_OUT_MS) + 200;
 // animations/responsive.css: below this the panel sits under the canvas and never slides.
 const STACKED = '(max-width: 960px)';
+
+// Sliding's home: a strip on the column's right edge level with the chevron, as the desktop's (DockChrome::pourPanel
+// lands on the chevron past the panel's edge): the column folds sideways into it, never up through its own card.
+const edgeHome = (panel, toggle) => () => {
+  const p = panel.getBoundingClientRect();
+  const t = (toggle ?? panel).getBoundingClientRect();
+  return { left: p.left + p.width, top: t.top, width: 2, height: Math.max(2, t.height) };
+};
 
 const span = (a, b) => {
   const left = Math.min(a.left, b.left);
@@ -39,6 +52,7 @@ const pin = (el, box) => {
 export function createCoordFold(panel, header, body) {
   for (const [name, ms] of Object.entries(PANEL_CLOCK_VARS)) panel.style.setProperty(name, `${ms}ms`);
   let timer = 0;
+  let tallTimer = 0;
   // One class off, flushed, then the other, so the table's `display` never changes on the way: a
   // collapsed table dropped last kept it in the rail for its allow-discrete fade, and an open
   // one held out last came back through its @starting-style fade, a beat of empty panel.
@@ -50,17 +64,32 @@ export function createCoordFold(panel, header, body) {
   };
   return (hidden) => {
     clearTimeout(timer);
-    panel.classList.remove(VEILED_CLASS, FOLDING);
+    clearTimeout(tallTimer);
+    panel.classList.remove(VEILED_CLASS, FOLDING, TALL_CLASS);
     if (hidden) sweepDust(panel);
     // Stacked, nothing slides: the table stays where it is as its own picture, unveiled.
     const wide = !globalThis.matchMedia?.(STACKED).matches;
     const still = motionReduced();
     const head = still || !wide ? null : foldBox(header, panel, COLLAPSED, false, FOLD_INSTANT_CLASS);
     const table = still || !wide ? null : foldBox(body, panel, COLLAPSED, false, FOLD_INSTANT_CLASS);
+    const rest = head && table ? foldBox(panel, panel, COLLAPSED, false, FOLD_INSTANT_CLASS) : null;
+    const restCard = rest ? `${rest.height}px` : '';
+    if (rest) {
+      // Sliding's picture is the whole column as it stands, card and the page under it, as the desktop's dock
+      // pours (taken as the fold starts); on screen the column below the card stays unpainted.
+      panel.style.setProperty('--coord-card-h', restCard);
+      panel.style.setProperty('--coord-tall-fill', genieEnabled() ? 'var(--bg-container)' : 'transparent');
+      panel.classList.add(TALL_CLASS);
+      tallTimer = setTimeout(() => panel.classList.remove(TALL_CLASS), motionMs(TALL_HOLD_MS));
+    }
+    const card = rest ? foldBox(panel, panel, COLLAPSED, false, FOLD_INSTANT_CLASS) : null;
     const flew = foldDust(wide ? panel : body, panel, COLLAPSED, hidden, 'right', {
-      box: head && table && span(head, table), inMs: PANEL_DUST_IN_MS, outMs: PANEL_DUST_OUT_MS,
-      picture: true, edge: true, toggle: () => panel.classList.toggle(COLLAPSED, hidden),
+      box: head && table && (card ? span(card, span(head, table)) : span(head, table)), inMs: PANEL_DUST_IN_MS, outMs: PANEL_DUST_OUT_MS,
+      picture: true, edge: true, toggle: () => panel.classList.toggle(COLLAPSED, hidden), home: edgeHome(panel, panel.querySelector('#toggle-coord-panel') ?? header),
+      pourMs: hidden ? PANEL_SLIDE_OUT_MS : PANEL_SLIDE_IN_MS,
     });
+    if (rest) panel.style.setProperty('--coord-tall-fill', 'transparent');
+    if (flew === FOLD_POURED) return;   // Sliding: hidden under its picture, the width slides on its own
     panel.classList.add(FOLDING);
     if (flew && head && table) {
       pin(header, head);

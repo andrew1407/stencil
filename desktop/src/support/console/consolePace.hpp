@@ -16,7 +16,7 @@ namespace stencil::support {
   struct ConsoleSpeedRange {
     double min = 0.01;
     double max = 1.0;
-    double def = 0.25;
+    double def = 0.27;
     double step = 0.01;
   };
   inline const ConsoleSpeedRange& consoleSpeedRange() {

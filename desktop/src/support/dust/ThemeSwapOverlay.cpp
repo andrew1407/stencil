@@ -1,5 +1,8 @@
 #include "ThemeSwapOverlay.hpp"
 
+#include <QApplication>
+#include <QCursor>
+#include <QDockWidget>
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -123,4 +126,28 @@ namespace stencil::gui {
     dustDark = dark;
     dust = true;
   }
+  QList<QPointer<ThemeSwapOverlay>> ThemeSwapOverlay::captureWindows(QWidget* owner, QPoint origin, const QColor& accent,
+                                                                     const QColor& shade, bool dark, bool fromTop) {
+    const auto seeded = [&](ThemeSwapOverlay* fx) {
+      if (fx) fx->fromTop = fromTop;
+      if (fx && support::isDustAllowed()) fx->seedDust(accent, shade, dark);
+      return QPointer<ThemeSwapOverlay>(fx);
+    };
+    QList<QPointer<ThemeSwapOverlay>> out{seeded(capture(owner, origin))};
+    if (!owner) return out;
+    const QPoint at = origin.x() >= 0 ? owner->mapToGlobal(origin) : QCursor::pos();
+    const QWidget* focus = QApplication::focusWidget();
+    for (QWidget* w : QApplication::topLevelWidgets()) {
+      if (w == owner || !w->isVisible() || w->testAttribute(Qt::WA_TransparentForMouseEvents)) continue;
+      const Qt::WindowType type = w->windowType();
+      if (type != Qt::Dialog && type != Qt::Sheet && type != Qt::Window && !qobject_cast<QDockWidget*>(w)) continue;
+      QWidget* root = w;   // the window it belongs to: a dialog over a dialog over this one is still this one's
+      while (root->parentWidget()) root = root->parentWidget()->window();
+      if (root != owner) continue;
+      const QPoint from = focus && focus->window() == w ? focus->mapTo(w, focus->rect().center()) : w->mapFromGlobal(at);
+      if (ThemeSwapOverlay* fx = capture(w, from)) out << seeded(fx);
+    }
+    return out;
+  }
+
 }  // namespace stencil::gui

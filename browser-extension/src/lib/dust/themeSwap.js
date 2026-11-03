@@ -4,7 +4,8 @@
   const K = window.StencilKit;
   const SWAP_MS = K.SWAP_MS, dustPaint = K.dustPaint, edgePolygon = K.edgePolygon, motionReduced = K.motionReduced, originOf = K.originOf;
   const spawnDust = K.spawnDust;
-  const swap = function (fn, originId) {
+  // `fromTop`: an accent change, which Sliding pours down from the top; a theme change pours out of its control.
+  const swap = function (fn, originId, fromTop) {
     const root = document.documentElement;
     // The wipe is motion too (browser parity: motion.js themeSwap motionReduced()).
     const reduced = motionReduced();
@@ -37,10 +38,12 @@
         root.style.setProperty('--swap-clip-from', from);
         root.style.setProperty('--swap-clip-to', edgePolygon(p.x, p.y, w, h, 1));
       }
+      K.writeSwapShape(root, dustAt, !!fromTop);   // Transition's wipe, Sliding's pour
     };
     write();
     // The OLD palette, read before `fn` flips it — the wake is the paint coming off.
     const paint = dustPaint();
+    const release = K.swapWindows(dustAt, !!fromTop);   // every open window its own reveal, named before the capture
     const t = document.startViewTransition(function () {
       // Transitions off while the snapshot is captured, or it records mid-ease colours.
       root.classList.add('theme-instant');
@@ -48,7 +51,7 @@
       // The control can move as the palette lands, so the origin is re-asked.
       write();
     });
-    const settle = function () { root.classList.remove('theme-instant'); };
+    const settle = function () { root.classList.remove('theme-instant'); release(); };
     t.finished.then(settle, settle);
     // Off `ready`, so a mote's delay and the ring's clock start on the same frame; an
     // engine without `ready` simply gets no dust.

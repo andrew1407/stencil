@@ -88,7 +88,7 @@ Commands  (a leading '/' is optional)
 /status	show the working image (path, size, edit position)
 /theme [name]	list or switch the accent colour (default violet)
 /mouse [on|off]	full-screen: toggle mouse (off frees text selection)
-/reveal-speed [0.01-1]	full-screen: how fast output is revealed (1 = instantly, 0.25 default)
+/reveal-speed [0.01-1]	full-screen: how fast output is revealed (1 = instantly, 0.27 default)
 /clear	clear the screen, redraw the logo + image header
 /drop	forget the working image entirely
 /help   /exit	show this list / leave (Ctrl-D, or Ctrl-C twice)

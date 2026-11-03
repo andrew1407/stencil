@@ -1,4 +1,6 @@
 #include "ThemeSwapOverlay.hpp"
+#include "../genie/GenieGhost.hpp"   // genie::OPEN_MS, genie::outline
+#include "../vsync/FramePulse.hpp"
 
 namespace stencil::gui {
 
@@ -24,23 +26,16 @@ namespace stencil::gui {
     full = std::hypot(std::max(c.x(), width() - c.x()),
                        std::max(c.y(), height() - c.y()));
     // The overlay outlives the snapshot by the wake so the last motes get their whole life.
-    const int total = swapMs() + (dust ? dustLifeMs() : 0);
-    // A plain clock on a timer at the screen's refresh rate (dustKit.hpp frameIntervalMs,
-    // not Qt's 60Hz animation timer); the wipe and the dust both read it.
+    const int total = wipeMs() + (dust ? dustLifeMs() : 0);
+    // A plain clock stepped once per display refresh (support/vsync); the wipe and the dust both read it.
     clock.start();
-    auto* tick = new QTimer(this);
-    tick->setTimerType(Qt::PreciseTimer);
-    tick->setInterval(support::frameIntervalMs(this));
     const double scale = support::motionScale();
-    connect(tick, &QTimer::timeout, this, [this, tick, total, scale] {
+    auto* tick = new support::FrameTicker(this, [this, total, scale] {
       timeMs = std::min(double(total), clock.nsecsElapsed() / 1e6 / scale);
       // The WHOLE overlay repaints each frame: widgets UNDERNEATH repaint after the restyle and would
       // surface through a ring-only repaint. A clipped pixmap blit is cheap; a per-frame PATH clip is not.
       update();
-      if (timeMs >= total) {
-        tick->stop();
-        deleteLater();
-      }
+      if (timeMs >= total) deleteLater();
     });
     tick->start();
   }
@@ -51,17 +46,8 @@ namespace stencil::gui {
     // The hole is a QRegion, not a QPainterPath: path clipping is rasterised per frame
     // over the whole window and stuttered; region clipping is spans. Antialiasing off.
     const QPoint c = origin.x() >= 0 ? origin : rect().center();
-    if (timeMs < swapMs()) {
-      // A torn polygon still clips as cheap spans.
-      const double e = swapEase(std::min(1.0, timeMs / swapMs()));
-      QPolygon front;
-      front.reserve(EDGE_POINTS);
-      for (int k = 0; k < EDGE_POINTS; k++) {
-        const double a = k * TAU / EDGE_POINTS;
-        const double r = edgeRadiusAt(k, e, full, style);
-        front << QPoint(qRound(c.x() + std::cos(a) * r), qRound(c.y() + std::sin(a) * r));
-      }
-      p.setClipRegion(QRegion(rect()).subtracted(QRegion(front)));
+    if (timeMs < wipeMs()) {
+      p.setClipRegion(QRegion(rect()).subtracted(holeAt(std::min(1.0, timeMs / wipeMs()), c)));
       p.drawPixmap(0, 0, snap);
     }
     if (!dust) return;
@@ -83,9 +69,40 @@ namespace stencil::gui {
     p.setOpacity(1.0);
   }
 
+  int ThemeSwapOverlay::wipeMs() const { return shape == Shape::GENIE ? support::genie::OPEN_MS : swapMs(); }
+
+  // Where the new palette shows at wipe-time `t` (0..1); a torn polygon still clips as cheap spans.
+  QRegion ThemeSwapOverlay::holeAt(double t, const QPoint& c) const {
+    if (shape == Shape::WIPE) return QRegion(0, 0, qRound(width() * swapEase(t)), height());
+    if (shape == Shape::GENIE) {
+      // A theme change pours out of the control through the nearest edge; an accent change comes down from the
+      // whole top edge to the bottom. On the window flight's out-sine (browser themeSwapShape.js swapGeniePolygon).
+      using support::genie::Side;
+      const std::pair<double, Side> gaps[4] = {{double(c.y()), Side::UP}, {double(height() - c.y()), Side::DOWN},
+                                               {double(c.x()), Side::LEFT}, {double(width() - c.x()), Side::RIGHT}};
+      const Side side = fromTop ? Side::UP : std::min_element(std::begin(gaps), std::end(gaps),
+                                         [](const auto& a, const auto& b) { return a.first < b.first; })->second;
+      const QRectF source = fromTop ? QRectF(0.0, 0.0, width(), 1.0) : QRectF(c.x() - 12.0, c.y() - 12.0, 24.0, 24.0);
+      // Out-sine for a theme change; an accent's sweep down on an in-out sine (browser themeSwapShape.js swapProgress).
+      const double p = fromTop ? (1.0 + std::cos(t * TAU / 2)) / 2.0 : 1.0 - std::sin(t * TAU / 4);
+      return QRegion(QPolygonF(support::genie::outline(QRectF(rect()), source, side, p)).toPolygon());
+    }
+    const double e = swapEase(t);
+    QPolygon front;
+    front.reserve(EDGE_POINTS);
+    for (int k = 0; k < EDGE_POINTS; k++) {
+      const double a = k * TAU / EDGE_POINTS;
+      const double r = edgeRadiusAt(k, e, full, style);
+      front << QPoint(qRound(c.x() + std::cos(a) * r), qRound(c.y() + std::sin(a) * r));
+    }
+    return QRegion(front);
+  }
+
   ThemeSwapOverlay::ThemeSwapOverlay(QWidget* host,
                                      const QPixmap& snap) : QWidget(host), snap(snap) {
     setObjectName(OBJECT_NAME);   // findable without a Q_OBJECT (this class stays MOC-free)
+    const support::MotionMode mode = support::motionMode();
+    shape = mode == support::MotionMode::TRANSITION ? Shape::WIPE : mode == support::MotionMode::SLIDE ? Shape::GENIE : Shape::RING;
     // Click-through: the wipe is decoration and must never eat input.
     setAttribute(Qt::WA_TransparentForMouseEvents, true);
     setAttribute(Qt::WA_NoSystemBackground, true);

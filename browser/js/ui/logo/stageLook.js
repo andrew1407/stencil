@@ -25,7 +25,7 @@ export const createStageLook = (name, app, doc) => {
       look.style = style;
       look.dusty = dusty;
       // No cloud flying: the light-only shows glow, and under slide a roaming mark wears neonOn's light.
-      look.glows = !style || dusty || (roams(name) && motionMode() === 'slide');
+      look.glows = !style || dusty || (roams(name) && ['slide', 'transition'].includes(motionMode()));
       look.lamp = !!style && dusty;   // a cloud flies through a steady lamp; otherwise the light breathes
       const hex = markHex(app), svg = faviconSvg(hex);
       if (svg !== art) { art = svg; next = stageMark(doc, hex); }

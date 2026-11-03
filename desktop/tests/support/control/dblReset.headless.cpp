@@ -10,6 +10,7 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QMenu>
+#include <QAbstractItemView>
 #include <QMouseEvent>
 
 #include "../check.hpp"
@@ -49,11 +50,28 @@ int main(int argc, char** argv) {
   int activated = -1;
   QObject::connect(combo, &QComboBox::activated, [&](int i) { activated = i; });
   send(combo, QEvent::MouseButtonPress);
-  combo->hidePopup();
   send(combo, QEvent::MouseButtonPress);
   QApplication::processEvents();
   check(combo->currentData().toString() == "solid", "two quick presses put the combo back to its default");
   check(activated == 0, "…through activated, the route a pick takes");
+
+  // A plain click on it opens the list once the double-click window passes; a double-click never opens it.
+  combo->setCurrentIndex(1);
+  combo->resize(120, 24);
+  combo->show();
+  QWidget* list = combo->view()->window();
+  send(combo, QEvent::MouseButtonPress);
+  send(combo, QEvent::MouseButtonRelease);
+  QApplication::processEvents();
+  check(!list->isVisible(), "a click on a selector with a default waits before opening its list");
+  waitMs(stencil::support::uiTimings().doubleClickMs + 60);
+  check(list->isVisible() && combo->currentIndex() == 1, "…and opens it once no second click came");
+  combo->hidePopup();
+  activated = -1;
+  doubleClick(combo);
+  waitMs(stencil::support::uiTimings().doubleClickMs + 60);
+  check(combo->currentData().toString() == "solid" && activated == 0, "a double-click resets it");
+  check(!list->isVisible(), "…without opening the list");
 
   auto* bare = new QComboBox(&host);
   bare->addItems({"a", "b"});

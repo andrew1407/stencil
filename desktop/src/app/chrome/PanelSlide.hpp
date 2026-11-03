@@ -18,6 +18,8 @@ namespace stencil::gui {
     int panelOutMs = 470;   // PANEL_SLIDE_OUT_MS: …closing
     int dustInMs = 450;     // PANEL_DUST_IN_MS: the grains gathering into the panel
     int dustOutMs = 390;    // PANEL_DUST_OUT_MS: …leaving it
+    int pourInMs = 362;     // CONTROLS_FOLD_IN_MS: Sliding's toolbar pour and its space, opening (browser --fold-ms)
+    int pourOutMs = 542;    // CONTROLS_FOLD_OUT_MS: …closing (browser --fold-out-ms)
   };
 
   inline const PanelFoldClocks& panelFoldClocks() {
@@ -36,6 +38,8 @@ namespace stencil::gui {
       out.panelOutMs = ms("PANEL_SLIDE_OUT_MS", out.panelOutMs);
       out.dustInMs = ms("PANEL_DUST_IN_MS", out.dustInMs);
       out.dustOutMs = ms("PANEL_DUST_OUT_MS", out.dustOutMs);
+      out.pourInMs = ms("CONTROLS_FOLD_IN_MS", out.pourInMs);
+      out.pourOutMs = ms("CONTROLS_FOLD_OUT_MS", out.pourOutMs);
       return out;
     }();
     return c;

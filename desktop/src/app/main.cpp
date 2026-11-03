@@ -7,6 +7,7 @@
 #include <QFileOpenEvent>
 #include <QIcon>
 #include "../support/tip/SnappyTooltipStyle.hpp"
+#include "../support/vsync/AnimationDriver.hpp"
 #include "pointerCursor.hpp"
 #include <QStringList>
 #include <QUrl>
@@ -107,6 +108,8 @@ int main(int argc, char** argv) {
   stencil::support::installAppStyle("Fusion");
   stencil::gui::installDisabledCursor(&app);
   stencil::gui::installPointerCursor(&app);
+  // Qt's animations on the display's refresh, beside every hand-stepped motion (support/vsync).
+  stencil::support::AnimationDriver::installForApp();
   // Parse before the window so --help/bad args exit cleanly; apply after show() (resolution is async).
   const stencil::gui::LaunchOptions opts = stencil::gui::parseLaunchOptions(app);
   // An incognito launch starts empty — no session restore.

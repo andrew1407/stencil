@@ -88,13 +88,4 @@ namespace stencil::support {
     curve.front() = 0.0;
     curve.back() = 1.0;
   }
-
-  // A browser's motes ride the compositor at the display's rate; this ticks one frame
-  // per refresh instead of Qt's fixed 16ms, floored at 4ms.
-  int frameIntervalMs(const QWidget* w) {
-    const QScreen* s = w ? w->screen() : nullptr;
-    const double hz = s ? s->refreshRate() : 60.0;
-    if (!(hz > 1.0)) return 16;
-    return std::clamp(int(std::floor(1000.0 / hz)), 4, 16);
-  }
 }  // namespace stencil::support

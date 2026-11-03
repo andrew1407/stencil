@@ -11,11 +11,12 @@ export const PRESS_SLOP_PX = POPOVER.pressSlopPx;
 
 // `{anchor, box, viewport}` rects; `gap` = anchor↔box space, `margin` = least viewport inset.
 export const popoverPosition = ({ anchor, box, viewport, gap = 8, margin = 8 }) => {
-  const roomAbove = anchor.top - gap - margin;
-  const roomBelow = viewport.height - anchor.bottom - gap - margin;
+  const vl = viewport.left ?? 0, vt = viewport.top ?? 0;
+  const roomAbove = anchor.top - vt - gap - margin;
+  const roomBelow = vt + viewport.height - anchor.bottom - gap - margin;
   let top = roomBelow >= roomAbove ? anchor.bottom + gap : anchor.top - gap - box.height;
-  top = Math.max(margin, Math.min(top, viewport.height - margin - box.height));
-  const left = Math.max(margin, Math.min(anchor.left, viewport.width - margin - box.width));
+  top = Math.max(vt + margin, Math.min(top, vt + viewport.height - margin - box.height));
+  const left = Math.max(vl + margin, Math.min(anchor.left, vl + viewport.width - margin - box.width));
   return { left, top };
 };
 

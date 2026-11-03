@@ -1,5 +1,6 @@
 // The points panel's fold into (and out of) its rail — its dust, veil and slide.
 export declare const VEILED_CLASS: 'coord-veiled';
+export declare const TALL_CLASS: 'coord-tall';
 export declare const PANEL_DUST_IN_MS: number;
 export declare const PANEL_DUST_OUT_MS: number;
 export declare const PANEL_SLIDE_IN_MS: number;

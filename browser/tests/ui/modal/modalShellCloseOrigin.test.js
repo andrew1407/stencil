@@ -32,8 +32,8 @@ const expectedVars = (box, anchor) => {
   return {
     dx: `${Math.round(cx - (box.left + box.width / 2))}px`,
     dy: `${Math.round(cy - (box.top + box.height / 2))}px`,
-    sx: String(onScreen ? Math.max(anchor.width / box.width, 0.05) : 0.4),
-    sy: String(onScreen ? Math.max(anchor.height / box.height, 0.05) : 0.4),
+    sx: String(onScreen ? Math.max(anchor.width / box.width, 0.05) : 0.05),
+    sy: String(onScreen ? Math.max(anchor.height / box.height, 0.05) : 0.05),
   };
 };
 const readVars = (box) => ({

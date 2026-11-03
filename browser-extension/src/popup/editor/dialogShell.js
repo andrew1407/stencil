@@ -3,7 +3,7 @@
 // EVERY close route, or it lingers for the panel's lifetime.
 import { popoverPosition } from '../../lib/tip/popover.js';
 import { menuTransformOrigin } from '../../lib/chat/msgMenu.js';
-import { surfaceIn, surfaceOut, centerOf } from '../../lib/motion.js';
+import { surfaceIn, surfaceOut, centerOf, genieIn, genieOut, growIn, growOut } from '../../lib/motion.js';
 
 // Resolves exactly once; `finish(undefined)` is a cancel, as click-away / Escape are.
 export const openPanelDialog = ({ build, anchor }) => new Promise((resolve) => {
@@ -20,9 +20,10 @@ export const openPanelDialog = ({ build, anchor }) => new Promise((resolve) => {
     if (settled) return;
     settled = true;
     document.removeEventListener('keydown', onEscape);
-    // Dusted while still on screen, removed on the same frame: nothing waits on the motes.
-    surfaceOut(box, origin);
-    back.remove();
+    // Dusted while still on screen, removed on the same frame: nothing waits on the motes. Sliding
+    // flies the window home first and removes it as it lands.
+    const leave = () => back.remove();
+    if (surfaceOut(box, origin) || !(genieOut(box, anchor, leave, back) || growOut(box, anchor, leave, back))) leave();
     resolve(value);
   };
 
@@ -49,5 +50,5 @@ export const openPanelDialog = ({ build, anchor }) => new Promise((resolve) => {
       x: origin.x, y: origin.y, left: p.left, top: p.top, size: { width: r.width, height: r.height },
     });
   }
-  surfaceIn(box, origin || centerOf(box));
+  if (!surfaceIn(box, origin || centerOf(box)) && !genieIn(box, anchor)) growIn(box, anchor);
 });

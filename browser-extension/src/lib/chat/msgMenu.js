@@ -1,6 +1,6 @@
 // The transcript's per-message context menu. Message text is untrusted model output:
 // labels/glyphs here are fixed strings, and the text itself only ever travels as DATA.
-import { surfaceIn, surfaceOut, settleSurface } from '../motion.js';
+import { surfaceIn, surfaceOut, settleSurface, menuIn, menuAway, pointBox } from '../motion.js';
 
 // Resend re-sends only the user's own turns.
 export const msgMenuItems = (role) => [
@@ -93,7 +93,7 @@ export const createMsgMenu = ({ doc, renderIcon = () => '', actions = {} }) => {
 
   const close = () => {
     // Dusted out BEFORE it is hidden, while it can still be measured.
-    if (!el.hidden) surfaceOut(el, openOrigin);
+    if (!el.hidden && !menuAway(el, pointBox(openOrigin))) surfaceOut(el, openOrigin);
     else settleSurface(el);
     el.hidden = true;
     el.innerHTML = '';
@@ -119,7 +119,7 @@ export const createMsgMenu = ({ doc, renderIcon = () => '', actions = {} }) => {
     el.style.top = `${top}px`;
     el.style.transformOrigin = menuTransformOrigin({ x, y, left, top, size });
     openOrigin = { x, y };
-    surfaceIn(el, openOrigin);
+    if (!surfaceIn(el, openOrigin)) menuIn(el, pointBox(openOrigin));
     doc.addEventListener?.('keydown', onEscape, true);
   };
 

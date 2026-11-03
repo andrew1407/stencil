@@ -3,6 +3,7 @@
 // per interface-motion mode, whose parts carry the classes the row's hover animates
 // (lib/animations/motionIcons.css `.mm-*`). The desktop paints the same shapes with QPainter
 // (support/icon/motionIcons.hpp).
+import { genieTravel, GENIE_PINCH_END, GENIE_BEND } from './motion/genie/warp.js';
 
 const svg = (mode, body) =>
   `<svg class="mm-icon mm-${mode}" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" ` +
@@ -11,15 +12,48 @@ const svg = (mode, body) =>
 
 // The line's length (the diagonal between the two points), the dash the hover redraws.
 export const NONE_LINE_LEN = 11.4;
-// …and the arrow's shaft, drawn from its bottom-left end on hover.
-export const SLIDE_SHAFT_LEN = 9.9;
+// The Transition glyph's arrow shaft, drawn from its bottom-left end on hover before its head shows.
+export const TRANSITION_SHAFT_LEN = 9.9;
+// The Sliding glyph IS the genie: the warp (motion/genie/warp.js) drawn at the 16-unit scale, a window
+// poured out of a dock line. On hover it plays the window flight's own curve (warp travel + OutSine) from
+// in the dock (p 1) to GENIE_GLYPH_REST_P, the bent pour it rests at; the desktop draws the same outline
+// (support/icon/motionIconPainters.hpp paintSlide).
+export const GENIE_GLYPH_REST_P = 0.3;
+const GLYPH_WIN = { left: 3, top: 2.5, width: 10, height: 8 };
+const GLYPH_DOCK = { left: 10, top: 13.2, width: 2.4, height: 1.2 };
+const GLYPH_ROWS = 8;
+// The outline at warp progress `p` (0 = the whole window, 1 = in the dock): left side down, right side up.
+export const genieGlyphPath = (p) => {
+  const pinch = Math.min(1, Math.max(0, p / GENIE_PINCH_END));
+  const lean = pinch * pinch * (3 - 2 * pinch) * GENIE_BEND;
+  const w = GLYPH_WIN, i = GLYPH_DOCK, left = [], right = [];
+  for (let k = 0; k <= GLYPH_ROWS; k++) {
+    const v = k / GLYPH_ROWS;
+    const t = genieTravel(v, p);
+    const y = w.top + v * w.height + (i.top + v * i.height - (w.top + v * w.height)) * t;
+    const f = Math.max(t, lean * v * v * (3 - 2 * v));
+    left.push(`${+(w.left + (i.left - w.left) * f).toFixed(2)} ${+y.toFixed(2)}`);
+    right.push(`${+(w.left + w.width + (i.left + i.width - w.left - w.width) * f).toFixed(2)} ${+y.toFixed(2)}`);
+  }
+  const pts = [...left, ...right.reverse()];
+  return `M${pts[0]} ${pts.slice(1).map((q) => `L${q}`).join(' ')} Z`;
+};
+// The hover's keyframes, evenly spaced in time: the flight's OutSine from the dock to the rest pour.
+export const GENIE_GLYPH_STEPS = 12;
+export const genieGlyphKeyframes = () => Array.from({ length: GENIE_GLYPH_STEPS + 1 }, (_, k) => {
+  const t = k / GENIE_GLYPH_STEPS;
+  return { at: Math.round(t * 100), d: genieGlyphPath(1 - (1 - GENIE_GLYPH_REST_P) * Math.sin((t * Math.PI) / 2)) };
+});
 
 export const MOTION_ICONS = Object.freeze({
   none: svg('none',
     '<circle cx="8" cy="8" r="5.6"/>' +
     `<line class="mm-line" x1="12.05" y1="3.95" x2="3.95" y2="12.05" stroke-dasharray="${NONE_LINE_LEN}"/>`),
   slide: svg('slide',
-    `<path class="mm-shaft" d="M4.5 11.5 L11.5 4.5" stroke-dasharray="${SLIDE_SHAFT_LEN}"/>` +
+    `<path class="mm-genie" d="${genieGlyphPath(GENIE_GLYPH_REST_P)}"/>` +
+    '<path class="mm-dock" d="M8.2 14.4 H14.2"/>'),
+  transition: svg('transition',
+    `<path class="mm-shaft" d="M4.5 11.5 L11.5 4.5" stroke-dasharray="${TRANSITION_SHAFT_LEN}"/>` +
     '<path class="mm-head" d="M6.5 4.5 H11.5 V9.5"/>'),
   water: svg('water',
     '<path class="mm-drop" fill="currentColor" stroke="none" ' +

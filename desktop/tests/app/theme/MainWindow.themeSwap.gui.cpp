@@ -2,6 +2,8 @@
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "../../MainWindow.gui.hpp"
 
+#include <QDialog>
+
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
 
@@ -45,6 +47,38 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY_WITH_TIMEOUT(overlays() == 0, 3000);
     // The wipe is decoration: it must never swallow input from the live window under it.
     QCOMPARE(win.settings.accentColor, accented.accentColor);
+  }
+
+  // Its open inner windows are flooded too, each with an overlay of its own (the browser's view transition
+  // covers the whole page, modals included); a dialog another window owns is left to that window's swap.
+  void themeSwapFloodsTheWindowsOwnDialogs() {
+    const auto motion = withMotion();
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(900, 640);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QDialog own(&win);
+    own.resize(320, 200);
+    own.show();
+    QDialog nested(&own);   // a dialog over a dialog still belongs to this window
+    nested.resize(200, 120);
+    nested.show();
+    QWidget other;
+    QDialog foreign(&other);
+    foreign.resize(240, 160);
+    foreign.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&own) && QTest::qWaitForWindowExposed(&nested) && QTest::qWaitForWindowExposed(&foreign));
+    auto overlays = [](QWidget* w) {
+      return w->findChildren<QWidget*>(QString::fromLatin1(ThemeSwapOverlay::OBJECT_NAME), Qt::FindDirectChildrenOnly).size();
+    };
+    Settings flipped = win.settings;
+    flipped.themeMode = win.painted.dark ? "light" : "dark";
+    win.applySettings(flipped, /*persist=*/false);
+    QCOMPARE(overlays(&win), 1);
+    QCOMPARE(overlays(&own), 1);
+    QCOMPARE(overlays(&nested), 1);
+    QCOMPARE(overlays(&foreign), 0);
+    QTRY_VERIFY_WITH_TIMEOUT(overlays(&own) == 0 && overlays(&nested) == 0 && overlays(&win) == 0, 3000);
   }
 
   // …but ONE flip at a time: a second press mid-wipe would restyle the window under an overlay still

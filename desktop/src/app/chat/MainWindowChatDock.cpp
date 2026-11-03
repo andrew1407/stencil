@@ -5,6 +5,7 @@
 #include "PanelSlide.hpp"
 #include "toolbarMetrics.hpp"
 #include "windowMotion.hpp"
+#include "../../support/genie/GenieGhost.hpp"   // support::genie::flightEase
 #include "SelectionPanel.hpp"
 #include "../../support/motion/DisintegrateOverlay.hpp"
 #include "ControlsPill.hpp"
@@ -52,19 +53,23 @@ namespace stencil::gui {
       parts.dockChrome.positionPanelGrip();
       parts.dockChrome.updatePanelReopenButton();
     };
+    const int slideMs = show ? clocks.panelInMs : clocks.panelOutMs;
     int from, to;
     QPointer<gui::DisintegrateOverlay> dustFx;
+    bool poured = false;   // Sliding: the picture pours from the chevron while the width slides
     if (show) {
       selPanel->show();
       // Photographed at the OPEN width; the slide starts from 1px, not 0 - at exactly zero Qt treats
       // the split's anchor pane as vacated and drops the panel out of the layout tree.
-      if (animate) dustFx = parts.dockChrome.panelSurfaceFlight(/*gather=*/true, clocks.dustInMs, full);
+      if (animate) poured = parts.dockChrome.pourPanel(true, full, slideMs);
+      if (animate && !poured) dustFx = parts.dockChrome.panelSurfaceFlight(/*gather=*/true, clocks.dustInMs, full);
       selPanel->setFixedWidth(1);
       from = 1; to = full;
     }
     else {
       from = selPanel->width() > 0 ? selPanel->width() : full;
-      if (animate) dustFx = parts.dockChrome.panelSurfaceFlight(/*gather=*/false, clocks.dustOutMs, from);
+      if (animate) poured = parts.dockChrome.pourPanel(false, full, slideMs);
+      if (animate && !poured) dustFx = parts.dockChrome.panelSurfaceFlight(/*gather=*/false, clocks.dustOutMs, from);
       to = 0;
     }
     if (!animate) { selPanel->setFixedWidth(to); finish(); return; }
@@ -78,13 +83,14 @@ namespace stencil::gui {
       const double open = std::clamp(double(v - shut) / std::max(1, full - shut), 0.0, 1.0);
       return int(std::lround(shutInset + (CENTRAL_SIDE_MARGIN - shutInset) * open));
     };
+    const support::genie::SpaceClock space = support::genie::spaceClock(show || !poured, slideMs);
     panelSlide.anim = startExtentSlide(
-        this, from, to, show ? clocks.panelInMs : clocks.panelOutMs,
+        this, from, to, space.ms,
         pinAndRaiseDust([this, insetAt](int v) {
           selPanel->setFixedWidth(v);
           parts.dockChrome.setCanvasRightInset(insetAt(v));
         }, dustFx),
-        finish, panelSlideEase());
+        finish, poured ? support::genie::flightEase(show) : panelSlideEase(), space.delayMs);
     // The start pose, laid out now: the first tick is a frame away, and the grab left the canvas at the open width.
     parts.dockChrome.setCanvasRightInset(insetAt(from));
     if (centralLayout) centralLayout->activate();

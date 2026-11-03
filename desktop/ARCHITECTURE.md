@@ -410,8 +410,9 @@ in-flight layout push and then for the co-edit result, each up to `RESULT_CLOSE_
    token — `cli/src/safety/child.zig`'s list); a link opened through `QDesktopServices::openUrl` is
    handed to the OS opener (LaunchServices, ShellExecute, `xdg-open`), which the app does not scrub.
 5. **Motion** is gated by `support/motionPrefs.hpp` (`STENCIL_NO_ANIM=1` overrides) and mirrors
-   `browser/js/ui/dust/cloud.js` value for value: sprite blits, and a `QTimer` at the screen's
-   refresh rate. A widget hidden under its dust wears `veilBehindDust`, never a bare opacity
+   `browser/js/ui/dust/cloud.js` value for value: sprite blits, stepped once per display refresh on
+   the one app clock, `support/vsync/FramePulse.hpp` (cocoa's display link, else a refresh-rate
+   timer), which `support/vsync/AnimationDriver.hpp` also puts Qt's own animations on. A widget hidden under its dust wears `veilBehindDust`, never a bare opacity
    effect. A skin (`support/skinPrefs.hpp`) overrides motion and theme for the session only.
    The *Animation speed* (`motion.json` `speed`) scales every interface animation where it is
    played — a duration through `motionMs`, a self-driven clock through `motionScale` — and is

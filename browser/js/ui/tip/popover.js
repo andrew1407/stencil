@@ -13,12 +13,14 @@ export const PRESS_SLOP_PX = POPOVER.pressSlopPx;
 
 // Below the anchor unless above has more room: a short box near the bottom of a modal can "fit"
 // below by the viewport's measure while overlapping the modal's own rows (user report). Pure.
+// `viewport.left/top` (0 by default) start the part of it the screen shows (utils/viewportMetrics.js onScreenViewport).
 export const popoverPosition = ({ anchor, box, viewport, gap = 8, margin = 8 }) => {
-  const roomAbove = anchor.top - gap - margin;
-  const roomBelow = viewport.height - anchor.bottom - gap - margin;
+  const vl = viewport.left ?? 0, vt = viewport.top ?? 0;
+  const roomAbove = anchor.top - vt - gap - margin;
+  const roomBelow = vt + viewport.height - anchor.bottom - gap - margin;
   let top = roomBelow >= roomAbove ? anchor.bottom + gap : anchor.top - gap - box.height;
-  top = Math.max(margin, Math.min(top, viewport.height - margin - box.height));
-  const left = Math.max(margin, Math.min(anchor.left, viewport.width - margin - box.width));
+  top = Math.max(vt + margin, Math.min(top, vt + viewport.height - margin - box.height));
+  const left = Math.max(vl + margin, Math.min(anchor.left, vl + viewport.width - margin - box.width));
   return { left, top };
 };
 

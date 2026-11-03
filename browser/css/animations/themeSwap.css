@@ -14,6 +14,9 @@
        the desktop evaluates these control points too (support/dust/ThemeSwapOverlay.hpp swapEase). */
     animation: themeSwapReveal var(--swap-ms, 280ms) cubic-bezier(0.4, 0.25, 0.95, 1) both;
 }
+/* Sliding pours the new palette out of the control: the genie's silhouette as the mask, its keyframes
+   written per swap on a linear clock (motion/surface/themeSwapShape.js). */
+html.theme-swap-genie::view-transition-new(root) { animation: themeSwapGenie var(--swap-ms, 560ms) linear both; }
 /* Percentages, not px: some engines measure the pseudo-element's box in device pixels. The ragged rings
    have equal vertex counts so they interpolate; the circle is the fallback. */
 @keyframes themeSwapReveal {

@@ -2,10 +2,13 @@ import { motionMs, motionReduced } from '../motion/motionPrefs.js';
 import { originOf } from '../motion/surface/themeSwapPlay.js';
 import { SURFACE_OUT_MS } from '../motion/surface/motion.js';
 import { surfaceIn, surfaceOut, settleSurface } from '../motion/surface/surfaces.js';
+import { applyGenieVars, clearGenieVars } from '../motion/genie/vars.js';
+import { createWindowGenie, genieEnabled } from '../motion/genie/window.js';
+import { GENIE_CLOSE_MS } from '../motion/genie/flight.js';
 
 // A window forms from motes streaming out of the control that opened it and pours back
 // into it. Shared with the confirm dialog, which has no opener button. The `--modal-*` vars
-// stay: modalFromIcon/modalToIcon play wherever the dust declines (a stub, reduced motion).
+// (motion/genie/vars.js) drive modalFromIcon/modalToIcon wherever the dust and the genie decline.
 export const MODAL_CLOSE_MS = SURFACE_OUT_MS;
 // A control's client rect only while it is really on screen: folded away with the tool rows it
 // keeps a rect (visibility, opacity, clipping), and a flight aimed there came out of nothing.
@@ -20,7 +23,12 @@ export const shownRect = (el) => shownTwin(el)?.getBoundingClientRect() ?? null;
 export const createModalFlight = (overlay, boxOf) => {
   let closeTimer = null;
   let originPoint = null;   // the origin centre, in client coordinates
+  let restRect = null;      // the box at rest and the opener, for the genie (client rects)
+  let iconRect = null;
+  const genie = createWindowGenie(boxOf);
   const reducedMotion = () => motionReduced();
+  // The genie's canvas sits one level over its own window.
+  const zAbove = () => (overlay.style?.zIndex ? Number(overlay.style.zIndex) + 1 : undefined);
 
   // `anchor` is a client rect or null; a hidden or scrolled-away opener falls from above.
   const setOrigin = (anchor) => {
@@ -36,20 +44,16 @@ export const createModalFlight = (overlay, boxOf) => {
     const cx = onScreen ? a.left + a.width / 2 : b.left + b.width / 2;
     const cy = onScreen ? a.top + a.height / 2 : -Math.max(48, b.height * 0.3);
     originPoint = { x: cx, y: cy };
-    box.style.setProperty('--modal-dx', `${Math.round(cx - (b.left + b.width / 2))}px`);
-    box.style.setProperty('--modal-dy', `${Math.round(cy - (b.top + b.height / 2))}px`);
-    // Floored so a big window doesn't animate from a sub-pixel speck.
-    box.style.setProperty('--modal-sx', String(onScreen ? Math.max(a.width / b.width, 0.05) : 0.4));
-    box.style.setProperty('--modal-sy', String(onScreen ? Math.max(a.height / b.height, 0.05) : 0.4));
+    restRect = b;
+    // No opener: the window drips up out of a strip at the origin above the page.
+    iconRect = onScreen ? a : { left: cx - b.width * 0.15, top: cy - 12, width: b.width * 0.3, height: 24 };
+    applyGenieVars(box, b, onScreen ? a : null);
     return true;
   };
-  const clearOriginVars = () => {
-    const box = boxOf();
-    if (!box) return;
-    for (const v of ['--modal-dx', '--modal-dy', '--modal-sx', '--modal-sy']) box.style.removeProperty(v);
-  };
+  const clearOriginVars = () => clearGenieVars(boxOf());
   const finishClose = () => {
     if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+    genie.settle();
     overlay.classList.remove('modal-closing', 'modal-popover');
     const box = boxOf();
     if (box) { box.style.left = ''; box.style.top = ''; }
@@ -62,13 +66,20 @@ export const createModalFlight = (overlay, boxOf) => {
     if (reducedMotion()) { settleSurface(box); return; }
     // A side-by-side window's cloud flies at the window's own level, under any window above it.
     const z = overlay.style?.zIndex;
+    if (enter && genieEnabled() && restRect) { genie.open(restRect, iconRect, zAbove()); return; }
     (enter ? surfaceIn : surfaceOut)(box, originPoint, z ? { zIndex: z } : {});
   };
   // Measure while the window is still up, hand over to the cloud, wear `modal-closing`.
   const playClosing = () => {
     overlay.classList.add('modal-closing');
-    playDust(false);
     if (closeTimer) clearTimeout(closeTimer);
+    if (genieEnabled() && restRect) {
+      genie.close(restRect, iconRect, zAbove(), finishClose, motionMs(MODAL_CLOSE_MS));
+      // A flight that never lands (a picture that never decodes) still ends the close.
+      closeTimer = setTimeout(() => { closeTimer = null; finishClose(); }, motionMs(GENIE_CLOSE_MS + MODAL_CLOSE_MS) + 1000);
+      return;
+    }
+    playDust(false);
     closeTimer = setTimeout(() => { closeTimer = null; finishClose(); }, motionMs(MODAL_CLOSE_MS));
   };
   return { reducedMotion, setOrigin, finishClose, playDust, playClosing,

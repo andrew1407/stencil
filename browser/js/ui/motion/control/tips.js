@@ -2,6 +2,7 @@ import { motionMs, motionReduced } from '../motionPrefs.js';
 import { SURFACE_IN_MS, dockAwayPoint, dockEdgeLane } from '../surface/motion.js';
 import { settleSurface, surfaceIn, surfaceOut } from '../surface/surfaces.js';
 import { TUNE } from '../tune.js';
+import { GENIE_DRIVEN_CLASS, genieEnabled, genieIn, genieOut } from '../genie/window.js';
 // Every cursor-adjacent popup dusts in and out of the control it describes, fast enough
 // to be over before a sweep reaches the next one.
 export const TIP_DUST_IN_MS = TUNE.TIP_DUST_IN_MS;
@@ -41,9 +42,15 @@ export const CONTROLS_DUST_OUT_MS = TUNE.CONTROLS_DUST_OUT_MS;
 // The box the cloud flew over, or null when none did; `box` is one the caller already read open.
 // `picture`: the caller keeps the surface on screen at that box as the picture its grains leave.
 // `edge`: the grains stream through the window edge the surface docks on (dockEdgeLane).
+// What foldDust returns when Sliding poured the fold (no dust flew, and nothing is left to slide).
+export const FOLD_POURED = 'poured';
+// `home` (the toggle) makes Sliding pour its picture out of the toggle and back (motion/genie), as a
+// window does, over `pourMs` (the fold's CSS slide, which runs beneath on the same beat); without it,
+// or out of Sliding, the dust flies as before.
 export function foldDust(el, scope, cls, hiding, dock, { inMs = SURFACE_IN_MS, outMs = FOLD_DUST_OUT_MS,
                                                          toggle = null, picture = false, box: open = null,
-                                                         edge = false } = {}) {
+                                                         edge = false, home = null, pourMs = 0 } = {}) {
+  if (home && genieEnabled() && pourFold(el, scope, cls, hiding, toggle, home, pourMs)) return FOLD_POURED;
   const box = motionReduced() ? null : open || foldBox(el, scope, cls, false, FOLD_INSTANT_CLASS);
   toggle?.();
   const away = box && (edge ? dockEdgeLane : dockAwayPoint)(box, dock);
@@ -51,6 +58,40 @@ export function foldDust(el, scope, cls, hiding, dock, { inMs = SURFACE_IN_MS, o
     { box, ms: hiding ? outMs : inMs, belowChat: true, picture });
   return flew ? box : null;
 }
+
+// A fold's space beside its flight: closing, it waits for the picture's far edge to start moving (the warp's
+// LAG through the close's in-out sine, a time share); the flight outlasts the slide so it covers the landing.
+// Desktop twin: support/genie/GenieGhost.hpp spaceClock.
+export const SPACE_CLOSE_WAIT = 0.4;
+export const SPACE_TAIL_MS = 40;
+// Every slide the fold just set off, anywhere on the page (still pending: born this frame).
+const retimeClose = (ms) => {
+  for (const a of globalThis.document?.getAnimations?.() ?? []) {
+    if (!a.pending || !('transitionProperty' in a) || a.transitionProperty === 'opacity' || a.transitionProperty === 'visibility') continue;
+    a.effect?.updateTiming?.({ delay: ms * SPACE_CLOSE_WAIT, duration: ms * (1 - SPACE_CLOSE_WAIT) });
+  }
+};
+
+// Hidden while its picture flies, the fold slides its space on its own CSS transition. Opening, it is laid
+// out open with that transition off for the picture, put back shut, and only then slides open as it flies.
+const pourFold = (el, scope, cls, hiding, toggle, home, ms) => {
+  const opts = ms > 0 ? { ms: ms + SPACE_TAIL_MS } : {};
+  const at = () => (typeof home === 'function' ? home() : home);
+  if (hiding) return genieOut(el, at, null, { ...opts, beforeFly: () => { toggle?.(); if (ms > 0) retimeClose(ms); } });
+  scope.classList.add(FOLD_INSTANT_CLASS);
+  toggle?.();
+  el.getBoundingClientRect();
+  let flying = false;
+  const fly = () => { flying = true; el.classList.add(GENIE_DRIVEN_CLASS); toggle?.(); };
+  const poured = genieIn(el, at(), { ...opts, onFly: fly });
+  if (poured && !flying) {   // shut again, and seen shut, until the picture moves
+    scope.classList.toggle(cls, !hiding);
+    el.classList.remove(GENIE_DRIVEN_CLASS);
+  }
+  el.getBoundingClientRect();
+  scope.classList.remove(FOLD_INSTANT_CLASS);
+  return poured;
+};
 
 // Popups shown by a `:hover` rule alone: by the time pointerleave runs the popup is already
 // display:none, so the hold class puts the box back for as long as the motes need.

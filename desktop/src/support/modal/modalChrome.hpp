@@ -83,6 +83,11 @@ namespace stencil::gui {
   // Labels and rows flush LEFT (the macOS style right-aligns labels); `grow` fields fill the row (browser .vs-field).
   void alignModalForm(QFormLayout* form, bool growFields = false);
 
+  // Browser .vs-ctrl > input's 10px inset for every number field under `root`: Qt lays a spin box's
+  // editor at its left edge whatever its QSS padding says. 10 lines its text up with a QLineEdit's.
+  inline constexpr int SPIN_TEXT_INSET_PX = 10;
+  void insetModalSpinText(QWidget* root);
+
   // Browser default `button`: accent fill, white text. Danger buttons keep objectName "dangerButton".
   void makeModalCta(QPushButton* btn, const QString& iconName = QString());
 

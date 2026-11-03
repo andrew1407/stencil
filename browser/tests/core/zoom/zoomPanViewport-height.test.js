@@ -62,6 +62,7 @@ test('caps the coordinates panel to the room below its own top, not to 100vh', (
   new ZoomPan({}).syncCoordPanelHeight();
   // 953 - 362 (its own top) - 20 container pad - 16 body pad = 555
   assert.equal(vp.panel.style.maxHeight, '555px');
+  assert.equal(vp.panel.style['--coord-panel-room'], '555px', 'and that room is the column a fold spans');
   // The old CSS rule would have allowed 953 - 40 = 913, i.e. 358px past the window.
   assert.ok(parseFloat(vp.panel.style.maxHeight) < 953 - 40);
 });

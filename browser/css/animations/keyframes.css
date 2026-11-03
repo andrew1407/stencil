@@ -4,20 +4,24 @@
 @keyframes appReveal      { from { opacity: 0; transform: translateY(8px); }  to { opacity: 1; transform: none; } }
 @keyframes overlayFadeIn  { from { opacity: 0; }                              to { opacity: 1; } }
 @keyframes modalPop       { from { opacity: 0; transform: translateY(18px) scale(0.965); } to { opacity: 1; transform: none; } }
-/* Modal open/close anchored on its opener (ui/base.js sets the vars; the defaults are modalPop's own).
-   Full opacity while still icon-sized, so you watch a window travel rather than a rectangle fade. */
+/* Modal open/close anchored on its opener (ui/modal/flight.js sets the vars; the defaults are modalPop's own).
+   Opaque within its first frames, still icon-sized, so you watch it GROW out of the icon rather than first
+   seeing it once it is already large. */
 @keyframes modalFromIcon  {
-    0%   { opacity: 0; transform: translate(var(--modal-dx, 0px), var(--modal-dy, 18px)) scale(var(--modal-sx, 0.965), var(--modal-sy, 0.965)); }
-    18%  { opacity: 1; }
+    0%   { opacity: 0; transform: translate(var(--modal-dx, 0px), var(--modal-dy, 18px)) scale(var(--modal-sx, 0.05), var(--modal-sy, 0.05)); }
+    6%   { opacity: 1; }
     100% { opacity: 1; transform: none; }
 }
 @keyframes modalToIcon    {
     0%   { opacity: 1; transform: none; }
     70%  { opacity: 1; }
-    100% { opacity: 0; transform: translate(var(--modal-dx, 0px), var(--modal-dy, 18px)) scale(var(--modal-sx, 0.965), var(--modal-sy, 0.965)); }
+    100% { opacity: 0; transform: translate(var(--modal-dx, 0px), var(--modal-dy, 18px)) scale(var(--modal-sx, 0.05), var(--modal-sy, 0.05)); }
 }
 @keyframes overlayFadeOut { from { opacity: 1; }                              to { opacity: 0; } }
-@keyframes popIn          { from { opacity: 0; transform: scale(0.94) translateY(-6px); }  to { opacity: 1; transform: none; } }
+/* The backdrop alone, its window left opaque inside it: scrim and blur, never the overlay's opacity. */
+@keyframes scrimFadeIn    { from { background-color: transparent; backdrop-filter: blur(0); -webkit-backdrop-filter: blur(0); } }
+@keyframes scrimFadeOut   { to   { background-color: transparent; backdrop-filter: blur(0); -webkit-backdrop-filter: blur(0); } }
+@keyframes popIn          { 0% { opacity: 0; transform: scale(0.05) translateY(-6px); } 8% { opacity: 1; } 100% { opacity: 1; transform: none; } }
 @keyframes menuRise       { from { opacity: 0; transform: translateY(8px); }  to { opacity: 1; transform: none; } }
 @keyframes tooltipIn      { from { opacity: 0; transform: translateY(4px); }  to { opacity: 1; transform: none; } }
 @keyframes rowPulse       { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); } 100% { box-shadow: 0 0 0 8px transparent; } }

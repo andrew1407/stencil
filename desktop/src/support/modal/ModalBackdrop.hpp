@@ -58,17 +58,21 @@ namespace stencil::support {
       QList<QWidget*> live = host->findChildren<QWidget*>(QStringLiteral("modalBackdrop"), Qt::FindDirectChildrenOnly);
       for (QWidget* w : live)
         if (static_cast<ModalBackdrop*>(w)->owner == dlg) return static_cast<ModalBackdrop*>(w);
-      const QPixmap shot = photograph(host, live);
-      if (shot.isNull()) return nullptr;
+      const QPixmap raw = photograph(host, live);
+      if (raw.isNull()) return nullptr;
       auto* bd = new ModalBackdrop(host);
       bd->owner = dlg;
-      bd->shot = shot;
+      bd->setPhoto(raw);
       bd->show();
       bd->raise();
       for (QWidget* w : aboveChildren(host)) w->raise();
       bd->fadeTo(1.0, FADE_IN_MS, /*thenDrop=*/false);
       // It holds through the dialog's flight back, as the browser's does, and leaves on its own.
-      QObject::connect(dlg, &QDialog::finished, bd, [bd] { bd->fadeTo(0.0, FADE_OUT_MS, true); });
+      // An accepted window may have changed the one behind (an image opened): that one shows through.
+      QObject::connect(dlg, &QDialog::finished, bd, [bd](int result) {
+        if (result == QDialog::Accepted) bd->setOpaque(false);
+        bd->fadeTo(0.0, FADE_OUT_MS, true);
+      });
       return bd;
     }
 
@@ -78,8 +82,8 @@ namespace stencil::support {
       for (QWidget* w : host->findChildren<QWidget*>(QStringLiteral("modalBackdrop"),
                                                      Qt::FindDirectChildrenOnly)) {
         auto* bd = static_cast<ModalBackdrop*>(w);
-        const QPixmap shot = photograph(host, skip + QList<QWidget*>{bd});
-        if (!shot.isNull()) { bd->shot = shot; bd->update(); }
+        const QPixmap raw = photograph(host, skip + QList<QWidget*>{bd});
+        if (!raw.isNull()) { bd->setPhoto(raw); bd->update(); }
       }
     }
 
@@ -130,27 +134,47 @@ namespace stencil::support {
    protected:
     void paintEvent(QPaintEvent*) override {
       QPainter p(this);
+      // Opaque over the window it photographed, so no frame of its fade (or of a flight over it)
+      // repaints that window's widgets beneath it, which dropped frames mid-flight.
+      if (opaque && level < 1.0 && !raw.isNull()) p.drawPixmap(rect(), raw);
+      // One layer fading as a whole, as the browser's overlay does: a fade frame is one blend, at rest a blit.
       p.setOpacity(level);
-      if (!shot.isNull()) p.drawPixmap(rect(), shot);
-      p.fillRect(rect(), QColor(0, 0, 0, int(255 * SCRIM_ALPHA)));
+      p.drawPixmap(rect(), dimmed);
     }
 
    private:
+    // The blurred window under its scrim, composed once rather than blended per frame.
+    void setPhoto(const QPixmap& window) {
+      raw = window;
+      dimmed = blurred(window, BLUR_PX);
+      QPainter p(&dimmed);
+      p.fillRect(QRectF(QPointF(0, 0), dimmed.deviceIndependentSize()), QColor(0, 0, 0, int(255 * SCRIM_ALPHA)));
+    }
+
     static QPixmap photograph(QWidget* host, const QList<QWidget*>& skip) {
       QList<QWidget*> hidden;
       for (QWidget* w : skip + aboveChildren(host))
         if (w && w->isVisible()) { w->setVisible(false); hidden.append(w); }
       const QPixmap shot = host->grab();
       for (QWidget* w : hidden) w->setVisible(true);
-      return blurred(shot, BLUR_PX);
+      return shot;
+    }
+
+    void setOpaque(bool on) {
+      opaque = on;
+      setAttribute(Qt::WA_OpaquePaintEvent, on);
+      update();
     }
 
     explicit ModalBackdrop(QWidget* host) : QWidget(host) {
       setObjectName(QStringLiteral("modalBackdrop"));
       setAttribute(Qt::WA_TransparentForMouseEvents);   // the dialog is modal; this only paints
       setGeometry(host->rect());
+      setAttribute(Qt::WA_OpaquePaintEvent, true);
     }
-    QPixmap shot;
+    QPixmap raw;    // the window as photographed
+    QPixmap dimmed;   // …blurred, under the scrim
+    bool opaque = true;
     QPointer<QDialog> owner;   // the dialog it dims for
     double level = 0.0;   // 0 = the window as it is, 1 = fully dimmed and blurred
     QPointer<QVariantAnimation> fade;

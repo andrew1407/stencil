@@ -8,6 +8,8 @@ class QGraphicsOpacityEffect;
 class QVariantAnimation;
 class QWidget;
 
+class QToolBar;
+
 namespace stencil::gui {
 
   class MainWindow;
@@ -47,6 +49,13 @@ namespace stencil::gui {
     QRect compactChatRect(QWidget* anchor) const;
     void dropChatVeil();
     void stopChatAnim();
+    // Sliding (DockChromePour.cpp): the docked chat, the side panel and the toolbar rows pour their picture
+    // out of their toggle and back while their space slides on the same `ms`; false = not Sliding, dust instead.
+    bool pourDockedChat(bool show, int ms, const std::function<void(int)>& pin, int full);
+    bool pourPanel(bool show, int full, int ms);
+    bool pourBars(const QList<QToolBar*>& bars, bool show, int ms);
+    void releaseBarsVeils();
+    void settleFoldLayout();
     void setChatCompactPopover(bool on);
     // Browser FLOAT_DEFAULT, ported to this window's top-left; clamped to its own screen.
     QRect defaultChatFloatRect() const;
@@ -68,9 +77,12 @@ namespace stencil::gui {
     QSize chatNaturalMin;
     QPointer<QGraphicsOpacityEffect> chatVeil;
     QPointer<QGraphicsOpacityEffect> panelVeil;
+    QPointer<QWidget> chatCover, panelCover;   // Sliding's covers (DockChromePour.cpp), dropped with the veils
+    QList<QPointer<QWidget>> barsCovers;
     // Always through setChatCompactPopover: the dock must hear it too, or it stays undraggable.
     bool chatCompactPopover = false;
     bool chatClosing = false;
+    int chatPourRun = 0;   // the pour in the air; a later toggle retires it before it lands
     Qt::DockWidgetArea chatCompactPrevArea = Qt::LeftDockWidgetArea;
     QRect chatFloatRect;
     QRect chatRevealFrom;   // GLOBAL: set only while a drop opens the float, which grows out of it

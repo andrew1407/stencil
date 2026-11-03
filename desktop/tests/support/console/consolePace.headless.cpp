@@ -27,10 +27,10 @@ int main(int argc, char** argv) {
   std::printf("the speed:\n");
   {
     const ConsoleSpeedRange& r = consoleSpeedRange();
-    check(r.min == 0.01 && r.max == 1.0 && r.def == 0.25 && r.step == 0.01, "the range is motion.json's consoleSpeed (0.01–1, default 0.25, step 0.01)");
+    check(r.min == 0.01 && r.max == 1.0 && r.def == 0.27 && r.step == 0.01, "the range is motion.json's consoleSpeed (0.01–1, default 0.27, step 0.01)");
     check(Settings().consoleSpeed == r.def, "the settings default is the table's");
     check(clampConsoleSpeed(0.001) == 0.01 && clampConsoleSpeed(4.0) == 1.0, "out of range clamps to the ends");
-    check(clampConsoleSpeed(std::numeric_limits<double>::quiet_NaN()) == 0.25, "a non-number is the default");
+    check(clampConsoleSpeed(std::numeric_limits<double>::quiet_NaN()) == 0.27, "a non-number is the default");
     check(clampConsoleSpeed(0.456) == 0.46, "kept to hundredths");
     setConsoleSpeed(9.0);
     check(consoleSpeed() == 1.0, "the setter clamps");

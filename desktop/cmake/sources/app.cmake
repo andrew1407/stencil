@@ -38,6 +38,7 @@ set(STENCIL_GUI_SOURCES
   src/app/MainWindow.cpp
   src/app/setup/WindowAssemblySignals.cpp
   src/app/events/popover/MainWindowExecPopover.cpp
+  src/app/events/popover/popoverFlight.cpp
   src/app/actions/SettingsDialogs.cpp
   src/app/project/flows/ProjectFlows.cpp
   src/app/project/flows/ProjectFlowsRequests.cpp
@@ -60,6 +61,7 @@ set(STENCIL_GUI_SOURCES
   src/app/drag/toolbarDrags.cpp
   src/app/drag/toolbarDragsZoom.cpp
   src/app/actions/MenuBuilder.cpp
+  src/app/actions/MenuBuilderSwitches.cpp
   src/app/theme/MainWindowTheme.cpp
   src/app/theme/ThemePainter.cpp
   src/app/theme/ThemePainterIcons.cpp
@@ -89,6 +91,7 @@ set(STENCIL_GUI_SOURCES
   src/app/chrome/DockChromePlace.cpp
   src/app/chrome/DockChromeCompact.cpp
   src/app/chrome/DockChromeShow.cpp
+  src/app/chrome/DockChromePour.cpp
   src/app/chrome/DockChrome.cpp
   src/app/context/CanvasContextMenu.cpp
   src/app/context/CanvasContextMenuShow.cpp

@@ -202,7 +202,6 @@
     "desktop/src/dialogs/projects/row/ProjectRowDelegateRow.cpp#ProjectRowDelegate::paintRow": 156,
     "desktop/src/dialogs/projects/row/ProjectsRowMenu.cpp#ProjectsDialog::showRowMenu": 175,
     "desktop/src/dialogs/settings/LlmSettingsFormRows.cpp#LlmSettingsForm::buildProviderRows": 102,
-    "desktop/src/dialogs/settings/SettingsDialogMotionRows.cpp#SettingsDialog::buildMotionRows": 85,
     "desktop/src/dialogs/settings/ShortcutsDialog.cpp#QDialog": 148,
     "desktop/src/llm/dock/ChatDock.cpp#QDockWidget": 104,
     "desktop/src/llm/dock/ChatDockAppend.cpp#ChatDock::appendAsk": 103,

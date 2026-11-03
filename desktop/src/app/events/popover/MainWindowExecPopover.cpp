@@ -1,6 +1,7 @@
 // Running a dialog as an anchored popover rather than a window: the reveal, the chord forwarding
 // while its own event loop runs, the close flight back to whatever opened it, and the dismissal.
 #include "MainWindow.hpp"
+#include "popoverFlight.hpp"
 #include "../../../support/motion/DisintegrateOverlay.hpp"   // the canvas scatters when cleared
 #include "mainWindowShellParts.hpp"
 #include "LogoHoverFx.hpp"
@@ -10,6 +11,8 @@
 #include "modalReveal.hpp"
 
 #include <QEasingCurve>
+#include <QGuiApplication>
+#include <QScreen>
 #include <QGraphicsOpacityEffect>
 #include <QPropertyAnimation>
 #include <QPixmap>
@@ -50,7 +53,12 @@ namespace stencil::gui {
     // A CHILD WIDGET, never its own window: a small frameless top-level does not animate on macOS.
     // This branch flies itself — opt out of the app-wide DialogRevealFilter or its flight piles on.
     dlg.setProperty(support::NO_DIALOG_REVEAL_PROPERTY, true);
-    const QSize cap(420, qMin(560, int(height() * 0.78)));
+    const QRect anchorGlobal(anchor->mapToGlobal(QPoint(0, 0)), anchor->size());
+    const QScreen* screenOf = QGuiApplication::screenAt(anchorGlobal.center());
+    if (!screenOf) screenOf = screen();
+    const QRect seen = support::visiblePart(QRect(mapToGlobal(QPoint(0, 0)), size()),
+                                            screenOf ? screenOf->availableGeometry() : QRect());
+    const QSize cap(420, qMin(560, int(seen.height() * 0.78)));
     dlg.setMinimumSize(0, 0);
     dlg.setMaximumSize(cap);
     const bool shell = dlg.findChild<QWidget*>(QStringLiteral("modalShell")) != nullptr;
@@ -67,10 +75,8 @@ namespace stencil::gui {
     dlg.setGeometry(QRect(QPoint(0, 0), want));
     dlg.show();
 
-    // WINDOW coordinates, kept inside the window.
-    const QRect anchorGlobal(anchor->mapToGlobal(QPoint(0, 0)), anchor->size());
-    const QRect windowGlobal(mapToGlobal(QPoint(0, 0)), size());
-    const QRect box(mapFromGlobal(support::popoverRect(anchorGlobal, want, windowGlobal)
+    // WINDOW coordinates, kept inside the part of the window its screen shows.
+    const QRect box(mapFromGlobal(support::popoverRect(anchorGlobal, want, seen)
                                       .topLeft()),
                     want);
     const QRect fromBox(mapFromGlobal(anchorGlobal.topLeft()), anchorGlobal.size());
@@ -97,18 +103,7 @@ namespace stencil::gui {
         fade->setKeyValueAt(1.0, 1.0);
         fade->start(QAbstractAnimation::DeleteWhenStopped);
       } else {
-        overlay->setGeometry(fromBox);
-        auto* grow = new QPropertyAnimation(overlay, "geometry", overlay);
-        grow->setDuration(support::motionMs(POPOVER_OPEN_MS));
-        grow->setStartValue(fromBox);
-        grow->setEndValue(box);
-        grow->setEasingCurve(QEasingCurve::OutCubic);
-        auto* fade = new QPropertyAnimation(fx, "opacity", overlay);
-        fade->setDuration(support::motionMs(POPOVER_OPEN_MS));
-        fade->setStartValue(0.0);
-        fade->setEndValue(1.0);
-        grow->start(QAbstractAnimation::DeleteWhenStopped);
-        fade->start(QAbstractAnimation::DeleteWhenStopped);
+        popoverEntrance(this, overlay, fx, shot, fromBox, box, POPOVER_OPEN_MS);
       }
     }
     pop.active = &dlg;
@@ -165,24 +160,9 @@ namespace stencil::gui {
         overlayAlive->hide();
         return end();
       }
-      auto* fx = qobject_cast<QGraphicsOpacityEffect*>(overlayAlive->graphicsEffect());
-      if (!fx) {
-        fx = new QGraphicsOpacityEffect(overlayAlive);
-        overlayAlive->setGraphicsEffect(fx);
-      }
-      fx->setOpacity(1.0);
-      auto* shrink = new QPropertyAnimation(overlayAlive, "geometry", overlayAlive);
-      shrink->setDuration(support::motionMs(POPOVER_CLOSE_MS));
-      shrink->setStartValue(overlayAlive->geometry());
-      shrink->setEndValue(fromBox);
-      shrink->setEasingCurve(QEasingCurve::InCubic);
-      auto* fade = new QPropertyAnimation(fx, "opacity", overlayAlive);
-      fade->setDuration(support::motionMs(POPOVER_CLOSE_MS));
-      fade->setStartValue(1.0);
-      fade->setEndValue(0.0);
-      connect(shrink, &QAbstractAnimation::finished, &loop, end);
-      shrink->start(QAbstractAnimation::DeleteWhenStopped);
-      fade->start(QAbstractAnimation::DeleteWhenStopped);
+      // The flight's ghost belongs to the window and can land after this frame has returned.
+      popoverExit(this, overlayAlive, shot, fromBox, POPOVER_CLOSE_MS,
+                  [loopAlive = QPointer<QEventLoop>(&loop), end] { if (loopAlive) end(); });
     });
     connect(&dlg, &QObject::destroyed, &loop, end);
     connect(qApp, &QCoreApplication::aboutToQuit, &loop, end);

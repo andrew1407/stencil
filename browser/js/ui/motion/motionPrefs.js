@@ -1,7 +1,7 @@
 // Two app-wide motion switches (Visuals modal / stencil.drawingAnimations, stencil.motionMode):
 // `drawing` is the canvas stroke motion (core/line/strokeFx.js); `mode` is how the interface moves —
-// 'particles' | 'water' | 'fire' (cloud.js styleFrame), 'slide' (each surface's own CSS
-// entrance), 'none'. prefers-reduced-motion: reduce reads as 'none' whatever is stored.
+// 'particles' | 'water' | 'fire' (cloud.js styleFrame), 'slide' (a window's picture poured out of its
+// opener, motion/genie/), 'transition' (each surface's own CSS size-and-fade entrance), 'none'. prefers-reduced-motion: reduce reads as 'none' whatever is stored.
 // App-wide under its own localStorage key; mirrored onto <html data-motion> (animations/motionModes.css).
 
 import { publish, EVENTS } from '../../eventBus/appBus.js';
@@ -21,8 +21,9 @@ export const DEFAULT_MULTI_WINDOW = false;
 const MOTION_WATER = 'water';
 const MOTION_FIRE = 'fire';
 const MOTION_SLIDE = 'slide';
+const MOTION_TRANSITION = 'transition';
 const MOTION_NONE = 'none';
-export const MOTION_MODES = Object.freeze([MOTION_PARTICLES, MOTION_WATER, MOTION_FIRE, MOTION_SLIDE, MOTION_NONE]);
+export const MOTION_MODES = Object.freeze([MOTION_PARTICLES, MOTION_WATER, MOTION_FIRE, MOTION_SLIDE, MOTION_TRANSITION, MOTION_NONE]);
 // The style (cloud.js PARTICLE_STYLES) each particle mode paints in.
 export const PARTICLE_MODES = Object.freeze([MOTION_PARTICLES, MOTION_WATER, MOTION_FIRE]);
 const PARTICLE_STYLE_OF = { [MOTION_PARTICLES]: 'dust', [MOTION_WATER]: 'water', [MOTION_FIRE]: 'fire' };
@@ -42,6 +43,7 @@ export const MOTION_MODE_LABELS = Object.freeze([
   [MOTION_WATER, 'Water'],
   [MOTION_FIRE, 'Fire'],
   [MOTION_SLIDE, 'Sliding'],
+  [MOTION_TRANSITION, 'Transition'],
   [MOTION_NONE, 'None'],
 ]);
 
@@ -116,7 +118,7 @@ export const motionClock = (real = () => globalThis.performance?.now?.() ?? Date
 };
 export const storedMotionMode = () => prefs.mode;
 export const showMotionStyle = () => PARTICLE_STYLE_OF[effective().mode] || 'dust';
-export const showDustAllowed = () => PARTICLE_MODES.includes(effective().mode);   // slide/none fly none
+export const showDustAllowed = () => PARTICLE_MODES.includes(effective().mode);   // slide/transition/none fly none
 
 // Asked at call time so a mid-session change is followed.
 export const prefersReducedMotion = () =>
@@ -125,7 +127,7 @@ export const prefersReducedMotion = () =>
 // The one gate every animation checks: nothing may move.
 export const motionReduced = () => effective().mode === MOTION_NONE || prefersReducedMotion();
 
-// False in 'slide' leaves the surface's own CSS entrance in charge.
+// False in 'slide'/'transition' leaves the genie or the surface's own CSS entrance in charge.
 export const dustEnabled = () => PARTICLE_MODES.includes(effective().mode) && !prefersReducedMotion();
 
 // 'dust' | 'water' | 'fire', or null when none fly.

@@ -93,7 +93,7 @@ namespace motionprefs {
     check(support::motionIconMs("water") == 750 && support::motionIconMs("fire") == 600
               && support::motionIconMs("particles") == 790 && support::motionIconMs("none") == 300,
           "the drop, flame and specks take 1.5x the line and arrow");
-    for (const char* mode : {"particles", "water", "fire", "slide", "none"}) {
+    for (const char* mode : {"particles", "water", "fire", "slide", "transition", "none"}) {
       check(inkOf(mode, 1e9) > 20, "every mode paints a glyph at rest");
       check(!support::motionModeIcon(mode, QColor(Qt::red)).isNull(), "…and yields an icon");
     }
@@ -103,7 +103,8 @@ namespace motionprefs {
     check(inkOf("water", 0.0) < inkOf("water", endMs("water")) / 4, "the drop starts faded out");
     check(inkOf("fire", 0.0) < inkOf("fire", endMs("fire")) / 4, "the flame starts unlit");
     check(inkOf("particles", 0.0) < inkOf("particles", endMs("particles")) / 4, "the specks start out of sight");
-    check(inkOf("slide", 0.0) < inkOf("slide", endMs("slide")) / 4, "the arrow starts faded out");
+    check(inkOf("slide", 0.0) < inkOf("slide", endMs("slide")) / 2, "the genie starts as little more than its dock line");
+    check(inkOf("transition", 0.0) < inkOf("transition", endMs("transition")) / 4, "the arrow starts faded out");
     check(inkOf("none", 0.0) < inkOf("none", endMs("none")) && inkOf("none", 0.0) > 20,
           "the circle stays; only the line draws in");
     check(inkOf("none", endMs("none") / 2) > inkOf("none", 0.0)

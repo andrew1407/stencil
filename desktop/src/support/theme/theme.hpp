@@ -87,14 +87,6 @@ namespace stencil::gui {
     return QStringLiteral("QMenu::item{padding:6px 10px 6px 6px;}QMenu::icon{padding-left:4px;}");
   }
 
-  // Theme-INDEPENDENT: the re-open chevron overlays the canvas image, not a themed surface.
-  inline QString panelToggleQss() {
-    return QStringLiteral(
-        "QToolButton{background:rgba(70,76,94,230);border:1px solid rgba(255,255,255,42);"
-        "border-radius:7px;padding:0;outline:none;}"
-        "QToolButton:hover{background:rgba(94,102,124,245);}");
-  }
-
   QString buildStylesheet(bool dark, const QString& accentKey = DEFAULT_ACCENT_KEY);
 
   // One walk over a %TOKEN% template; an unknown token is left alone. A skin's overlay fills its own.

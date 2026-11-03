@@ -69,8 +69,10 @@ namespace stencil::gui {
     if (fresh || withCloud != hasCloud || next != cloudKind) cloud.setStyle(next, withCloud);
     hasCloud = withCloud;
     cloudKind = next;
-    // With no cloud flying, under slide a roaming mark wears neonOn's breathing light.
-    const bool slideNeon = support::roams(showWord) && support::motionMode() == support::MotionMode::SLIDE;
+    // With no cloud flying, under slide or transition a roaming mark wears neonOn's breathing light.
+    const support::MotionMode mode = support::motionMode();
+    const bool slideNeon = support::roams(showWord)
+                           && (mode == support::MotionMode::SLIDE || mode == support::MotionMode::TRANSITION);
     glows = hasCloud || effect == StageEffect::NEON || effect == StageEffect::SUN || slideNeon;
     const QColor accent = hooks.accent ? hooks.accent() : QColor();
     const QString look = QStringLiteral("%1 %2 %3").arg(support::isWebcore()).arg(accent.name()).arg(support::isParticleDark());

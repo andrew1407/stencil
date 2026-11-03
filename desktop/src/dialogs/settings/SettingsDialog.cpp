@@ -52,7 +52,6 @@ namespace stencil::gui {
     buildMotionRows(r, current);
     buildNotifyRows(r, current);
     buildDrawingRows(r, current);
-    buildPreferenceRows(r, current);
 
     // The AI assistant's own rows (provider, endpoint, model, key) live in the chat
     // dock's Assistant dialog, as the browser's do — not here (modal.js).
@@ -74,17 +73,16 @@ namespace stencil::gui {
     // What a double-click puts each row back to (support/control/dblReset.hpp).
     const Settings d;
     for (const auto& [w, v] : std::initializer_list<std::pair<QWidget*, QVariant>>{
-             {theme, d.themeMode}, {accent, QString(DEF_ACCENT)}, {nativeMenuBar, d.nativeMenuBar},
-             {autosave, d.autosave}, {showPoints, d.showPoints}, {showLines, d.showLines},
-             {style, d.defaultStyle}, {page, d.pageSize}, {drawAnim, DEF_DRAW_ANIM},
+             {theme, d.themeMode}, {accent, QString(DEF_ACCENT)},
+             {style, d.defaultStyle}, {drawAnim, DEF_DRAW_ANIM},
              {multiWindow, d.multiWindow},
              {motionMode, QString(DEF_MOTION_MODE)},
              {notifyChannel, QString(DEF_NOTIFY_CHANNEL)}, {thickness, d.defaultThickness},
-             {pointSize, d.defaultPointSize}, {holdDelay, d.holdDrawDelay}, {customW, d.customPageWidth},
-             {customH, d.customPageHeight}, {browserUrl, d.browserBaseUrl}, {botUsername, d.telegramBotUsername}})
+             {pointSize, d.defaultPointSize}, {holdDelay, d.holdDrawDelay}})
       support::setResetDefault(w, v);
 
     connect(search, &QLineEdit::textChanged, this, [this](const QString& q) { applyFilter(q); });
+    insetModalSpinText(this);
     // The browser's max-height: 82vh shell; the sections scroll inside it.
     sizeModalTall(this, MODAL_WIDTH);
   }

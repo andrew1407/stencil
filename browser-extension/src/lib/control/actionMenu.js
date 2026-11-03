@@ -1,7 +1,7 @@
 // The floating ⋯ action menu: one shared element per surface, which popup.js and
 // mode.js fill from the same builders.
 import { menuTransformOrigin } from '../chat/msgMenu.js';
-import { surfaceIn, surfaceOut, settleSurface, centerOf } from '../motion.js';
+import { surfaceIn, surfaceOut, settleSurface, centerOf, menuIn, menuAway, pointBox } from '../motion.js';
 import { icon } from '../icons.js';
 
 const MARGIN = 6;   // px to a viewport edge
@@ -85,12 +85,12 @@ export const createActionMenu = ({ menuEl, run = (fn) => fn(), doc = document, w
     };
     wrap.addEventListener('mouseenter', () => {
       place();
-      surfaceIn(fly, centerOf(head));
+      if (!surfaceIn(fly, centerOf(head))) menuIn(fly, head);
     });
     wrap.addEventListener('mouseleave', () => {
       // Already display:none by mouseleave — unhide it for the frame the motes are cloned in.
       fly.style.display = 'block';
-      surfaceOut(fly, centerOf(head));
+      if (!menuAway(fly, head)) surfaceOut(fly, centerOf(head));
       fly.style.display = '';
     });
     wrap.append(head, fly);
@@ -110,7 +110,7 @@ export const createActionMenu = ({ menuEl, run = (fn) => fn(), doc = document, w
     menuEl.style.top = `${top}px`;
     menuEl.style.transformOrigin = menuTransformOrigin({ x: origin.x, y: origin.y, left, top, size });
     openOrigin = { x: origin.x, y: origin.y };
-    surfaceIn(menuEl, openOrigin);
+    if (!surfaceIn(menuEl, openOrigin)) menuIn(menuEl, pointBox(openOrigin));
   };
 
   // Capture-phase so it wins over the surface's own handlers; armed only while open.
@@ -152,7 +152,7 @@ export const createActionMenu = ({ menuEl, run = (fn) => fn(), doc = document, w
   const close = () => {
     // Dusted out FIRST, while still measurable; the close stays synchronous so a burst
     // of open/close lands on the true state.
-    if (!menuEl.hidden) surfaceOut(menuEl, openOrigin);
+    if (!menuEl.hidden && !menuAway(menuEl, pointBox(openOrigin))) surfaceOut(menuEl, openOrigin);
     else settleSurface(menuEl);
     menuEl.hidden = true;
     menuEl.innerHTML = '';

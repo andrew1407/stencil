@@ -44,7 +44,7 @@ const picture = () => {
 const runFrames = () => frames.splice(0).forEach((fn) => fn(performance.now() + 120));
 
 test('every cloud in the app is built behind the dust gate, and the strokes behind the drawing one', () => {
-  for (const [mode, flies] of [['particles', true], ['water', true], ['fire', true], ['slide', false], ['none', false]]) {
+  for (const [mode, flies] of [['particles', true], ['water', true], ['fire', true], ['slide', false], ['transition', false], ['none', false]]) {
     setMotionPrefs({ mode });
     const el = sized(createStubElement('div'), 200, 100);
     assert.equal(disintegrate(el, {}), flies, `${mode}: the element cloud`);
@@ -140,7 +140,7 @@ test('every switch is in the Visuals modal and on the console facade', async () 
   // Reset All restores every one of them along with the colours, from the same table.
   calls.length = 0;
   $('vs-reset').dispatch('click');
-  assert.deepEqual(calls, [['drawing', true], ['multiWindow', false], ['mode', 'particles'], ['speed', 0.37], ['consoleSpeed', 0.25]]);
+  assert.deepEqual(calls, [['drawing', true], ['multiWindow', false], ['mode', 'particles'], ['speed', 0.37], ['consoleSpeed', 0.27]]);
   // The facade's settings namespace goes through the ONE setter.
   const { createSettingsFacade } = await import('../../../js/console/settingsFacade.js');
   const setMotion = [];

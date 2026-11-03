@@ -139,7 +139,7 @@
     window.addEventListener('storage', function (e) {
       if (e.key === SKEY || e.key === null) applySkin(readSkin());
       // Animated here too: a silent palette jump reads as a glitch.
-      if (e.key === KEY || e.key === null) swap(function () { apply(read()); }, 'theme-toggle');   // key===null on localStorage.clear()
+      if (e.key === KEY || e.key === null) swap(function () { apply(read()); }, 'theme-toggle', true);   // an accent: from the top   // key===null on localStorage.clear()
       if (e.key === TKEY || e.key === null) swap(function () { applyTheme(readTheme()); }, 'theme-toggle');
       if (e.key === MKEY || e.key === null) applyMotion(readMotion());   // the CSS half; motion.js reads live
     });

@@ -99,12 +99,29 @@ export const syncViewportHeight = () => {
   vp.style.maxHeight = availContentHeight() + 'px';
 };
 
-// Cap the coordinates panel to its real room so a long point list scrolls INSIDE it
-// (#coord-body is overflow-y:auto). Off the LIVE top — a vh guess leaves a scrollbar.
+// The part of the page the screen shows, in client px: a window hanging past the screen's edge hides that strip,
+// and a popover kept to the whole viewport opened into it (user report). The whole viewport when nothing hangs over.
+const MIN_ON_SCREEN_PX = 120;   // a sliver this narrow is no room to place in: the whole viewport instead
+export const onScreenViewport = (win = window) => {
+  const s = win.screen ?? {};
+  const availLeft = s.availLeft ?? 0, availTop = s.availTop ?? 0;
+  const availRight = availLeft + (s.availWidth ?? Infinity), availBottom = availTop + (s.availHeight ?? Infinity);
+  const x = win.screenX ?? 0, y = win.screenY ?? 0;
+  const left = Math.max(0, Math.min(win.innerWidth, availLeft - x));
+  const right = Math.max(0, Math.min(win.innerWidth, x + (win.outerWidth || win.innerWidth) - availRight));
+  const bottom = Math.max(0, Math.min(win.innerHeight, y + (win.outerHeight || win.innerHeight) - availBottom));
+  const width = win.innerWidth - left - right, height = win.innerHeight - bottom;
+  return width >= MIN_ON_SCREEN_PX && height >= MIN_ON_SCREEN_PX ? { left, top: 0, width, height } : { left: 0, top: 0, width: win.innerWidth, height: win.innerHeight };
+};
+
+// The coordinates panel's room off its LIVE top (a vh guess leaves a scrollbar): its cap, so a long list scrolls
+// inside it, and the column a fold of it spans to the bottom, as the desktop's dock (animations/collapse.css).
 export const syncCoordPanelHeight = () => {
   const panel = document.getElementById('coord-panel');
   if (!panel || document.body.classList.contains('fullscreen-mode')) return;
   const top = layoutTop(panel);
   const avail = Math.floor(window.innerHeight - top - bottomInsetToPage(panel));
-  panel.style.maxHeight = Math.max(MIN_PANEL_H, avail) + 'px';
+  const room = Math.max(MIN_PANEL_H, avail) + 'px';
+  panel.style.maxHeight = room;
+  panel.style.setProperty('--coord-panel-room', room);
 };

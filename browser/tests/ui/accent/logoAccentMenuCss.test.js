@@ -24,9 +24,9 @@ test('the menu grows OUT OF the logo and shrinks back INTO it — anchored, not 
   // transform-origin at the edge it is anchored to.
   const from = /@keyframes menuFromAnchor \{[^}]*\}[^}]*\}[^}]*\}/.exec(css)?.[0] || '';
   const to = /@keyframes menuToAnchor \{[^}]*\}[^}]*\}[^}]*\}/.exec(css)?.[0] || '';
-  assert.match(from, /scale\(0\.66\)/, 'it starts small enough to read as coming from the mark');
-  assert.match(to, /scale\(0\.66\)/, 'and the exit is the reverse — back into it');
-  assert.ok(/0%\s*\{ opacity: 0;/.test(from) && /22%\s*\{ opacity: 1; \}/.test(from),
+  assert.match(from, /scale\(0\.05\)/, 'it starts as a speck at the mark and grows all the way');
+  assert.match(to, /scale\(0\.05\)/, 'and the exit is the reverse — back into it');
+  assert.ok(/0%\s*\{ opacity: 0;/.test(from) && /8%\s*\{ opacity: 1; \}/.test(from),
     'full opacity while still small (modalFromIcon\'s trick) — you watch it grow, not fade');
   assert.ok(/60%\s*\{ opacity: 0\.85; \}/.test(to),
     'the shrink stays visible before the fade takes over');
@@ -36,8 +36,8 @@ test('the menu grows OUT OF the logo and shrinks back INTO it — anchored, not 
     'the shared copy scales out of its trigger\'s corner');
   assert.match(css, /\.logo-accent-menu, \.cs-dd \.accent-dd-menu \{ transform-origin: left top; \}/,
     'the left-aligned copies scale out of theirs (a centred origin is what made it read as no motion)');
-  assert.match(css, /\.accent-dd-menu:not\(\[hidden\]\), \.zoom-menu\.dd-portal:not\(\[hidden\]\) \{\s*animation: menuFromAnchor 0\.22s cubic-bezier\(0\.16, 1, 0\.3, 1\)/,
-    'entrance: the app\'s existing menu easing, in its usual duration range — the zoom presets too');
+  assert.match(css, /\.accent-dd-menu:not\(\[hidden\]\), \.zoom-menu\.dd-portal:not\(\[hidden\]\) \{\s*animation: menuFromAnchor 0\.26s cubic-bezier\(0\.22, 0\.61, 0\.36, 1\)/,
+    'entrance: the modals\' unhurried easing, so it is seen growing from a speck — the zoom presets too');
   assert.match(css, /\.logo-accent-menu\.dd-closing \{ animation: menuToAnchor 0\.18s ease/,
     'exit: the reverse, on the same easing the other pop-outs use');
   // Reduced motion drops BOTH — toolbar.js then hides it outright (test above), so a

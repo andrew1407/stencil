@@ -34,7 +34,7 @@ const { doc } = dust;
 doc.els.set('panel-resizer', null);
 const { setMotionPrefs } = await import('../../../js/ui/motion/motionPrefs.js');
 const fold = await import('../../../js/ui/panel/coordFold.js');
-const { PANEL_DUST_IN_MS, PANEL_DUST_OUT_MS, PANEL_SLIDE_IN_MS, VEILED_CLASS } = fold;
+const { PANEL_DUST_IN_MS, PANEL_DUST_OUT_MS, PANEL_SLIDE_IN_MS, VEILED_CLASS, TALL_CLASS } = fold;
 const { StencilMainContent } = await import('../../../js/ui/panel/mainContent.js');
 const css = (p) => readFileSync(new URL(`../../../css/animations/${p}`, import.meta.url), 'utf8');
 
@@ -98,6 +98,25 @@ for (const mode of ['particles', 'water', 'fire']) {
   });
 }
 
+// A fold spans the column to its bottom, as the desktop's dock (animations/collapse.css .coord-tall): a short
+// list still breaks over the whole column, while at rest the card keeps the height its rows give it.
+test('particles: a short list still breaks over the whole column, and the card goes back to its rows', () => {
+  const had = panel.getBoundingClientRect;
+  panel.getBoundingClientRect = () => (panel.classes.has(TALL_CLASS) ? rect(888, 70, 324, 800) : rect(888, 70, 324, 140));
+  try {
+    reset('particles', true);
+    toggle();
+    assert.ok(panel.classes.has(TALL_CLASS), 'the fold takes the column');
+    assert.equal(panel.style['--coord-card-h'], '140px', 'the card drawn at its resting height');
+    const host = panel.__dustHost;
+    assert.deepEqual([host.style.top, host.style.height], ['70px', '800px'], 'the cloud spans the column, not header and table');
+    test.mock.timers.tick(2000);
+    assert.ok(!panel.classes.has(TALL_CLASS), 'and at rest the card is its rows again');
+  } finally {
+    panel.getBoundingClientRect = had;
+  }
+});
+
 test('opening, the grains gather in from the right over the picture, the card back as the slide lands', () => {
   reset('particles', false);
   toggle();
@@ -116,6 +135,37 @@ test('opening, the grains gather in from the right over the picture, the card ba
   assert.ok(panel.classes.has(VEILED_CLASS));
   test.mock.timers.tick(1);
   assert.deepEqual(lifted, ['coord-folding', VEILED_CLASS], 'the table is never held out as it lands');
+});
+
+// Sliding pictures the whole column as it stands (the card, and the page under it painted in), as the desktop's
+// dock pours, taken as the fold starts; on screen it is unpainted again before anything paints.
+test('slide: its picture is the whole column as it stands, the card at its own height', async () => {
+  const hadRect = panel.getBoundingClientRect;
+  const hadImage = globalThis.Image;
+  const set = panel.style.setProperty;
+  const cardH = [];
+  const fill = [];
+  panel.getBoundingClientRect = () => (panel.classes.has(TALL_CLASS) ? rect(888, 70, 324, 800) : rect(888, 70, 324, 140));
+  panel.style.setProperty = (k, v) => { if (k === '--coord-card-h') cardH.push(v); if (k === '--coord-tall-fill') fill.push(v); return set.call(panel.style, k, v); };
+  try {
+    globalThis.Image = class {};
+    reset('slide', true);
+    cardH.length = fill.length = 0;
+    toggle();
+    assert.deepEqual(cardH, ['140px'], 'the card is never drawn taller than it stands');
+    assert.deepEqual(fill, ['var(--bg-container)', 'transparent'], 'the page under it painted in for the picture, then not');
+    await new Promise((r) => setImmediate(r));   // the picture's promise settles here, not in the next case
+    test.mock.timers.tick(2000);
+    globalThis.Image = hadImage;
+    reset('particles', true);
+    cardH.length = fill.length = 0;
+    toggle();
+    assert.deepEqual([cardH, fill], [['140px'], ['transparent', 'transparent']], 'the particle modes paint nothing in');
+  } finally {
+    panel.getBoundingClientRect = hadRect;
+    panel.style.setProperty = set;
+    globalThis.Image = hadImage;
+  }
 });
 
 test('slide, none and the OS preference: no veil, no cloud, the CSS slide as before', () => {
@@ -166,6 +216,13 @@ test('the panel clocks are motion.json PANEL_*, handed to its CSS, which names n
   assert.match(veil, /background: transparent/);
   assert.doesNotMatch(veil, /transition/, 'the veiled panel keeps the slide its rail takes');
   assert.match(css('collapse.css'), /--fold-ease: cubic-bezier\(0\.39, 0\.575, 0\.565, 1\);/, 'as panelSlideEase');
+  // The opening picture is taken with transitions off: its chevron already faces the way the panel opens.
+  assert.match(css('collapse.css'), /\.coordinates-panel\.fold-instant #toggle-coord-panel \.ic \{ transition: none !important; \}/,
+    'the chevron is photographed turned, not mid-spin');
+  // As the desktop's: one outlined square folded or not, and a keyboard ring the narrow rail cannot clip.
+  const panelCss = readFileSync(new URL('../../../css/layout/coord/panel.css', import.meta.url), 'utf8');
+  assert.doesNotMatch(panelCss, /coord-collapsed #toggle-coord-panel \{ border: none/, 'the folded chevron keeps its square');
+  assert.match(panelCss, /#toggle-coord-panel:focus-visible \{ outline-offset: -2px; \}/, 'its ring drawn inside its edge');
   const cloud = css('dust.css');
   assert.match(cloud, /\.disintegrate-host\.dust-leaving\.dust-over-picture \{ animation: none; \}/,
     'leaving, a grain shows at full strength as it goes: no ramp over a picture already fading (user report)');

@@ -1,5 +1,7 @@
 // PORT of browser/js/ui/control/dropdownMenu.js (browser-extension/tests/portParity.test.js).
 export interface Point { x: number; y: number; }
+/** The 12px box round a caret point Sliding's list pours out of; null for no point. */
+export declare const arrowBox: (p: Point | null | undefined) => { left: number; top: number; width: number; height: number } | null;
 export declare const menuDustPoint: (trigger: HTMLElement | null | undefined) => Point | null;
 /** Points the slide entrance's transform-origin at `point` (the caret the motes fly from). */
 export declare const growFrom: (menu: HTMLElement | null, point: Point | null,

@@ -7,11 +7,38 @@ import { modalShells } from '../../modal/registry.js';
 import { motionMs, motionReduced } from '../../motion/motionPrefs.js';
 import { sweepDust } from '../../motion/surface/tiles.js';
 import { dockAwayPoint } from '../../motion/surface/motion.js';
+import { applyGenieVars } from '../../motion/genie/vars.js';
+import { genieIn, genieOut, settleGenie } from '../../motion/genie/window.js';
 import { surfaceIn, surfaceOut, settleSurface } from '../../motion/surface/surfaces.js';
 import { rectCenter } from '../../motion/control/tips.js';
 import { CHAT_SURFACE_IN_MS, CHAT_SURFACE_OUT_MS } from '../../motion/control/chatFx.js';
 import { compactChatRect } from '../geometry.js';
 import { createChatDock } from '../dock.js';
+
+// Sliding pours every shape (docked, float, mini) out of the chat icon and back, as a window does;
+// a hidden icon leaves a point where the motes would have come from.
+const POUR_WAIT_CLASS = 'chat-pour-wait';
+// Undocks it (its space slides back), returning where `home` will stand once the page has re-laid: read in
+// one pass with the padding's transition off, then undone, so the slide still runs from the open layout.
+const landingOf = (host, home) => {
+  const shut = (on) => { host.classList.toggle('chat-closing', on); host.classList.toggle('chat-open', !on); };
+  const body = document.body.style;
+  body.transition = 'none';
+  shut(true);
+  const at = home();
+  shut(false);
+  void getComputedStyle(document.body).padding;
+  body.transition = '';
+  shut(true);
+  return at;
+};
+// Sliding takes the panel's space as the picture starts to move, not while it is photographed.
+const pourIn = (host, home, settled) => {
+  host.classList.add(POUR_WAIT_CLASS);
+  const lift = () => { host.classList.remove(POUR_WAIT_CLASS); settled(); };
+  if (!genieIn(host, home, { onFly: lift })) host.classList.remove(POUR_WAIT_CLASS);
+};
+const homeRect = (r, p) => (r?.width > 0 && r?.height > 0 ? r : { left: p.x - 12, top: p.y - 12, width: 24, height: 24 });
 
 export function wireOpenState(deps) {
   const {
@@ -61,12 +88,7 @@ export function wireOpenState(deps) {
     const a = entranceFrom ?? anchorBtn()?.getBoundingClientRect?.();
     const onScreen = !!a && a.width > 0 && a.height > 0 && a.bottom > 0 && a.top < window.innerHeight;
     const f = chatDock.rect();
-    const cx = onScreen ? a.left + a.width / 2 : f.x + f.w / 2;
-    const cy = onScreen ? a.top + a.height / 2 : -Math.max(48, f.h * 0.3);
-    host.style.setProperty('--modal-dx', `${Math.round(cx - (f.x + f.w / 2))}px`);
-    host.style.setProperty('--modal-dy', `${Math.round(cy - (f.y + f.h / 2))}px`);
-    host.style.setProperty('--modal-sx', String(onScreen ? Math.max(a.width / f.w, 0.05) : 0.4));
-    host.style.setProperty('--modal-sy', String(onScreen ? Math.max(a.height / f.h, 0.05) : 0.4));
+    applyGenieVars(host, { left: f.x, top: f.y, width: f.w, height: f.h }, onScreen ? a : null);
   };
 // The panel forms from motes out of where it comes from: a float out of the toolbar
 // icon, a docked panel from far past its edge. Measured live.
@@ -79,15 +101,16 @@ export function wireOpenState(deps) {
     return dockAwayPoint(r, chatDock.mode()) || { x: r.left + r.width / 2, y: -Math.max(48, r.height * 0.3) };
   };
   const playDust = (enter) => {
-    if (motionReduced()) { settleSurface(host); return; }
-    (enter ? surfaceIn : surfaceOut)(host, dustPoint(), { ms: enter ? CHAT_SURFACE_IN_MS : CLOSE_MS });
+    if (motionReduced()) { settleSurface(host); return false; }
+    return (enter ? surfaceIn : surfaceOut)(host, dustPoint(), { ms: enter ? CHAT_SURFACE_IN_MS : CLOSE_MS });
   };
+  const genieHome = () => homeRect(entranceFrom ?? anchorBtn()?.getBoundingClientRect?.(), dustPoint());
   let closeTimer = null;
-// A sequel to run once the close animation finishes (float → compact). Any later
-// setOpen supersedes it.
+// A sequel to run once the close animation finishes (float → compact); any later setOpen supersedes it.
   let afterClose = null;
   const setOpen = (on) => {
     clearTimeout(closeTimer);
+    settleGenie(host);
     afterClose = null;
     host.classList.remove('chat-closing');
 // Any close resets the gesture machine (popover.js notifyClosed), or a leaked 'sticky'
@@ -96,25 +119,29 @@ export function wireOpenState(deps) {
     if (!on && host.classList.contains('chat-open')) {
       setFloatOriginVars();
       sweepDust(host);
-      playDust(false);        // …measured while it is still on screen
-      host.classList.add('chat-closing');
-      openBtn?.classList.remove('active');
-      syncFsCloneActive(false);
-      closeTimer = setTimeout(() => {
+      const finish = () => {
         host.classList.remove('chat-open', 'chat-closing');
         host.removeAttribute('data-drop-owner');
         restoreFromCompact();
         const next = afterClose;
         afterClose = null;
         next?.();
-      }, motionMs(CLOSE_MS));
+      };
+      // Its space given back as the picture moves, on the flight's clock (chat/touch.css), so it pours into the icon where that lands.
+      let landing = null;
+      const beforeFly = () => { landing = landingOf(host, genieHome); announceLayout(); };
+      const poured = genieOut(host, () => landing ?? genieHome(), finish, { fallbackMs: motionMs(CLOSE_MS), beforeFly });
+      // Unpoured, the dust is measured while the panel is still on screen.
+      if (!poured) { playDust(false); host.classList.add('chat-closing'); closeTimer = setTimeout(finish, motionMs(CLOSE_MS)); }
+      openBtn?.classList.remove('active');
+      syncFsCloneActive(false);
       return;
     }
     if (on) setFloatOriginVars();
     host.classList.toggle('chat-open', on);
 // After the class, or the panel is display:none and there is nothing to measure.
-    if (on) playDust(true);
-    else settleSurface(host);
+    if (on && !playDust(true)) pourIn(host, genieHome(), announceLayout);
+    if (!on) settleSurface(host);
     announceLayout();
 // Declares "drops over my rect are mine" to controlsBinder's overDropOwner.
     host.toggleAttribute('data-drop-owner', on);

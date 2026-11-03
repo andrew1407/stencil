@@ -14,7 +14,6 @@
 #include "../../../support/motion/MenuShimmer.hpp"
 #include "../../../support/modal/modalReveal.hpp"
 #include "ProjectDragMenu.hpp"
-#include "../../../support/menu/popupSlide.hpp"
 #include "../../../support/motionPrefs.hpp"
 
 #include <QAction>
@@ -190,9 +189,7 @@ namespace stencil::gui {
     if (heldFrom) {
       // A drag holds the pointer, so no nested loop: open it, and carry the chip to the item run.
       menu.setProperty(HELD_MENU_KEBAB_PROP, kebabGlobal);
-      menu.popup(globalPos);
-      // revealMenu is the particle modes' entrance; 'slide' grows the list out of the same point.
-      if (support::isSlideMotionOk()) support::slidePopupIn(menu, *heldFrom);
+      menu.popup(globalPos);   // revealMenu above dusts, pours or grows it out of the held point
       return owned.release();
     }
     // Visible to the slots this menu fires (deleteSelected, the open confirm) for exactly

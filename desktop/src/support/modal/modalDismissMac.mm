@@ -51,8 +51,10 @@ namespace stencil::support {
         const QPoint at(int(p.x), int(h - p.y));
         // Inside the dialog's frame (title bar included) or a popup it raised is not outside.
         if (dlg->frameGeometry().contains(at)) return false;
+        // windowType(), not `flags & Qt::Popup`: that mask holds Qt::Window's bit, so every top-level
+        // matched and a click on the main window counted as one on a popup (Open Image stayed up).
         for (QWidget* w : QApplication::topLevelWidgets())
-          if (w != dlg && w->isVisible() && w->windowFlags() & Qt::Popup
+          if (w != dlg && w->isVisible() && w->windowType() == Qt::Popup
               && w->frameGeometry().contains(at))
             return false;
         if (modalDismissLogOn())

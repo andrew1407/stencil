@@ -7,6 +7,13 @@
 // the two rule-for-rule. Header-only and pure, so the headless test drives it.
 namespace stencil::support {
 
+  // The part of `window` its screen shows (`avail`, the screen less dock and menu bar): a popover kept to the window
+  // alone opened off-screen when the window hangs over the edge. The whole window when they do not meet.
+  inline QRect visiblePart(const QRect& window, const QRect& avail) {
+    const QRect seen = window.intersected(avail);
+    return seen.isEmpty() ? window : seen;
+  }
+
   inline QRect popoverRect(const QRect& anchor, const QSize& box, const QRect& screen,
                            int gap = 8, int margin = 8) {
     int top = anchor.bottom() + 1 + gap;   // QRect::bottom() is the last inside pixel

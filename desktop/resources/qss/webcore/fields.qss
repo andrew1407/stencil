@@ -50,9 +50,9 @@
         color: %WC_INK%; selection-background-color: %WC_SELECT%; font-family: Menlo, Consolas, monospace; font-size: 12px;
       }
       QLabel#openInFallbackCmds { font-family: Menlo, Consolas, monospace; font-size: 12px; }
-      QSlider#oiFrameScrub::groove:horizontal, QSlider#motionSpeedSlider::groove:horizontal { background: %WC_WINDOW%; border: 1px solid %WC_SHADOW%; border-radius: 0; }
-      QSlider#oiFrameScrub::sub-page:horizontal, QSlider#motionSpeedSlider::sub-page:horizontal { background: %WC_SELECT%; border-radius: 0; }
-      QSlider#oiFrameScrub::handle:horizontal, QSlider#motionSpeedSlider::handle:horizontal { background: %WC_FACE%; border: 1px solid %WC_DARK%; border-radius: 0; }
+      QSlider#oiFrameScrub::groove:horizontal, QSlider#motionSpeedSlider::groove:horizontal, QSlider#consoleSpeedSlider::groove:horizontal { background: %WC_WINDOW%; border: 1px solid %WC_SHADOW%; border-radius: 0; }
+      QSlider#oiFrameScrub::sub-page:horizontal, QSlider#motionSpeedSlider::sub-page:horizontal, QSlider#consoleSpeedSlider::sub-page:horizontal { background: %WC_SELECT%; border-radius: 0; }
+      QSlider#oiFrameScrub::handle:horizontal, QSlider#motionSpeedSlider::handle:horizontal, QSlider#consoleSpeedSlider::handle:horizontal { background: %WC_FACE%; border: 1px solid %WC_DARK%; border-radius: 0; }
       /* The console window: the shell's own command prompt, light grey on black (browser webcore/console). */
       QFrame#consoleBox {
         background: #000000; border: 2px solid transparent; border-image: url(%WC_SUNKEN%) 2 2 2 2 stretch; border-radius: 0;

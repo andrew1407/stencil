@@ -3,6 +3,8 @@
 // press: a release on a row picks it as a click does, off the list it closes with no change, a plain
 // click keeps the list open; a plain QComboBox's own Qt list already picks the same way.
 #include "SearchCombo.hpp"
+#include "../../../src/support/control/dblReset.hpp"
+#include "../../../src/support/uiTimings.hpp"
 
 #include <QAbstractItemView>
 #include <QApplication>
@@ -87,6 +89,22 @@ int main(int argc, char** argv) {
   moveTo(combo, away);
   release(combo, away);
   check(!shown(combo) && combo->currentIndex() == 1 && activated == -1, "released off the list, it closes with no change");
+
+  // A selector with a default opens a double-click's length after the press (support/control/dblReset.hpp), the
+  // press itself held back from it: a release on a row still picks it, as the browser's wireDragPick does.
+  stencil::support::installDblReset();
+  stencil::support::setResetDefault(combo, 0);
+  activated = -1;
+  press(combo);
+  check(!shown(combo), "with a default, the list waits out the double-click window");
+  QTest::qWait(stencil::support::uiTimings().doubleClickMs + 80);
+  check(shown(combo), "…then opens under the press still held");
+  const QPoint three = rowAt(list, 2);
+  moveTo(combo, three);
+  release(combo, three);
+  check(!shown(combo) && combo->currentIndex() == 2 && activated == 2, "released on a row, the held-back open picks it too");
+  stencil::support::setResetDefault(combo, QVariant());
+  QTest::qWait(REOPEN_GAP_MS);
 
   press(plain);
   QAbstractItemView* view = plain->view();

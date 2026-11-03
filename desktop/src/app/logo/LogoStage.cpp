@@ -1,4 +1,5 @@
 #include "LogoStage.hpp"
+#include "../../support/vsync/FramePulse.hpp"
 
 #include <QApplication>
 #include <QCursor>
@@ -32,9 +33,7 @@ namespace stencil::gui {
       if (this->hooks.stopClick) this->hooks.stopClick();
       activateByName(name);
     });
-    clock = new QTimer(this);
-    clock->setTimerType(Qt::PreciseTimer);
-    connect(clock, &QTimer::timeout, this, &LogoStage::tick);
+    clock = new support::FrameTicker(this, [this] { tick(); });
     if (this->logo) this->logo->installEventFilter(this);
     qApp->installEventFilter(this);
   }
@@ -80,7 +79,7 @@ namespace stencil::gui {
     setCursor(Qt::ArrowCursor);   // the canvas below wears a crosshair; the stage is not it
     if (!swapping) priorFocus = QApplication::focusWidget();
     setFocus(Qt::OtherFocusReason);
-    clock->start(support::frameIntervalMs(this));
+    clock->start();
     update();
   }
 

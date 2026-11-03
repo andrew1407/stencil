@@ -26,7 +26,8 @@ export const installDom = ({ innerHeight, vpTop, vpBottom, sectionBottom, contai
   const section = { ...rect(sectionBottom), className: 'canvas-section', parentElement: container };
   // The coordinates panel: the OTHER column that can outgrow the window. It sits beside the
   // canvas (same parent chain), starting at the same top the viewport does.
-  const panel = { className: 'coordinates-panel', parentElement: container, style: {},
+  const style = { setProperty(k, v) { style[k] = v; } };
+  const panel = { className: 'coordinates-panel', parentElement: container, style,
                   getBoundingClientRect: () => ({ top: panelTop }) };
   // The rows under the viewport inside its column are summed as SIBLINGS, not measured to the
   // column's bottom edge: the column is a stretched flex box, so slack is not occupied space.

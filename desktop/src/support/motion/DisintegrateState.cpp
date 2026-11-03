@@ -1,4 +1,5 @@
 #include "DisintegrateOverlay.hpp"
+#include "../vsync/FramePulse.hpp"
 
 #include <QApplication>
 #include <QDockWidget>
@@ -108,23 +109,17 @@ namespace stencil::gui {
   }
 
 
-  // A plain timer at the screen's refresh interval, not a QVariantAnimation: Qt's
-  // animation timer ticks 60Hz whatever the display does. The clock is linear.
+  // Stepped once per display refresh on the app's frame pulse (support/vsync), the clock linear.
   void DisintegrateOverlay::start(int ms) {
     this->ms = std::max(1, ms);
     const int span = support::motionMs(this->ms);   // real ms; paint keeps the tuned timeline
     clock.start();
-    auto* tick = new QTimer(this);
-    tick->setTimerType(Qt::PreciseTimer);
-    tick->setInterval(support::frameIntervalMs(this));
-    connect(tick, &QTimer::timeout, this, [this, tick, span] {
+    auto* tick = new support::FrameTicker(this, [this, span] {
+      if (t >= 1.0) return;
       t = std::min(1.0, clock.nsecsElapsed() / 1e6 / span);
       syncFollow();
       update();
-      if (t >= 1.0) {
-        tick->stop();
-        deleteLater();
-      }
+      if (t >= 1.0) deleteLater();
     });
     tick->start();
   }

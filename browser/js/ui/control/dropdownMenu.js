@@ -5,19 +5,20 @@
 // must test the menu as well as the trigger.
 
 import { PRESS_SLOP_PX } from '../tip/popover.js';
-import { surfaceIn, surfaceOut, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../motion.js';
+import { surfaceIn, surfaceOut, menuIn, menuAway, settleGenie, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../motion.js';
 
 const GAP = 4;        // between trigger and menu
 const MARGIN = 8;     // minimum distance to a viewport edge
 const MAX_H = 280;    // the .accent-dd-menu cap, respected while fitting to the window
 // The list is sand like every other surface (js/ui/motion.js), on the shared MENU clock —
 // brisker than a window's, because a list is opened to be clicked rather than looked at.
-const MENU_IN_MS = SURFACE_MENU_IN_MS;
-const MENU_OUT_MS = SURFACE_MENU_OUT_MS;
+const MENU_IN_MS = SURFACE_MENU_IN_MS, MENU_OUT_MS = SURFACE_MENU_OUT_MS;
 // The motes come from the CARET at the trigger's right edge, not its horizontal centre (a wide
 // select formed out of the middle of its label). Clamped to the centre for a narrow trigger.
 const caretPoint = (r) => (r?.width > 0 && r.height > 0
   ? { x: Math.max(r.left + r.width / 2, r.right - 14), y: r.top + r.height / 2 } : null);
+export const arrowBox = (p) => p && { left: p.x - 6, top: p.y - 6, width: 12, height: 12 };
+const arrowAt = (r) => arrowBox(caretPoint(r));
 export const menuDustPoint = (trigger) => caretPoint(trigger?.getBoundingClientRect?.());
 
 // The slide entrance (menuFromAnchor) grows a list out of the point its motes fly from. `left`
@@ -86,7 +87,8 @@ export const showMenu = (menu, trigger) => {
   menu.__ddTrigger = trigger;
   // Placed first, so the motes stream at the box the list will actually occupy; they belong to
   // the trigger, their `anchor`. (surfaceIn settles the menu itself when it can't fly.)
-  surfaceIn(menu, menuDustPoint(trigger), { ms: MENU_IN_MS, anchor: trigger, anchorBox: menu.__ddAt });
+  const flown = surfaceIn(menu, menuDustPoint(trigger), { ms: MENU_IN_MS, anchor: trigger, anchorBox: menu.__ddAt });
+  if (!flown) menuIn(menu, arrowAt(trigger.getBoundingClientRect()));
   const reflow = () => placeMenu(menu, trigger);
   menu.__ddReflow = reflow;
   window.addEventListener('resize', reflow);
@@ -124,10 +126,11 @@ const unfollow = (menu) => {
 // Hide `menu` and put it back where it was built, clearing everything showMenu set.
 export const hideMenu = (menu) => {
   if (!menu) return;
-  // Hidden at once, its cloud a copy on <body>; aimed at the box the list was placed against,
-  // not the trigger's now, which a pick may already have re-laid (a modal easing its height).
+  // Hidden at once; its cloud or picture flies at the box it was placed against, not a re-laid trigger.
   const at = menu.__ddAt || menu.__ddTrigger?.getBoundingClientRect?.();
-  surfaceOut(menu, menu.hidden ? null : caretPoint(at), { ms: MENU_OUT_MS, anchor: menu.__ddTrigger, anchorBox: at });
+  const away = !menu.hidden && menuAway(menu, arrowAt(at));
+  if (!away) surfaceOut(menu, menu.hidden ? null : caretPoint(at), { ms: MENU_OUT_MS, anchor: menu.__ddTrigger, anchorBox: at });
+  settleGenie(menu);
   menu.__ddTrigger = null;
   menu.__ddAt = null;
   menu.hidden = true;

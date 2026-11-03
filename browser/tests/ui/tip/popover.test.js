@@ -155,3 +155,19 @@ test('popoverPosition: clamps horizontally at both edges', () => {
   assert.strictEqual(left.left, 8);
 });
 
+
+// A window hanging past the screen's right edge (user report): the popover opens where the screen shows the page.
+test('onScreenViewport + popoverPosition: a window off the screen edge keeps the popover on screen', async () => {
+  const { onScreenViewport } = await import('../../../js/utils/viewportMetrics.js');
+  const win = { innerWidth: 1400, innerHeight: 900, outerWidth: 1400, outerHeight: 990, screenX: 1000, screenY: 30,
+                screen: { availLeft: 0, availTop: 25, availWidth: 1728, availHeight: 1092 } };
+  const seen = onScreenViewport(win);
+  assert.deepEqual(seen, { left: 0, top: 0, width: 728, height: 900 }, 'the 672px past the edge are cut');
+  const p = popoverPosition({ anchor: { left: 600, top: 40, bottom: 68 }, box: { width: 400, height: 300 }, viewport: seen });
+  assert.ok(p.left + 400 <= 728 - 8, `the popover ends on screen (left ${p.left})`);
+  const inside = { ...win, screenX: 100 };
+  assert.deepEqual(onScreenViewport(inside), { left: 0, top: 0, width: 1400, height: 900 }, 'a window on screen keeps it all');
+  const left = popoverPosition({ anchor: { left: 2, top: 40, bottom: 68 }, box: { width: 400, height: 300 },
+                                 viewport: onScreenViewport({ ...win, screenX: -300 }) });
+  assert.ok(left.left >= 300 + 8, 'hanging past the left edge, it opens right of the hidden strip');
+});

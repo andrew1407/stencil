@@ -66,6 +66,16 @@ export function swapContent(el, html, {
 // Measured, never guessed: each face is written into the button itself at width:auto,
 // synchronously. `prop` is `width` (a pin) or `minWidth` (a floor CSS may stretch); `max` caps it.
 const facePinned = new WeakSet();
+// The scale every transformed ancestor applies, so a face measured mid-flight (a window growing out of
+// its icon) is its layout width, not its painted one.
+const paintedScale = (el) => {
+  let s = 1;
+  for (let n = el.parentElement; n && globalThis.getComputedStyle; n = n.parentElement) {
+    const t = getComputedStyle(n).transform;
+    if (t && t !== 'none' && typeof DOMMatrixReadOnly === 'function') s *= Math.hypot(...new DOMMatrixReadOnly(t).toFloat64Array().slice(0, 2));
+  }
+  return s > 0 ? s : 1;
+};
 export function pinWidestFace(el, faces, { doc = el?.ownerDocument, force = false,
                                            prop = 'width', max = Infinity } = {}) {
   if (!el || !faces?.length || !el.style || !el.getBoundingClientRect) return 0;
@@ -80,7 +90,7 @@ export function pinWidestFace(el, faces, { doc = el?.ownerDocument, force = fals
   el.innerHTML = html0;
   el.style[prop] = pin0;
   if (!(widest > 0)) return 0;             // no layout (a stub, a hidden panel): keep the CSS floor
-  const px = Math.min(Math.ceil(widest), max);
+  const px = Math.min(Math.ceil(widest / paintedScale(el)), max);
   el.style[prop] = `${px}px`;
   if (!facePinned.has(el)) {
     facePinned.add(el);

@@ -192,6 +192,26 @@ export const wireColorButton = (btn, { open, reset }) => {
   });
 };
 
+// An open list would take the second click, so a selector's list opens once the double-click window passes
+// (desktop DblResetFilter); a second click inside it is the double, which the dblclick listener resets.
+const deferSelectOpens = (root) => {
+  let pending = null;
+  root.addEventListener('click', (e) => {
+    const trigger = e.target instanceof Element ? e.target.closest('.accent-dd-trigger') : null;
+    if (!trigger || e.detail === 0 || trigger.getAttribute('aria-expanded') === 'true') return;
+    const el = resetTarget(e.target);
+    if (!el || el.tagName !== 'SELECT' || el.disabled) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const again = pending?.trigger === trigger;
+    if (pending) clearTimeout(pending.timer);
+    pending = null;
+    if (again) return;
+    const wait = e.pointerType === 'touch' ? doubleTapMs : doubleClickMs;
+    pending = { trigger, timer: setTimeout(() => { pending = null; trigger.click(); }, wait) };   // detail 0: opens
+  }, true);
+};
+
 /** One listener for the whole document, in the capture phase so a row gesture cannot eat it. */
 export const installDblReset = (root = document) => {
   root.addEventListener('dblclick', (e) => {
@@ -199,4 +219,5 @@ export const installDblReset = (root = document) => {
     if (el && resetControl(el)) e.stopPropagation();
   }, true);
   deferColorPicks(root);
+  deferSelectOpens(root);
 };

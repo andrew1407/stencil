@@ -36,6 +36,7 @@
       }
       QFrame#llmNoteBox QLabel { color: %MUTED%; font-size: 12px; background: transparent; }
       QLabel#llmStatus, QLabel#llmKeyStatus { color: %MUTED%; font-size: 12px; background: transparent; }
+      QLabel#openInTargetsError { color: %DANGER%; font-size: 12px; background: transparent; }
       /* Browser .project-name-edit: accent-rimmed while focused. */
       QWidget#projectsRenameBox { background: transparent; }
       QLineEdit#projectsRenameEdit {

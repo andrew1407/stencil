@@ -94,6 +94,10 @@ test('the panel folds are an ease-out, and hold visibility for the whole fold', 
   // only thing that reads as the menu leaving, so a brisk exit registers as a snap.
   const foldOutMs = Number(/(\d+)ms/.exec(token('fold-out-ms'))[1]);
   assert.ok(foldOutMs > foldMs, `--fold-out-ms ${foldOutMs} outlasts the way back in`);
+  // The desktop's toolbar pour reads the same lengths (PanelSlide.hpp pourInMs / pourOutMs).
+  const ui = JSON.parse(readFileSync(new URL('../../../common/config/motion.json', import.meta.url), 'utf8')).ui;
+  assert.deepStrictEqual([foldMs, foldOutMs], [ui.CONTROLS_FOLD_IN_MS, ui.CONTROLS_FOLD_OUT_MS],
+    '--fold-ms / --fold-out-ms are motion.json CONTROLS_FOLD_IN_MS / CONTROLS_FOLD_OUT_MS');
   // visibility is what takes the collapsed toolbar out of the tab order, so its delay is the
   // collapse's own duration — released early, the fold animates against nothing.
   const hidden = css.slice(css.indexOf('#controls-body.hidden {'));

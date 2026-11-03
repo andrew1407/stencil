@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { animationsCss } from '../../helpers/sources.js';
 import { MOTION_ICONS, motionModeIcon, NONE_LINE_LEN } from '../../../src/lib/motionIcons.js';
-const MOTION_MODES = ['particles', 'water', 'fire', 'slide', 'none'];
+const MOTION_MODES = ['particles', 'water', 'fire', 'slide', 'transition', 'none'];
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
@@ -18,11 +18,18 @@ test('the ported glyph table loads: a glyph per mode, and none for a stale key',
   assert.ok(NONE_LINE_LEN > 0);
 });
 
-test('the CSS plays each mode on hover, in the direction asked for', () => {
+test('the CSS plays each mode on hover, in the direction asked for', async () => {
   const css = animationsCss();
   assert.match(css, /\.accent-dd-opt:hover \.mm-line, \.accent-dd-trigger:hover \.mm-line, \.mm-play \.mm-line \{ animation: mmLineDraw/);
   assert.match(css, /@keyframes mmLineDraw \{ from \{ stroke-dashoffset: 11\.4; \} to \{ stroke-dashoffset: 0; \} \}/, 'drawn from the top-right end');
-  assert.match(css, /@keyframes mmShaft \{ from \{ stroke-dashoffset: 9\.9; \} to \{ stroke-dashoffset: 0; \} \}/, 'drawn from the bottom-left end');
+  // Every keyframe is the warp's own outline at that point of the flight's curve, from in the dock to the rest.
+  const { genieGlyphKeyframes, genieGlyphPath, GENIE_GLYPH_REST_P } = await import('../../../src/lib/motionIcons.js');
+  const frames = genieGlyphKeyframes();
+  assert.equal(frames[0].d, genieGlyphPath(1), 'it starts in the dock');
+  assert.equal(frames.at(-1).d, genieGlyphPath(GENIE_GLYPH_REST_P), '…and lands on the glyph at rest');
+  for (const { at, d } of frames) assert.ok(css.includes(`${at}%`.padEnd(5) + `{ d: path("${d}"); }`), `keyframe ${at}%`);
+  assert.match(css, /\.mm-play \.mm-genie \{ animation: mmGenie 0\.45s linear both; \}/, 'quick, its curve in its keyframes');
+  assert.match(css, /@keyframes mmShaft \{ from \{ stroke-dashoffset: 9\.9; \} to \{ stroke-dashoffset: 0; \} \}/, 'the arrow drawn from the bottom-left end');
   assert.match(css, /@keyframes mmHead \{ 0%, 65% \{ opacity: 0; \} 100% \{ opacity: 1; \} \}/, 'the head appears last');
   assert.match(css, /@keyframes mmDrop \{\s*0%\s*\{ transform: translateY\(-9px\)/, 'the drop falls in from the top');
   assert.match(css, /\.mm-flame \{ transform-box: fill-box; transform-origin: 50% 100%; \}/, 'the flame grows from its base');
@@ -34,7 +41,7 @@ test('the CSS plays each mode on hover, in the direction asked for', () => {
   assert.match(css, /\.mm-flame \{ animation: mmFlame 0\.9s/);
   assert.match(css, /\.mm-mote \{ animation: mmDust 0\.825s/);
   // The trigger's glyph plays too: on hover, and once when the value just changed.
-  for (const part of ['mm-line', 'mm-shaft', 'mm-head', 'mm-drop', 'mm-flame', 'mm-mote'])
+  for (const part of ['mm-line', 'mm-genie', 'mm-shaft', 'mm-head', 'mm-drop', 'mm-flame', 'mm-mote'])
     assert.match(css, new RegExp(`\\.accent-dd-opt:hover \\.${part}, \\.accent-dd-trigger:hover \\.${part}, \\.mm-play \\.${part} \\{ animation:`), part);
 });
 

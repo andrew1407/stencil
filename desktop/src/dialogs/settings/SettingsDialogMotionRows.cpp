@@ -17,12 +17,18 @@
 #include <QTimer>
 #include <QValidator>
 #include <algorithm>
+#include <utility>
 #include <QListView>
 #include <QPalette>
 
 namespace stencil::gui {
 
   namespace {
+    // The browser's MOTION_MODE_LABELS, in its order (ui/motion/motionPrefs.js): label, stored key.
+    constexpr std::pair<const char*, const char*> MOTION_MODE_LABELS[] = {
+        {"Dust", "particles"}, {"Water", "water"}, {"Fire", "fire"},
+        {"Sliding", "slide"}, {"Transition", "transition"}, {"None", "none"}};
+
     // A number typed past an end is let through and lands on that end (the browser field clamps on change).
     class ClampingSpin : public QDoubleSpinBox {
      public:
@@ -67,12 +73,7 @@ namespace stencil::gui {
 
     motionMode = addCombo(r, QString());   // no tooltip — the browser's dropdown has none (the glyphs say it)
     motionMode->setObjectName(QStringLiteral("motionModeCombo"));
-    // The browser's MOTION_MODE_LABELS, in its order (ui/motion/motionPrefs.js).
-    motionMode->addItem("Dust", "particles");
-    motionMode->addItem("Water", "water");
-    motionMode->addItem("Fire", "fire");
-    motionMode->addItem("Sliding", "slide");
-    motionMode->addItem("None", "none");
+    for (const auto& [label, key] : MOTION_MODE_LABELS) motionMode->addItem(label, key);
     // Each mode's glyph (support/icon/motionIcons.hpp — the browser's motion/icons.js): on the
     // trigger at rest, and on the popup rows animated as they are hovered.
     {

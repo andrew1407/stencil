@@ -177,7 +177,7 @@ test('the Open Image window collapses into the toolbar control when its outcome 
   const fellFrom = readShell();
   shell.close();
   assert.deepEqual(readShell(), fellFrom);
-  assert.equal(fellFrom.sx, '0.4', 'the from-above flight, not an icon-sized one');
+  assert.equal(fellFrom.sx, '0.05', 'the from-above flight: a speck that grows all the way');
 });
 
 // Both anchors are read BEFORE the sweep that gets the toolbar there: the aim is the place the

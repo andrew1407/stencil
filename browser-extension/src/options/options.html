@@ -6,6 +6,8 @@
   <!-- Apply the saved accent (data-accent) before the stylesheet → no flash. -->
   <script src="../lib/prefs/prefs.js"></script>
   <script src="../lib/dust/swapGeometry.js"></script>
+  <script src="../lib/dust/swapGenie.js"></script>
+  <script src="../lib/dust/swapWindows.js"></script>
   <script src="../lib/dust/grains.js"></script>
   <script src="../lib/dust/wake.js"></script>
   <script src="../lib/dust/themeSwap.js"></script>
@@ -65,7 +67,7 @@
 
     <label class="f" for="motion">Interface animation</label>
     <select id="motion"></select>
-    <div class="help">How the popup, side panel and this page move. <b>Dust</b>: menus, dialogs, rows and chat entries form out of specks in the main theme colour and its shade, and come apart into them. <b>Water</b>: the same particles as drops — ovals and wave lines. <b>Fire</b>: embers — triangles and sparks. The theme-swap wipe's edge follows the style too. <b>Sliding</b> keeps every entrance but drops the particles; <b>None</b> stops motion. Applies instantly and is remembered on this device; the OS's reduced-motion preference still wins.</div>
+    <div class="help">How the popup, side panel and this page move. <b>Dust</b>: menus, dialogs, rows and chat entries form out of specks in the main theme colour and its shade, and come apart into them. <b>Water</b>: the same particles as drops — ovals and wave lines. <b>Fire</b>: embers — triangles and sparks. The theme-swap wipe's edge follows the style too. <b>Sliding</b>: each menu and dialog pours out of what opened it and back, bending and squeezing like a window into a dock. <b>Transition</b>: they grow out of it and fade. <b>None</b> stops motion. Applies instantly and is remembered on this device; the OS's reduced-motion preference still wins.</div>
 
     <label class="f" for="editorUrl">Editor URL</label>
     <input id="editorUrl" type="url" placeholder="http://localhost:8080/">

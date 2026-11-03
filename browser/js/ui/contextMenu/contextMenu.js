@@ -5,10 +5,23 @@ import { motionReduced } from '../motion/motionPrefs.js';
 import { menuPopOrigin } from '../motion/flip.js';
 import { SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../motion/surface/motion.js';
 import { surfaceIn, surfaceOut, settleSurface } from '../motion/surface/surfaces.js';
+import { menuIn, menuAway, pointBox, settleGenie } from '../motion/genie/window.js';
 import { hideExportPreview, clearAltPreviewHover } from '../export/preview.js';
 import { assistantEnabled, assistantItemHtml } from '../ctx/assistantItem.js';
 import { wireCtxAssistant } from '../ctx/assistant.js';
 import { wireCtxScript } from '../ctx/script.js';
+// The menu's entrance out of the click point and its exit back into it: the dust, or Sliding's pour.
+const enterMenu = (menu, point) => {
+  if (!motionReduced() && !surfaceIn(menu, point, { ms: SURFACE_MENU_IN_MS })) menuIn(menu, pointBox(point));
+};
+// Measured while still on screen, and only if it is: closeMenu is also the idle teardown.
+const leaveMenu = (menu, point) => {
+  const open = menu.classList.contains('ctx-open') && !motionReduced();
+  if (!open) settleSurface(menu);
+  else if (!menuAway(menu, pointBox(point))) surfaceOut(menu, point, { ms: SURFACE_MENU_OUT_MS });
+  settleGenie(menu);
+};
+
 export { assistantEnabled, assistantItemHtml };
 export { ctxKeyStep, CTX_NAV_KEYS, ctxFocusables } from '../ctx/keyboard.js';
 import { wireCtxKeyboard } from '../ctx/keyboard.js';
@@ -72,9 +85,7 @@ export class StencilContextMenu extends StencilElement {
     let onMenuClose = () => {};
     const closeMenu = () => {
       onMenuClose();
-      // Measured while still on screen, and only if it is: closeMenu is also the idle teardown.
-      if (menu.classList.contains('ctx-open') && !motionReduced()) surfaceOut(menu, openPoint, { ms: SURFACE_MENU_OUT_MS });
-      else settleSurface(menu);
+      leaveMenu(menu, openPoint);
       menu.classList.remove('ctx-open');
       closeAllSubs();
       setKbItem(null);
@@ -126,7 +137,7 @@ export class StencilContextMenu extends StencilElement {
       placeMenu(x, y);
       // Opacity only: a live transform would make the menu the containing block for its
       // position:fixed flyouts.
-      if (!motionReduced()) surfaceIn(menu, openPoint, { ms: SURFACE_MENU_IN_MS });
+      enterMenu(menu, openPoint);
       unfollow?.();
       const sync = perFrame(() => { if (menuIsOpen()) syncState(); });
       const offs = [onButtonsUpdated(sync), subscribe(EVENTS.fullscreenChanged, sync)];

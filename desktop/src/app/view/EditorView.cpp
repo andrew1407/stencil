@@ -3,6 +3,7 @@
 #include "mainWindowShared.hpp"
 #include "PanelSlide.hpp"
 #include "windowMotion.hpp"
+#include "../../support/genie/GenieGhost.hpp"   // support::genie::flightEase
 #include "CanvasWidget.hpp"
 #include "Notifications.hpp"
 #include "OverlayScrollArea.hpp"
@@ -106,12 +107,16 @@ namespace stencil::gui {
     if (show) {
       for (QToolBar* b : bars) { b->setFixedHeight(full); b->show(); }
       if (QLayout* l = w.editor->layout()) l->activate();
-      dustFx = barsSurfaceFlight(bars, /*gather=*/true, fold.dustInMs);
-      for (QToolBar* b : bars) b->setFixedHeight(0);
     }
-    else dustFx = barsSurfaceFlight(bars, /*gather=*/false, fold.dustOutMs);
+    // Sliding: the rows' picture pours from the pill while their height slides, on one clock.
+    const int pourMs = show ? fold.pourInMs : fold.pourOutMs;
+    const bool poured = w.parts.dockChrome.pourBars(bars, show, pourMs);
+    const int slideMs = poured ? pourMs : show ? fold.slideInMs : fold.slideOutMs;
+    if (!poured) dustFx = barsSurfaceFlight(bars, /*gather=*/show, show ? fold.dustInMs : fold.dustOutMs);
+    if (show) for (QToolBar* b : bars) b->setFixedHeight(0);
+    const support::genie::SpaceClock space = support::genie::spaceClock(show || !poured, slideMs);
     barsAnim = startExtentSlide(
-        &w, from, to, show ? fold.slideInMs : fold.slideOutMs,
+        &w, from, to, space.ms,
         pinAndRaiseDust(
             [bars, this](int v) {
               for (QToolBar* b : bars) b->setFixedHeight(v);  // pin min==max on every row
@@ -121,9 +126,11 @@ namespace stencil::gui {
         [this, bars, show, release] {
           release();
           if (!show) for (QToolBar* b : bars) b->hide();
+          w.parts.dockChrome.releaseBarsVeils();
           barsAnim = nullptr;
           w.positionOverlayArrows();
-        });
+        },
+        poured ? support::genie::flightEase(show) : QEasingCurve(QEasingCurve::OutCubic), space.delayMs);
   }
 
   void EditorView::scrollTo(int x, int y) {

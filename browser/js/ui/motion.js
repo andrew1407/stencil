@@ -2,7 +2,7 @@
 // sections live one per file under motion/, and app modules import the one they use; this is the
 // import point of the widgets the extension ports (one spelling on both sides) and of the tests.
 // `motionReduced()` is "nothing may move", `dustEnabled()` is "and it may be particles".
-export { dustEnabled, motionMs, motionReduced } from './motion/motionPrefs.js';
+export { dustEnabled, motionMode, motionMs, motionReduced } from './motion/motionPrefs.js';
 export * from './motion/reveal.js';
 export * from './motion/flip.js';
 export * from './motion/surface/themeSwap.js';
@@ -24,3 +24,5 @@ export * from './motion/dust/canvasDustStage.js';
 export * from './motion/dust/canvasDustDraw.js';
 export * from './motion/control/canvasFx.js';
 export * from './motion/strokeFly.js';
+export { genieIn, genieAway, settleGenie, menuIn, menuAway, pointBox, MENU_GENIE_MS } from './motion/genie/window.js';
+export { cssAway } from './motion/surface/leaveCopy.js';

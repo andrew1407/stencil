@@ -48,8 +48,11 @@ platform the suites run on.
   the real cocoa platform.
 - **Paint many small motes as cached sprites** (`support::MoteSprites`), never `drawEllipse` in
   a loop — an order of magnitude cheaper; batched `QPainterPath`s are slower still.
-  `QVariantAnimation` ticks at a fixed 60 Hz: drive frame-rate motion off a `QTimer` at
-  `QScreen::refreshRate()` (`support::frameIntervalMs`).
+  Frame-rate motion steps on the one display-synced clock, `support/vsync/FramePulse.hpp`
+  (`FrameTicker` where a `QTimer` would go), never its own timer: two clocks paint a frame
+  twice, and a 16 ms timer beats against the display. `AnimationDriver` puts Qt's animations on it.
+  A `QWindow::requestUpdate()` on a widget's window is a full `repaint()` — the clock beats a
+  hidden window of its own.
 
 ## macOS windows
 

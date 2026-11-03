@@ -2,32 +2,32 @@
 # echo
 \x01> \x1b[0m\x1b[1;38;2;255;215;0m/bifrost\x1b[0m
 @0 6482B f11cd6d490c86940
-~wait 39
-@39 71B 7e00fd9f9d505929
+~wait 35
+@35 71B 7e00fd9f9d505929
 \x1b7
 \x1b[17;1H\x1b[1;38;2;255;215;0mWhosoever \x1b[0m\x1b[K
 \x1b[18;1Hhe Stencil\x1b[0m\x1b[K\x1b8
-~wait 39
-@78 86B a4a79794644792b7
+~wait 35
+@70 86B a4a79794644792b7
 \x1b7
 \x1b[17;1H\x1b[1;38;2;255;215;0mWhosoever activates \x1b[0m\x1b[K
 \x1b[18;1Hhe Stencil.\x1b[0m\x1b[0m\x1b[K\x1b8
-~wait 39
-@117 5970B a0de195c59582dca
-~wait 39
-@156 106B 92e8fee3037cdc81
+~wait 35
+@105 5970B a0de195c59582dca
+~wait 35
+@140 106B 92e8fee3037cdc81
 \x1b7
 \x1b[17;1H\x1b[1;38;2;255;215;0mWhosoever activates this secret, if they\x1b[0m\x1b[K
 \x1b[18;1Hhe Stencil.\x1b[0m\x1b[0m\x1b[K\x1b8
-~wait 39
-@195 5957B de35823456e270ba
-~wait 39
-@234 126B 7a0c3c970560b9bf
+~wait 35
+@175 5957B de35823456e270ba
+~wait 35
+@210 126B 7a0c3c970560b9bf
 \x1b7
 \x1b[17;1H\x1b[1;38;2;255;215;0mWhosoever activates this secret, if they be worthy, shall po\x1b[0m\x1b[K
 \x1b[18;1Hhe Stencil.\x1b[0m\x1b[0m\x1b[K\x1b8
-~wait 39
-@273 9890B fd047503da02b652
+~wait 35
+@245 9890B fd047503da02b652
 # header on
   \x1b[38;2;124;58;237m ╭──────────────╮\x1b[0m
   \x1b[38;2;124;58;237m╱\x1b[48;2;43;47;58m                \x1b[0m\x1b[38;2;124;58;237m╲\x1b[0m
@@ -42,37 +42,37 @@
 
 # idle
 ~idle 80
-@353 5880B 023f8f02cc1cad22
+@325 5880B 023f8f02cc1cad22
 ~idle 80
-@433 5882B d6c7ae139ed3aac0
+@405 5882B d6c7ae139ed3aac0
 ~idle 80
-@513 5878B 86d35dbc42e6cf37
+@485 5878B 86d35dbc42e6cf37
 ~idle 80
-@593 5874B c37296cb367bb3e3
+@565 5874B c37296cb367bb3e3
 ~idle 80
-@673 5875B 4a7a4151dba5aa12
+@645 5875B 4a7a4151dba5aa12
 ~idle 80
-@753 5884B 74199c9d00ec531d
+@725 5884B 74199c9d00ec531d
 ~idle 80
-@833 5882B a6a867ececb485ed
+@805 5882B a6a867ececb485ed
 ~idle 80
-@913 5875B d2d7d4a0781f9924
+@885 5875B d2d7d4a0781f9924
 ~idle 80
-@993 5883B e786fb9d0b44439d
+@965 5883B e786fb9d0b44439d
 ~idle 80
-@1073 5874B 51fb13187cc0f661
+@1045 5874B 51fb13187cc0f661
 ~idle 80
-@1153 5875B 312ce5d5e78b2c71
+@1125 5875B 312ce5d5e78b2c71
 ~idle 80
-@1233 5880B f59325565931dabf
+@1205 5880B f59325565931dabf
 ~idle 80
-@1313 5882B b2291273ac5acc8a
+@1285 5882B b2291273ac5acc8a
 ~idle 80
-@1393 5878B 4cfc8e8fe9739c20
+@1365 5878B 4cfc8e8fe9739c20
 # /bifrost
 # echo
 \x01> \x1b[0m\x1b[1;38;2;255;215;0m/bifrost\x1b[0m
-@1393 2464B 8eef514062c7c8ce
+@1365 2464B 8eef514062c7c8ce
 # header off
   \x1b[38;2;124;58;237m ╭──────────────╮\x1b[0m
   \x1b[38;2;124;58;237m╱\x1b[48;2;43;47;58m                \x1b[0m\x1b[38;2;124;58;237m╲\x1b[0m

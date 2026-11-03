@@ -57,6 +57,14 @@ stencil_headless_test(stencil_modalchrome_headless
     src/support/modal/modalReveal.cpp resources/app.qrc src/support/sheets/dialogSheets.cpp
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
 
+# Project ▸ Open In Targets… (dialogs/meta/OpenInTargetsDialog): the URL and bot validation, and Save's refusal.
+stencil_headless_test(stencil_openintargets_headless
+  SOURCES tests/dialogs/meta/openInTargets.headless.cpp src/dialogs/meta/OpenInTargetsDialog.cpp
+    ${STENCIL_DUSTKIT_SOURCES} ${STENCIL_DISINTEGRATE_SOURCES} ${STENCIL_MODALCHROME_SOURCES}
+    src/support/icon/iconSet.cpp
+    src/support/modal/modalReveal.cpp resources/app.qrc src/support/sheets/dialogSheets.cpp
+  LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
+
 # The "Make a copy" confirmation (dialogs/projects/copy/CopyProjectDialog): its question and the
 # local / incognito / Just copy interlocks.
 stencil_headless_test(stencil_copyprojectdialog_headless

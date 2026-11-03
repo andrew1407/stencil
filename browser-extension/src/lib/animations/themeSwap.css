@@ -15,6 +15,9 @@
        browser/css/animations/themeSwap.css and the desktop's swapEase. */
     animation: themeSwapReveal var(--swap-ms, 280ms) cubic-bezier(0.4, 0.25, 0.95, 1) both;
 }
+/* Sliding pours the new palette out of the control: the genie's silhouette as the mask, its keyframes
+   written per swap on a linear clock (lib/dust/swapGenie.js). */
+html.theme-swap-genie::view-transition-new(root) { animation: themeSwapGenie var(--swap-ms, 560ms) linear both; }
 /* Percentages, since an engine measuring the box in device pixels halves a px origin. The
    ragged polygons (accent.js edgePolygon) share a vertex count; the circle is the fallback. */
 @keyframes themeSwapReveal {

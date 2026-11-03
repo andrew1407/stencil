@@ -29,7 +29,7 @@ namespace stencil::gui {
     const bool telegramAvailable = !botUsername.isEmpty() && serverProject;
     if (!browserAvailable && !telegramAvailable) {
       // Guard (acts.openIn is hidden when nothing's available).
-      w.notify->info("Nothing to open into — set a browser URL in Settings "
+      w.notify->info("Nothing to open into — set a browser URL in Project ▸ Open In Targets… "
                     "(or a Telegram bot for server projects).");
       return;
     }
@@ -91,7 +91,7 @@ namespace stencil::gui {
       return {};
     }
     if (w.settings.browserBaseUrl.trimmed().isEmpty()) {
-      *err = QStringLiteral("no browser URL — set one in Settings");
+      *err = QStringLiteral("no browser URL — set one in Project ▸ Open In Targets…");
       return {};
     }
     const OpenInSource src = liveOpenInSource();
@@ -151,7 +151,7 @@ namespace stencil::gui {
     const bool serverProject = !serverUrl.isEmpty();
     const bool telegramAvailable = !w.settings.telegramBotUsername.trimmed().isEmpty() && serverProject;
     if (!browserAvailable && !telegramAvailable) {
-      w.notify->info("Nothing to open into — set a browser URL in Settings "
+      w.notify->info("Nothing to open into — set a browser URL in Project ▸ Open In Targets… "
                     "(or a Telegram bot for server projects).");
       return;
     }

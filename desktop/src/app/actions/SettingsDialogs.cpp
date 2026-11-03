@@ -10,6 +10,7 @@
 #include "InfoDialog.hpp"
 #include "Notifications.hpp"
 #include "ShortcutsDialog.hpp"
+#include "OpenInTargetsDialog.hpp"
 #include "ChatDock.hpp"
 
 #include <QKeySequence>
@@ -34,14 +35,17 @@ namespace stencil::gui {
 
   void SettingsDialogs::openSettings() {
     SettingsDialog dlg(w.settings, &w);
-    // Live-apply: every row persists itself as it changes; no Save/Cancel.
-    dlg.setOnChange([this](const Settings& s) { w.applySettings(s, true); });
+    // Live-apply: every row persists itself as it changes; no Save/Cancel. Laid over the LIVE settings,
+    // so a toolbar change made while it stands open (side by side) is never put back.
+    const auto overLive = [this, &dlg] { Settings s = w.settings; dlg.applyTo(s); return s; };
+    dlg.setOnChange([this, overLive](const Settings&) { w.applySettings(overLive(), true); });
     QObject::connect(&dlg, &SettingsDialog::visualsReset, &w,
                      [this] { w.notify->success(QStringLiteral("Visual defaults reset")); });
     w.execMaybePopover(dlg, w.acts.settings);
     // Settle-up catches a field left mid-edit; skipped when nothing changed.
-    if (fileStore::settingsToJson(dlg.result()) != fileStore::settingsToJson(w.settings))
-      w.applySettings(dlg.result(), true);
+    const Settings settled = overLive();
+    if (fileStore::settingsToJson(settled) != fileStore::settingsToJson(w.settings))
+      w.applySettings(settled, true);
   }
 
   void SettingsDialogs::openInfo() {
@@ -69,6 +73,17 @@ namespace stencil::gui {
     QObject::connect(&dlg, &ShortcutsDialog::conflict, &w,
                      [this](const QString& msg) { w.notify->error(msg); });
     w.execMaybePopover(dlg, w.acts.shortcuts);   // grows out of its icon too
+  }
+
+  void SettingsDialogs::openInTargets() {
+    OpenInTargetsDialog dlg(w.settings.browserBaseUrl, w.settings.telegramBotUsername, &w);
+    w.execMaybePopover(dlg, w.acts.openInTargets);
+    if (dlg.result() != QDialog::Accepted) return;
+    Settings s = w.settings;
+    s.browserBaseUrl = dlg.browserUrl();
+    s.telegramBotUsername = dlg.botUsername();
+    w.applySettings(s, true);
+    w.refreshActions();   // Open In… shows or hides with its targets
   }
 
   void SettingsDialogs::applyHotkeyOverrides(const QHash<QString, QString>& overrides) {

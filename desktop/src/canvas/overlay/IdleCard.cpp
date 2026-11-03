@@ -19,6 +19,13 @@
 namespace stencil::gui {
 
   namespace {
+    // px kept clear on every side of the card (browser blankImage.css IDLE_CARD_CLEAR).
+    constexpr qreal IDLE_CARD_CLEAR_PX = 16;
+    bool fitsIdleCard(const QRectF& card, const QRectF& page) {
+      return card.width() + 2 * IDLE_CARD_CLEAR_PX <= page.width()
+             && card.height() + 2 * IDLE_CARD_CLEAR_PX <= page.height();
+    }
+
     // The skin's raised button (browser css/webcore/canvas.css .idle-create-btn, padding 10px 18px):
     // the face, a two-step bevel, square corners and the pixel picture; no dashes, lift or sweep.
     QRectF paintSkinCard(QPainter& p, const QRectF& page, const QString& label, const QFont& font,
@@ -71,9 +78,8 @@ namespace stencil::gui {
     const QRectF wr(host->rect());
     QRectF box(0, 0, std::max<qreal>(ICON_PX, textW) + PAD_X * 2,
                ICON_PX + GAP + textH + PAD_Y * 2);
-    // Never wider/taller than the canvas it sits in, so the dashed border stays whole.
-    box.setWidth(std::min(box.width(), wr.width() - 32.0));
-    box.setHeight(std::min(box.height(), wr.height() - 32.0));
+    // Shown only where it fits whole, never squeezed (browser blankImage.css @container).
+    if (!fitsIdleCard(box, wr)) { cardBox = QRectF(); host->unsetCursor(); return; }
     box.moveCenter(wr.center());
     if (support::isWebcore()) {
       cardBox = paintSkinCard(p, wr, label, cardFont, ICON_PX, GAP);

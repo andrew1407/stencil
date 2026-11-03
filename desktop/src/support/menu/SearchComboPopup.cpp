@@ -82,6 +82,17 @@ namespace stencil::gui {
     if (cur.isValid()) list->scrollTo(cur, QAbstractItemView::PositionAtCenter);
     (search ? static_cast<QWidget*>(search) : static_cast<QWidget*>(list))
         ->setFocus(Qt::PopupFocusReason);
+    // Opened under a held press, its own or the one support/control/dblReset.hpp holds back a double-click's
+    // length: a release on a row picks it (browser dropdownMenu.js wireDragPick).
+    if (QGuiApplication::mouseButtons() & Qt::LeftButton) armDragPick(QCursor::pos());
+  }
+
+  void SearchComboBox::armDragPick(const QPoint& from) {
+    if (!popup || !popup->isVisible()) return;
+    dragFrom = from;
+    dragArmed = true;
+    dragging = false;
+    qApp->installEventFilter(this);
   }
 
   void SearchComboBox::hidePopup() {
@@ -94,11 +105,7 @@ namespace stencil::gui {
   void SearchComboBox::mousePressEvent(QMouseEvent* event) {
     const bool wasOpen = popup && popup->isVisible();
     QComboBox::mousePressEvent(event);
-    if (event->button() != Qt::LeftButton || wasOpen || !popup || !popup->isVisible()) return;
-    dragFrom = event->globalPosition().toPoint();
-    dragArmed = true;
-    dragging = false;
-    qApp->installEventFilter(this);
+    if (event->button() == Qt::LeftButton && !wasOpen) armDragPick(event->globalPosition().toPoint());
   }
 
   // A widget's event, never the window's copy of it, so each move and the release count once.

@@ -2,6 +2,7 @@
 // The window flight itself: the open/close ease a dialog rides, the filter that holds a closing
 // dialog alive until its dust has landed, and the dialog-level entry both directions go through.
 #include "modalRevealParts.hpp"
+#include "../genie/GenieGhost.hpp"
 
 #include <QToolBar>
 
@@ -23,6 +24,16 @@ namespace stencil::support {
     dlg.setProperty(LANDING_PROPERTY, *pendingLanding());
     pendingLanding().reset();
     return true;
+  }
+
+  // Sliding pours the window into its icon (support/genie); false leaves the plain ghost to fly.
+  bool flyGenie(QWidget* host, const QPixmap& shot, const QRect& win, const QRect& icon, bool opening,
+                const QWidget* surface, std::function<void()> done) {
+    if (!isSlideMotionOk() || !host) return false;
+    const QRect hostBox(host->mapToGlobal(QPoint(0, 0)), host->size());
+    const QRect span = win.united(icon);
+    const bool own = gui::DisintegrateOverlay::floatOver(host, span, surface) || !hostBox.contains(span);
+    return genie::fly(host, shot, win, icon, opening, own, std::move(done));
   }
 
   void flyWindow(QWidget& w, QWidget* anchor, bool opening, std::function<void()> after,
@@ -48,13 +59,14 @@ namespace stencil::support {
       if (after) after();
       return;
     }
+    const auto landed = [guard, opening, after] {
+      if (guard && opening) guard->setWindowOpacity(1.0);
+      if (after) after();
+    };
+    if (flyGenie(host, shot, target, icon, opening, &w, landed)) return;
     QLabel* ghost = makeGhost(host, shot, start, to, &w);
     flyGhost(ghost, host, start, to, opening ? OPEN_MS : CLOSE_MS,
-             opening ? 0.0 : 1.0, opening ? 1.0 : 0.0, opening ? openEase() : closeEase(),
-             [guard, opening, after] {
-               if (guard && opening) guard->setWindowOpacity(1.0);
-               if (after) after();
-             });
+             opening ? 0.0 : 1.0, opening ? 1.0 : 0.0, opening ? openEase() : closeEase(), landed);
   }
 
   // Its tool row out of sight (folded, or fullscreen's bars slid away): the close rises to the top
@@ -112,6 +124,7 @@ namespace stencil::support {
       }
       if (to == target) return;
       if (flySurfaceDust(host, shot, target, to, false, inkOf(*dlg), dlg)) return;
+      if (flyGenie(host, shot, target, to, false, dlg, nullptr)) return;
       QLabel* ghost = makeGhost(host, shot, target, to, dlg);
       // Painted NOW: one deferred frame is the gap the dialog's disappearance shows through.
       ghost->repaint();
@@ -173,6 +186,7 @@ namespace stencil::support {
                                              : originRect(anchorGuard.data(), target, anchorRect, host);
         if (from == target) { restore(); return; }
         if (flySurfaceDust(host, shot, target, from, true, inkOf(*guard), guard)) { fadeUpBehindDust(guard); return; }
+        if (flyGenie(host, shot, target, from, true, guard, restore)) return;
         QLabel* ghost = makeGhost(host, shot, from, target, guard);
         flyGhost(ghost, host, from, target, OPEN_MS, 0.0, 1.0, openEase(), restore);
       });

@@ -14,6 +14,10 @@ import { toolbarTopbarHtml } from './topbar.js';
 import { toolbarImageSectionsHtml, toolbarStyleSectionsHtml } from './sections.js';
 import { toolbarPageSectionsHtml } from './pageSections.js';
 import { wireCopyProjectMenu } from './copyMenu.js';
+
+// The rows' CSS fold (animations/collapse.css --fold-ms / --fold-out-ms), which Sliding's picture flies on.
+const foldMs = (hidden) => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(hidden ? '--fold-out-ms' : '--fold-ms'));
+
 // Owns the controls markup and the collapse/hints behaviour; the individual inputs and buttons
 // are wired by DrawingApp via global ids.
 export class StencilToolbar extends StencilElement {
@@ -104,11 +108,10 @@ ${toolbarPageSectionsHtml()}
       // into motes streaming up past the top edge and gather back out of it.
       foldDust(body, body, 'hidden', hidden, 'top', {
         inMs: CONTROLS_DUST_IN_MS, outMs: CONTROLS_DUST_OUT_MS,
-        toggle: () => body.classList.toggle('hidden', hidden),
+        // A body-level state too: the info line hides with the rows (CSS), the "?" badge in its place.
+        toggle: () => { body.classList.toggle('hidden', hidden); document.body.classList.toggle('controls-collapsed', hidden); },
+        home: btn, pourMs: foldMs(hidden),
       });
-      // The fold is a body-level state: the info line hides with the rows (CSS), and the
-      // "?" badge appears in its place (refresh, via the class observer below).
-      document.body.classList.toggle('controls-collapsed', hidden);
       // The glyph is NOT swapped — animations/collapse.css spins the one chevron 180° (up ⇄ down)
       // off `#controls-body.hidden`, so the arrow turns with the fold instead of blinking.
       btn.dataset.title = hidden ? 'Show controls' : 'Hide controls';

@@ -61,7 +61,7 @@ namespace stencil::support {
       return QRect(anchor->mapToGlobal(QPoint(0, 0)), anchor->size());
     if (anchorRect.isValid() && anchorRect.width() > 0 && anchorRect.height() > 0)
       return anchorRect;
-    const QSize small(qMax(target.width() / 4, 40), qMax(target.height() / 4, 32));
+    const QSize small(qMax(target.width() / 20, 8), qMax(target.height() / 20, 8));
     const int left = target.center().x() - small.width() / 2;
     if (host) return QRect(left, host->mapToGlobal(QPoint(0, 0)).y(), small.width(), 2);
     return QRect(QPoint(left, target.top() - qMax(48, int(target.height() * 0.3)) - small.height() / 2), small);
@@ -109,7 +109,8 @@ namespace stencil::support {
     return ghost;
   }
 
-  // The fade rides the size's own curve end to end, so the window brightens as it magnifies.
+  // Opaque within the first frames of an open (and until the last ones of a close), so the window is seen
+  // growing out of its icon rather than first appearing already large.
   void flyGhost(QLabel* ghost, QWidget* host, const QRect& fromGlobal, const QRect& toGlobal,
                 int ms, double fromOpacity, double toOpacity,
                 const QEasingCurve& easing, std::function<void()> done) {
@@ -133,9 +134,9 @@ namespace stencil::support {
     geo->setEasingCurve(easing);
     auto* fade = new QPropertyAnimation(fadeTarget, own ? "windowOpacity" : "opacity", ghost);
     fade->setDuration(motionMs(ms));
-    fade->setStartValue(fromOpacity);
-    fade->setEndValue(toOpacity);
-    fade->setEasingCurve(easing);
+    fade->setKeyValueAt(0.0, fromOpacity);
+    fade->setKeyValueAt(fromOpacity < toOpacity ? 0.06 : 0.8, fromOpacity < toOpacity ? toOpacity : fromOpacity);
+    fade->setKeyValueAt(1.0, toOpacity);
 
     auto* group = new QParallelAnimationGroup(ghost);
     group->addAnimation(geo);

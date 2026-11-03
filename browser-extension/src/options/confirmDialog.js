@@ -1,4 +1,4 @@
-import { surfaceIn, surfaceOut, centerOf } from '../lib/motion.js';
+import { surfaceIn, surfaceOut, centerOf, genieIn, genieOut, growIn, growOut, settleGenie } from '../lib/motion.js';
 
 const BOX = `
   <div class="confirm-box" role="alertdialog" aria-modal="true" aria-labelledby="confirm-msg">
@@ -27,13 +27,15 @@ const overlayEl = () => {
 export const confirmDialog = (message, anchor) => new Promise((resolve) => {
   const overlay = overlayEl();
   const box = overlay.querySelector('.confirm-box');
+  settleGenie(box);   // a close still in the air hides the overlay now, not over this open
   const origin = centerOf(anchor);
   document.getElementById('confirm-msg').textContent = message;
   const yes = document.getElementById('confirm-yes');
   const no = document.getElementById('confirm-no');
   const done = (val) => {
-    surfaceOut(box, origin);   // dusted while still on screen, hidden on this frame
-    overlay.hidden = true;
+    // Dusted while still on screen and hidden on this frame; Sliding hides it as it lands.
+    const hide = () => { overlay.hidden = true; };
+    if (surfaceOut(box, origin) || !(genieOut(box, anchor, hide, overlay) || growOut(box, anchor, hide, overlay))) hide();
     yes.removeEventListener('click', onYes);
     no.removeEventListener('click', onNo);
     overlay.removeEventListener('mousedown', onBackdrop);
@@ -52,7 +54,7 @@ export const confirmDialog = (message, anchor) => new Promise((resolve) => {
   overlay.addEventListener('mousedown', onBackdrop);
   document.addEventListener('keydown', onKey, true);
   overlay.hidden = false;
-  surfaceIn(box, origin);
+  if (!surfaceIn(box, origin) && !genieIn(box, anchor)) growIn(box, anchor);
   yes.focus();
 });
 
