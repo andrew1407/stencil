@@ -59,7 +59,10 @@ export function bashDecision(cmd, ctx) {
     const recursive = /(^|\s)-[a-z]*r/i.test(args) || /--recursive/i.test(args);
     const catastrophic = /(^|\s)(\/|\/\*|~|~\/|\$HOME|\$\{HOME\}|\.\.)(\s|$)/.test(args) || /--no-preserve-root/.test(args);
     if (catastrophic) return deny('recursive delete of a root/home path');
-    if (recursive) return ask('recursive force-delete (rm -r)');
+    const targets = args.split(/\s+/).filter((a) => a && !a.startsWith('-'));
+    if (recursive && targets.some((t) => writesOutside(t, ctx))) {
+      return ask('recursive force-delete outside the repository');
+    }
   }
   // secret handling
   if (commandTouchesSecret(c, ctx)) {
@@ -91,8 +94,6 @@ export function bashDecision(cmd, ctx) {
       /\bdocker\s+volume\s+rm\b/.test(c)) {
     return ask("destroys a docker volume (the local database's data)");
   }
-  if (/\b(chmod|chown)\b/.test(c)) return ask('changes file ownership/permissions');
-  if (/\bkill\s+-9\b/.test(c) || /\b(pkill|killall)\b/.test(c)) return ask('force-kills processes');
   if (/\b(crontab|launchctl|schtasks|systemctl)\b/.test(c)) return ask('schedules/daemonizes a process');
   // redirected write to a path outside the repo (and not a device/tmp)
   const redir = c.match(/>>?\s*("?)([^\s"'|;&<>]+)\1/);

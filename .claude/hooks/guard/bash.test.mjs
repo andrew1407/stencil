@@ -23,9 +23,10 @@ test('root/home wipes are denied', () => {
   assert.equal(bash('sudo rm -rf --no-preserve-root /').decision, 'deny');
 });
 
-test('non-catastrophic recursive delete soft-asks', () => {
-  assert.equal(bash('rm -rf build').decision, 'ask');
-  assert.equal(bash('rm -rf cli/zig-out').decision, 'ask');
+test('recursive delete inside the repo or tmp passes, outside it soft-asks', () => {
+  assert.equal(bash('rm -rf build').decision, 'allow');
+  assert.equal(bash('rm -rf cli/zig-out').decision, 'allow');
+  assert.equal(bash('rm -rf /tmp/stencil_x').decision, 'allow');
   assert.equal(bash('rm -rf $HOME/stuff').decision, 'ask'); // a home subfolder, not home itself
 });
 
