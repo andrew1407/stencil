@@ -92,7 +92,7 @@ blaming a change. Two or more failures, or the same case twice, is real.
 
 **Zig must be 0.17.x** (`cli/build.zig.zon`): another major version fails inside `build.zig` on
 the changed build API. If `zig version` says otherwise, fetch the pinned tarball named in
-`https://ziglang.org/download/index.json` under `0.17.0`, check its `shasum`, unpack it into a
+`https://ziglang.org/download/index.json` under `0.17.1`, check its `shasum`, unpack it into a
 scratch folder and run that `zig` for chunk 5 and the CLI builds below.
 
 ## Cross-surface gates

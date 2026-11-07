@@ -133,11 +133,11 @@ endif()
 if(STENCIL_CORE_BUILD_TESTS AND NOT EMSCRIPTEN)
   set(DOCTEST_HEADER ${CMAKE_CURRENT_SOURCE_DIR}/third_party/doctest.h)
   if(NOT EXISTS ${DOCTEST_HEADER})
-    message(STATUS "doctest.h not found — fetching pinned v2.4.11 from upstream")
+    message(STATUS "doctest.h not found — fetching pinned v2.5.3 from upstream")
     file(DOWNLOAD
-      https://raw.githubusercontent.com/doctest/doctest/v2.4.11/doctest/doctest.h
+      https://raw.githubusercontent.com/doctest/doctest/v2.5.3/doctest/doctest.h
       ${DOCTEST_HEADER}
-      EXPECTED_HASH SHA256=44faa038e9c3f9728efbda143748d01124ea0a27f4bf78f35a15d8fab2e039fb
+      EXPECTED_HASH SHA256=cfd518a3ef90f67e1f3ba514df23fb3627437de1a2feeba78cf5062a40021421
       TLS_VERIFY ON
       SHOW_PROGRESS)
   endif()

@@ -15,8 +15,8 @@
 # dev/nightly.
 
 # ---- Stage 1: build the Stencil CLI (recompiles core/) ----------------------
-FROM debian:bookworm-slim AS cli
-ARG ZIG_VERSION=0.17.0
+FROM debian:trixie-slim AS cli
+ARG ZIG_VERSION=0.17.1
 # BuildKit auto-populates TARGETARCH (amd64/arm64) for the build platform; map it to
 # Zig's arch naming so `docker build` grabs the right toolchain on any host — CI's
 # x86_64 runners and Apple-Silicon arm64 alike, no --build-arg needed. Override ZIG_ARCH

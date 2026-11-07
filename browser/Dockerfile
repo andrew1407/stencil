@@ -11,7 +11,7 @@
 
 # ---- Stage 1: build the shared core to WebAssembly --------------------------
 # Pinned to the emsdk CI and Pages build with, so the image's wasm is the one the parity suite proved.
-FROM emscripten/emsdk:5.0.7 AS wasm
+FROM emscripten/emsdk:7.0.0 AS wasm
 WORKDIR /src
 COPY core/ ./core/
 # emcmake defines EMSCRIPTEN, so only the stencil_wasm target is produced
@@ -21,7 +21,7 @@ RUN cd core \
  && emmake cmake --build build-wasm -j 4 --target stencil_wasm
 
 # ---- Stage 2: stamp sw.js and index.html with this image's files (tools/swStamp.js)
-FROM node:22-alpine AS stamp
+FROM node:26-alpine AS stamp
 WORKDIR /src
 COPY browser/ ./browser/
 COPY common/ ./common/

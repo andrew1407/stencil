@@ -52,12 +52,12 @@ jobs:
           - { target: aarch64-macos,       name: Darwin-arm64,   ext: tar.xz, smoke: false }
           - { target: x86_64-windows-gnu,  name: Windows-AMD64,  ext: zip,    smoke: false }
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Set up Zig
         uses: mlugg/setup-zig@v2
         with:
-          version: 0.17.0
+          version: 0.17.1
 
       # ReleaseSmall shrinks the Zig code by about a third; build.zig keeps the core and the
       # codecs at ReleaseFast's -O2, so images process as fast as before.
@@ -85,7 +85,7 @@ jobs:
           ls -l dist
 
       - name: Upload workflow artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: stencil-cli-${{ matrix.name }}
           path: cli/dist/stencil-cli-*.${{ matrix.ext }}
@@ -109,11 +109,11 @@ jobs:
       matrix:
         os: [macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Zig
         uses: mlugg/setup-zig@v2
         with:
-          version: 0.17.0
+          version: 0.17.1
       - name: Test
         working-directory: cli
         run: zig build test --summary all

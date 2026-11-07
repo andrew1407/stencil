@@ -15,8 +15,8 @@
 # runtime stage if you never feed the editor video.
 
 # ---- Stage 1: build the Stencil CLI ----------------------------------------
-FROM debian:bookworm-slim AS cli
-ARG ZIG_VERSION=0.17.0
+FROM debian:trixie-slim AS cli
+ARG ZIG_VERSION=0.17.1
 # BuildKit auto-populates TARGETARCH (amd64/arm64) for the build platform; map it to
 # Zig's arch naming so `docker build` grabs the right toolchain on any host — CI's
 # x86_64 runners and Apple-Silicon arm64 alike, no --build-arg needed. Override ZIG_ARCH
@@ -49,7 +49,7 @@ COPY common/config/ ./common/config/
 RUN cd cli && zig build -Doptimize=ReleaseFast
 
 # ---- Stage 2: build the Rust MCP server ------------------------------------
-FROM rust:1.99.1-slim-bookworm AS server
+FROM rust:1.99.1-slim-trixie AS server
 WORKDIR /src/mcp
 COPY mcp/ ./
 # Separate stage, separate filesystem: the crate include_str!s the same shared JSON
@@ -60,7 +60,7 @@ COPY contracts/stc/ /src/contracts/stc/
 RUN cargo build --release
 
 # ---- Stage 3: runtime ------------------------------------------------------
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ffmpeg ca-certificates \
  && rm -rf /var/lib/apt/lists/*

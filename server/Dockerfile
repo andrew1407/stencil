@@ -3,7 +3,7 @@
 #   docker build -f server/Dockerfile -t stencil-server .
 # (It does NOT compile core/; the server is a standalone Go module.)
 
-FROM golang:1.26 AS build
+FROM golang:1.27 AS build
 WORKDIR /src/server
 COPY server/go.mod server/go.sum ./
 # Warm this image layer's own module cache — never a host cache — against the tracked go.sum, and
@@ -15,7 +15,7 @@ COPY common/config/ /src/common/config/
 RUN go generate ./...
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/stencil-server ./cmd/stencil-server
 
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM gcr.io/distroless/static-debian13:nonroot
 COPY --from=build /out/stencil-server /usr/local/bin/stencil-server
 # HTTP/WS and raw-TCP edit ports. Plaintext by default (dev); for anything
 # beyond localhost mount a cert/key and set TLS_CERT/TLS_KEY — one pair secures

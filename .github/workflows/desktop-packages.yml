@@ -66,7 +66,7 @@ jobs:
           - { os: ubuntu-24.04-arm, name: Linux-arm64,   ext: tar.xz, parallel: 4,
               cachetool: ccache,  generator: '-G Ninja' }
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # Qt 6.12: the one Qt the app is built, tested and shipped on.
       - name: Install Qt
@@ -74,7 +74,7 @@ jobs:
         with:
           version: '6.12.*'
           # aqtinstall 3.3.0 cannot read Qt 6.12's per-compiler Windows repository; this commit can.
-          aqtsource: git+https://github.com/miurahr/aqtinstall.git@076e1659807d0b362a3ed684d54c2e9c775eb9c7
+          aqtsource: git+https://github.com/miurahr/aqtinstall.git@5a49f2b391ae8ee1d3c0dd87f8b33c1d49a4deb7
           py7zrversion: '==1.1.4'
           modules: qtimageformats qtmultimedia  # qtmultimedia backs the --src video-frame grab
           cache: true
@@ -98,7 +98,7 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: Restore the compiler cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ github.workspace }}/.compilercache
           key: ccache-desktop-${{ matrix.os }}-${{ github.sha }}
@@ -153,7 +153,7 @@ jobs:
         run: desktop/packaging/smoke.ps1 (Get-Item desktop/build/dist/stencil-*.zip).FullName
 
       - name: Upload workflow artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: stencil-${{ matrix.name }}
           path: desktop/build/dist/stencil-*.${{ matrix.ext }}

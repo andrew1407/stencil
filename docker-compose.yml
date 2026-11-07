@@ -19,13 +19,14 @@
 
 services:
   db:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_USER: stencil
       POSTGRES_PASSWORD: stencil
       POSTGRES_DB: stencil
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # Postgres 18+ keeps PGDATA at /var/lib/postgresql/<major>/docker; mount the parent.
+      - pgdata:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U stencil -d stencil"]
       interval: 5s
@@ -37,7 +38,7 @@ services:
       - "127.0.0.1:5432:5432"
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -52,7 +53,7 @@ services:
   # hands the volume to that UID before the server starts, keeping the server
   # itself nonroot. Idempotent: a no-op once ownership is already correct.
   filestore-init:
-    image: alpine:3.20
+    image: alpine:3.24
     command: ["chown", "-R", "65532:65532", "/data/filestore"]
     volumes:
       - filestore:/data/filestore

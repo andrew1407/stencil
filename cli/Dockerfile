@@ -13,8 +13,8 @@
 # runtime stage if you never feed the CLI video.
 
 # ---- Stage 1: build the CLI -------------------------------------------------
-FROM debian:bookworm-slim AS build
-ARG ZIG_VERSION=0.17.0
+FROM debian:trixie-slim AS build
+ARG ZIG_VERSION=0.17.1
 # BuildKit auto-populates TARGETARCH (amd64/arm64) for the build platform; map it to
 # Zig's arch naming so `docker build` grabs the right toolchain on any host — CI's
 # x86_64 runners and Apple-Silicon arm64 alike, no --build-arg needed. Override ZIG_ARCH
@@ -47,7 +47,7 @@ COPY common/config/ ./common/config/
 RUN cd cli && zig build -Doptimize=ReleaseFast
 
 # ---- Stage 2: runtime -------------------------------------------------------
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ffmpeg ca-certificates \
  && rm -rf /var/lib/apt/lists/*

@@ -22,7 +22,7 @@ ctest --test-dir core/build --output-on-failure   # or run core/build/stencil_te
 (From inside this directory drop the `core` prefix: `cmake -S . -B build`.)
 
 The only dependency is the C++17 standard library, plus one header for the tests — Doctest,
-pinned at v2.4.11 and fetched into `third_party/doctest.h` at configure time with SHA-256
+pinned at v2.5.3 and fetched into `third_party/doctest.h` at configure time with SHA-256
 verification. Nothing to install or commit.
 
 Run a single case with `core/build/stencil_tests -tc="<case>"`. The benchmarks are skipped
