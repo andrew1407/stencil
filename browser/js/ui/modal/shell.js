@@ -3,12 +3,12 @@ import { peekEngaged, wirePeekBox } from '../tip/altPeek.js';
 import { wireModalDrag } from './drag.js';
 import { wireModalResize } from './resize.js';
 import { sweepDust } from '../motion/surface/tiles.js';
-import { isTypingTarget } from '../../utils.js';
+import { isTypingTarget, opensSoftKeyboard } from '../../utils.js';
 import { onScreenViewport } from '../../utils/viewportMetrics.js';
 import { modalShells, wireEscapeOnce, wireCollapseOnce, closeOpenModal, closeOpenPopovers, raiseWindow } from './registry.js';
 import { motionMs, multiWindow } from '../motion/motionPrefs.js';
 import { createModalFlight, shownRect, MODAL_CLOSE_MS } from './flight.js';
-import { canvasAnchorRect, toolbarAway } from './imageAnchor.js';
+import { canvasAnchorRect, edgeBelow, toolbarAway } from './imageAnchor.js';
 // The box's laid-out size: its entrance transform (scaled from the icon) shrinks a client rect to the icon's.
 const layoutSize = (el) => {
   const r = el.getBoundingClientRect();
@@ -20,6 +20,17 @@ const layoutSize = (el) => {
 // `originEl` resolves the control the flight belongs to when it isn't the opener (null: fall
 // from above); `stacked` shells open over what is showing instead of replacing it.
 const FOCUS_MS = 30;
+// An anchor is an element or a plain client rect (a control about to hide passes the rect). A
+// click's PointerEvent has a numeric width too, but no top: it is never a rect.
+const isRect = (v) => Number.isFinite(v?.width) && Number.isFinite(v?.top);
+const rawRect = (el) => (typeof el?.getBoundingClientRect === 'function' ? el.getBoundingClientRect() : (isRect(el) ? el : null));
+const onScreenRect = (r) => !!r && r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < (window.innerHeight || 0);
+// A close whose home is not shown: scrolled off above, it rises straight up from the window's own centre, never
+// slanting after an icon out of sight (user report); off below, it sinks to the bottom edge; hidden, up or into the canvas.
+const awayHome = (raw, up, box) => {
+  if (raw?.width > 0 && raw.height > 0 && !onScreenRect(raw)) return raw.bottom <= 0 || !box ? null : edgeBelow(box);
+  return up ? null : canvasAnchorRect();
+};
 
 // `aside` shells (the console) open beside whatever is up and are never closed by another open.
 export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, escapeClose = true, originEl: originFor = null, stacked = false, focusOnOpen = null, aside = false } = {}) => {
@@ -39,18 +50,11 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
   // One shell serves two callers — Open-in replaces from the toolbar, stacks from a row.
   let stackedNow = stacked;
   const defaultOrigin = () => (originFor ? originFor() : openBtn);
-  // An anchor is an element or a plain client rect (a control about to hide passes the rect). A
-  // click's PointerEvent has a numeric width too, but no top: it is never a rect.
-  const isRect = (v) => Number.isFinite(v?.width) && Number.isFinite(v?.top);
   const anchorLike = (v) => !!v && (typeof v.getBoundingClientRect === 'function' || isRect(v));
   // An element counts only while shown: an opener folded away with the rows falls from above.
-  const rectOf = (el) => (typeof el?.getBoundingClientRect === 'function'
-    ? shownRect(el)
-    : (isRect(el) ? el : null));
+  const rectOf = (el) => (typeof el?.getBoundingClientRect === 'function' ? shownRect(el) : rawRect(el));
   let fromAbove = false;   // this open had no shown control, so its close rises back up
   const setOriginVars = (el = originEl) => flight.setOrigin(rectOf(el));
-  const onScreenRect = (r) =>
-    !!r && r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < (window.innerHeight || 0);
 
   // `from` null means there is no control: fall from above. Omitted means the shell's opener.
   // `at`, a client point, takes the window's top-left corner; one already up at full size only moves.
@@ -76,7 +80,7 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     // unless the user picked a field in it meanwhile: that one keeps the caret.
     const focusTarget = typeof focusOnOpen === 'function' ? focusOnOpen() : focusOnOpen;
     const heldAtOpen = document.activeElement;
-    if (focusTarget?.focus) setTimeout(() => {
+    if (focusTarget?.focus && !opensSoftKeyboard(focusTarget)) setTimeout(() => {
       const now = document.activeElement;
       if (!api.isOpen() || (now !== heldAtOpen && boxOf()?.contains(now))) return;
       focusTarget.focus();
@@ -94,8 +98,8 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     // `modal-closing`. Measure first — display:none measures 0.
     const named = typeof closeOriginEl === 'function' ? closeOriginEl() : closeOriginEl;
     const home = (anchorLike(backTo) ? backTo : null) || named || originEl || defaultOrigin();
-    // A home whose toolbar is away or leaving, or one hidden by now (a closed list), sends the close up.
-    const back = !toolbarAway(home) && onScreenRect(rectOf(home)) ? home : ((fromAbove || closeOriginEl || toolbarAway(home)) ? null : canvasAnchorRect());
+    // A home whose toolbar is away or leaving sends the close up; one not shown goes by awayHome.
+    const back = toolbarAway(home) ? null : onScreenRect(rectOf(home)) ? home : awayHome(rawRect(home), fromAbove || !!closeOriginEl, boxOf());
     const animate = overlay.classList.contains('modal-open') && !reducedMotion() && setOriginVars(back);
     overlay.classList.remove('modal-open');
     // It flies home at its own level: dropped at once, it would jump over the windows it sat under.

@@ -5,19 +5,22 @@ import constants from '../../../../common/config/constants.json' with { type: 'j
 // A projects-row gesture to an open intent. Touch has NO hold gesture: press-and-hold is the
 // drag-to-reorder pickup, and past the slop a pending open is dropped (drag.js).
 export const DOUBLE_CLICK_MS = constants.POPOVER.doubleClickMs;   // single-click actions wait this long for a dblclick
+export const DOUBLE_TAP_MS = constants.POPOVER.doubleTapMs;       // a tap waits this long for the second that opens outright
 export const DRAG_SLOP_PX = constants.POPOVER.pressSlopPx;        // travel that means "this is a drag/scroll, not a tap"
 export const rowOpenIntent = ({ type, ctrlKey, metaKey } = {}) => {
   if (type === 'tap') return { confirm: true, target: 'here' };           // touch only
+  if (type === 'doubletap') return { confirm: false, target: 'here' };    // touch only: the double click's twin
   const target = (ctrlKey || metaKey) ? 'newtab' : 'here';
   return { confirm: type !== 'dblclick', target };
 };
 
-// A plain click waits one double-click interval and a dblclick cancels it, so the
-// confirmation modal never flashes open and shut. Timers and the touch test are injected.
+// A click waits one double-click interval and a dblclick cancels it, so the confirmation never flashes open and
+// shut; a tap waits one double-tap interval for a second that opens outright (its backdrop ate it, user report).
 export const createOpenGesture = ({
   run,
   touch = () => isTouchLike(),
   delay = DOUBLE_CLICK_MS,
+  tapDelay = DOUBLE_TAP_MS,
   slop = DRAG_SLOP_PX,
   setTimer = setTimeout,
   clearTimer = clearTimeout,
@@ -28,14 +31,16 @@ export const createOpenGesture = ({
   const cancelClick = () => { if (clickTimer !== null) { clearTimer(clickTimer); clickTimer = null; } };
   return {
     click(e = {}) {
+      const onTouch = touch();
+      const second = onTouch && clickTimer !== null;
       cancelClick();
       // The click synthesized after a long press (or a drag) must not also open.
       if (swallowNextClick) { swallowNextClick = false; return; }
-      if (touch()) { run(rowOpenIntent({ type: 'tap' })); return; }
+      if (second) { run(rowOpenIntent({ type: 'doubletap' })); return; }
       clickTimer = setTimer(() => {
         clickTimer = null;
-        run(rowOpenIntent({ type: 'click', ctrlKey: e.ctrlKey, metaKey: e.metaKey }));
-      }, delay);
+        run(rowOpenIntent({ type: onTouch ? 'tap' : 'click', ctrlKey: e.ctrlKey, metaKey: e.metaKey }));
+      }, onTouch ? tapDelay : delay);
     },
     dblclick(e = {}) {
       cancelClick();                     // …the pending single click never happens

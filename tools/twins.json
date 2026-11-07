@@ -338,7 +338,7 @@
     },
     {
       "name": "dblResetDts",
-      "from": "browser/js/ui/control/dblReset.d.ts",
+      "from": "browser/js/ui/control/reset/dblReset.d.ts",
       "to": "browser-extension/src/lib/control/dblReset.d.ts"
     },
     {
@@ -606,7 +606,7 @@
     },
     {
       "name": "dblReset",
-      "from": "browser/js/ui/control/dblReset.js",
+      "from": "browser/js/ui/control/reset/dblReset.js",
       "to": "browser-extension/src/lib/control/dblReset.js",
       "names": [
         "deferSelectOpens"

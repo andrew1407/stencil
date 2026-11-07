@@ -315,6 +315,15 @@ classDiagram
   changes, the overlay every frame, its marks blitted from `core/draw/marksCache.js` while every
   value they are painted from holds; an export or result repaints through
   `core/draw/restingPaint.js`.
+- **Narrow windows.** Under `STACKED_MEDIA` (`utils/dom.js`; `animations/responsive.css`) the
+  points panel sits beneath the canvas and the page scrolls: the frame and the panel each hold at
+  least half the window (`utils/viewportMetrics.js`), the panel folds as the toolbar's rows do, its
+  tabs kept and its list's height run on the slide's clock under the chevron that turns up and down
+  (`foldHeight`, `ui/panel/coordFold.js`), and a picture's arrival or leave first scrolls the frame on screen (`showView`,
+  `ui/motion/control/canvasSlide.js`) and then rides with the frame (`follow`, `ui/motion/genie/flight.js`),
+  so the flight is seen and a toolbar re-wrapping above it moves the picture with the frame. On a screen
+  with no fine pointer (`opensSoftKeyboard`) a window opens with its field unfocused, so no soft
+  keyboard rises over it, and the drop hint is not shown.
 - **Session override.** `setMotionOverride` (`ui/motion/motionPrefs.js`), `setIconSkin`
   (`ui/icons.js`), `setFaviconArt` (`core/settings/accents.js`), set by a skin's session
   (`ui/skin/session.js`) — read by everything, written to no store. The aqua skin paints its gel
@@ -324,7 +333,7 @@ classDiagram
   window, move the chat, go fullscreen or change a look or motion setting (`GATED_SETTINGS`) — one
   refusal, one message, while CLI mode is on; an edit, the theme, a project switch and a connection
   pass.
-- **Double-click reset.** `installDblReset` (`ui/control/dblReset.js`), one capture listener on
+- **Double-click reset.** `installDblReset` (`ui/control/reset/dblReset.js`), one capture listener on
   `document` — a control returns to its default and fires `change`; a logo drop resets through the
   same table, number and formula fields included.
 - **View preview.** `previewFill` and `previewClean` on `Renderer` (`core/draw/renderer.js`) — the

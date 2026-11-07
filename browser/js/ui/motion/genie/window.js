@@ -99,7 +99,7 @@ export function createWindowGenie(boxOf) {
 // Sliding's entrance for a box already placed (a list): photographed, poured out of `from` (an element or a client
 // rect) and shown held, so its CSS entrance never replays; `onFly` runs as the picture moves, `landed` once it shows.
 // `keep` holds the picture for genieAway's flight home; false where the exit takes its own (a canvas, a strip).
-export function genieIn(box, from, { ms = GENIE_OPEN_MS, onFly = null, clip = null, landed = null, keep = true } = {}) {
+export function genieIn(box, from, { ms = GENIE_OPEN_MS, onFly = null, clip = null, landed = null, keep = true, follow = null } = {}) {
   settleGenie(box);
   if (!genieEnabled() || typeof box?.getBoundingClientRect !== 'function') return false;
   // Its own CSS entrance off BEFORE the measure: a list's starts at a third smaller (menuFromAnchor).
@@ -115,7 +115,7 @@ export function genieIn(box, from, { ms = GENIE_OPEN_MS, onFly = null, clip = nu
     if (!shot) { box.classList.remove(GENIE_DRIVEN_CLASS); onFly?.(); landed?.(); return; }
     if (keep) shots.set(box, shot);   // genieAway flies it home without waiting on a second picture
     cancels.set(box, playGenie(shot, win, icon, {
-      opening: true, ms: motionMs(ms), zIndex, clip,
+      opening: true, ms: motionMs(ms), zIndex, clip, follow,
       done: () => {
         cancels.delete(box);
         if (run !== runs.get(box)) return;
@@ -183,9 +183,9 @@ export function genieAway(box, to, { ms = GENIE_CLOSE_MS, clip = null } = {}) {
 }
 
 // A picture already taken (a canvas's own pixels) poured from `win` into `to` on its own canvas; 51 stands over the view.
-export function genieShotAway(shot, win, to, { ms = GENIE_CLOSE_MS, clip = null, zIndex = 51 } = {}) {
+export function genieShotAway(shot, win, to, { ms = GENIE_CLOSE_MS, clip = null, zIndex = 51, follow = null } = {}) {
   const icon = genieEnabled() && shot && win?.width > 0 && win?.height > 0 ? homeOf(to, win) : null;
-  if (icon) playGenie(shot, win, icon, { opening: false, ms: motionMs(ms), zIndex, clip });
+  if (icon) playGenie(shot, win, icon, { opening: false, ms: motionMs(ms), zIndex, clip, follow });
   return !!icon;
 }
 

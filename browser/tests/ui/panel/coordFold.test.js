@@ -5,70 +5,13 @@
 import test from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
-import { createStubElement } from '../../helpers/dom.js';
-import { installDustDom, rect } from '../../helpers/dustRig.js';
+import { installCoordFoldRig } from '../../helpers/coordFoldRig.js';
 
-let clock = 0;
-let reduced = false;
-const frames = [];   // per painted frame: the x each grain's outline starts at
-const canvasEl = () => {
-  const ctx = new Proxy({}, {
-    get: (t, k) => (k in t ? t[k] : (...a) => {
-      if (k === 'clearRect') frames.push([]);
-      else if (k === 'moveTo') frames.at(-1)?.push(a[0]);
-    }),
-    set: (t, k, v) => { t[k] = v; return true; },
-  });
-  return createStubElement('canvas', { getContext: () => ctx });
-};
-globalThis.MutationObserver = class { observe() {} disconnect() {} };
-globalThis.customElements = { define: () => {}, get: () => undefined };
-globalThis.HTMLElement = class {};
-const dust = installDustDom({
-  reduced: () => reduced,
-  docOpts: { autoCreateById: true, createElement: (tag) => (tag === 'canvas' ? canvasEl() : createStubElement(tag)) },
-  globals: { performance: { now: () => clock },
-             window: { addEventListener: () => {}, removeEventListener: () => {}, dispatchEvent: () => {} } },
-});
-const { doc } = dust;
-doc.els.set('panel-resizer', null);
-const { setMotionPrefs } = await import('../../../js/ui/motion/motionPrefs.js');
-const fold = await import('../../../js/ui/panel/coordFold.js');
+const rig = await installCoordFoldRig();
+const { doc, fold, css, panel, body, header, shut, HEAD, BODY, frames, lifted, toggle, mean, at, pins, px, rect } = rig;
 const { PANEL_DUST_IN_MS, PANEL_DUST_OUT_MS, PANEL_SLIDE_IN_MS, VEILED_CLASS, TALL_CLASS } = fold;
-const { StencilMainContent } = await import('../../../js/ui/panel/mainContent.js');
-const css = (p) => readFileSync(new URL(`../../../css/animations/${p}`, import.meta.url), 'utf8');
-
-const panel = doc.register('coord-panel', createStubElement('div'));
-const shut = () => panel.classes.has('coord-collapsed');
-const HEAD = rect(900, 80, 300, 28);
-const BODY = rect(900, 116, 300, 464);
-doc.register('coord-panel-header', createStubElement('div', { getBoundingClientRect: () => HEAD }));
-doc.getElementById('toggle-coord-panel').parentElement = doc.getElementById('coord-panel-header');
-const body = doc.register('coord-body', createStubElement('div', {
-  getBoundingClientRect: () => (shut() ? rect(900, 116, 0, 0) : BODY),
-}));
-const header = doc.getElementById('coord-panel-header');
-const lifted = [];   // the order the fold's classes come off at its end
-const remove = panel.classList.remove;
-panel.classList.remove = (...cs) => { lifted.push(...cs); return remove(...cs); };
-StencilMainContent.prototype.wire.call(createStubElement('stencil-main-content'), null);
-const toggle = () => doc.getElementById('toggle-coord-panel').dispatch('click');
-const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
-const at = (t) => { clock = t; dust.frame(); return frames.at(-1); };
-const reset = (mode, open) => {
-  test.mock.timers.tick(2000);
-  if (shut() === open) toggle();
-  test.mock.timers.tick(2000);
-  dust.reset();
-  frames.length = 0;
-  lifted.length = 0;
-  clock = 0;
-  reduced = false;
-  setMotionPrefs({ mode });
-};
-const pins = (el) => ['left', 'top', 'width', 'height'].map((k) => el.style[`--pin-${k}`]);
-const px = (r) => [r.left, r.top, r.width, r.height].map((v) => `${v}px`);
 test.mock.timers.enable({ apis: ['setTimeout'] });
+const reset = (mode, open) => rig.reset((ms) => test.mock.timers.tick(ms), mode, open);
 
 for (const mode of ['particles', 'water', 'fire']) {
   test(`${mode}: the panel's picture breaks into grains that stream right, its card unseen`, () => {
@@ -171,26 +114,12 @@ test('slide: its picture is the whole column as it stands, the card at its own h
 test('slide, none and the OS preference: no veil, no cloud, the CSS slide as before', () => {
   for (const [mode, os] of [['slide', false], ['none', false], ['particles', true]]) {
     reset(mode, true);
-    reduced = os;
+    rig.setReduced(os);
     toggle();
     const label = `${mode}${os ? ' + OS' : ''}`;
     assert.ok(shut(), `${label}: still folds`);
     assert.ok(!panel.__dustHost && !panel.classes.has(VEILED_CLASS), `${label}: nothing flies`);
     assert.equal(frames.length, 0);
-  }
-});
-
-test('stacked under the canvas nothing slides: the table is its own picture, unveiled', () => {
-  const wide = globalThis.matchMedia;
-  globalThis.matchMedia = (q) => ({ matches: q === '(max-width: 960px)' });
-  try {
-    reset('particles', true);
-    toggle();
-    assert.ok(shut() && !panel.classes.has(VEILED_CLASS));
-    assert.ok(body.__dustHost?.__cloud.motes.every((m) => m.cut === 1), 'the table\'s grains, cut out of it');
-    assert.equal(frames[0].length, 0, 'no speck waits on the table');
-  } finally {
-    globalThis.matchMedia = wide;
   }
 });
 
@@ -228,3 +157,4 @@ test('the panel clocks are motion.json PANEL_*, handed to its CSS, which names n
     'leaving, a grain shows at full strength as it goes: no ramp over a picture already fading (user report)');
   assert.match(cloud, /@keyframes dustHostSettle \{ 0%, 55% \{ opacity: 1; \} 80%, 100% \{ opacity: 0; \} \}/);
 });
+

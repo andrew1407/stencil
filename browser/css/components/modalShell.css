@@ -173,7 +173,7 @@ stencil-llm-settings-modal .vs-ctrl .accent-dd-trigger {
     font-size: 13px;
     border-radius: 6px;
 }
-/* A row's title resets its control on a double-click (ui/control/dblReset.js), so it selects no text. */
+/* A row's title resets its control on a double-click (ui/control/reset/dblReset.js), so it selects no text. */
 .vs-row > label:first-child { user-select: none; -webkit-user-select: none; }
 /* The Animation speed: its number box, then the frame scrub's bar (.vs-range, components/openImage.css). */
 stencil-visuals-modal .vs-ctrl.vs-speed { gap: 10px; height: var(--vs-ctrl-h); }

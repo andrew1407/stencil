@@ -78,7 +78,7 @@ const MANIFEST = [
   // A dropdown's Alt-hover peek, riding the mini window's gesture machine below.
   ['altPeek', '../../browser/js/ui/tip/altPeek.js', '../src/lib/tip/altPeek.js'],
   // The typed boundaries the extension copies unchanged from the browser's own .d.ts.
-  ['dblResetDts', '../../browser/js/ui/control/dblReset.d.ts', '../src/lib/control/dblReset.d.ts'],
+  ['dblResetDts', '../../browser/js/ui/control/reset/dblReset.d.ts', '../src/lib/control/dblReset.d.ts'],
   ['thumbMetricsDts', '../../browser/js/ui/control/thumbMetrics.d.ts', '../src/lib/control/thumbMetrics.d.ts'],
   ['menuScrollbarDts', '../../browser/js/ui/control/menuScrollbar.d.ts', '../src/lib/control/menuScrollbar.d.ts'],
   ['dustFlightDts', '../../browser/js/ui/dust/flight.d.ts', '../src/lib/dust/flight.d.ts'],

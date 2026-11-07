@@ -1,4 +1,4 @@
-// Headless checks for support/control/dblReset.hpp (browser twin js/ui/control/dblReset.js): a
+// Headless checks for support/control/dblReset.hpp (browser twin js/ui/control/reset/dblReset.js): a
 // double-click puts a combo or a check back to its default through the signals a pick fires,
 // a caption resets its box, a control that declared no default is left alone, and a colour chip
 // opens its picker only once the double-click window passes, a second click resetting instead.

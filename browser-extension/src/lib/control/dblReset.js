@@ -1,5 +1,5 @@
 // Double-click a selector or a checkbox and it goes back to its default, as the editor's own
-// controls do (browser js/ui/control/dblReset.js). The Options page still saves on Save; the
+// controls do (browser js/ui/control/reset/dblReset.js). The Options page still saves on Save; the
 // popup's filters apply at once through their change handlers.
 import { DEFAULT_PAGE } from '../prefs/settings.js';
 import constants from '../tip/constants.json' with { type: 'json' };

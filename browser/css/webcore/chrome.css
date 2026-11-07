@@ -81,23 +81,25 @@
     box-shadow: 0 0 0 1px var(--wc-dark), var(--wc-raised);
 }
 /* The pointer draws a frame in --wc-focus — the mic tile's own answer, which every control now
-   gives. !important because half of them carry an id rule of their own, which outranks any
-   selector this sheet could spell. Depth is still said by the press: a pressed or checked
-   control sinks into its bevel. */
-:root[data-skin="webcore"] :is(button, .btn-icon, .btn-icon-text, .chat-hbtn, .chat-abtn,
-.ctx-assist-abtn, .pill-toggle, .name-edit-btn, .idle-create-btn, .coord-tab, .oi-tab,
-.accent-dd-trigger):hover:not(:disabled),
-:root[data-skin="webcore"] :is(#theme-toggle, #draw-toggle, #zoom-fit, #chat-btn, #incognito-toggle, #fullscreen-toggle):hover:not(:disabled),
-:root[data-skin="webcore"] #voice-chat-btn:not(.active):not(:disabled):hover {
-    background: var(--wc-face);
-    color: var(--wc-ink);
-    border-color: transparent;
-    box-shadow: inset 0 0 0 2px var(--wc-focus) !important;
-    transform: none;
-}
-:root[data-skin="webcore"] .accent-dd-trigger:hover:not(:disabled) {
-    background: var(--wc-window);
-    box-shadow: inset 0 0 0 2px var(--wc-focus) !important;
+   gives, only where a pointer hovers: a touch screen holds a tap's hover on the control (user report).
+   !important because half of them carry an id rule of their own, which outranks any selector this
+   sheet could spell. Depth is still said by the press: a pressed or checked control sinks into its bevel. */
+@media (hover: hover) {
+    :root[data-skin="webcore"] :is(button, .btn-icon, .btn-icon-text, .chat-hbtn, .chat-abtn,
+    .ctx-assist-abtn, .pill-toggle, .name-edit-btn, .idle-create-btn, .coord-tab, .oi-tab,
+    .accent-dd-trigger):hover:not(:disabled),
+    :root[data-skin="webcore"] :is(#theme-toggle, #draw-toggle, #zoom-fit, #chat-btn, #incognito-toggle, #fullscreen-toggle):hover:not(:disabled),
+    :root[data-skin="webcore"] #voice-chat-btn:not(.active):not(:disabled):hover {
+        background: var(--wc-face);
+        color: var(--wc-ink);
+        border-color: transparent;
+        box-shadow: inset 0 0 0 2px var(--wc-focus) !important;
+        transform: none;
+    }
+    :root[data-skin="webcore"] .accent-dd-trigger:hover:not(:disabled) {
+        background: var(--wc-window);
+        box-shadow: inset 0 0 0 2px var(--wc-focus) !important;
+    }
 }
 :root[data-skin="webcore"] :is(button, .btn-icon, .btn-icon-text, .chat-hbtn, .chat-abtn):active:not(:disabled),
 :root[data-skin="webcore"] button.active,

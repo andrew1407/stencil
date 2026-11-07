@@ -6,7 +6,7 @@ import { normalizeHex } from '../../../core/settings/accents.js';
 import { previewProjectColor } from '../../projects/window/projectTitle.js';
 import { colorTrial } from './colorTrial.js';
 import { registerColorSwatch } from '../../drag/colorDragSwatches.js';
-import { wireColorButton } from '../../control/dblReset.js';
+import { wireColorButton } from '../../control/reset/dblReset.js';
 // The neutral grey an uncoloured project name is painted in, not the theme accent.
 const UNSET_NAME_COLOR = '#80868f';
 export function wireProjectColorButton(app) {

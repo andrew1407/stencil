@@ -131,6 +131,24 @@ const wrapRow = (el) => {
     if (getComputedStyle(p).flexWrap === 'wrap') row = p;
   return row;
 };
+// The groups of this sweep whose slide has not started (no --reveal-ms yet) sat at their 0px start and wrapped the
+// row short, so it grew a line once they stood (user report): the row is measured with each at its natural width.
+const pendingGroups = (node, out = []) => {
+  for (const c of node.children ?? []) {
+    if (c.classList?.contains(REVEAL_GROUP_TRANSITION_CLASS) && !c.style?.getPropertyValue?.('--reveal-ms')) out.push(c);
+    pendingGroups(c, out);
+  }
+  return out;
+};
+const settledRowHeight = (row) => {
+  if (!row?.getBoundingClientRect) return 0;
+  const pending = pendingGroups(row);
+  const was = pending.map((g) => [g.style.maxWidth, g.style.maxHeight]);
+  for (const g of pending) { g.style.maxWidth = 'none'; g.style.maxHeight = 'none'; }
+  const h = row.getBoundingClientRect().height;
+  pending.forEach((g, i) => { [g.style.maxWidth, g.style.maxHeight] = was[i]; });
+  return h;
+};
 // Held at least `h` px tall for `ms`, the height an opening ends at; never closing, where the row may be a bar
 // that closes with the group (held, it stood full height and vanished, user report). Counted, released once.
 const holdRow = (row, h, ms) => {
@@ -170,7 +188,7 @@ export function revealControls(el, show, display = 'inline-flex',
     const wasPlayed = isDusted || !motionReduced();
     if (size && wasPlayed) {
       const row = vertical ? null : wrapRow(el);   // read at the natural size: the height the rows end at
-      holdRow(row, row?.getBoundingClientRect().height, motionMs(inMs + 40) + 50);
+      holdRow(row, settledRowHeight(row), motionMs(inMs + 40) + 50);
       if (!isDusted) modeFx(el, { dir: 'in', vertical, ms: inMs, r });
       slideRevealSize(el, sizeProp, '0px', `${size}px`, inMs, { defer: true, slack: 40 });
     }

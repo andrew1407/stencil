@@ -189,3 +189,31 @@ test('the deferred open focus never takes the caret from a field chosen inside t
   assert.equal(first.focusCalls.length, 2, 'a window with no field chosen still opens ready to type');
   document.activeElement = null;
 });
+
+// A phone answers a focused field with its keyboard, over half the window, before anything was asked of it.
+test('on a screen with no fine pointer the open focus skips a field, and still takes a button', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const priorMM = globalThis.matchMedia;
+  globalThis.matchMedia = (q) => ({ matches: q === '(hover: none) and (pointer: coarse)' });
+  try {
+    const field = createStubElement('input', { id: 'touch-field' });
+    const button = el('touch-button');
+    for (const [target, calls, why] of [[field, 0, 'a field would raise the keyboard'], [button, 1, 'a button raises nothing']]) {
+      const overlay = el(`touch-overlay-${target.id}`);
+      overlay.appendChild(target);
+      const shell = wireModalShell(overlay, null, null, { focusOnOpen: target });
+      shell.open();
+      t.mock.timers.tick(1000);
+      shell.close();
+      assert.equal(target.focusCalls.length, calls, why);
+    }
+    globalThis.matchMedia = () => ({ matches: false });
+    const overlay = el('mouse-overlay');
+    overlay.appendChild(field);
+    const shell = wireModalShell(overlay, null, null, { focusOnOpen: field });
+    shell.open();
+    t.mock.timers.tick(1000);
+    shell.close();
+    assert.equal(field.focusCalls.length, 1, 'with a pointer and a keyboard the field opens ready to type');
+  } finally { globalThis.matchMedia = priorMM; }
+});

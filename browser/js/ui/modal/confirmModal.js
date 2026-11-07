@@ -1,5 +1,6 @@
 import { StencilElement, hostTag, define, createModalFlight } from '../base.js';
 import { icon } from '../icons.js';
+import { opensSoftKeyboard } from '../../utils.js';
 import { gestureAnchorRect } from '../canvas/gesturePoint.js';
 import { injectRow, altButton, choiceSelect, promptField, promptReason } from './confirmFields.js';
 
@@ -194,7 +195,7 @@ export class StencilConfirmModal extends StencilElement {
         revalidatePrompt();
       }
       const initial = inp.value;
-      setTimeout(() => { if (document.activeElement !== inp && inp.value === initial) { inp.focus(); inp.select(); } }, 30);
+      if (!opensSoftKeyboard(inp)) setTimeout(() => { if (document.activeElement !== inp && inp.value === initial) { inp.focus(); inp.select(); } }, 30);
     });
   }
 }

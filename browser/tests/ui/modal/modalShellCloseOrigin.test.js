@@ -165,3 +165,27 @@ test('a toolbar control hidden with the fullscreen strip sends the close up', (t
   shell.close();
   assert.deepEqual(readVars(box), expectedVars(boxRect, null), 'the close rises off the top edge');
 });
+
+// Opened from the toolbar, then scrolled until the icon was gone past the top: the close collapsed into the canvas
+// centre, then slanted after the icon's x (user report). Straight up from its own centre now; straight down for a home below.
+test('a window whose opener has scrolled off the screen rises straight up, or sinks straight down', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const boxRect = { left: 400, top: 300, width: 200, height: 150 };
+  const box = createStubElement('div', { getBoundingClientRect: rectOf(boxRect) });
+  const overlay = createStubElement('div', { querySelector: (sel) => (sel === '.app-modal' ? box : null) });
+  const openBtn = createStubElement('button', { getBoundingClientRect: rectOf({ left: 820, top: 12, width: 28, height: 24 }) });
+  const shell = wireModalShell(overlay, openBtn, null);
+  // Gone above: the fall-from-above shape, straight up from the box's own centre, never toward x=834.
+  shell.open(openBtn);
+  openBtn.getBoundingClientRect = rectOf({ left: 820, top: -300, width: 28, height: 24 });
+  shell.close();
+  assert.deepEqual(readVars(box), expectedVars(boxRect, null), 'rises straight up from its own centre');
+  openBtn.getBoundingClientRect = rectOf({ left: 820, top: 12, width: 28, height: 24 });
+  // Gone below: an 8x2 strip of the bottom edge under the box's centre (400 + 100), not the icon's.
+  shell.open(openBtn);
+  openBtn.getBoundingClientRect = rectOf({ left: 820, top: 900, width: 28, height: 24 });
+  shell.close();
+  const edge = { left: 496, top: 798, width: 8, height: 2, right: 504, bottom: 800 };
+  assert.deepEqual(readVars(box), expectedVars(boxRect, edge), 'sinks straight down under its own centre');
+  openBtn.getBoundingClientRect = rectOf({ left: 820, top: 12, width: 28, height: 24 });
+});

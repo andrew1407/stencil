@@ -3,7 +3,7 @@
 // (editor.js); only the window's chrome lives here.
 import { StencilElement, define, hostTag, wireModalShell } from '../base.js';
 import { runScriptHere } from '../../console/scriptRunner.js';
-import { notify } from '../../utils.js';
+import { notify, opensSoftKeyboard } from '../../utils.js';
 import { wireScriptEditor } from './editor.js';
 import { scriptModalInner } from './modalMarkup.js';
 
@@ -67,7 +67,7 @@ export class StencilScriptModal extends StencilElement {
       onOpen: () => {
         // A dropped .stc lands in the editor while the window owns the drop.
         overlay.setAttribute('data-drop-owner', 'script');
-        setTimeout(() => editor.focus(), 0);
+        if (!opensSoftKeyboard(editor)) setTimeout(() => editor.focus(), 0);
       },
       onClose: () => { overlay.removeAttribute('data-drop-owner'); },
     });

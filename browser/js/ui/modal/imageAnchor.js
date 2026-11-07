@@ -59,6 +59,13 @@ export const edgeAbove = (el) => {
   const left = el.getBoundingClientRect().left + el.getBoundingClientRect().width / 2 - 4;
   return { left, top: 0, width: 8, height: 2, right: left + 8, bottom: 2 };
 };
+// The strip of the window's bottom edge under `el`'s centre: where a close goes once its home scrolled off below.
+export const edgeBelow = (el) => {
+  const r = el.getBoundingClientRect();
+  const left = r.left + r.width / 2 - 4;
+  const top = (globalThis.window?.innerHeight || 0) - 2;
+  return { left, top, width: 8, height: 2, right: left + 8, bottom: top + 2 };
+};
 // A leaving strip's open lists close up through the top edge too (control/dropdownMenu.js hideMenu reads __ddAt).
 export const aimListsUp = (strip) => {
   for (const menu of document.querySelectorAll?.('.accent-dd-menu') ?? [])

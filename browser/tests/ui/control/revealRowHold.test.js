@@ -80,3 +80,24 @@ test('a reveal that interrupts a leave ends shown, not hidden by the late leave'
   for (let i = 0; i < 3; i++) for (const ms of p.delays()) p.fire(ms);
   assert.equal(group.style.display, 'inline-flex', 'shown once every timer has run');
 });
+
+// Two groups revealed in one sweep: the second measured the row while the first sat at its 0px start, so the hold
+// was a line short and the row grew once both stood, moving the frame under a flight (user report).
+test('the hold counts every group still waiting at its start as standing at full width', (t) => {
+  const p = page(t);
+  setMotionPrefs({ mode: 'slide' });
+  const { controls, group } = toolbar(322);
+  const other = boxEl(() => (other.style.display === 'none' ? rect(0, 0, 0, 0) : rect(240, 10, 90, 34)));
+  other.style.display = 'none';
+  controls.children[0].children[0].appendChild(other);
+  // The toolbar wraps one line more only once BOTH groups stand at their natural width.
+  const standing = (g) => g.style.display !== 'none' && g.style.maxWidth !== '0px';
+  controls.getBoundingClientRect = () => rect(0, 20, 1300, standing(group) && standing(other) ? 387 : 322);
+  revealControls(group, true);
+  assert.equal(group.style.maxWidth, '0px', 'the first waits at its start');
+  revealControls(other, true);
+  assert.equal(controls.style.minHeight, '387px', 'held at the height both end at, not the one the start wrapped to');
+  assert.equal(group.style.maxWidth, '0px', 'and the first still starts from 0 — the measure put it back');
+  for (const ms of p.delays()) p.fire(ms);
+  assert.equal(controls.style.minHeight, '');
+});

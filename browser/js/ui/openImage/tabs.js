@@ -3,6 +3,7 @@
 import { isAlbumOrientation } from '../../core/parse/cropGeometry.js';
 import { createMediaPairs } from './mediaPairs.js';
 import { createPreviewFlow } from './previewFlow.js';
+import { opensSoftKeyboard } from '../../utils.js';
 
 export function createOpenImageTabs({ els, src, cropState, crop, cropRows, dust, frame, refresh, canReplace }) {
   const { previewWrap, cropRow, cropToggle, incogRow,
@@ -75,7 +76,7 @@ export function createOpenImageTabs({ els, src, cropState, crop, cropRows, dust,
     flow.showTabPreview();
     // The tab's own field takes the caret (desktop twin: applyMode's setFocus). After the panel is
     // shown — focusing a still-display:none element does nothing.
-    const focusEl = name === 'file' ? chooseBtn : (name === 'url' ? urlEl : null);
+    const focusEl = name === 'file' ? chooseBtn : (name === 'url' && !opensSoftKeyboard(urlEl) ? urlEl : null);
     if (focusEl) requestAnimationFrame(() => { try { focusEl.focus(); } catch { /* no-op */ } });
   };
 

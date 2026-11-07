@@ -6,7 +6,7 @@ import { stubTimers } from '../../helpers/timers.js';
 // behind it (js/core/project/openGesture.js) — pure/injected, so the whole mouse+touch matrix
 // runs without a DOM.
 import {
-  rowOpenIntent, createOpenGesture, DOUBLE_CLICK_MS, DRAG_SLOP_PX,
+  rowOpenIntent, createOpenGesture, DOUBLE_CLICK_MS, DOUBLE_TAP_MS, DRAG_SLOP_PX,
 } from '../../../js/core/project/openGesture.js';
 
 // A controllable clock: timers fire only when the test advances it.
@@ -30,6 +30,8 @@ test('rowOpenIntent: the full mouse + touch matrix', () => {
   // Touch: a tap opens, and nothing maps to a long press — the list's press-and-hold picks the
   // row up for reordering (drag.js), so "open in a new tab" is the ⋯ menu's item there.
   assert.deepStrictEqual(rowOpenIntent({ type: 'tap' }), { confirm: true, target: 'here' });
+  assert.deepStrictEqual(rowOpenIntent({ type: 'doubletap' }), { confirm: false, target: 'here' },
+    'a double tap is the double click\'s twin: no confirmation, this tab');
   assert.deepStrictEqual(rowOpenIntent({ type: 'longpress' }), { confirm: true, target: 'here' },
     'no long-press mapping: it degrades to the safe default, it never targets a new tab');
   // Unknown/absent type degrades to the safest thing: confirm, this tab.
@@ -83,18 +85,38 @@ test('cancel() drops a pending click (the rename editor uses it)', () => {
 });
 
 // ── Touch ──
-test('touch: a tap acts at once (no double-click wait) and confirms in this tab', () => {
+// A tap opened its confirmation at once, and the second tap of a double tap landed on that dialog's
+// backdrop and cancelled it (user report): the tap now waits one double-tap interval for the second.
+test('touch: a lone tap confirms in this tab after the double-tap interval', () => {
   const timers = stubTimers();
   const rec = recorder();
   const g = createOpenGesture({ run: rec.run, touch: () => true, ...timers });
   g.pressStart({ x: 10, y: 10 });
   assert.strictEqual(g.pressEnd(), false, 'a quick lift in place is a tap, not a drag');
   g.click({});
+  assert.deepStrictEqual(rec.intents, [], 'nothing yet: a second tap may follow');
+  assert.strictEqual(timers.pending, 1);
+  timers.advance(DOUBLE_CLICK_MS);
+  assert.deepStrictEqual(rec.intents, [], 'the touch window is the longer doubleTapMs, not doubleClickMs');
+  timers.advance(DOUBLE_TAP_MS);
   assert.deepStrictEqual(rec.intents, ['confirm:here'], 'tap → confirmation, this tab');
-  assert.strictEqual(timers.pending, 0, 'touch never arms the double-click timer');
-  // A double click can't happen on touch; if one is synthesized it is ignored.
+  // A synthesized dblclick after that is ignored on touch.
   g.dblclick({});
   assert.deepStrictEqual(rec.intents, ['confirm:here']);
+});
+
+test('touch: a second tap inside the interval opens outright, and the browser\'s dblclick adds nothing', () => {
+  const timers = stubTimers();
+  const rec = recorder();
+  const g = createOpenGesture({ run: rec.run, touch: () => true, ...timers });
+  g.pressStart({ x: 10, y: 10 }); g.pressEnd(); g.click({});
+  timers.advance(DOUBLE_TAP_MS - 50);
+  g.pressStart({ x: 12, y: 11 }); g.pressEnd(); g.click({});
+  assert.deepStrictEqual(rec.intents, ['now:here'], 'the double tap opens with no confirmation');
+  assert.strictEqual(timers.pending, 0, 'and the lone tap\'s confirmation never comes');
+  g.dblclick({});                                   // Chromium fires one after the second tap's click
+  timers.advance(DOUBLE_TAP_MS);
+  assert.deepStrictEqual(rec.intents, ['now:here'], 'once');
 });
 
 test('touch: a hold is the list\'s REORDER pickup — it never opens anything', () => {
@@ -112,6 +134,7 @@ test('touch: a hold is the list\'s REORDER pickup — it never opens anything', 
   assert.deepStrictEqual(rec.intents, []);
   // …and only that one: the next tap works normally.
   g.click({});
+  timers.advance(DOUBLE_TAP_MS);
   assert.deepStrictEqual(rec.intents, ['confirm:here']);
 });
 
@@ -166,7 +189,7 @@ test('a slow, still press is just a click on either input', () => {
     g.pressStart({ x: 0, y: 0 });
     assert.strictEqual(g.pressEnd(), false, 'no travel → not a drag');
     g.click({});
-    timers.advance(DOUBLE_CLICK_MS);
+    timers.advance(touch ? DOUBLE_TAP_MS : DOUBLE_CLICK_MS);
     assert.deepStrictEqual(rec.intents, ['confirm:here'], `${touch ? 'touch' : 'mouse'}: a plain open`);
   }
 });

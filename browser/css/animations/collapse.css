@@ -48,12 +48,18 @@ body:not(.fullscreen-mode) .canvas-viewport { transition: margin-top var(--fold-
 body.controls-collapsed :is(.controls-topbar, .controls-wrapper) { transition: margin var(--fold-out-ms) var(--fold-ease); }
 body.controls-collapsed:not(.fullscreen-mode) .canvas-viewport { transition: margin-top var(--fold-out-ms) var(--fold-ease); }
 
-/* One chevron turned half a revolution on the fold's curve; mirrored in the desktop app
-   (MainWindow::positionOverlayArrows + SelectionPanel). */
-#toggle-controls .ic { transition: transform var(--fold-ms) var(--fold-ease); }
-#toggle-coord-panel .ic { transition: transform var(--panel-slide-ms) var(--fold-ease); }
+/* One chevron turned on the fold's curve (desktop: MainWindow::positionOverlayArrows + SelectionPanel); the
+   angle is --fold-turn, so a skin that stills every icon (skin/still.css) reads this one back. */
+#toggle-controls .ic { transform: var(--fold-turn, none); transition: transform var(--fold-ms) var(--fold-ease); }
+#toggle-coord-panel .ic { transform: var(--fold-turn, none); transition: transform var(--panel-slide-ms) var(--fold-ease); }
 .controls-wrapper:has(#controls-body.hidden) #toggle-controls .ic,
-.coordinates-panel.coord-collapsed #toggle-coord-panel .ic { transform: rotate(180deg); }
+.coordinates-panel.coord-collapsed #toggle-coord-panel .ic { --fold-turn: rotate(180deg); }
+/* Stacked under the canvas (animations/responsive.css) the panel folds up and down, so its chevron
+   points as the toolbar's does: up while shown, down once folded. */
+@media (max-width: 960px) {
+    #toggle-coord-panel .ic { --fold-turn: rotate(-90deg); }
+    .coordinates-panel.coord-collapsed #toggle-coord-panel .ic { --fold-turn: rotate(90deg); }
+}
 
 /* The panel slides between its width and the 36px rail on --panel-*-ms (config/motion.json PANEL_*);
    no width transition while the splitter drags — easing behind the pointer reads as lag. */
@@ -73,6 +79,8 @@ body:has(#fs-panel-resizer.dragging) .coordinates-panel { transition: none; }
 }
 .coordinates-panel.coord-collapsed #coord-body,
 .coordinates-panel.coord-collapsed .coord-tabs { opacity: 0; }
+/* Stacked, the tabs stay up over the folded list (animations/responsive.css keeps them displayed). */
+@media (max-width: 960px) { .coordinates-panel.coord-collapsed .coord-tabs { opacity: 1; } }
 /* `transition: none`: a transitioned `display` flips only at the END, leaving a sliver in the rail. */
 @media (min-width: 961px) {
     .coordinates-panel.coord-folding #coord-body,

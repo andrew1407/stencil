@@ -1,6 +1,6 @@
 // MainWindow GUI e2e — colour chips: the Lines tab swatch picks a line's colour or, double-clicked,
 // resets it to the toolbar's line colour; the toolbar chip resets to the canonical default
-// (browser ui/control/dblReset.js + ui/panel/lines/list.js).
+// (browser ui/control/reset/dblReset.js + ui/panel/lines/list.js).
 #include "../MainWindow.gui.hpp"
 #include "uiTimings.hpp"
 

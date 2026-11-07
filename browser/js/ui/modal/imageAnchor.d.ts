@@ -12,6 +12,9 @@ export declare const toolbarAway: (el: unknown) => boolean;
 export declare const edgeAbove: (el: Element) =>
   { left: number; top: number; width: number; height: number; right: number; bottom: number };
 
+/** An 8x2 strip of the window's bottom edge under `el`'s centre, in client px. */
+export declare const edgeBelow: (el: Element) =>
+  { left: number; top: number; width: number; height: number; right: number; bottom: number };
 /** A small box on the canvas area's centre, falling back to the window's centre. */
 export declare const canvasAnchorRect: () => AnchorRect;
 

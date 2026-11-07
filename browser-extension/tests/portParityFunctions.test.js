@@ -41,7 +41,7 @@ const FUNCTIONS = [
   ['aquaLogo', '../../browser/js/ui/aqua/logo.js', '../src/lib/aqua/rules.js', ['GEL', 'aquaLogoArt', 'aquaFavicon']],
   ['aquaIcons', '../../browser/js/ui/aqua/icons.js', '../src/lib/aqua/rules.js', ['aquaIconArt']],
   // A selector's list waits out the double-click window: the dblclick reset's other half.
-  ['dblReset', '../../browser/js/ui/control/dblReset.js', '../src/lib/control/dblReset.js', ['deferSelectOpens']],
+  ['dblReset', '../../browser/js/ui/control/reset/dblReset.js', '../src/lib/control/dblReset.js', ['deferSelectOpens']],
   // The stage's lock and lifecycle; only the bare-window test and the mark's selector are the page's own.
   ['logoStage', '../../browser/js/ui/logo/stage.js', '../src/lib/logo/stage.js', [
     'STAGE_CLASS', 'OPEN_CLASS', 'logoStageOpen', 'SWALLOWED', 'closeLogoStage', 'openLogoStage', 'currentLogoStage']],

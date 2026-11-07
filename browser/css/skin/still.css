@@ -8,9 +8,9 @@
 .deselect-btn, .coordinates-table tbody tr, button, select, .btn-icon, .btn-icon-text) {
     transform: none !important;
 }
-/* A fold chevron's angle is STATE, not motion: without this both toggles point the same way open or shut. */
-:root[data-skin] .controls-wrapper:has(#controls-body.hidden) #toggle-controls .ic,
-:root[data-skin] .coordinates-panel.coord-collapsed #toggle-coord-panel .ic { transform: rotate(180deg) !important; }
+/* A fold chevron's angle is STATE, not motion: the turn animations/collapse.css sets as --fold-turn (half a
+   revolution wide, up and down stacked), without which both toggles point the same way open or shut. */
+:root[data-skin] :is(#toggle-controls, #toggle-coord-panel) .ic { transform: var(--fold-turn, none) !important; }
 :root[data-skin] .swap-ghost { display: none; }
 /* The interface-animation glyphs never play, whatever the mode: their held end frame read as a jump. */
 :root[data-skin] .mm-icon * { animation: none !important; }

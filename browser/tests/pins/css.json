@@ -1463,6 +1463,17 @@
    "@media (hover: hover)|:root:root .chat-msg:hover .chat-row-menu-btn:hover": {
     "opacity": "1"
    },
+   "@media (hover: hover)|:root[data-skin=\"webcore\"] #voice-chat-btn:not(.active):not(:disabled):hover, :root[data-skin=\"webcore\"] :is(#theme-toggle, #draw-toggle, #zoom-fit, #chat-btn, #incognito-toggle, #fullscreen-toggle):hover:not(:disabled), :root[data-skin=\"webcore\"] :is(button, .btn-icon, .btn-icon-text, .chat-hbtn, .chat-abtn, .ctx-assist-abtn, .pill-toggle, .name-edit-btn, .idle-create-btn, .coord-tab, .oi-tab, .accent-dd-trigger):hover:not(:disabled)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border-color": "transparent",
+    "box-shadow": "inset 0 0 0 2px var(--wc-focus) !important",
+    "transform": "none"
+   },
+   "@media (hover: hover)|:root[data-skin=\"webcore\"] .accent-dd-trigger:hover:not(:disabled)": {
+    "background": "var(--wc-window)",
+    "box-shadow": "inset 0 0 0 2px var(--wc-focus) !important"
+   },
    "@media (hover: none) and (pointer: coarse)|.chat-abtn, .chat-hbtn, .chat-result-btn": {
     "width": "40px",
     "height": "40px"
@@ -1489,6 +1500,9 @@
     "opacity": "0.85",
     "font-size": "16px"
    },
+   "@media (hover: none) and (pointer: coarse)|.drop-hint": {
+    "display": "none"
+   },
    "@media (hover: none) and (pointer: coarse)|.modal-filter, .modal-search": {
     "min-height": "40px"
    },
@@ -1503,10 +1517,9 @@
     "box-shadow": "none"
    },
    "@media (max-width: 460px)|#settings-modal, .app-modal": {
-    "width": "100vw",
-    "max-width": "100vw",
-    "max-height": "92vh",
-    "border-radius": "12px 12px 0 0"
+    "width": "calc(100vw - 24px)",
+    "max-width": "calc(100vw - 24px)",
+    "max-height": "92vh"
    },
    "@media (max-width: 460px)|.container": {
     "padding": "8px"
@@ -1636,6 +1649,9 @@
    "@media (max-width: 960px)|#settings-modal, .app-modal": {
     "max-width": "calc(100vw - 28px)"
    },
+   "@media (max-width: 960px)|#toggle-coord-panel .ic": {
+    "--fold-turn": "rotate(-90deg)"
+   },
    "@media (max-width: 960px)|.canvas-section": {
     "width": "100%",
     "min-width": "0",
@@ -1647,6 +1663,9 @@
    "@media (max-width: 960px)|.container": {
     "padding": "14px"
    },
+   "@media (max-width: 960px)|.coord-panel-header": {
+    "transition": "margin-bottom var(--panel-slide-ms) var(--fold-ease)"
+   },
    "@media (max-width: 960px)|.coordinates-panel": {
     "min-width": "0",
     "max-width": "none",
@@ -1657,16 +1676,21 @@
     "width": "100%",
     "padding": "10px 12px"
    },
-   "@media (max-width: 960px)|.coordinates-panel.coord-collapsed #coord-body": {
-    "display": "block"
-   },
    "@media (max-width: 960px)|.coordinates-panel.coord-collapsed #toggle-coord-panel": {
     "writing-mode": "horizontal-tb",
     "transform": "none",
     "border": "1px solid var(--border-main) !important"
    },
+   "@media (max-width: 960px)|.coordinates-panel.coord-collapsed #toggle-coord-panel .ic": {
+    "--fold-turn": "rotate(90deg)"
+   },
    "@media (max-width: 960px)|.coordinates-panel.coord-collapsed .coord-tabs": {
-    "display": "inline-flex"
+    "display": "inline-flex",
+    "opacity": "1"
+   },
+   "@media (max-width: 960px)|.coordinates-panel.coord-folding #coord-body": {
+    "display": "block",
+    "overflow": "hidden"
    },
    "@media (max-width: 960px)|.main-content": {
     "flex-direction": "column",
@@ -2721,6 +2745,7 @@
     "line-height": "1.4"
    },
    "|#toggle-controls .ic": {
+    "transform": "var(--fold-turn, none)",
     "transition": "transform var(--fold-ms) var(--fold-ease)"
    },
    "|#toggle-controls:hover": {
@@ -2744,6 +2769,7 @@
     "margin-left": "auto"
    },
    "|#toggle-coord-panel .ic": {
+    "transform": "var(--fold-turn, none)",
     "transition": "transform var(--panel-slide-ms) var(--fold-ease)"
    },
    "|#toggle-coord-panel:focus-visible": {
@@ -4980,7 +5006,7 @@
     "margin-bottom": "12px"
    },
    "|.controls-wrapper:has(#controls-body.hidden) #toggle-controls .ic, .coordinates-panel.coord-collapsed #toggle-coord-panel .ic": {
-    "transform": "rotate(180deg)"
+    "--fold-turn": "rotate(180deg)"
    },
    "|.coord-panel-header": {
     "display": "flex",
@@ -9896,13 +9922,6 @@
     "box-shadow": "var(--wc-raised)",
     "padding": "3px"
    },
-   "|:root[data-skin=\"webcore\"] #voice-chat-btn:not(.active):not(:disabled):hover, :root[data-skin=\"webcore\"] :is(#theme-toggle, #draw-toggle, #zoom-fit, #chat-btn, #incognito-toggle, #fullscreen-toggle):hover:not(:disabled), :root[data-skin=\"webcore\"] :is(button, .btn-icon, .btn-icon-text, .chat-hbtn, .chat-abtn, .ctx-assist-abtn, .pill-toggle, .name-edit-btn, .idle-create-btn, .coord-tab, .oi-tab, .accent-dd-trigger):hover:not(:disabled)": {
-    "background": "var(--wc-face)",
-    "color": "var(--wc-ink)",
-    "border-color": "transparent",
-    "box-shadow": "inset 0 0 0 2px var(--wc-focus) !important",
-    "transform": "none"
-   },
    "|:root[data-skin=\"webcore\"] #zoom-input": {
     "font-weight": "normal"
    },
@@ -9975,10 +9994,6 @@
     "min-height": "24px",
     "padding": "2px 6px",
     "line-height": "18px"
-   },
-   "|:root[data-skin=\"webcore\"] .accent-dd-trigger:hover:not(:disabled)": {
-    "background": "var(--wc-window)",
-    "box-shadow": "inset 0 0 0 2px var(--wc-focus) !important"
    },
    "|:root[data-skin=\"webcore\"] .app-logo": {
     "width": "32px",
@@ -10608,14 +10623,14 @@
     "scrollbar-width": "auto",
     "scrollbar-color": "auto"
    },
-   "|:root[data-skin] .controls-wrapper:has(#controls-body.hidden) #toggle-controls .ic, :root[data-skin] .coordinates-panel.coord-collapsed #toggle-coord-panel .ic": {
-    "transform": "rotate(180deg) !important"
-   },
    "|:root[data-skin] .mm-icon *": {
     "animation": "none !important"
    },
    "|:root[data-skin] .swap-ghost": {
     "display": "none"
+   },
+   "|:root[data-skin] :is(#toggle-controls, #toggle-coord-panel) .ic": {
+    "transform": "var(--fold-turn, none) !important"
    },
    "|:root[data-skin] :is(.coordinates-table tbody tr.row-focused, .lines-row-selected, .project-row.project-selected, .connect-row.connect-selected)": {
     "background": "var(--accent) !important"
@@ -13072,7 +13087,8 @@
    "@media (max-width: 960px)|.panel-resizer",
    "@media (max-width: 960px)|.coordinates-panel.coord-collapsed",
    "@media (max-width: 960px)|.coordinates-panel.coord-collapsed .coord-tabs",
-   "@media (max-width: 960px)|.coordinates-panel.coord-collapsed #coord-body",
+   "@media (max-width: 960px)|.coordinates-panel.coord-folding #coord-body",
+   "@media (max-width: 960px)|.coord-panel-header",
    "@media (max-width: 960px)|.coordinates-panel.coord-collapsed #toggle-coord-panel",
    "@media (max-width: 960px)|#settings-modal, .app-modal",
    "@media (max-width: 680px)|body",
@@ -13094,6 +13110,7 @@
    "@media (max-width: 460px)|#settings-modal, .app-modal",
    "@media (max-width: 460px)|.ctx-hotkey, .shortcut-hint",
    "@media (max-width: 460px)|.info-key",
+   "@media (hover: none) and (pointer: coarse)|.drop-hint",
    "@media (hover: none) and (pointer: coarse)|.ctx-item",
    "@media (hover: none) and (pointer: coarse)|.ctx-checkbox-item, .ctx-radio-item",
    "@media (hover: none) and (pointer: coarse)|.del-pt-btn",
@@ -13135,10 +13152,13 @@
    "|#toggle-controls .ic",
    "|#toggle-coord-panel .ic",
    "|.controls-wrapper:has(#controls-body.hidden) #toggle-controls .ic, .coordinates-panel.coord-collapsed #toggle-coord-panel .ic",
+   "@media (max-width: 960px)|#toggle-coord-panel .ic",
+   "@media (max-width: 960px)|.coordinates-panel.coord-collapsed #toggle-coord-panel .ic",
    "|.coordinates-panel",
    "|.main-content:has(.panel-resizer.dragging) .coordinates-panel, body:has(#fs-panel-resizer.dragging) .coordinates-panel",
    "|#coord-body, .coord-tabs",
    "|.coordinates-panel.coord-collapsed #coord-body, .coordinates-panel.coord-collapsed .coord-tabs",
+   "@media (max-width: 960px)|.coordinates-panel.coord-collapsed .coord-tabs",
    "@media (min-width: 961px)|.coordinates-panel.coord-folding #coord-body, .coordinates-panel.coord-folding .coord-tabs",
    "@media (min-width: 961px)|.coordinates-panel.coord-veiled",
    "@media (min-width: 961px)|.coordinates-panel.coord-veiled > #coord-body, .coordinates-panel.coord-veiled > .coord-panel-header",
@@ -13378,7 +13398,7 @@
    "|html.theme-copy, html.theme-copy *, html.theme-copy *::after, html.theme-copy *::before",
    "|:root[data-skin] *",
    "|:root[data-skin] :is(.tip-key, .tip-key.key-shake, .ctx-item, .accent-dd-opt, .project-row, .project-thumb img, .info-item, .hotkey-cell, .hotkey-default, .idle-create-btn, .idle-create-icon, .lines-row, .connect-row, .chat-suggest, .deselect-btn, .coordinates-table tbody tr, button, select, .btn-icon, .btn-icon-text)",
-   "|:root[data-skin] .controls-wrapper:has(#controls-body.hidden) #toggle-controls .ic, :root[data-skin] .coordinates-panel.coord-collapsed #toggle-coord-panel .ic",
+   "|:root[data-skin] :is(#toggle-controls, #toggle-coord-panel) .ic",
    "|:root[data-skin] .swap-ghost",
    "|:root[data-skin] .mm-icon *",
    "|:root[data-skin] :is(.coordinates-table tbody tr.row-focused, .lines-row-selected, .project-row.project-selected, .connect-row.connect-selected)",
@@ -13398,8 +13418,8 @@
    "|:root[data-skin=\"webcore\"] .ctrl-section-label, :root[data-skin=\"webcore\"] .selection-label, :root[data-skin=\"webcore\"] label",
    "|:root[data-skin=\"webcore\"] #chat-btn, :root[data-skin=\"webcore\"] #draw-toggle, :root[data-skin=\"webcore\"] #fullscreen-toggle, :root[data-skin=\"webcore\"] #incognito-toggle, :root[data-skin=\"webcore\"] #info-btn, :root[data-skin=\"webcore\"] #settings-btn, :root[data-skin=\"webcore\"] #theme-toggle, :root[data-skin=\"webcore\"] #toggle-controls, :root[data-skin=\"webcore\"] #toggle-coord-panel, :root[data-skin=\"webcore\"] #visuals-btn, :root[data-skin=\"webcore\"] #voice-chat-btn, :root[data-skin=\"webcore\"] #zoom-fit, :root[data-skin=\"webcore\"] .btn-icon, :root[data-skin=\"webcore\"] .btn-icon-text, :root[data-skin=\"webcore\"] .chat-abtn, :root[data-skin=\"webcore\"] .chat-hbtn, :root[data-skin=\"webcore\"] .ctx-assist-abtn, :root[data-skin=\"webcore\"] .idle-create-btn, :root[data-skin=\"webcore\"] .name-edit-btn, :root[data-skin=\"webcore\"] .pill-toggle, :root[data-skin=\"webcore\"] .zoom-controls button, :root[data-skin=\"webcore\"] button",
    "|:root[data-skin=\"webcore\"] button.primary, :root[data-skin=\"webcore\"] button[type=\"submit\"]",
-   "|:root[data-skin=\"webcore\"] #voice-chat-btn:not(.active):not(:disabled):hover, :root[data-skin=\"webcore\"] :is(#theme-toggle, #draw-toggle, #zoom-fit, #chat-btn, #incognito-toggle, #fullscreen-toggle):hover:not(:disabled), :root[data-skin=\"webcore\"] :is(button, .btn-icon, .btn-icon-text, .chat-hbtn, .chat-abtn, .ctx-assist-abtn, .pill-toggle, .name-edit-btn, .idle-create-btn, .coord-tab, .oi-tab, .accent-dd-trigger):hover:not(:disabled)",
-   "|:root[data-skin=\"webcore\"] .accent-dd-trigger:hover:not(:disabled)",
+   "@media (hover: hover)|:root[data-skin=\"webcore\"] #voice-chat-btn:not(.active):not(:disabled):hover, :root[data-skin=\"webcore\"] :is(#theme-toggle, #draw-toggle, #zoom-fit, #chat-btn, #incognito-toggle, #fullscreen-toggle):hover:not(:disabled), :root[data-skin=\"webcore\"] :is(button, .btn-icon, .btn-icon-text, .chat-hbtn, .chat-abtn, .ctx-assist-abtn, .pill-toggle, .name-edit-btn, .idle-create-btn, .coord-tab, .oi-tab, .accent-dd-trigger):hover:not(:disabled)",
+   "@media (hover: hover)|:root[data-skin=\"webcore\"] .accent-dd-trigger:hover:not(:disabled)",
    "|:root[data-skin=\"webcore\"] #chat-btn.active, :root[data-skin=\"webcore\"] #draw-toggle.active:not(:disabled), :root[data-skin=\"webcore\"] #fullscreen-toggle.active, :root[data-skin=\"webcore\"] #incognito-toggle.active, :root[data-skin=\"webcore\"] #voice-chat-btn.active, :root[data-skin=\"webcore\"] .chat-dock-btn-active, :root[data-skin=\"webcore\"] .coord-tab-active, :root[data-skin=\"webcore\"] .oi-tab.is-active, :root[data-skin=\"webcore\"] .pill-toggle.on, :root[data-skin=\"webcore\"] :is(button, .btn-icon, .btn-icon-text, .chat-hbtn, .chat-abtn):active:not(:disabled), :root[data-skin=\"webcore\"] button.active",
    "|:root[data-skin=\"webcore\"] button.danger, :root[data-skin=\"webcore\"] button.danger:hover:not(:disabled)",
    "|:root[data-skin=\"webcore\"] .is-disabled, :root[data-skin=\"webcore\"] :is(button, select, input, textarea):disabled, :root[data-skin=\"webcore\"] :is(label, .vs-row, .hotkey-row, .ctrl-section-label):has(> :disabled), :root[data-skin=\"webcore\"] [aria-disabled=\"true\"], :root[data-skin=\"webcore\"] button.primary:disabled",

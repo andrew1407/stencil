@@ -19,8 +19,11 @@
         width: 100%;
         padding: 10px 12px;
     }
+    /* Folded under the canvas, the tabs stay and the list alone goes (layout/coord/panel.css hides it),
+       its height run by panel/coordFold.js foldHeight while .coord-folding keeps it displayed and clipped. */
     .coordinates-panel.coord-collapsed .coord-tabs { display: inline-flex; }
-    .coordinates-panel.coord-collapsed #coord-body { display: block; }
+    .coordinates-panel.coord-folding #coord-body { display: block; overflow: hidden; }
+    .coord-panel-header { transition: margin-bottom var(--panel-slide-ms) var(--fold-ease); }
     .coordinates-panel.coord-collapsed #toggle-coord-panel {
         writing-mode: horizontal-tb;
         transform: none;
@@ -51,17 +54,19 @@
     .controls button { padding: 7px 9px; }
     .coordinates-table { font-size: 11px; }
     .coordinates-table th, .coordinates-table td { padding: 4px 4px; }
+    /* A gutter on both sides (user report): edge to edge, a window read as a page of its own. */
     #settings-modal, .app-modal {
-        width: 100vw;
-        max-width: 100vw;
+        width: calc(100vw - 24px);
+        max-width: calc(100vw - 24px);
         max-height: 92vh;
-        border-radius: 12px 12px 0 0;
     }
     .shortcut-hint, .ctx-hotkey { display: none; }
     .info-key { flex: 0 0 110px; font-size: 11px; }
 }
 
 @media (hover: none) and (pointer: coarse) {
+    /* No pointer to drag with and no keyboard to paste from: the hint has nothing to say here. */
+    .drop-hint { display: none; }
     .ctx-item { padding-top: 10px; padding-bottom: 10px; }
     .ctx-checkbox-item, .ctx-radio-item { padding-top: 9px; padding-bottom: 9px; }
     .del-pt-btn { opacity: 0.85; font-size: 16px; }

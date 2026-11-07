@@ -42,6 +42,19 @@ export const TOUCH_MEDIA = `${PHONE_MEDIA}, (hover: none) and (pointer: coarse)`
 export const isTouchLike = (mm = (typeof matchMedia !== 'undefined' ? matchMedia : null)) => {
   try { return !!mm && !!mm(TOUCH_MEDIA).matches; } catch { return false; }
 };
+// Below this the points panel sits under the canvas (animations/responsive.css) and the page scrolls.
+export const STACKED_MEDIA = '(max-width: 960px)';
+export const isStacked = (mm = (typeof matchMedia !== 'undefined' ? matchMedia : null)) => {
+  try { return !!mm && !!mm(STACKED_MEDIA).matches; } catch { return false; }
+};
+// A screen with no hover and no fine pointer answers a focused field with its soft keyboard, so a window opening
+// there leaves the caret out of a field (a button raises none). Narrower than TOUCH_MEDIA: a narrow desktop has keys.
+export const SOFT_KEYBOARD_MEDIA = '(hover: none) and (pointer: coarse)';
+const KEYBOARD_FIELDS = /^(INPUT|TEXTAREA)$/;
+export const opensSoftKeyboard = (el, mm = (typeof matchMedia !== 'undefined' ? matchMedia : null)) => {
+  if (!el || !(KEYBOARD_FIELDS.test(el.tagName) || el.isContentEditable)) return false;
+  try { return !!mm && !!mm(SOFT_KEYBOARD_MEDIA).matches; } catch { return false; }
+};
 
 // ≤ maxEdge px on the long edge, never upscaled; THE shared frame for attachment
 // downscaling, extension thumbnails and video frame grabs.

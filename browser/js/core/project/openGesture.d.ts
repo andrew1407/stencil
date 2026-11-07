@@ -3,9 +3,11 @@
 // drag/scroll and any pending open is dropped. Pure — timers and the touch test are injected.
 
 export declare const DOUBLE_CLICK_MS: number;
+/** A tap waits this long (ms) for the second tap that opens outright. */
+export declare const DOUBLE_TAP_MS: number;
 export declare const DRAG_SLOP_PX: number;
 
-export type OpenGestureType = 'tap' | 'click' | 'dblclick' | 'key';
+export type OpenGestureType = 'tap' | 'doubletap' | 'click' | 'dblclick' | 'key';
 export interface OpenIntent { confirm: boolean; target: 'here' | 'newtab'; }
 export declare const rowOpenIntent: (e?: { type?: OpenGestureType; ctrlKey?: boolean; metaKey?: boolean }) => OpenIntent;
 
@@ -28,6 +30,8 @@ export declare const createOpenGesture: (opts?: {
   run?: (intent: OpenIntent) => void;
   touch?: () => boolean;
   delay?: number;
+  /** The touch window (ms); defaults to DOUBLE_TAP_MS. */
+  tapDelay?: number;
   slop?: number;
   setTimer?: (fn: () => void, ms: number) => unknown;
   clearTimer?: (id: unknown) => void;

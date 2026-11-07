@@ -24,7 +24,8 @@ const setup = () => {
   }, {
     window: { matchMedia: () => ({ matches: true }), innerWidth: 1000, innerHeight: 800,
               addEventListener() {}, removeEventListener() {} },
-    matchMedia: () => ({ matches: true }),
+    // Every media matches but the soft-keyboard one: on a touch screen the prompt leaves its field unfocused.
+    matchMedia: (q) => ({ matches: q !== '(hover: none) and (pointer: coarse)' }),
   });
   doc.register('confirm-modal-overlay', overlay);
   for (const id of IDS) doc.register(id, createStubElement('button', { id }));

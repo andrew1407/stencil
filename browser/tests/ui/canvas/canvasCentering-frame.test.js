@@ -102,3 +102,36 @@ test('leaving fullscreen restores the frame through syncViewportHeight, then aga
     doc.restore();
   }
 });
+
+// Stacked (animations/responsive.css) the page scrolls and the panel sits below the frame: sized to what the window
+// had left under a phone's toolbar, the frame was a 50px strip hiding the "+ Blank image" card (user report).
+test('stacked, the frame and the panel each hold at least half the window, measured from the document', () => {
+  const { vp, zp } = installViewport({ vpW: 400, vpH: 800 });
+  const priorMM = globalThis.matchMedia;
+  globalThis.matchMedia = (q) => ({ matches: q === '(max-width: 960px)' });
+  globalThis.document.body.classList.contains = () => false;
+  const panel = { style: { setProperty(k, v) { this[k] = v; } }, getBoundingClientRect: () => ({ top: 900 }), parentElement: null };
+  const byId = globalThis.document.getElementById;
+  globalThis.document.getElementById = (id) => (id === 'coord-panel' ? panel : byId(id));
+  try {
+    // Scrolled 300px down with the frame's top 100px into the window: the room is measured from 400px of document.
+    globalThis.window = { innerWidth: 400, innerHeight: 800, scrollY: 300 };
+    Object.assign(vp, { getBoundingClientRect: () => ({ top: 100 }), closest: () => null });
+    zp.syncViewportHeight();
+    assert.equal(vp.style.maxHeight, '400px', 'under a tall toolbar (304px left) the floor is half the window');
+    assert.equal(vp.style.minHeight, '400px', 'held as a floor too: the column no longer fills the page');
+    zp.syncCoordPanelHeight();
+    assert.equal(panel.style.maxHeight, '400px', 'the panel below the fold takes its half as well, scrolling inside');
+    // A short toolbar at the top of the page: the room to the window's bottom, as the wide layout measures it.
+    globalThis.window = { innerWidth: 400, innerHeight: 800, scrollY: 0 };
+    vp.getBoundingClientRect = () => ({ top: 50 });
+    zp.syncViewportHeight();
+    assert.equal(vp.style.maxHeight, '654px');
+    assert.equal(vp.style.minHeight, '654px');
+    // Widened again: the floor goes, the cap stays.
+    globalThis.matchMedia = () => ({ matches: false });
+    zp.syncViewportHeight();
+    assert.equal(vp.style.maxHeight, '654px');
+    assert.equal(vp.style.minHeight, '');
+  } finally { globalThis.matchMedia = priorMM; globalThis.document.getElementById = byId; }
+});

@@ -69,7 +69,7 @@ export class StencilVisualsModal extends StencilElement {
         off: () => app.accents.endAccentPreview?.(accentMount.querySelector('.accent-dd-trigger') || accentMount),
       },
     });
-    // Its row's title resets it like any other row's (ui/control/dblReset.js), from the picker.
+    // Its row's title resets it like any other row's (ui/control/reset/dblReset.js), from the picker.
     accentMount.closest('.vs-row')?.querySelector('label')?.addEventListener('dblclick', () =>
       app.accents.setAccent(DEFAULT_ACCENT, accentMount.querySelector('.accent-dd-trigger') || accentMount));
     // The accent moved elsewhere (another tab) — keep this picker in sync; custom hex first.

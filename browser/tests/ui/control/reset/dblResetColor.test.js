@@ -1,12 +1,12 @@
-// Tests for js/ui/control/dblReset.js's colour fields: a double-click puts one with a stated default
+// Tests for js/ui/control/reset/dblReset.js's colour fields: a double-click puts one with a stated default
 // back through its own change path, and its native picker waits out the double-click window.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import constants from '../../../../common/config/constants.json' with { type: 'json' };
+import constants from '../../../../../common/config/constants.json' with { type: 'json' };
 
 globalThis.Element ??= class extends EventTarget {};
 globalThis.HTMLInputElement ??= class extends globalThis.Element {};
-const { defaultOf, resetControl, resetTarget, installDblReset } = await import('../../../js/ui/control/dblReset.js');
+const { defaultOf, resetControl, resetTarget, installDblReset } = await import('../../../../js/ui/control/reset/dblReset.js');
 
 const { doubleClickMs, doubleTapMs } = constants.POPOVER;
 const toolbar = { value: '#123456' };
@@ -43,7 +43,7 @@ test('the toolbar colour resets to the default line colour; a line\'s own, to th
 });
 
 test('every colour control resets: points to the toolbar\'s, a fill to the new-area default, the rest to the factory', async () => {
-  const { createEditorState } = await import('../../../js/core/editorState.js');
+  const { createEditorState } = await import('../../../../js/core/editorState.js');
   const editor = createEditorState();
   const fields = { 'line-color': { value: '#00ff00' }, 'point-color': { value: '#8000ff' }, 'vs-fill': { value: '#abcdef' } };
   const page = { getElementById: (id) => fields[id] ?? null };
@@ -129,7 +129,7 @@ test('a double-click on the document resets the field under it and stops there',
 
 test('a drag that starts inside the window keeps the picker shut; one before the click does not', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
-  const { createIconDrag } = await import('../../../js/ui/drag/iconDrag.js');
+  const { createIconDrag } = await import('../../../../js/ui/drag/iconDrag.js');
   const dragAway = () => {
     const m = createIconDrag({ originRect: () => ({ left: 0, top: 0, right: 10, bottom: 10 }) });
     m.press(5, 5);

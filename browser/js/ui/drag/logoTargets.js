@@ -1,7 +1,7 @@
 // What the header logo lands on: a line (a Lines-tab row, the selected-line bar, or a line under the
 // pointer on the canvas) takes the toolbar's style; a control with a default goes back to it; the
 // bare canvas takes the clean view. Desktop twin: desktop/src/app/logo/LogoLineAims.{hpp,cpp}.
-import { dropResetTarget, resetControl } from '../control/dblReset.js';
+import { dropResetTarget, resetControl } from '../control/reset/dblReset.js';
 import { canvasCoords } from '../../core/pointer/canvasCoords.js';
 
 const FS_CONTROLS = '#fs-controls-panel';

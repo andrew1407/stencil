@@ -125,8 +125,8 @@ export class StencilMainContent extends StencilElement {
     let hidden = false;
 
     btn.addEventListener('click', (e) => {
-      // A pointer's click leaves no focus behind, as the desktop's chevron takes none: a later key would ring it.
-      if (e.detail > 0) btn.blur();
+      // A pointer's or a tap's click leaves no focus behind, as the desktop's chevron takes none: a later key would ring it.
+      if (e.detail > 0 || e.pointerType) btn.blur();
       hidden = !hidden;
       fold(hidden);
       // Not swapped: animations/collapse.css spins the one chevron 180° with the panel.

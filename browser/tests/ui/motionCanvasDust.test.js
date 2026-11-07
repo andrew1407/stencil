@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert';
 import {
   flashLanding, LANDING_CLASS, ghostIn, hasPixels, playCanvasArrival, ASSEMBLING_CLASS,
-  CLEARING_CLASS, GHOST_MS,
+  CLEARING_CLASS, GHOST_MS, slideCanvasOut,
 } from '../../js/ui/motion.js';
 import { ANIMATIONS_CSS } from '../helpers/css.js';
 import { box, el } from '../helpers/motionRig.js';
@@ -148,4 +148,25 @@ test('animations.css: the canvas waits behind its own dust, both directions', ()
   // The hide is instant — the shared transition below is for the fade back UP only.
   assert.match(css, /\.canvas-viewport \.idle-create, \.canvas-viewport #canvas,\n\.canvas-viewport #canvas-overlay \{ transition: opacity/,
     'the fade back up is still a transition');
+});
+
+// Stacked under a narrow window the frame sits below the toolbar's fold: a picture that arrived or left
+// there played unseen, and the page then scrolled under the flight's fixed picture (user report).
+test('a picture arriving or leaving first scrolls the frame on screen, at once, before any measure', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const scrolls = [];
+  const view = () => Object.assign(el(), { scrollIntoView: (o) => scrolls.push(o) });
+  const vp = view();
+  assert.equal(playCanvasArrival({}, { viewport: vp, container: el(), ghost: () => true }), 'dust');
+  assert.deepEqual(scrolls, [{ block: 'nearest', inline: 'nearest', behavior: 'instant' }],
+    'shown where it is, no further than needed, and not smoothly: the flight measures it next');
+  const priorDoc = globalThis.document, priorMM = globalThis.matchMedia;
+  globalThis.document = {};
+  globalThis.matchMedia = () => ({ matches: true });   // reduced motion: nothing flies, the view still shows
+  try {
+    assert.equal(slideCanvasOut(el(), view()), false);
+    assert.equal(scrolls.length, 2, 'the leave shows the frame too');
+    assert.doesNotThrow(() => playCanvasArrival({}, { viewport: el(), container: el(), ghost: () => true }),
+      'a frame with no scrollIntoView (a test stub, an old engine) is left alone');
+  } finally { globalThis.document = priorDoc; globalThis.matchMedia = priorMM; }
 });

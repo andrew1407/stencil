@@ -1,9 +1,14 @@
 // The DOM half of ZoomPan (core/zoom/pan.js). Every value is MEASURED live — a fixed inset
 // guess leaves a page scrollbar.
+import { isStacked } from './dom.js';
 
 // Below these the frame / the panel header would be clipped.
 const MIN_VIEWPORT_H = 120;
 const MIN_PANEL_H = 120;
+// Stacked (the panel under the canvas, the page scrolling), the frame and the panel each take at least this
+// share of the window, whatever the toolbar's height: a workspace, and room for the "+ Blank image" card.
+const STACKED_SHARE = 0.5;
+const stackedFloor = (min) => Math.max(min, Math.floor(window.innerHeight * STACKED_SHARE));
 
 // Bottom inset of EVERY ancestor up through <body>: counting only body leaves a page scrollbar.
 const bottomInsetToPage = (el) => {
@@ -57,11 +62,13 @@ export const availContentHeight = () => {
   if (document.body.classList.contains('fullscreen-mode')) return window.innerHeight;
   const vp = document.getElementById('canvas-viewport');
   if (!vp) return Math.max(200, window.innerHeight - 140 - 96);
-  const top = layoutTop(vp);
+  const stacked = isStacked();
+  // Stacked, from the frame's place in the DOCUMENT: the page scrolls, and the scroll offset would feed back.
+  const top = layoutTop(vp) + (stacked ? window.scrollY || 0 : 0);
 // The viewport's own column, NOT .container: that also encloses the coordinates panel.
   const shell = vp.closest('.canvas-section') || vp.parentElement;
   const below = shell ? belowInColumn(vp) + bottomInsetToPage(shell) : 96;
-  return Math.max(MIN_VIEWPORT_H, Math.floor(window.innerHeight - top - below));
+  return Math.max(stacked ? stackedFloor(MIN_VIEWPORT_H) : MIN_VIEWPORT_H, Math.floor(window.innerHeight - top - below));
 };
 
 // clientWidth already excludes a vertical scrollbar; fullscreen takes the window width.
@@ -96,7 +103,12 @@ export const originAt = (canvas, scale) => {
 export const syncViewportHeight = () => {
   const vp = document.getElementById('canvas-viewport');
   if (!vp || document.body.classList.contains('fullscreen-mode')) return;
-  vp.style.maxHeight = availContentHeight() + 'px';
+  const room = availContentHeight() + 'px';
+  vp.style.maxHeight = room;
+  // Stacked, the column no longer fills the page, so the frame holds its room as a floor too: one height with
+  // or without a picture, so no flight measures a frame that then moves under it.
+  if (isStacked()) vp.style.minHeight = room;
+  else if (vp.style.minHeight) vp.style.minHeight = '';
 };
 
 // The part of the page the screen shows, in client px: a window hanging past the screen's edge hides that strip,
@@ -121,7 +133,8 @@ export const syncCoordPanelHeight = () => {
   if (!panel || document.body.classList.contains('fullscreen-mode')) return;
   const top = layoutTop(panel);
   const avail = Math.floor(window.innerHeight - top - bottomInsetToPage(panel));
-  const room = Math.max(MIN_PANEL_H, avail) + 'px';
+  // Stacked, the panel sits under the frame, below the fold as often as not: its share of the window, scrolling inside.
+  const room = Math.max(MIN_PANEL_H, isStacked() ? stackedFloor(MIN_PANEL_H) : avail) + 'px';
   panel.style.maxHeight = room;
   panel.style.setProperty('--coord-panel-room', room);
 };

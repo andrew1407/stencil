@@ -18,7 +18,8 @@ export declare function createWindowGenie(boxOf: () => HTMLElement | null | unde
 /** Sliding's entrance for a box already placed (a dropdown list), poured out of `from`; false when Sliding is off.
  * `onFly` runs as the picture starts to move. */
 export declare function genieIn(box: HTMLElement | null | undefined, from: Element | DOMRect | null | undefined,
-                                opts?: { ms?: number; onFly?: () => void; clip?: DOMRect | null; landed?: () => void; keep?: boolean }): boolean;
+                                opts?: { ms?: number; onFly?: () => void; clip?: DOMRect | null; landed?: () => void; keep?: boolean;
+                                         /** An element the flight rides with (genie/flight.js). */ follow?: Element | null }): boolean;
 /** Drops a box's genie, a picture still being taken included, and shows it as it stands. */
 export declare function settleGenie(box: HTMLElement | null | undefined): void;
 /** Sliding's exit for a box in place, poured into `to` (read after `beforeFly`); `done` runs as it lands. False when Sliding is off. */
@@ -31,7 +32,7 @@ export declare function genieAway(box: HTMLElement | null | undefined, to: Eleme
 /** A picture already taken (a canvas), poured from `win` into `to` on its own canvas. False out of Sliding. */
 export declare function genieShotAway(shot: HTMLCanvasElement | null | undefined, win: GenieRect | DOMRect | null | undefined,
                                       to: Element | DOMRect | GenieRect | null | undefined,
-                                      opts?: { ms?: number; clip?: DOMRect | GenieRect | null; zIndex?: number }): boolean;
+                                      opts?: { ms?: number; clip?: DOMRect | GenieRect | null; zIndex?: number; follow?: Element | null }): boolean;
 /** A list's pour (ms), quicker than a window's. */
 export declare const MENU_GENIE_MS: number;
 /** A point as the 16x2 strip a menu pours out of and back into; null for no point. */

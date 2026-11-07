@@ -1,6 +1,6 @@
 #pragma once
 // Double-click a selector or a checkbox and it goes back to its default, applied as a pick
-// (browser js/ui/control/dblReset.js). A control opts in with setResetDefault: a combo's item
+// (browser js/ui/control/reset/dblReset.js). A control opts in with setResetDefault: a combo's item
 // data (or text, or an int index), a check's bool, a spin's number, a field's text; a colour
 // chip's reset is its own function. A logo dropped on any of them resets it the same way.
 #include <QAbstractButton>

@@ -30,9 +30,21 @@ export function paintGenie(ctx, shot, win, icon, side, p) {
   }
 }
 
+// A fixed picture's `transform` as `follow` (an element) drifts from where it stood when the picture was taken:
+// a layout moving it mid-flight (a toolbar re-wrapping above) never leaves the picture over what lies above.
+export const followDrift = (follow) => {
+  const home = follow?.getBoundingClientRect?.() ?? null;
+  return () => {
+    if (!home) return '';
+    const now = follow.getBoundingClientRect();
+    const dx = now.left - home.left, dy = now.top - home.top;
+    return dx || dy ? `translate(${dx}px, ${dy}px)` : '';
+  };
+};
+
 // `win` and `icon` are client rects; `opening` plays it out of the icon. `done` runs once, as it
 // lands or is cancelled. Returns `cancel()`.
-export function playGenie(shot, win, target, { opening, ms, zIndex = 100005, done, clip = null } = {}) {
+export function playGenie(shot, win, target, { opening, ms, zIndex = 100005, done, clip = null, follow = null } = {}) {
   const icon = genieSink(target);
   const doc = globalThis.document;
   const canvas = doc.createElement('canvas');
@@ -64,6 +76,7 @@ export function playGenie(shot, win, target, { opening, ms, zIndex = 100005, don
   ctx.imageSmoothingQuality = 'high';
   const side = genieFlowSide(win, icon);
   const progressAt = (t) => (opening ? 1 - easeOutSine(t) : easeInOutSine(t));
+  const drift = followDrift(follow);
   paintGenie(ctx, shot, win, icon, side, progressAt(0));
 
   let frame = 0;
@@ -78,6 +91,7 @@ export function playGenie(shot, win, target, { opening, ms, zIndex = 100005, don
   const t0 = globalThis.performance.now();
   const step = (now) => {
     const t = Math.min(1, Math.max(0, (now - t0) / Math.max(1, ms)));
+    canvas.style.transform = drift();
     paintGenie(ctx, shot, win, icon, side, progressAt(t));
     if (t >= 1) finish();
     else frame = globalThis.requestAnimationFrame(step);

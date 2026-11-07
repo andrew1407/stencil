@@ -7,6 +7,7 @@ import { sweepDust } from '../motion/surface/tiles.js';
 import { FOLD_INSTANT_CLASS, FOLD_POURED, foldBox, foldDust } from '../motion/control/tips.js';
 import { TUNE } from '../motion/tune.js';
 import { genieEnabled } from '../motion/genie/window.js';
+import { isStacked } from '../../utils.js';
 
 const COLLAPSED = 'coord-collapsed';
 const FOLDING = 'coord-folding';
@@ -27,8 +28,6 @@ export const PANEL_CLOCK_VARS = Object.freeze({
 });
 // Past the longest fold clock, so no flight still measures or pictures the column when it goes (ms).
 const TALL_HOLD_MS = Math.max(PANEL_DUST_IN_MS, PANEL_DUST_OUT_MS, PANEL_SLIDE_IN_MS, PANEL_SLIDE_OUT_MS) + 200;
-// animations/responsive.css: below this the panel sits under the canvas and never slides.
-const STACKED = '(max-width: 960px)';
 
 // Sliding's home: a strip on the column's right edge level with the chevron, as the desktop's (DockChrome::pourPanel
 // lands on the chevron past the panel's edge): the column folds sideways into it, never up through its own card.
@@ -36,6 +35,24 @@ const edgeHome = (panel, toggle) => () => {
   const p = panel.getBoundingClientRect();
   const t = (toggle ?? panel).getBoundingClientRect();
   return { left: p.left + p.width, top: t.top, width: 2, height: Math.max(2, t.height) };
+};
+
+// Stacked, the list folds its height on the slide's clock while .coord-folding keeps it displayed and clipped
+// (animations/responsive.css); folded, it holds an inline 0: the late display flip would show it whole for a beat.
+const foldEase = () => globalThis.getComputedStyle?.(document.documentElement).getPropertyValue('--fold-ease').trim() || 'ease-out';
+const foldHeight = (body, panel, hidden, ms, running) => {
+  // Opened, the list stands below the fold as often as not: the page follows it (user report).
+  const show = () => { if (!hidden) try { panel.scrollIntoView?.({ block: 'nearest', behavior: ms ? 'smooth' : 'instant' }); } catch { /* decoration */ } };
+  const midway = running?.playState === 'running' ? `${body.getBoundingClientRect().height}px` : null;
+  running?.cancel();
+  body.style.height = '';
+  const open = `${body.offsetHeight || 0}px`;
+  const [from, to] = [midway ?? (hidden ? open : '0px'), hidden ? '0px' : open];
+  if (!ms || open === '0px' || typeof body.animate !== 'function') { body.style.height = hidden ? '0px' : ''; show(); return null; }
+  body.style.height = from;   // the flight's first frame is the next one: pinned till then
+  const f = body.animate([{ height: from }, { height: to }], { duration: ms, easing: foldEase() });
+  f.finished.then(() => { body.style.height = hidden ? '0px' : ''; show(); }, () => {});
+  return f;
 };
 
 const span = (a, b) => {
@@ -53,6 +70,7 @@ export function createCoordFold(panel, header, body) {
   for (const [name, ms] of Object.entries(PANEL_CLOCK_VARS)) panel.style.setProperty(name, `${ms}ms`);
   let timer = 0;
   let tallTimer = 0;
+  let lift = null;   // the stacked list's height run
   // One class off, flushed, then the other, so the table's `display` never changes on the way: a
   // collapsed table dropped last kept it in the rail for its allow-discrete fade, and an open
   // one held out last came back through its @starting-style fade, a beat of empty panel.
@@ -68,7 +86,7 @@ export function createCoordFold(panel, header, body) {
     panel.classList.remove(VEILED_CLASS, FOLDING, TALL_CLASS);
     if (hidden) sweepDust(panel);
     // Stacked, nothing slides: the table stays where it is as its own picture, unveiled.
-    const wide = !globalThis.matchMedia?.(STACKED).matches;
+    const wide = !isStacked();
     const still = motionReduced();
     const head = still || !wide ? null : foldBox(header, panel, COLLAPSED, false, FOLD_INSTANT_CLASS);
     const table = still || !wide ? null : foldBox(body, panel, COLLAPSED, false, FOLD_INSTANT_CLASS);
@@ -85,7 +103,9 @@ export function createCoordFold(panel, header, body) {
     const card = rest ? foldBox(panel, panel, COLLAPSED, false, FOLD_INSTANT_CLASS) : null;
     const flew = foldDust(wide ? panel : body, panel, COLLAPSED, hidden, 'right', {
       box: head && table && (card ? span(card, span(head, table)) : span(head, table)), inMs: PANEL_DUST_IN_MS, outMs: PANEL_DUST_OUT_MS,
-      picture: true, edge: true, toggle: () => panel.classList.toggle(COLLAPSED, hidden), home: edgeHome(panel, panel.querySelector('#toggle-coord-panel') ?? header),
+      picture: true, edge: true, toggle: () => panel.classList.toggle(COLLAPSED, hidden),
+      // Stacked, nothing pours sideways: Sliding folds the list's height under its fade like the other modes.
+      home: wide ? edgeHome(panel, panel.querySelector('#toggle-coord-panel') ?? header) : null,
       pourMs: hidden ? PANEL_SLIDE_OUT_MS : PANEL_SLIDE_IN_MS,
     });
     if (rest) panel.style.setProperty('--coord-tall-fill', 'transparent');
@@ -99,9 +119,10 @@ export function createCoordFold(panel, header, body) {
       timer = setTimeout(settle, motionMs(hidden ? PANEL_DUST_OUT_MS : PANEL_SLIDE_IN_MS), hidden);
       return;
     }
-    // Hold the table out of the layout for half the slide (.coord-folding,
-    // animations/collapse.css), by when the out-sine ease is ~70% done.
+    // Wide, the table is held out of the layout for half the slide (.coord-folding, animations/collapse.css),
+    // by when the out-sine ease is ~70% done; stacked, the list folds its height over the whole of it.
     const slide = hidden ? PANEL_SLIDE_OUT_MS : PANEL_SLIDE_IN_MS;
-    timer = setTimeout(() => panel.classList.remove(FOLDING), still ? 0 : motionMs(slide / 2));
+    if (!wide) lift = foldHeight(body, panel, hidden, still ? 0 : motionMs(slide), lift);
+    timer = setTimeout(() => panel.classList.remove(FOLDING), still ? 0 : motionMs(wide ? slide / 2 : slide));
   };
 }

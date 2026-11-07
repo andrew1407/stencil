@@ -5,7 +5,7 @@
 import { wireCanvasScrollbars } from '../canvas/scrollbars.js';
 import { wireScrollbarHover } from '../control/scrollbarHover.js';
 import { enhanceAllSelects } from '../control/customSelect.js';
-import { installDblReset } from '../control/dblReset.js';
+import { installDblReset } from '../control/reset/dblReset.js';
 import { wireColorDrag } from '../drag/colorDrag.js';
 import { wireStyleControls } from './controls/styleControls.js';
 import { wireSelectionPanelControls } from './selectionPanel.js';

@@ -1,9 +1,12 @@
-// Tests for js/ui/control/dblReset.js — a double-click puts a selector, a checkbox or a mirrored menu
+// Tests for js/ui/control/reset/dblReset.js — a double-click puts a selector, a checkbox or a mirrored menu
 // row back to its default through the control's own change path. Fakes stand in for the DOM controls.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { defaultOf, resetControl } from '../../../js/ui/control/dblReset.js';
+import { defaultOf, resetControl, installDblReset } from '../../../../js/ui/control/reset/dblReset.js';
+import constants from '../../../../../common/config/constants.json' with { type: 'json' };
+
+const { doubleTapMs } = constants.POPOVER;
 
 class FakeControl extends EventTarget {
   constructor(props) { super(); Object.assign(this, { id: '', disabled: false, dataset: {} }, props); }
@@ -92,4 +95,29 @@ test('every Visuals row has a default its title can put back, the speed and the 
   const seen = changes(bar);
   assert.equal(resetControl(bar), true);
   assert.deepEqual(seen, ['0.37']);
+});
+
+// Touch fires no dblclick (never on iOS): two taps on one control inside doubleTapMs are the double.
+test('two taps on a selector inside the double-tap window reset it; slow taps and mouse clicks do not', () => {
+  const listeners = {};
+  installDblReset({ addEventListener: (type, fn) => (listeners[type] ??= []).push(fn) });
+  const fire = (e) => listeners.click.forEach((fn) => fn(e));
+  const style = select('line-style', 'dashed', ['solid', 'dashed']);
+  style.closest = (sel) => (sel === 'select' ? style : null);
+  const tap = (pointerType = 'touch') => ({ target: style, detail: 1, pointerType, stopPropagation() {}, preventDefault() {} });
+  const had = globalThis.performance.now;
+  const hadDom = [globalThis.Element, globalThis.HTMLInputElement];
+  globalThis.Element = EventTarget;             // resetTarget asks `instanceof Element`
+  globalThis.HTMLInputElement ??= class {};
+  let now = 1000;
+  globalThis.performance.now = () => now;
+  try {
+    fire(tap()); now += doubleTapMs + 1; fire(tap());
+    assert.equal(style.value, 'dashed', 'two taps apart are two taps');
+    fire(tap()); now += 100; fire(tap());
+    assert.equal(style.value, 'solid', 'two taps inside the window reset the selector');
+    style.value = 'dashed';
+    fire(tap('mouse')); now += 100; fire(tap('mouse'));
+    assert.equal(style.value, 'dashed', 'a mouse double is the browser\'s dblclick, not ours');
+  } finally { globalThis.performance.now = had; [globalThis.Element, globalThis.HTMLInputElement] = hadDom; }
 });

@@ -2,7 +2,7 @@ import { normalizeHex } from '../../../core/settings/accents.js';
 import { activeIsBlank, setBlankColor, previewBlankColor } from '../../../core/image/blankImage.js';
 import { colorTrial } from './colorTrial.js';
 import { registerColorSwatch } from '../../drag/colorDragSwatches.js';
-import { wireColorButton } from '../../control/dblReset.js';
+import { wireColorButton } from '../../control/reset/dblReset.js';
 // A drag through the picker tries each colour on the stage and the swatch; closing it on a new
 // colour recolours the blank once (reload, history reset, save, push), as the desktop's dialog does.
 export function wireBlankColorButton(app) {
