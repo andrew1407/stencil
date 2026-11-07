@@ -14,6 +14,7 @@ namespace stencil::gui {
     // window's own buttons then get no Enter: no hover, no icon motion. So the card fires on release.
     if (idle.armed) {
       idle.armed = false;
+      update();
       if (event->button() == Qt::LeftButton && image.isNull() && !idle.hidden
           && idle.cardRect().contains(event->position()))
         emit blankImageRequested();

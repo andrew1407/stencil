@@ -4,7 +4,9 @@
 #include "../../../src/support/webcore/icons.hpp"
 #include "../../../src/support/webcore/image.hpp"
 #include "../../../src/support/webcore/rules.hpp"
+#include "../../../src/support/webcore/look.hpp"
 #include "../../../src/support/webcore/stylesheet.hpp"
+#include "skin/SkinLookStrategy.hpp"
 #include "skinPrefs.hpp"
 #include "theme.hpp"
 
@@ -125,9 +127,9 @@ int main(int argc, char** argv) {
     setSkin(Skin::DEFAULT);
     check(!forcedDark().has_value() && !isWebcore() && skinGeneration() == gen + 2, "off again");
     check(stencil::gui::themePalette(false, "violet").bgPage.name() == "#f0f0f0", "no hook: the app's own palette");
-    setSkinPalette(&webcorePalette);
-    check(stencil::gui::themePalette(false, "violet").bgPage.name() == "#008080", "hooked: the skin's");
-    setSkinPalette(nullptr);
+    installSkinLook(&webcoreLook());
+    check(stencil::gui::themePalette(false, "violet").bgPage.name() == "#008080", "the look installed: the skin's");
+    installSkinLook(nullptr);
   }
 
   std::printf(failures ? "FAILED: %d\n" : "all passed (%d failures)\n", failures);

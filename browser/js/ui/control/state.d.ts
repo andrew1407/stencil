@@ -20,3 +20,5 @@ export declare function updateButtons(app: DrawingApp): void;
 export declare const onButtonsUpdated: (fn: (areas: string[]) => void) => () => boolean;
 /** Subscribes every area to its channels on `app.changes`; returns the unsubscribe. */
 export declare const wireControlState: (app: DrawingApp) => () => void;
+/** Holds the idle "＋ Blank image" card hidden while `work` runs; released when it settles or throws. */
+export declare const whileIdleHeld: <T>(work: () => Promise<T>, doc?: Document) => Promise<T>;

@@ -90,6 +90,14 @@ namespace stencil::support {
     if (QWindow* shown = native ? native->windowHandle() : nullptr) reapplyCursor(shown, under->cursor());
   }
 
+  void dropStaleHover(QWidget* w) {
+    if (!w || !w->underMouse() || w->rect().contains(w->mapFromGlobal(QCursor::pos()))) return;
+    w->setAttribute(Qt::WA_UnderMouse, false);   // what :hover and State_MouseOver read
+    QEvent leave(QEvent::Leave);
+    QCoreApplication::sendEvent(w, &leave);
+    w->update();
+  }
+
   void installHoverResync() {
     QCoreApplication* app = QCoreApplication::instance();
     if (!app || app->findChild<QObject*>(QString::fromLatin1(FILTER_NAME), Qt::FindDirectChildrenOnly))

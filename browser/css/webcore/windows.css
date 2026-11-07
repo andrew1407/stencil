@@ -66,7 +66,6 @@
 :root[data-skin="webcore"] .hotkey-head { background: var(--wc-face); box-shadow: var(--wc-raised); }
 :root[data-skin="webcore"] .hotkey-row:hover,
 :root[data-skin="webcore"] .info-item:hover { background: var(--wc-light); }
-:root[data-skin="webcore"] .kw-chip,
 :root[data-skin="webcore"] .kw-chips,
 :root[data-skin="webcore"] .chat-attach-chip {
     background: var(--wc-window);
@@ -86,3 +85,31 @@
 :root[data-skin="webcore"] .project-thumb img,
 :root[data-skin="webcore"] .links-preview-wrap { border: 1px solid var(--wc-dark); box-shadow: none; }
 :root[data-skin="webcore"] .project-row:hover .project-thumb img { transform: none; }
+/* A keyword is a raised tag on the white well; its ✕ is a flat glyph that sinks under the pointer,
+   never a second button boxed inside the first. */
+:root[data-skin="webcore"] .kw-chip {
+    height: 22px;
+    padding: 0 2px 0 7px;
+    border: 0;
+    border-radius: 0;
+    background: var(--wc-face);
+    color: var(--wc-ink);
+    box-shadow: var(--wc-raised);
+}
+:root[data-skin="webcore"] .kw-chip-x,
+:root[data-skin="webcore"] .kw-chip-x:hover:not(:disabled) {
+    width: 16px;
+    height: 16px;
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+:root[data-skin="webcore"] .kw-chip-x:hover:not(:disabled) { box-shadow: var(--wc-raised); }
+:root[data-skin="webcore"] .kw-chip-x:active:not(:disabled) { box-shadow: var(--wc-sunken); }
+:root[data-skin="webcore"] .kw-chip-x svg { width: 12px; height: 12px; }
+/* The pixel glyph at its own 16-grid: 13px blurred the lone retry button into a smudge. */
+:root[data-skin="webcore"] .chat-retry-cta svg { width: 16px; height: 16px; }

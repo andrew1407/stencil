@@ -1,7 +1,9 @@
 #include "IdleCard.hpp"
+#include "idleCardAqua.hpp"
 #include "idleCardMotion.hpp"
 
 #include "theme.hpp"
+#include "../../support/skin/SkinLookStrategy.hpp"
 #include "../../support/skinPrefs.hpp"
 #include <algorithm>
 #include <cmath>
@@ -21,6 +23,12 @@ namespace stencil::gui {
   namespace {
     // px kept clear on every side of the card (browser blankImage.css IDLE_CARD_CLEAR).
     constexpr qreal IDLE_CARD_CLEAR_PX = 16;
+    // The part of the page on screen, not the whole page: the card fits what shows (browser: the container is the view).
+    QRectF shownRect(const QWidget* host) {
+      const QRect seen = host->visibleRegion().boundingRect();
+      return QRectF(seen.isEmpty() ? host->rect() : seen);
+    }
+
     bool fitsIdleCard(const QRectF& card, const QRectF& page) {
       return card.width() + 2 * IDLE_CARD_CLEAR_PX <= page.width()
              && card.height() + 2 * IDLE_CARD_CLEAR_PX <= page.height();
@@ -48,9 +56,8 @@ namespace stencil::gui {
       band(r, b.hilight, b.dark);
       band(r.adjusted(1, 1, -1, -1), b.light, b.shadow);
       const qreal dpr = p.device() ? p.device()->devicePixelRatioF() : 1.0;
-      const int perCell = std::max(1, int(std::lround(iconPx / 16.0 * dpr)));
-      const support::PixelFn pixels = support::skinPixelIcon();
-      QImage glyph = pixels ? pixels(QStringLiteral("image"), support::skinDark(), perCell) : QImage();
+      const int perCell = std::max(1, static_cast<int>(std::lround(iconPx / 16.0 * dpr)));
+      const QImage glyph = support::skinLook().iconImage(QStringLiteral("image"), support::skinDark(), perCell);
       const QRectF icon(box.center().x() - iconPx / 2.0, box.top() + 10, iconPx, iconPx);
       if (!glyph.isNull()) p.drawImage(icon, glyph);
       p.setFont(font);
@@ -62,7 +69,7 @@ namespace stencil::gui {
   }  // namespace
 
   void IdleCard::paint(QPainter& p, const Palette& pal, bool dark, const QString& accentKey) {
-    p.fillRect(host->rect(), pal.bgPage);
+    p.fillRect(host->rect(), pal.bgCanvas);
     // The clear's dust is still falling: bare page only (setIdleHintHidden).
     if (hidden) { host->unsetCursor(); return; }
     // The card alone is the click/cursor target, never the whole page.
@@ -75,14 +82,15 @@ namespace stencil::gui {
     const QFontMetricsF fm(cardFont);
     const qreal textW = fm.horizontalAdvance(label);
     const qreal textH = fm.height();
-    const QRectF wr(host->rect());
+    const QRectF wr(shownRect(host));
     QRectF box(0, 0, std::max<qreal>(ICON_PX, textW) + PAD_X * 2,
                ICON_PX + GAP + textH + PAD_Y * 2);
     // Shown only where it fits whole, never squeezed (browser blankImage.css @container).
     if (!fitsIdleCard(box, wr)) { cardBox = QRectF(); host->unsetCursor(); return; }
     box.moveCenter(wr.center());
-    if (support::isWebcore()) {
-      cardBox = paintSkinCard(p, wr, label, cardFont, ICON_PX, GAP);
+    if (support::isWebcore() || support::isAqua()) {
+      cardBox = support::isWebcore() ? paintSkinCard(p, wr, label, cardFont, ICON_PX, GAP)
+                : paintAquaCard(p, box, label, cardFont, {ICON_PX, GAP, PAD_Y, enterT}, armed);
       return;
     }
 

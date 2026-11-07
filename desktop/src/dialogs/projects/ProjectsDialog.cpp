@@ -114,6 +114,9 @@ namespace stencil::gui {
     this->temporary = temporary;
     this->incognito = incognito;
     if (clearAllBtn) clearAllBtn->setEnabled(!this->projects.empty());   // nothing left to clear
+    // A row's leaving picture is never drawn over the rows that replace it (user report).
+    for (QWidget* g : list->viewport()->findChildren<QWidget*>(QStringLiteral("modeGhost"), Qt::FindDirectChildrenOnly))
+      g->hide();
     refresh();
   }
 

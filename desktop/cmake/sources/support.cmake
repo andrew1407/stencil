@@ -37,11 +37,14 @@ set(STENCIL_MODALCHROME_SOURCES
 set(STENCIL_APPTOOLTIP_SOURCES
   src/support/tip/AppTooltip.cpp
   src/support/tip/AppTooltipShow.cpp
-  src/support/tip/AppTooltipFilter.cpp)
+  src/support/tip/AppTooltipFilter.cpp
+  src/support/tip/tipFlight.cpp)
 
 set(STENCIL_CONTROLREVEAL_SOURCES
   src/support/control/reveal/controlReveal.cpp
   src/support/control/reveal/controlRevealShow.cpp
+  src/support/control/reveal/modeGhost.cpp
+  src/support/control/reveal/edgeFlight.cpp
   src/support/control/reveal/controlRevealBar.cpp)
 
 set(STENCIL_DUSTKIT_SOURCES
@@ -68,13 +71,29 @@ set(STENCIL_FILTERFADE_SOURCES
   src/support/theme/filterFadeList.cpp)
 
 # The webcore skin (support/webcore/): its table and rules, the picture, the overlay sheet and
-# palette, the pixel icons, and the application look. The window's toggle is app/logo.
+# palette, the pixel icons, and the application look. The window's toggle is app/theme/ThemePainterSkins.cpp.
 set(STENCIL_WEBCORE_SOURCES
   src/support/webcore/rules.cpp
   src/support/webcore/image.cpp
   src/support/webcore/stylesheet.cpp
   src/support/webcore/icons.cpp
   src/support/webcore/look.cpp)
+
+# What every session skin shares (support/skin/): the table rules both skins' words are set by.
+set(STENCIL_SKIN_SOURCES
+  src/support/skin/skinTable.cpp)
+
+# The aqua skin (support/aqua/): its table and rules, the wallpaper, the overlay sheet and palette,
+# the glossy icons and the application look. The window's toggle is app/theme/ThemePainterSkins.cpp.
+set(STENCIL_AQUA_SOURCES
+  src/support/aqua/table.cpp
+  src/support/aqua/wallpaper.cpp
+  src/support/aqua/sheet.cpp
+  src/support/aqua/icons.cpp
+  src/support/aqua/indicators.cpp
+  src/support/aqua/artCache.cpp
+  src/support/aqua/AquaCheckDelegate.cpp
+  src/support/aqua/look.cpp)
 
 set(STENCIL_THEMESWAP_SOURCES
   src/support/dust/ThemeSwapOverlay.cpp
@@ -133,6 +152,11 @@ list(APPEND STENCIL_GUI_SOURCES
   src/support/menu/menuReveal.cpp
   src/support/menu/popupSlide.cpp
   src/support/modal/modalReveal.cpp
+  src/support/genie/GenieGhost.cpp
+  src/support/genie/stripPaint.cpp
+  src/support/genie/ghostLabel.cpp
+  src/support/genie/SurfaceCover.cpp
+  src/support/tune/motionTable.cpp
   src/support/modal/hoverResync.cpp
   ${STENCIL_MODALCHROME_SOURCES}
   src/support/menu/SearchCombo.cpp
@@ -147,7 +171,9 @@ list(APPEND STENCIL_GUI_SOURCES
   ${STENCIL_CONSOLETEXT_SOURCES}
   ${STENCIL_FILTERFADE_SOURCES}
   ${STENCIL_THEMESWAP_SOURCES}
+  ${STENCIL_SKIN_SOURCES}
   ${STENCIL_WEBCORE_SOURCES}
+  ${STENCIL_AQUA_SOURCES}
   ${STENCIL_DISINTEGRATE_SOURCES}
   ${STENCIL_ICONMOTION_SOURCES}
   ${STENCIL_FACESWAP_SOURCES}
@@ -155,6 +181,7 @@ list(APPEND STENCIL_GUI_SOURCES
   src/support/menu/MenuHotkeys.cpp
   src/support/icon/motionIcons.cpp
   src/support/control/UnderlineTabBar.cpp
+  src/support/aqua/UnderlineTabBarAqua.cpp
   src/support/control/numericInput.cpp
   src/support/drag/iconDrag.cpp
   src/support/drag/iconDragMachine.cpp

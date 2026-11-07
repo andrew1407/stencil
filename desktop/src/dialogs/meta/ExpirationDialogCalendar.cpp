@@ -39,6 +39,21 @@ namespace stencil::gui {
     const int lead = first.dayOfWeek() - 1;   // Monday-first, like the browser grid
     const int days = first.daysInMonth();
     const QDate expiry = (!keep() && expiresAt) ? dateFromMs(expiresAt) : QDate();
+    // A week's two ends, so a skin can round the row it draws as one band (browser .exp-cal-empty pads it).
+    const auto markEdge = [](QWidget* w, int slot) {
+      if (slot % 7 == 0) w->setProperty("rowEdge", "first");
+      else if (slot % 7 == 6) w->setProperty("rowEdge", "last");
+    };
+    const auto pad = [&](int slot) {
+      auto* blank = new QWidget(calendar);
+      blank->setObjectName(QStringLiteral("expCalEmpty"));
+      blank->setAttribute(Qt::WA_StyledBackground);
+      blank->setMinimumHeight(CELL_MIN_H);
+      markEdge(blank, slot);
+      calGrid->addWidget(blank, 1 + slot / 7, slot % 7);
+    };
+    for (int slot = 0; slot < lead; ++slot) pad(slot);
+    for (int slot = lead + days; slot % 7 != 0; ++slot) pad(slot);
     for (int d = 1; d <= days; ++d) {
       const QDate cellDate(viewY, viewM + 1, d);
       const int slot = lead + d - 1;
@@ -48,6 +63,7 @@ namespace stencil::gui {
       cell->setCursor(Qt::PointingHandCursor);
       cell->setMinimumHeight(CELL_MIN_H);
       cell->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+      markEdge(cell, lead + d - 1);
       if (cellDate == expiry) cell->setProperty("expDay", "expiry");
       else if (cellDate == today) cell->setProperty("expDay", "today");
       if (cellDate < today) {

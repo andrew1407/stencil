@@ -5,7 +5,7 @@
 #include "CanvasWidget.hpp"
 #include "RemoteSyncController.hpp"
 #include "theme.hpp"
-#include "../../support/skinPrefs.hpp"
+#include "../../support/skin/SkinLookStrategy.hpp"
 
 #include <QAbstractButton>
 #include <QIcon>
@@ -72,7 +72,7 @@ namespace stencil::gui {
     if (labelled) btn->setMinimumWidth(46);
     else btn->setFixedWidth(46);
     btn->setCursor(Qt::PointingHandCursor);
-    const bool skin = support::isWebcore();   // a skin squares every corner, the chip included
+    const bool skin = support::skinTraits().hasSquareCorners;   // the chip included
     btn->setStyleSheet(support::colorSwatchSheet(pal, labelled, skin));
     // A luminance-tuned outline keeps a colour near the input background visible in either theme.
     QPixmap pm(32, 16);

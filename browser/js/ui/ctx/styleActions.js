@@ -66,9 +66,9 @@ export const wireCtxStyleActions = (app, { menu, closeMenu }) => {
     app.settings.setFilterColor(e.target.value);
   });
 
-  document.getElementById('ctx-fullscreen').addEventListener('click', () => {
+  for (const row of document.querySelectorAll('#ctx-fullscreen-sub [data-fs-kind]')) row.addEventListener('click', () => {
     closeMenu();
-    if (typeof app.toggleFullscreen === 'function') app.toggleFullscreen();
+    if (typeof app.toggleFullscreen === 'function') app.toggleFullscreen(row.dataset.fsKind);
   });
 
   document.getElementById('ctx-fit-window').addEventListener('click', () => {

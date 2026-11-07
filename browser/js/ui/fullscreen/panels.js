@@ -1,12 +1,13 @@
 import { motionMs } from '../motion/motionPrefs.js';
-import { SURFACE_IN_MS, dockAwayPoint } from '../motion/surface/motion.js';
+import { SURFACE_DRIVEN_CLASS, SURFACE_IN_MS, dockAwayPoint } from '../motion/surface/motion.js';
 import { settleSurface, surfaceIn, surfaceOut } from '../motion/surface/surfaces.js';
-import { FOLD_DUST_OUT_MS } from '../motion/control/tips.js';
+import { FOLD_DUST_OUT_MS, FOLD_POURED } from '../motion/control/tips.js';
+import { genieEnabled, genieIn, genieOut, settleGenie } from '../motion/genie/window.js';
 import { EVENTS, subscribe } from '../../eventBus/appBus.js';
+import { aimListsUp } from '../modal/imageAnchor.js';
 // The two slide-in panels and their auto-hide timers; the hover wiring and the resizer drag
 // pause them through `pauseControlsHide` / `pausePointsHide`. Each comes and goes as dust past
 // its own edge, the fold the toolbar rows and the points panel play (toolbar.js, mainContent.js).
-
 const HIDE_GRACE_MS = 400;
 // The list gathers on the coord panel's clock (mainContent.js), the strip on the toolbar's.
 export const POINTS_DUST_IN_MS = 460;
@@ -19,6 +20,7 @@ const REVEALED_TRIGGER_PX = 8;
 // The selection overlay's own top slide (components/fullscreen.css).
 const SELECTION_TOP_MS = 260;
 const VISIBLE_CLASS = 'fs-panel-visible';
+const LEAVING_CLASS = 'fs-panel-leaving';   // the whole exit, poured or dusted (modal/imageAnchor.js toolbarAway)
 
 // A fixed box by its layout offsets: the client rect carries the entrance's stretch transform.
 const layoutBox = (el) => {
@@ -29,8 +31,7 @@ const layoutBox = (el) => {
 };
 
 // A chat on its way out keeps its box until its dust settles; the panels give it up at once.
-const dockedChat = (chat) =>
-  (chat?.classList?.contains('chat-open') && !chat.classList.contains('chat-closing') ? chat : null);
+const dockedChat = (chat) => (chat?.classList?.contains('chat-open') && !chat.classList.contains('chat-closing') ? chat : null);
 
 // The canvas's box less a chat docked over its left or right side; null when either is unmeasured.
 export const canvasSpan = (viewport, chat) => {
@@ -107,8 +108,7 @@ export const syncFsTriggers = () => {
 const placeSelectionOverlay = (fsControlsPanel, ctrlsVisible) => {
   const fsSel = document.getElementById('fs-selection-panel');
   if (!fsSel || fsSel.style.display === 'none') return;
-  // offsetHeight, not getBoundingClientRect: the transform must not affect the measure
-  fsSel.style.top = ctrlsVisible ? fsControlsPanel.offsetHeight + 'px' : '0px';
+  fsSel.style.top = ctrlsVisible ? fsControlsPanel.offsetHeight + 'px' : '0px';   // offsetHeight: no transform in it
   requestAnimationFrame(syncFsTriggers);
 };
 
@@ -120,11 +120,38 @@ const revealedBox = (panel, dock) => {
   return box.width >= 8 && box.height >= 8 ? box : null;
 };
 
-// True while the motes fly; false hands the reveal back to the CSS slide.
-export const panelDust = (panel, dock, hiding, inMs = SURFACE_IN_MS) => {
+// Sliding's home, a 24px strip just past the edge the panel hangs from, where the pointer crossed it:
+// the strip at the pointer's x, the list at its y (desktop DockChromePour edgePoint); mid-edge without one.
+const along = (v, lo, len) => Math.min(Math.max(Number.isFinite(v) ? v : lo + len / 2, lo + 12), lo + len - 12);
+const EDGE_HOME = Object.freeze({
+  top: (b, p) => b && { left: along(p?.x, b.left, b.width) - 12, top: b.top - 2, width: 24, height: 2 },
+  right: (b, p) => b && { left: b.left + b.width, top: along(p?.y, b.top, b.height) - 12, width: 2, height: 24 },
+});
+const edgeHome = (panel, dock, p) => EDGE_HOME[dock](revealedBox(panel, dock), p);
+
+// The panel's own CSS slide: `.dust-driven` stills the transform, and the dust measure snaps it even
+// when it declines. A reveal re-arms it from the hidden pose, or the class change would land it unslid.
+const cssSlide = (panel, hiding) => {
+  panel.classList.add(SURFACE_DRIVEN_CLASS);
+  if (!hiding) panel.classList.remove(VISIBLE_CLASS);
+  void panel.offsetWidth;
+  panel.classList.remove(SURFACE_DRIVEN_CLASS);
+  if (!hiding) panel.classList.add(VISIBLE_CLASS);
+};
+
+// FOLD_POURED while Sliding's picture flies (`landed` runs as it does), true while the motes fly,
+// false once the reveal is handed back to the CSS slide (Transition, or the motion off).
+export const panelDust = (panel, dock, hiding, inMs = SURFACE_IN_MS, landed = null, pointer = null) => {
+  if (genieEnabled()) {
+    panel.classList.add(SURFACE_DRIVEN_CLASS);   // the picture is the motion: no slide beneath it
+    const home = edgeHome(panel, dock, pointer);
+    if (home && (hiding ? genieOut(panel, home, landed) : genieIn(panel, home, { keep: false }))) return FOLD_POURED;
+  }
   const box = revealedBox(panel, dock);
   const away = box && dockAwayPoint(box, dock);
-  return (hiding ? surfaceOut : surfaceIn)(panel, away || null, { box, ms: hiding ? FOLD_DUST_OUT_MS : inMs });
+  const flew = (hiding ? surfaceOut : surfaceIn)(panel, away || null, { box, ms: hiding ? FOLD_DUST_OUT_MS : inMs });
+  if (!flew) cssSlide(panel, hiding);
+  return flew;
 };
 
 // One panel's reveal, auto-hide and flight, closed over its own timer and shown flag. `before`
@@ -132,35 +159,40 @@ export const panelDust = (panel, dock, hiding, inMs = SURFACE_IN_MS) => {
 const makeFsPanel = ({ panel, dock, inMs, dust, before = () => {}, after = () => {} }) => {
   let hideTimer = null;
   let shown = false;
-
-  const show = () => {
-    clearTimeout(hideTimer);
+  let pointer = null;   // where the pointer last crossed a band or the panel, client px
+  const at = (e) => { if (Number.isFinite(e?.clientX)) pointer = { x: e.clientX, y: e.clientY }; };
+  const show = (e) => {
+    at(e); clearTimeout(hideTimer);
     before(true);   // before the class, so the CSS transitions start together
+    panel.classList.remove(LEAVING_CLASS);
     panel.classList.add(VISIBLE_CLASS);
-    if (!shown) dust(panel, dock, false, inMs);
+    if (!shown) dust(panel, dock, false, inMs, null, pointer);
     shown = true;
     syncFsTriggers();
   };
-  const hide = () => {
-    clearTimeout(hideTimer);
+  const hide = (e) => {
+    at(e); clearTimeout(hideTimer);
     hideTimer = setTimeout(() => {
       before(false);
-      // The panel keeps its box for the whole out-flight; the class goes with the last motes.
-      const played = shown && dust(panel, dock, true);
+      panel.classList.add(LEAVING_CLASS);
+      // The panel keeps its box for the whole out-flight; the class goes with the last motes or the picture.
+      const drop = () => { panel.classList.remove(VISIBLE_CLASS, LEAVING_CLASS); syncFsTriggers(); after(); };
+      const played = shown && dust(panel, dock, true, undefined, drop, pointer);
       shown = false;
-      const drop = () => { panel.classList.remove(VISIBLE_CLASS); syncFsTriggers(); after(); };
+      if (played === FOLD_POURED) return;
       if (played) hideTimer = setTimeout(drop, motionMs(FOLD_DUST_OUT_MS));
       else drop();
     }, HIDE_GRACE_MS);
   };
   // A cursor back on a panel still dissolving brings it back, as the slide used to reverse.
-  const pause = () => { if (shown) clearTimeout(hideTimer); else show(); };
+  const pause = (e) => { if (shown) clearTimeout(hideTimer); else show(e); };
   // Leaving fullscreen: whatever is in the air goes with the mode (desktop: stopDustClouds).
   const settle = () => {
     clearTimeout(hideTimer);
     shown = false;
     settleSurface(panel);
-    panel.classList.remove(VISIBLE_CLASS);
+    settleGenie(panel);
+    panel.classList.remove(VISIBLE_CLASS, LEAVING_CLASS);
   };
   return { show, hide, pause, settle };
 };
@@ -168,7 +200,7 @@ const makeFsPanel = ({ panel, dock, inMs, dust, before = () => {}, after = () =>
 export const createFsPanels = ({ fsControlsPanel, fsPointsPanel, showPoints, dust = panelDust }) => {
   const controls = makeFsPanel({
     panel: fsControlsPanel, dock: 'top', inMs: SURFACE_IN_MS, dust,
-    before: (revealing) => placeSelectionOverlay(fsControlsPanel, revealing),
+    before: (revealing) => { placeSelectionOverlay(fsControlsPanel, revealing); if (!revealing) aimListsUp(fsControlsPanel); },
     after: () => setTimeout(syncFsTriggers, motionMs(SELECTION_TOP_MS)),   // …again once the overlay has landed
   });
   const points = makeFsPanel({

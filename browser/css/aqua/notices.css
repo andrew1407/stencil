@@ -1,0 +1,31 @@
+/* The aqua skin's notes: the pale yellow tooltip, glass keycaps, and the toast as an alert sheet
+   on pinstripes. */
+:root[data-skin="aqua"] :is(#app-tooltip, .tooltip, .chat-status-tip, .ctx-preview-tip, .hints-popup) {
+    background: var(--aq-tip-bg);
+    color: var(--aq-tip-ink);
+    border: 1px solid color-mix(in srgb, var(--aq-edge) 80%, #000000);
+    border-radius: 0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    padding: 4px 8px;
+    font-size: 11px;
+}
+:root[data-skin="aqua"] :is(.tip-title, .tip-term, .tip-desc, .tip-line, .tip-hint, .tip-note, .tip-bullets li) { color: var(--aq-tip-ink); }
+:root[data-skin="aqua"] :is(.tip-key, .info-key .tip-key, .hotkey-table .tip-key) {
+    background: var(--aq-glass);
+    color: var(--aq-ink);
+    border: 0;
+    border-radius: 4px;
+    box-shadow: var(--aq-glass-ring);
+}
+:root[data-skin="aqua"] .ctx-hotkey { background: none; box-shadow: none; border: 0; }
+
+:root[data-skin="aqua"] :is(.notify-toast, .notify-toast.notify-info, .notify-toast.notify-fail,
+.notify-toast.notify-shine, .image-missing-banner) {
+    background: var(--aq-pinstripe);
+    color: var(--aq-ink);
+    border: 0;
+    border-radius: 0 0 8px 8px;
+    box-shadow: var(--aq-window-ring);
+}
+:root[data-skin="aqua"] .notify-toast .notify-icon { color: var(--aq-gel-bottom); }
+:root[data-skin="aqua"] .toast-glow { display: none; }

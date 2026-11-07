@@ -4,6 +4,8 @@
 # The script window's Ctrl+Enter, its popover bar and the faded placeholder.
 stencil_headless_test(stencil_scriptwindowkeys_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp src/support/aqua/AquaCheckDelegate.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/dialogs/script/scriptWindowKeys.headless.cpp src/dialogs/script/ScriptDialog.cpp src/dialogs/script/ScriptDialogFile.cpp
     src/dialogs/script/ScriptMenuPanel.cpp src/dialogs/script/ScriptMenuPanelState.cpp
@@ -17,6 +19,8 @@ stencil_headless_test(stencil_scriptwindowkeys_headless
 # and the core-driven colouring.
 stencil_headless_test(stencil_scriptdialog_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp src/support/aqua/AquaCheckDelegate.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/dialogs/script/scriptDialog.headless.cpp src/dialogs/script/ScriptDialog.cpp src/dialogs/script/ScriptDialogFile.cpp
     src/dialogs/script/ScriptEditorWidget.cpp src/dialogs/script/ScriptEditorWidgetKeys.cpp src/dialogs/script/ScriptHighlighter.cpp
@@ -28,6 +32,8 @@ stencil_headless_test(stencil_scriptdialog_headless
 # The script FLYOUT (dialogs/ScriptMenuPanel): the window's gates, plus Tab and Ctrl+Enter.
 stencil_headless_test(stencil_scriptmenupanel_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp src/support/aqua/AquaCheckDelegate.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/dialogs/script/scriptMenuPanel.headless.cpp src/dialogs/script/ScriptMenuPanel.cpp
     src/dialogs/script/ScriptMenuPanelState.cpp src/dialogs/script/ScriptEditorWidget.cpp src/dialogs/script/ScriptEditorWidgetKeys.cpp
@@ -39,6 +45,8 @@ stencil_headless_test(stencil_scriptmenupanel_headless
 # The ONE .stc both hosts edit (model/ScriptBuffer): shared, kept, cleared, never on disk.
 stencil_headless_test(stencil_scriptbuffer_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp src/support/aqua/AquaCheckDelegate.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/model/scriptBuffer.headless.cpp src/dialogs/script/ScriptDialog.cpp src/dialogs/script/ScriptDialogFile.cpp
     src/dialogs/script/ScriptMenuPanel.cpp src/dialogs/script/ScriptMenuPanelState.cpp
@@ -51,6 +59,8 @@ stencil_headless_test(stencil_scriptbuffer_headless
 # The same buffer reaching a hidden host: no per-keystroke re-lex, a catch-up on show.
 stencil_headless_test(stencil_scriptbufferhidden_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp src/support/aqua/AquaCheckDelegate.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/model/scriptBufferHidden.headless.cpp src/dialogs/script/ScriptDialog.cpp src/dialogs/script/ScriptDialogFile.cpp
     src/dialogs/script/ScriptMenuPanel.cpp src/dialogs/script/ScriptMenuPanelState.cpp
@@ -63,6 +73,9 @@ stencil_headless_test(stencil_scriptbufferhidden_headless
 # The .stc runner (app/scriptRun.cpp): which op reaches which PlanTarget call; an error runs nothing.
 stencil_headless_test(stencil_scriptrunner_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/SurfaceCover.cpp
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/app/scriptRunner.headless.cpp src/app/scriptRun.cpp src/app/scriptRunOps.cpp
     src/model/ScriptDoc.cpp
@@ -75,6 +88,9 @@ stencil_headless_test(stencil_scriptrunner_headless
 # The same runner across the loads that wait on I/O: parked, resumed, or ended by a failed answer.
 stencil_headless_test(stencil_scriptrunnerawait_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/SurfaceCover.cpp
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/app/scriptRunnerAwait.headless.cpp src/app/scriptRun.cpp src/app/scriptRunOps.cpp
     src/model/ScriptDoc.cpp

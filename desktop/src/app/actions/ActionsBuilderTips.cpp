@@ -26,6 +26,7 @@ namespace stencil::gui {
     w.keys.actions["togglePointsList"] = w.acts.panel;
     w.keys.actions["toggleControls"] = w.acts.toolbars;
     w.keys.actions["fullscreen"] = w.acts.fullscreen;
+    w.keys.actions["fullscreenWindow"] = w.acts.fullscreenWindow;
     w.keys.actions["openVisuals"] = w.acts.settings;
     w.keys.actions["openHotkeys"] = w.acts.shortcuts;
     w.keys.actions["openAssistantSettings"] = w.acts.assistantSettings;
@@ -146,7 +147,7 @@ namespace stencil::gui {
     });
     QObject::connect(w.acts.tooltip, &QAction::toggled, &w, [this](bool on) {
       w.settings.tooltipEnabled = on;
-      if (!on) w.overlays.tooltip->hide();
+      if (!on) w.overlays.tooltip->dismiss();
       w.persistSettings();
     });
     QObject::connect(w.acts.quit, &QAction::triggered, &w, &QWidget::close);

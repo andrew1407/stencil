@@ -28,6 +28,8 @@ namespace stencil::gui {
 
   int SiblingWindows::openCount() { return openWindows().size(); }
 
+  QList<MainWindow*> SiblingWindows::windows() { return QList<MainWindow*>(openWindows().begin(), openWindows().end()); }
+
   void SiblingWindows::setQuitWhenAllClosed(bool on) { quitWhenAllClosed = on; }
 
   void SiblingWindows::closeAll() {

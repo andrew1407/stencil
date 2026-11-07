@@ -32,7 +32,7 @@ beforeEach(() => {
 });
 
 const eggsOf = (over) => { const app = makeApp(over); return { app, stencil: createStencil(app) }; };
-const STAGED = SHOW_NAMES.filter((n) => !['pink', 'webcore'].includes(effectOf(n)));
+const STAGED = SHOW_NAMES.filter((n) => !['pink', 'webcore', 'aqua'].includes(effectOf(n)));
 
 test('every show has its switch, and what() lists the shows and the terminal', () => {
   const { stencil } = eggsOf();

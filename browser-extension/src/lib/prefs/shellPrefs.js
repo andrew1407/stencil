@@ -60,7 +60,7 @@
   };
 
   applyMotion(readMotion());
-  // The mode the webcore skin stilled (browser setMotionOverride); a user's own choice drops it.
+  // The mode a skin replaced (browser setMotionOverride); a user's own choice drops it.
   const HKEY = 'stencil_motion_held';
   const readHeld = function () { return readPref(HKEY, isMotion, ''); };
   const writeMotion = function (mode) {
@@ -104,40 +104,39 @@
     },
   };
 
-  // The webcore skin (browser css/webcore/): stored, unlike the browser's session-only one,
-  // because a popup lives only while it is open. lib/webcore/ reads <html data-skin>.
-  const SKEY = 'stencil_skin';
-  const SKIN = 'webcore';
-  const readSkin = function () { return readPref(SKEY, function (v) { return v === SKIN; }, '') === SKIN; };
-  const applySkin = function (on) {
-    if (on) document.documentElement.setAttribute('data-skin', SKIN);
+  // The session skins (browser css/webcore/, css/aqua/), stored because a popup lives only while it
+  // is open; one at a time, read off <html data-skin> by lib/skin/.
+  const SKEY = 'stencil_skin', SKIN = 'webcore', AQUA = 'aqua';
+  const readName = function () { return readPref(SKEY, function (v) { return v === SKIN || v === AQUA; }, ''); };
+  const applySkin = function (name) {
+    if (name) document.documentElement.setAttribute('data-skin', name);
     else document.documentElement.removeAttribute('data-skin');
   };
-  applySkin(readSkin());
-  window.StencilSkin = {
-    storageKey: SKEY,
-    get: readSkin,
-    set: function (on) {
-      const was = readSkin();
-      if (on && !was && readMotion() !== 'none') {
-        writePref(HKEY, readMotion());
-        writeMotion('none');
-      } else if (!on && was) {
-        const held = readHeld();
-        writePref(HKEY, '');
-        if (held && readMotion() === 'none') writeMotion(held);
-      }
-      writePref(SKEY, on ? SKIN : '');
-      applySkin(!!on);
-      return !!on;
-    },
+  const MODE_OF = Object.freeze({ webcore: 'none', aqua: 'slide' });   // the motion a skin holds, giving the user's back
+  const setName = function (name) {
+    const was = readName(), held = readHeld();
+    if (was && was !== name && held) { writePref(HKEY, ''); if (readMotion() === MODE_OF[was]) writeMotion(held); }
+    if (name && name !== was && readMotion() !== MODE_OF[name]) { writePref(HKEY, readHeld() || readMotion()); writeMotion(MODE_OF[name]); }
+    writePref(SKEY, name);
+    applySkin(name);
+    return name;
   };
+  // One skin's switch: on stamps it; off clears it only while it is the one stamped.
+  const switchFor = function (skin) {
+    return {
+      get: function () { return readName() === skin; },
+      set: function (on) { return setName(on ? skin : (readName() === skin ? '' : readName())) === skin; },
+    };
+  };
+  applySkin(readName());
+  const webcore = switchFor(SKIN);
+  window.StencilSkin = { storageKey: SKEY, get: webcore.get, set: webcore.set, name: readName, aqua: switchFor(AQUA) };
 
   // The `storage` event fires in every OTHER same-origin extension document, never in the
   // writer — so a change in the options page reaches an open side panel without an echo.
   try {
     window.addEventListener('storage', function (e) {
-      if (e.key === SKEY || e.key === null) applySkin(readSkin());
+      if (e.key === SKEY || e.key === null) applySkin(readName());
       // Animated here too: a silent palette jump reads as a glitch.
       if (e.key === KEY || e.key === null) swap(function () { apply(read()); }, 'theme-toggle', true);   // an accent: from the top   // key===null on localStorage.clear()
       if (e.key === TKEY || e.key === null) swap(function () { applyTheme(readTheme()); }, 'theme-toggle');

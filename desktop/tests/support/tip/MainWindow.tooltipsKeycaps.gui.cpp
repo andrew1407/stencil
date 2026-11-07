@@ -115,6 +115,7 @@ class MainWindowGuiTest : public QObject {
     // Reduced motion: shown, correct, and not a pixel of shake — panel or caps.
     qputenv("STENCIL_NO_ANIM", "1");
     QCursor::setPos(btn->mapToGlobal(btn->rect().center()));
+    QTest::qWait(60);   // the parked cursor's own move lands first: following it is not a shake
     sendToolTipTo(btn);
     QVERIFY(tip->isVisible());
     QVERIFY(stencil::gui::hasKeycaps(body->text()));

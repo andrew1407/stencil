@@ -68,9 +68,14 @@ namespace stencil::gui {
     return QIcon(out);
   }
 
-  void detail::repolish(QWidget* w) {
+  void repolish(QWidget* w, bool styleChange) {
+    if (!w || !w->style()) return;
     w->style()->unpolish(w);
     w->style()->polish(w);
+    if (styleChange) {   // a re-polish keeps a cached metric (a QFrame's width, a QMainWindow's separator): the event re-reads it
+      QEvent change(QEvent::StyleChange);
+      QCoreApplication::sendEvent(w, &change);
+    }
     w->update();
   }
 

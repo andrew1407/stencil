@@ -3,7 +3,7 @@
 // stub page of tooltipRig.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseCombo, eventCombo, comboMatchesEvent, dustOrigin, DUST_CURSOR_PX } from '../../../js/ui/tip/controlTooltip.js';
+import { parseCombo, eventCombo, comboMatchesEvent, dustOrigin, DUST_CURSOR_PX, LEAVE_GRACE_MS } from '../../../js/ui/tip/controlTooltip.js';
 import { TIP_SHOW_DELAY_MS, TIP_DUST_IN_MS } from '../../../js/ui/motion.js';
 import { COMPONENTS_CSS } from '../../helpers/css.js';
 import { installTooltipPage } from '../../helpers/tooltipRig.js';
@@ -87,8 +87,8 @@ test('every cap nudges once the tooltip has LANDED, announcing the shortcut', ()
   assert.equal(page.run(TIP_DUST_IN_MS), 0, 'a dismissal drops the pending nudge');
   reveal('Save (Ctrl+S)');
   page.over(page.control('Open (Ctrl+O)', { rect: { left: 300, top: 100, width: 30, height: 30 } }));
-  page.run(TIP_SHOW_DELAY_MS);
-  assert.equal(page.run(TIP_DUST_IN_MS), 1, 're-pointing leaves only the new tip\'s nudge');
+  assert.equal(page.run(TIP_SHOW_DELAY_MS), 0, 'a tip already up hands over at once: no second wait');
+  assert.equal(page.run(TIP_DUST_IN_MS), 1, '…but the new tip flies in as its own and nudges its caps (user decision)');
   // A tip with no shortcut has no caps, so the query is empty and nothing happens.
   reveal('Plain words', { reduced: true });
   assert.deepEqual([page.visible(), caps().length], [true, 0], 'no special case for a shortcut-less tooltip');
@@ -176,7 +176,25 @@ test('a child with its own text takes the tooltip over from its ancestor', () =>
     'an icon with no text of its own keeps its ancestor\'s tooltip');
   const dot = page.control('Connected', { parent: row });
   page.over(dot);
-  assert.equal(page.visible(), false, 'a child with its own text drops the ancestor\'s');
-  page.run(TIP_SHOW_DELAY_MS);
-  assert.equal(page.visible(), true, 'and shows its own');
+  assert.deepEqual([page.visible(), page.tip.innerHTML.includes('Connected'), page.tip.innerHTML.includes('Server row')],
+    [true, true, false], 'a child with its own text re-points the tip to its own words at once');
+});
+
+test('a sweep re-points ONE tip: the gap between two controls never hides it, and one just left comes back at once', () => {
+  const a = reveal('Open (Ctrl+O)');
+  page.fire('pointerout', { target: a, relatedTarget: null });
+  assert.equal(page.visible(), true, 'the gap is crossed with the tip still up');
+  const b = page.control('Save (Ctrl+S)', { rect: { left: 300, top: 100, width: 30, height: 30 } });
+  page.over(b);
+  assert.deepEqual([page.visible(), page.tip.innerHTML.includes('Save'), page.delays().includes(LEAVE_GRACE_MS)],
+    [true, true, false], 're-pointed in place, its pending hide dropped');
+  page.fire('pointerout', { target: b, relatedTarget: null });
+  assert.equal(page.run(LEAVE_GRACE_MS), 1);
+  assert.equal(page.visible(), false, 'left for nothing: it goes once the grace is out');
+  page.over(page.control('Undo (Ctrl+Z)'));
+  assert.deepEqual([page.visible(), page.delays().includes(TIP_SHOW_DELAY_MS)], [true, false],
+    'the next control within the warm window shows at once, with no wait');
+  page.fire('pointerdown', {});
+  page.over(page.control('Redo (Ctrl+Y)'));
+  assert.equal(page.visible(), false, 'a click dismissed it on purpose: the next one waits again');
 });

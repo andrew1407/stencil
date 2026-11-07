@@ -1,6 +1,8 @@
 import { SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../motion/surface/motion.js';
 import { surfaceIn, surfaceOut } from '../motion/surface/surfaces.js';
+import { menuIn, menuAway, pointBox, settleGenie } from '../motion/genie/window.js';
 import { pointInRect } from '../../utils.js';
+import { menuPopOrigin } from '../motion/flip.js';
 import { submenuPlacement, samePoint } from './model.js';
 
 const SUBMENU_HIDE_DELAY_MS = 180;
@@ -15,15 +17,22 @@ export function createCtxNav({ menu }) {
   // A submenu flies like the menu it hangs off, out of and back into the row that owns it.
   const SUB_IN_MS = SURFACE_MENU_IN_MS;
   const SUB_OUT_MS = SURFACE_MENU_OUT_MS;
+  // The row's ▸ arrow when it shows one, else the row's right edge.
   const subPoint = (sub) => {
-    const r = sub.__ctxItem?.getBoundingClientRect?.();
+    const row = sub.__ctxItem;
+    const a = row?.querySelector?.(':scope > .ctx-arrow')?.getBoundingClientRect?.();
+    if (a && a.width > 0 && a.height > 0) return { x: a.left + a.width / 2, y: a.top + a.height / 2 };
+    const r = row?.getBoundingClientRect?.();
     if (!r || !(r.width > 0 && r.height > 0)) return null;
     return { x: r.right, y: r.top + r.height / 2 };
   };
   // The class comes off now either way — the cloud owns its own lifetime.
+  // Sliding pours it back into its row as the menu itself goes (desktop menuReveal.cpp).
   const closeSub = (sub) => {
-    surfaceOut(sub, sub.classList.contains('ctx-sub-visible') ? subPoint(sub) : null,
-      { ms: SUB_OUT_MS });
+    const open = sub.classList.contains('ctx-sub-visible');
+    const point = open ? subPoint(sub) : null;
+    if (!(open && menuAway(sub, pointBox(point)))) surfaceOut(sub, point, { ms: SUB_OUT_MS });
+    settleGenie(sub);
     sub.classList.remove('ctx-sub-visible');
     sub.classList.remove('ctx-sub-fresh');
   };
@@ -57,7 +66,11 @@ export function createCtxNav({ menu }) {
     sub.__ctxItem = item;
     // The entry pop keeps a live transform for ~140ms, and a transformed ancestor becomes the
     // containing block for the position:fixed flyouts, so the (cosmetic) pop is finished first.
-    try { for (const a of menu.getAnimations?.() || []) a.finish(); } catch { /* no WAAPI */ }
+    // A parent flyout's own grow (Transition) holds one too; this flyout's own is left to play.
+    try {
+      for (let el = item.closest('.ctx-sub, #ctx-menu') || menu; el; el = el.parentElement?.closest('.ctx-sub, #ctx-menu'))
+        for (const a of el.getAnimations?.() || []) if (!('transitionProperty' in a)) a.finish();
+    } catch { /* no WAAPI */ }
     sub.style.left = '-9999px';
     sub.style.top = '-9999px';
     sub.classList.add('ctx-sub-visible');
@@ -77,7 +90,10 @@ export function createCtxNav({ menu }) {
     sub.classList.add('ctx-sub-fresh');
     anyFreshSub = true;
     // Placed first, so the motes stream at the box the flyout will occupy.
-    if (!wasOpen) surfaceIn(sub, subPoint(sub), { ms: SUB_IN_MS });
+    const at = subPoint(sub);
+    // Transition's CSS grow (overlays.css menuPop) starts where the row's arrow meets the flyout.
+    if (at) sub.style.transformOrigin = menuPopOrigin(at.x, at.y, sub.getBoundingClientRect());
+    if (!wasOpen && !surfaceIn(sub, at, { ms: SUB_IN_MS })) menuIn(sub, pointBox(at));
   };
 
   const repositionActiveSub = () => {

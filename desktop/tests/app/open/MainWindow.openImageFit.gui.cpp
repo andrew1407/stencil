@@ -4,6 +4,7 @@
 
 #include "OpenImageDialog.hpp"
 #include "openImageDialogParts.hpp"
+#include "openImageGui.hpp"
 #include "../../../src/support/icon/iconSpin.hpp"
 #include "../../../src/support/control/scrubBar.hpp"
 #include "../../../src/support/motion/DisintegrateOverlay.hpp"
@@ -140,6 +141,38 @@ class MainWindowGuiTest : public QObject {
     win.parts.sourceOpener.openImage();
     QVERIFY2(wAfter > wBefore, "a wider window must grow the preview's own box");
     QCOMPARE(wSettled, wAfter);   // never keeps climbing on its own
+  }
+
+  // Choosing the SAME file again lands at the height the first choice did (user report): the clear
+  // between them started a shrink, and the regrow must not leave it running to the short height.
+  void choosingTheSameFileTwiceKeepsTheHeight() {
+    const auto motion = withMotion();
+    MainWindow win(nullptr, false);
+    QVERIFY(showForOpenImage(win));
+    int first = 0, second = 0;
+    QTimer::singleShot(0, &win, [&] {
+      auto* dlg = qobject_cast<OpenImageDialog*>(QApplication::activeModalWidget());
+      if (!dlg) return;
+      const QString img = QDir::temp().filePath(QStringLiteral("stencil_oi_twice.png"));
+      QImage sq(1200, 1200, QImage::Format_RGB32);
+      sq.fill(Qt::darkMagenta);
+      QVERIFY(sq.save(img, "PNG"));
+      const auto choose = [&] {
+        dlg->path->setText(img);
+        dlg->resetPreviewState();
+        dlg->refreshButtons();
+        dlg->doPreview();
+        settle([&] { return !dlg->previewedImage().isNull(); }, 4000);
+        settle([] { return false; }, 900);
+        return dlg->height();
+      };
+      first = choose();
+      second = choose();
+      dlg->reject();
+    });
+    win.parts.sourceOpener.openImage();
+    QVERIFY2(first > 0 && second == first,
+             qPrintable(QString("the second choice settled at %1px, the first at %2px").arg(second).arg(first)));
   }
 
 };

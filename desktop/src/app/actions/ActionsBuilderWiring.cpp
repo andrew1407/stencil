@@ -140,7 +140,7 @@ namespace stencil::gui {
     // Panel + toolbars show/hide, animated; overlays, View menu and hotkeys all route through these actions.
     QObject::connect(w.acts.panel, &QAction::toggled, &w, [this](bool on) { w.setPanelShown(on, true); });
     QObject::connect(w.acts.toolbars, &QAction::toggled, &w, [this](bool on) { w.parts.view.setToolbarsShown(on, true); });
-    QObject::connect(w.acts.fullscreen, &QAction::triggered, &w, [this] { w.parts.view.toggleFullscreen(); });
+    QObject::connect(w.acts.fullscreen, &QAction::triggered, &w, [this] { w.parts.view.toggleFullscreenKind(false); });
     QObject::connect(w.acts.settings, &QAction::triggered, &w, [this] { w.parts.dialogs.openSettings(); });
     QObject::connect(w.acts.projects, &QAction::triggered, &w, [this] { w.projectHost.flows.openProjects(); });
     QObject::connect(w.acts.connect, &QAction::triggered, &w, [this] { w.projectHost.flows.openConnections(); });

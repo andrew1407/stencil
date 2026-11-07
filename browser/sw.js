@@ -79,6 +79,13 @@ const SHELL = [
   './css/webcore/notices.css',
   './css/webcore/chat.css',
   './css/webcore/icons.css',
+  './css/aqua/tokens.css',
+  './css/aqua/chrome.css',
+  './css/aqua/fields.css',
+  './css/aqua/canvas.css',
+  './css/aqua/menus.css',
+  './css/aqua/windows.css',
+  './css/aqua/notices.css',
   './js/index.js',
 ];
 

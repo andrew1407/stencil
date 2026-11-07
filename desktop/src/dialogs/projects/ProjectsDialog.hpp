@@ -48,9 +48,8 @@ namespace stencil::gui {
 
     // Beyond getAction(): OpenRemote → getSelectedServerUrl() + getSelectedId(); transfers add getNewName();
     // Batch* → batchItems(); SetColor → getSelectedColor(). BatchRemove emits removeRequested instead.
-    enum class Action { NONE, OPEN, OPEN_IN_NEW_WINDOW, NEW, RENAME, NEW_BLANK,
-                        OPEN_REMOTE, MOVE_TO_SERVER, MOVE_TO_LOCAL, MAKE_LOCAL_COPY, COPY_TO_SERVER,
-                        SET_COLOR,
+    enum class Action { NONE, OPEN, OPEN_IN_NEW_WINDOW, NEW, RENAME,
+                        OPEN_REMOTE, MOVE_TO_SERVER, MOVE_TO_LOCAL, MAKE_LOCAL_COPY, COPY_TO_SERVER, SET_COLOR,
                         BATCH_REMOVE, BATCH_MOVE_TO_SERVER, BATCH_COPY_TO_SERVER,
                         BATCH_MOVE_TO_LOCAL, BATCH_COPY_TO_LOCAL, CLEAR_ALL };
 
@@ -96,6 +95,7 @@ namespace stencil::gui {
     // "Make a copy" of a row (a stay-open request too); `scope` is a support::CopyScope.
     void copyRequested(const QString& id, const QString& serverUrl, int scope, const QRect& closeRect);
     void closeProjectRequested();   // the open project was dropped on Close
+    void blankRequested(const QRect& from);   // GLOBAL: the Blank image button, its dialog stacked over this one
 
    protected:
     // Run in THIS order; filterHoverPreview only observes, an answer from the rest ends the chain.
@@ -180,9 +180,9 @@ namespace stencil::gui {
     void scatterRows(const QSet<QString>& keys = {});
     // Blanks `it` the instant its scatter starts, drops the item once the animation has played.
     void retireRow(QListWidgetItem* it);
+    void closeSlot(QListWidgetItem* it, int ms);   // a doomed row's slot shrinks to nothing over `ms`
     void createNew();
     void createBlank();
-
     ProjectsBatchParts batch;   // furniture in projectsDialogState.hpp
     ProjectsHoverParts hover;
     ProjectsPressParts press;

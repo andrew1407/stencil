@@ -1,6 +1,7 @@
-#include "../../support/skinPrefs.hpp"
 #include "CropDialog.hpp"
 #include "cropDialogParts.hpp"
+#include "../../support/skin/SkinLookStrategy.hpp"
+#include "../../support/skinPrefs.hpp"
 #include "../../support/motionPrefs.hpp"
 #include <QEasingCurve>
 #include <QVariantAnimation>
@@ -203,7 +204,7 @@ namespace stencil::gui {
 
     // Under the skin nothing is round (browser webcore `border-radius: 0`): square handles in
     // its --accent-2, the title strip's second stop.
-    const bool skin = support::isWebcore();
+    const bool skin = support::skinTraits().hasSquareCorners;
     p.setRenderHint(QPainter::Antialiasing, !skin);
     p.setBrush(skin ? support::skinBevel().titleB : accent);
     p.setPen(QPen(Qt::white, 2));

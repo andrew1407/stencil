@@ -1,6 +1,7 @@
 #include "dragOverlays.hpp"
 #include "iconDrag.hpp"
 #include "motionPrefs.hpp"
+#include "skinPrefs.hpp"
 #include "theme.hpp"
 
 #include <QHash>
@@ -35,6 +36,12 @@ namespace stencil::support {
       p.setPen(QPen(colour, width));
       const double h = width / 2;
       p.drawRoundedRect(box.adjusted(-h, -h, h, h), GLOW_RADIUS + h, GLOW_RADIUS + h);
+    }
+
+    // The chosen accent: webcore re-points Highlight at its navy (browser --drag-accent).
+    QColor dragAccent(const QWidget* w) {
+      if (isWebcore() && skinAccent().isValid()) return skinAccent();
+      return w->palette().color(QPalette::Highlight);
     }
 
     // Keyed by target; an entry leaves with its target, taking the glow along.
@@ -90,7 +97,7 @@ namespace stencil::support {
   // The widget stands GLOW_PAD off the face on every side, room for the rim's shine.
   DragGhost::DragGhost(QWidget* source, const QPoint& grab, const QPixmap& picture)
       : QWidget(source->window()), face(picture.isNull() ? source->grab() : picture),
-        grab(grab + QPoint(GLOW_PAD, GLOW_PAD)), accent(source->palette().color(QPalette::Highlight)) {
+        grab(grab + QPoint(GLOW_PAD, GLOW_PAD)), accent(dragAccent(source)) {
     setAttribute(Qt::WA_TransparentForMouseEvents);
     // An owner's own art is a mark (browser svg.icon-drag-ghost): it shines along its drawn edge.
     if (!picture.isNull()) {
@@ -142,7 +149,8 @@ namespace stencil::support {
                                                : palette().color(QPalette::Window);
     veil = page;
     veil.setAlphaF(1.0 - SOURCE_OPACITY);
-    dash = gui::accentShade(source->palette().color(QPalette::Highlight), page.lightnessF() < 0.5);
+    const QColor gelEdge = isAqua() ? skinDropGlow().ring : QColor();
+    dash = gelEdge.isValid() ? gelEdge : gui::accentShade(dragAccent(source), page.lightnessF() < 0.5);
     setGeometry(QRect(parentWidget()->mapFromGlobal(held.topLeft()), held.size()).adjusted(-3, -3, 3, 3));
     show();
     raise();
@@ -188,7 +196,13 @@ namespace stencil::support {
     p.setRenderHint(QPainter::Antialiasing, true);
     const QRectF box = QRectF(rect()).adjusted(GLOW_PAD, GLOW_PAD, -GLOW_PAD, -GLOW_PAD);
     // .icon-drop-target: a 2px ring at 45% and a 10px haze at 35%; under the pointer, full and 18px.
-    const QColor accent = target->palette().color(QPalette::Highlight);
+    // Aqua: the focus glow at 75% and 9px at 55%; under the pointer the gel's 3px edge in a 16px glow.
+    if (const SkinDropGlow g = skinDropGlow(); isAqua() && g.ring.isValid()) {
+      paintShadow(p, box, g.halo, over ? 3.0 : 2.0, over ? 0.0 : 0.75, over ? 16 : 9, over ? 1.0 : 0.55);
+      if (over) paintShadow(p, box, g.ring, 3.0, 1.0, 0, 0);
+      return;
+    }
+    const QColor accent = dragAccent(target);
     if (over) paintShadow(p, box, accent, 2.0, 1.0, 18, 1.0);
     else paintShadow(p, box, accent, 2.0, 0.45, 10, 0.35);
   }

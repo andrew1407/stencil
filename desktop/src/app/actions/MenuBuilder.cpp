@@ -118,6 +118,7 @@ namespace stencil::gui {
     view->addSeparator();
     view->addAction(w.acts.theme);
     view->addAction(w.acts.fullscreen);
+    view->addAction(w.acts.fullscreenWindow);
     view->addSeparator();
     view->addAction(w.acts.incognito);
     view->addAction(w.acts.settings);

@@ -63,6 +63,9 @@ namespace stencil::gui {
     QColor text, chip, border, accent, muted;
   };
   void installChatCardMenu(QFrame* card, const ChatCardMenuHooks& hooks);
+  // Every row "…" under `root` re-takes its chrome from the palette now on (a theme or skin change).
+  void restyleChatCardMores(QWidget* root, const QColor& chip, const QColor& border, const QColor& accent,
+                            const QColor& muted);
   // The default arg lives on the one declaration in chatWidgets.hpp — repeating it is a redefinition.
   void placeChatCardMore(QFrame* card, QToolButton* more, QScrollArea* scroll,
                          const QRect& avoidGlobal);

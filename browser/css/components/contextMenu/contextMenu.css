@@ -60,6 +60,8 @@
     align-items: center;
     justify-content: flex-end;
 }
+/* A list with no flyout row gives the arrow's column up (desktop menuRowPolish.hpp flatMenu). */
+:is(#ctx-menu, .ctx-sub):not(:has(> .ctx-item > .ctx-arrow:not(:empty))) > .ctx-item > .ctx-arrow { display: none; }
 .ctx-sep {
     height: 1px;
     background: var(--border-main);

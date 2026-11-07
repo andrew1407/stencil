@@ -1,5 +1,5 @@
 #include "modalChrome.hpp"
-#include "../skinPrefs.hpp"
+#include "../skin/SkinLookStrategy.hpp"
 
 #include "clickToToggle.hpp"
 #include <QCheckBox>
@@ -75,7 +75,8 @@ namespace stencil::gui {
   }
 
   QLabel* modalSectionLabel(const QString& text, QWidget* parent) {
-    auto* l = new QLabel(support::isWebcore() ? text : text.toUpper(), parent);
+    // Only the plain theme shouts its headings (browser .vs-section text-transform under a skin).
+    auto* l = new QLabel(support::skinTraits().hasShoutingCaptions ? text.toUpper() : text, parent);
     l->setObjectName(QStringLiteral("modalSection"));
     return l;
   }
@@ -209,6 +210,10 @@ namespace stencil::gui {
     if (!btn) return;
     btn->setProperty("successCta", true);   // theme.cpp's green face, by property
     if (!iconName.isEmpty()) btn->setIcon(labelIcon(iconName, QColor("#ffffff"), 15));
+  }
+
+  void markModalPrimary(QPushButton* btn) {
+    if (btn) btn->setProperty("primaryCta", true);
   }
 }  // namespace stencil::gui
 

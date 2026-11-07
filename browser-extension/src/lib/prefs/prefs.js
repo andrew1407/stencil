@@ -86,7 +86,7 @@
     return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
   };
   const relativeLuminance = function (hex) {
-    const h = String(hex || '').replace(/^#/, '');
+    const h = String(hex || '').trim().replace(/^#/, '').replace(/^([0-9a-f])([0-9a-f])([0-9a-f])$/i, '$1$1$2$2$3$3');
     if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
     const r = srgbToLinear(parseInt(h.slice(0, 2), 16) / 255);
     const g = srgbToLinear(parseInt(h.slice(2, 4), 16) / 255);

@@ -10,6 +10,7 @@
 #include <QPointer>
 #include <QRect>
 #include <QSize>
+#include <QToolBar>
 #include <QToolButton>
 #include <QVector>
 #include <QWidget>
@@ -101,6 +102,17 @@ namespace stencil::gui {
       return opened ? openImageAnchorRect(owner.data()) : canvasAnchorRect(owner.data());
     };
     return flight;
+  }
+
+  // Set on a tool row from the moment it starts to fold away (fullscreen's strip hiding, EditorView::animateBarsHeight).
+  inline constexpr char TOOLBAR_FOLDING_PROPERTY[] = "stencilFoldingAway";
+  // Its tool row out of sight or on its way out: a close rises to the top edge, never to the icon's
+  // stale spot (browser modal/imageAnchor.js toolbarAway).
+  inline bool toolbarAway(const QWidget* anchor) {
+    for (const QWidget* w = anchor; w; w = w->parentWidget())
+      if (auto* bar = qobject_cast<const QToolBar*>(w))
+        return !bar->isVisible() || bar->height() < 1 || bar->property(TOOLBAR_FOLDING_PROPERTY).toBool();
+    return false;
   }
 
 }  // namespace stencil::gui

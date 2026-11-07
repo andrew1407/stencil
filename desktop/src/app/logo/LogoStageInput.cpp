@@ -4,6 +4,7 @@
 #include "textFocus.hpp"
 #include "typedLetter.hpp"
 #include "../../support/webcore/rules.hpp"
+#include "../../support/aqua/table.hpp"
 #include "../../support/uiTimings.hpp"
 
 #include <QApplication>
@@ -70,6 +71,11 @@ namespace stencil::gui {
     if (spec->effect == StageEffect::WEBCORE) {   // a skin toggle beside any show, never against one
       const bool on = hooks.webcore ? hooks.webcore() : false;
       if (hooks.toast) hooks.toast(on ? toast : support::webcoreConfig().offToast);
+      return true;
+    }
+    if (spec->effect == StageEffect::AQUA) {
+      const bool on = hooks.aqua ? hooks.aqua() : false;
+      if (hooks.toast) hooks.toast(on ? toast : support::aquaConfig().offToast);
       return true;
     }
     if (open && name == showWord) return false;

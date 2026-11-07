@@ -1,5 +1,6 @@
 #include "modalChrome.hpp"
 #include "modalChromeShared.hpp"
+#include "../aqua/AquaCheckDelegate.hpp"
 
 #include <QComboBox>
 #include <QDialog>
@@ -116,6 +117,7 @@ namespace stencil::gui {
       select->addItem(o.label.isEmpty() ? o.value : o.label, o.value);
     if (spec.currentIndex >= 0 && spec.currentIndex < select->count())
       select->setCurrentIndex(spec.currentIndex);
+    support::wearAquaCheck(select);   // a modal: the skin cannot change while it is open
     chrome.body->addSpacing(2);   // + the body's own 10px gap = the browser's 12px
     chrome.body->addWidget(select);
     chrome.body->addStretch(1);

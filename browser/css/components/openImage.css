@@ -18,11 +18,14 @@
 /* position: the arrival dust canvas is absolute inside this box, and a video's stage hangs
    here rather than on the crop stage an image gets — static would anchor it to the modal. */
 .oi-preview { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 10px 0 4px; }
-.oi-crop-opt, .oi-incognito { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+/* Never wraps: the hidden Album button keeps its space, and a wider skin font (webcore, aqua) dropped
+   it — or the caption — onto a line of its own under the box. The caption's words wrap instead. */
+.oi-crop-opt, .oi-incognito { display: inline-flex; align-items: center; gap: 10px; flex-wrap: nowrap; }
 /* The caption takes the slack, so the Album/Portrait button sits at the far edge (desktop
    checkCaptionRow) and the Custom W/H fields fill out to it. */
-.oi-crop-opt { flex: 1 1 auto; min-width: 0; }
-.oi-crop-opt > label.footer-hint { flex: 1 1 auto; min-width: 0; }
+.oi-crop-opt, .oi-incognito { flex: 1 1 auto; min-width: 0; }
+.oi-crop-opt > label.footer-hint, .oi-incognito > label.footer-hint { flex: 1 1 auto; min-width: 0; }
+.oi-crop-opt > :not(label), .oi-incognito > input { flex: none; }
 /* No hairline of its own (desktop twin: QSS #oiNoDivider) — the size row sits directly
    under Crop, itself hidden/shown by the row's own particle sweep, never a static line. */
 #open-image-crop-row, #open-image-crop-size-row, #open-image-incognito-row { border-bottom: none; }

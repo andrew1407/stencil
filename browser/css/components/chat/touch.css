@@ -64,6 +64,10 @@ body:has(stencil-chat-panel.chat-closing) { transition: background 0.3s, color 0
    closing, it waits out the first 40% for the picture's far edge (motion/control/tips.js SPACE_CLOSE_WAIT). */
 body:has(stencil-chat-panel.chat-open.genie-driven) { transition: background 0.3s, color 0.3s, padding 560ms cubic-bezier(0.39, 0.575, 0.565, 1); }
 body:has(stencil-chat-panel.chat-closing.genie-driven) { transition: background 0.3s, color 0.3s, padding 288ms cubic-bezier(0.37, 0, 0.63, 1) 192ms; }
+/* Transition: the space opens and shuts on the panel's own reveal curve (animations/overlay/overlays.css chatReveal*);
+   a resize drag still tracks the pointer. */
+:root[data-motion="transition"] body:not(:has(stencil-chat-panel.chat-gesturing)) { transition: background 0.3s, color 0.3s, padding 0.51s cubic-bezier(0.33, 1, 0.68, 1); }
+:root[data-motion="transition"] body:has(stencil-chat-panel.chat-closing) { transition: background 0.3s, color 0.3s, padding 0.39s cubic-bezier(0.45, 0, 0.55, 1); }
 
 /* Gear provider-status tooltip: a themed table plus a pre-line footer, above the gear. */
 .chat-status-tip {

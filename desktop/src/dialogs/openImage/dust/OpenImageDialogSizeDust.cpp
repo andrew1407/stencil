@@ -4,6 +4,7 @@
 #include "../../../support/theme/filterFade.hpp"
 #include "OpenImageDialog.hpp"
 #include "chipDust.hpp"
+#include "openImageDialogParts.hpp"
 #include <QGraphicsOpacityEffect>
 #include <QLayout>
 #include <QPixmap>
@@ -27,7 +28,8 @@ namespace stencil::gui {
     }
     if (!arriving) {
       const QPixmap shot = row->grab();
-      if (!shot.isNull()) chipCloud(host, row, shot, DisintegrateOverlay::Sweep::FALL);
+      if (!shot.isNull() && !chipCloud(host, row, shot, DisintegrateOverlay::Sweep::FALL))
+        modeFlight(host, row, shot, false, OI_RESIZE_MS);
       slideRowHeight(this, row, slide, false);
       return;
     }
@@ -47,7 +49,11 @@ namespace stencil::gui {
       QWidget* under = w->parentWidget();
       DisintegrateOverlay* fx = (shot.isNull() || !under)
           ? nullptr : chipCloud(under, w, shot, DisintegrateOverlay::Sweep::GATHER);
-      if (!fx) { lift(); return; }
+      if (!fx) {
+        lift();
+        if (under && !shot.isNull()) modeFlight(under, w, shot, true, OI_RESIZE_MS);
+        return;
+      }
       const auto follow = [fx, w, under] {
         if (w && under) fx->move(w->mapTo(under, QPoint()));
       };

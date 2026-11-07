@@ -52,7 +52,17 @@ export const toolbarAway = (el) => {
   if (el.closest('#controls-body.hidden')) return true;
   if (!document.body?.classList?.contains('fullscreen-mode') || !el.closest('.controls-wrapper, #fs-controls-panel')) return false;
   const strip = byId('fs-controls-panel');
-  return !strip?.classList.contains('fs-panel-visible') || strip.classList.contains('surface-leaving');
+  return !strip?.classList.contains('fs-panel-visible') || strip.classList.contains('fs-panel-leaving');
+};
+// The strip of the window's top edge over `el`: where a close goes once its toolbar is away.
+export const edgeAbove = (el) => {
+  const left = el.getBoundingClientRect().left + el.getBoundingClientRect().width / 2 - 4;
+  return { left, top: 0, width: 8, height: 2, right: left + 8, bottom: 2 };
+};
+// A leaving strip's open lists close up through the top edge too (control/dropdownMenu.js hideMenu reads __ddAt).
+export const aimListsUp = (strip) => {
+  for (const menu of document.querySelectorAll?.('.accent-dd-menu') ?? [])
+    if (!menu.hidden && strip?.contains?.(menu.__ddTrigger)) menu.__ddAt = edgeAbove(menu.__ddTrigger);
 };
 const liveRect = (id) => {
   const r = byId(id)?.getBoundingClientRect?.();

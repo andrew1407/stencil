@@ -10,6 +10,15 @@
     .reveal-group-transition { transition: none; }
 }
 
+/* Transition's group (revealControls modeFx): it grows in, and shrinks leaving. Sliding slides its picture whole
+   instead (motion/control/modeGhost.js): its children sliding in a shrinking slot squeezed it (user report). */
+:root[data-motion="transition"] .reveal-mode-in { animation: revealGrow var(--reveal-mode-ms, 520ms) cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+:root[data-motion="transition"] .reveal-mode-out { animation: revealGrow var(--reveal-mode-ms, 400ms) cubic-bezier(0.4, 0, 0.6, 1) reverse both; }
+@keyframes revealGrow { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+    .reveal-mode-in, .reveal-mode-out, :is(.reveal-mode-in, .reveal-mode-out) > * { animation: none; }
+}
+
 /* A selection bar leaving (motion.js revealBar) is HELD at its height, then its whole footprint closes,
    so the list below never jumps (user report). */
 .bar-held { height: var(--bar-h); max-height: var(--bar-h); overflow: hidden; }

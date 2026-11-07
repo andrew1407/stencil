@@ -37,7 +37,8 @@ namespace stencil::gui {
     QAction* theme = nullptr;
     QAction* panel = nullptr;
     QAction* toolbars = nullptr;
-    QAction* fullscreen = nullptr;
+    QAction* fullscreen = nullptr;         // the screen kind
+    QAction* fullscreenWindow = nullptr;   // the kind that keeps the window
     QAction* accent = nullptr;
     QAction* settings = nullptr;
     QAction* projects = nullptr;

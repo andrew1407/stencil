@@ -1,0 +1,144 @@
+/* The aqua skin's windows: pinstripe modals under a brushed-metal title bar with the three
+   traffic-light dots (close is the red one), and a sheet's drop from the top edge. */
+:root[data-skin="aqua"] .app-modal-overlay,
+:root[data-skin="aqua"] #chat-backdrop { background: rgba(0, 20, 60, 0.18); }
+:root[data-skin="aqua"] :is(.app-modal, #settings-modal, .exp-modal, .script-modal) {
+    background: var(--aq-pinstripe);
+    color: var(--aq-ink);
+    border: 0;
+    border-radius: 8px;
+    box-shadow: var(--aq-window-ring);
+}
+:root[data-skin="aqua"] :is(.settings-header, .chat-header) {
+    background: var(--aq-metal);
+    color: var(--aq-ink);
+    border-bottom: 1px solid var(--aq-edge);
+    border-radius: 8px 8px 0 0;
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.65);
+    justify-content: center;
+    position: relative;
+    padding: 6px 32px;
+    min-height: 22px;
+}
+:root[data-skin="aqua"] :is(.settings-header h2, .chat-title, .chat-title-text) {
+    color: var(--aq-ink);
+    font-size: 13px;
+    font-weight: 400;
+    text-shadow: 0 1px rgba(255, 255, 255, 0.7);
+    text-transform: none;
+    letter-spacing: 0;
+}
+/* Close is the one useful light: a red dot, no glyph on it. */
+:root[data-skin="aqua"] :is(.app-modal-close, #settings-close, #chat-close),
+:root[data-skin="aqua"] :is(.app-modal-close, #settings-close, #chat-close):hover {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    width: 13px;
+    height: 13px;
+    min-width: 13px;
+    max-width: 13px;
+    min-height: 13px;
+    max-height: 13px;
+    flex: none;
+    margin: -6.5px 0 0;
+    padding: 0;
+    border: 0 !important;   /* the resting rules set theirs !important */
+    border-radius: 50%;
+    font-size: 0;
+    color: transparent;
+    background: radial-gradient(circle at 50% 30%, #ffd8d0 0 18%, var(--aq-red) 55%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--aq-red) 60%, #000000) !important;   /* over the dark gel's */
+}
+:root[data-skin="aqua"] :is(.app-modal-close, #settings-close, #chat-close) > * { opacity: 0; }
+/* The assistant's bar reads as a window's: the red dot, then its dock lights, leading; the title trails. */
+:root[data-skin="aqua"] .chat-header { justify-content: flex-start; padding: 6px 10px; gap: 6px; }
+:root[data-skin="aqua"] #chat-close { position: static; order: -2; margin: 0 2px 0 0; }
+:root[data-skin="aqua"] .chat-dock-btns { order: -1; }
+:root[data-skin="aqua"] .chat-header .chat-title { order: 1; margin-left: auto; justify-content: flex-end; }
+:root[data-skin="aqua"] .chat-dock-btn-active :is(.ic, .ic *) { color: var(--aq-on-gel); }
+/* The dock lights match the 13px close light, the glyph cut to fit; on graphite the art is lifted to read. */
+/* The desktop dock's beads: 19px with a 13px glyph, the close light 15px (its QSS box plus the 1px ring). */
+:root[data-skin="aqua"] .chat-header .chat-hbtn:not(#chat-close) { width: 19px; height: 19px; min-width: 19px; min-height: 19px; }
+:root[data-skin="aqua"] .chat-header .chat-hbtn:not(#chat-close) .ic { width: 13px; height: 13px; }
+:root[data-skin="aqua"] .chat-header #chat-close {
+    width: 15px; height: 15px; min-width: 15px; max-width: 15px; min-height: 15px; max-height: 15px;
+}
+:root[data-skin="aqua"][data-theme="dark"] #chat-header .chat-hbtn .ic { filter: brightness(1.9) drop-shadow(0 1px 0 rgba(0, 0, 0, 0.55)) !important; }
+:root[data-skin="aqua"] :is(.settings-body, .meta-body, .exp-calendar) { background: transparent; border-color: var(--aq-edge); }
+:root[data-skin="aqua"] .settings-footer {
+    background: transparent;
+    border-top: 1px solid var(--aq-edge);
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.6);
+}
+:root[data-skin="aqua"] :is(.vs-section, .info-group-title, .ctx-sub-label) { color: var(--aq-ink); text-transform: none; letter-spacing: 0; font-weight: 700; }
+:root[data-skin="aqua"] :is(.vs-row, .info-item, .hotkey-row, .hotkey-head) { border-color: color-mix(in srgb, var(--aq-edge) 50%, transparent); }
+:root[data-skin="aqua"] :is(.hotkey-row, .info-item):hover { background: transparent; }
+:root[data-skin="aqua"] :is(.project-row, .connect-row) {
+    background: var(--aq-window);
+    color: var(--aq-ink);
+    border: 1px solid color-mix(in srgb, var(--aq-edge) 60%, transparent);
+    border-radius: 6px;
+}
+:root[data-skin="aqua"] .project-thumb img { border-radius: 4px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); }
+
+/* A sheet drops out of the title bar where the interface plays its own CSS entrance; sliding keeps the
+   genie. A popover has no title bar to drop from: it grows out of its icon and back, as in every skin. */
+:root[data-skin="aqua"][data-motion="transition"] :is(.app-modal-overlay.modal-open:not(.modal-popover) .app-modal,
+#settings-modal-overlay.modal-open:not(.modal-popover) #settings-modal) {
+    animation: aquaSheetIn 0.36s cubic-bezier(0.2, 0.8, 0.25, 1) both;
+    transform-origin: 50% 0;
+}
+:root[data-skin="aqua"][data-motion="transition"] :is(.app-modal-overlay.modal-closing:not(.modal-popover) .app-modal,
+#settings-modal-overlay.modal-closing:not(.modal-popover) #settings-modal) {
+    animation: aquaSheetOut 0.26s cubic-bezier(0.45, 0.05, 0.6, 0.9) both;
+    transform-origin: 50% 0;
+}
+@keyframes aquaSheetIn {
+    from { opacity: 0.4; transform: translateY(-60%) scaleY(0.6); }
+    to   { opacity: 1; transform: none; }
+}
+@keyframes aquaSheetOut {
+    from { opacity: 1; transform: none; }
+    to   { opacity: 0; transform: translateY(-60%) scaleY(0.6); }
+}
+@media (prefers-reduced-motion: reduce) {
+    :root[data-skin="aqua"] :is(.app-modal, #settings-modal) { animation: none !important; }
+}
+
+/* The expiry calendar as the era's mini month: a metal head, each week a rounded grey band,
+   the chosen day blue gel and today in bold. */
+:root[data-skin="aqua"] .exp-calendar { background: var(--aq-window); border: 1px solid var(--aq-edge); border-radius: 6px; padding: 0 6px 6px; }
+:root[data-skin="aqua"] .exp-cal-head {
+    background: linear-gradient(180deg, var(--aq-metal-top), var(--aq-metal-bottom));
+    margin: 0 -6px 4px;
+    padding: 2px 6px;
+    border-bottom: 1px solid var(--aq-edge);
+    border-radius: 6px 6px 0 0;
+}
+:root[data-skin="aqua"] .exp-cal-title { font-weight: 700; color: var(--aq-ink); }
+:root[data-skin="aqua"] .exp-cal-w { color: var(--aq-ink); font-weight: 700; }
+:root[data-skin="aqua"] .exp-cal-grid { row-gap: 4px; column-gap: 0; }
+:root[data-skin="aqua"] .exp-cal-grid > .exp-cal-cell {
+    background: color-mix(in srgb, var(--aq-edge) 22%, var(--aq-window));
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    color: var(--aq-ink);
+    text-shadow: none;
+    min-height: 22px;
+    animation: none;
+}
+:root[data-skin="aqua"] .exp-cal-grid > .exp-cal-cell:nth-child(7n + 1) { border-radius: 11px 0 0 11px; }
+:root[data-skin="aqua"] .exp-cal-grid > .exp-cal-cell:nth-child(7n) { border-radius: 0 11px 11px 0; }
+:root[data-skin="aqua"] .exp-cal-grid > .exp-cal-cell.is-past { color: var(--aq-muted); }
+:root[data-skin="aqua"] .exp-cal-grid > .exp-cal-cell:hover:not(.is-past):not(.exp-cal-empty):not(.is-expiry):not(.is-today) {
+    background: color-mix(in srgb, var(--aq-edge) 22%, var(--aq-window));
+    box-shadow: none !important;
+}
+:root[data-skin="aqua"] .exp-cal-grid > .exp-cal-cell.is-today { font-weight: 700; background: color-mix(in srgb, var(--aq-edge) 45%, var(--aq-window)); }
+:root[data-skin="aqua"] .exp-cal-grid > .exp-cal-cell.is-expiry { background: var(--aq-gel); color: var(--aq-on-gel); }
+/* A footer's lozenges sit tighter than a lone word button's, so a four-action row (Open Image: Cancel,
+   Replace, Open here, Open in new tab) stays one line at the window's opening width. */
+:root[data-skin="aqua"] .settings-footer { gap: 6px; }
+:root[data-skin="aqua"] .settings-footer button { padding: 3px 11px; }

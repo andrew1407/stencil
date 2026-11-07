@@ -36,7 +36,7 @@ namespace {
       "canvas/draw/strokeGrowth.hpp",
       "llm/plan/opPlan.hpp",
       "app/MainWindow.hpp",             "app/open/MainWindowBlank.cpp",
-      "app/view/EditorViewFullscreen.cpp",
+      "app/view/EditorViewFullscreenZoom.cpp",
       "app/view/naturalPage.hpp",
       "app/view/MainWindowZoom.cpp",         "app/project/ProjectTransferController.hpp",
       "canvas/draw/CanvasDrawClick.cpp",     "canvas/paint/CanvasTransform.cpp",

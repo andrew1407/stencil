@@ -1,9 +1,11 @@
 #include "popoverFlight.hpp"
 #include "../../../support/genie/GenieGhost.hpp"
+#include "../../../support/genie/ghostLabel.hpp"
 #include "../../../support/motionPrefs.hpp"
 
 #include <QEasingCurve>
 #include <QGraphicsOpacityEffect>
+#include <QLabel>
 #include <QPointer>
 #include <QPropertyAnimation>
 #include <QWidget>
@@ -31,15 +33,37 @@ namespace stencil::gui {
       box->start(QAbstractAnimation::DeleteWhenStopped);
       fade->start(QAbstractAnimation::DeleteWhenStopped);
     }
+
+    // The popover's PICTURE scaled between the two boxes (browser modalFromIcon / modalToIcon), never the live
+    // overlay's own box, whose content would crop instead of shrink (user report).
+    void scaledFlight(QWidget* host, const QPixmap& shot, const QRect& from, const QRect& to, bool growing,
+                      int ms, std::function<void()> done) {
+      QLabel* ghost = support::genie::makeGhostLabel(host, shot);
+      ghost->setGeometry(from);
+      auto* fx = new QGraphicsOpacityEffect(ghost);
+      ghost->setGraphicsEffect(fx);
+      ghost->show();
+      ghost->raise();
+      morph(ghost, fx, from, to, growing, ms, [ghost, done = std::move(done)] {
+        if (done) done();
+        ghost->hide();
+        ghost->deleteLater();
+      });
+    }
   }  // namespace
 
   void popoverEntrance(QWidget* host, QWidget* overlay, QGraphicsOpacityEffect* fx, const QPixmap& shot,
                        const QRect& fromBox, const QRect& box, int ms) {
     QPointer<QGraphicsOpacityEffect> veil(fx);
     if (support::isSlideMotionOk() && !shot.isNull()
-        && support::genie::fly(host, shot, globalOf(host, box), globalOf(host, fromBox), /*opening=*/true,
+        && support::genie::fly(host, shot, globalOf(host, box), globalOf(host, fromBox), /*isOpening=*/true,
                                /*asWindow=*/false, [veil] { if (veil) veil->setOpacity(1.0); }))
       return;
+    if (!shot.isNull()) {
+      fx->setOpacity(0.0);
+      scaledFlight(host, shot, fromBox, box, /*growing=*/true, ms, [veil] { if (veil) veil->setOpacity(1.0); });
+      return;
+    }
     overlay->setGeometry(fromBox);
     morph(overlay, fx, fromBox, box, /*growing=*/true, ms);
   }
@@ -48,8 +72,14 @@ namespace stencil::gui {
                    std::function<void()> end) {
     if (support::isSlideMotionOk() && !shot.isNull()
         && support::genie::fly(host, shot, globalOf(host, overlay->geometry()), globalOf(host, fromBox),
-                               /*opening=*/false, /*asWindow=*/false, end)) {
+                               /*isOpening=*/false, /*asWindow=*/false, end)) {
       overlay->hide();   // its picture flies; the ghost was painted before this
+      return;
+    }
+    if (!shot.isNull()) {
+      const QRect at = overlay->geometry();
+      overlay->hide();
+      scaledFlight(host, shot, at, fromBox, /*growing=*/false, ms, std::move(end));
       return;
     }
     auto* fx = qobject_cast<QGraphicsOpacityEffect*>(overlay->graphicsEffect());

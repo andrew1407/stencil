@@ -71,13 +71,14 @@ namespace stencil::gui {
 
   FaceSwapFrame faceSwapFrame(double t);
 
+  // Re-run the stylesheet for a widget whose state or name just changed (Qt matches selectors at polish time).
+  void repolish(QWidget* w, bool styleChange = false);
+
   namespace detail {
 
     QIcon withGap(const QIcon& base, int size, int gap);
 
     QIcon faceIcon(const FaceSpec& f, const FaceSwapFrame& fr);
-
-    void repolish(QWidget* w);
 
     void setLabelAlpha(QAbstractButton* btn, const QColor& color, double alpha);
 

@@ -5,6 +5,8 @@
 #include "../../support/uiTimings.hpp"
 #include "iconSet.hpp"
 #include "../../support/skinPrefs.hpp"
+#include "../../support/skin/SkinLookStrategy.hpp"
+#include "../../support/aqua/look.hpp"
 #include "theme.hpp"
 
 #include <QPushButton>
@@ -20,18 +22,18 @@ namespace stencil::gui {
     // A FIRST-CLASS popover dialog (not a QMenu), so the popover system's Alt-peek/glide/linger rules apply. Presets from theme.cpp accentPresets.
     // The Settings dropdown's swatch recipe; the CURRENT accent's ✓ is baked into its chip in the chip's OWN ink (browser accent/picker.js).
     QIcon accentSwatchIcon(const QColor& c, bool current) {
-      const bool skin = support::isWebcore();
-      const qreal dpr = skin ? 2.0 : 1.0;   // the skin's pixel ✓ needs the room
+      const bool isPixel = support::skinTraits().hasPixelSwatch;
+      const qreal dpr = isPixel ? 2.0 : 1.0;   // the pixel ✓ needs the room
       QPixmap pm(QSize(16, 16) * dpr);
       pm.setDevicePixelRatio(dpr);
       pm.fill(Qt::transparent);
       QPainter p(&pm);
-      p.setRenderHint(QPainter::Antialiasing, !skin);
-      p.setPen(QPen(skin ? QColor(Qt::black) : QColor(0, 0, 0, 70), 1));
+      p.setRenderHint(QPainter::Antialiasing, !isPixel);
+      p.setPen(QPen(isPixel ? QColor(Qt::black) : QColor(0, 0, 0, 70), 1));
       p.setBrush(c);
-      if (skin) p.drawRect(1, 1, 13, 13); else p.drawRoundedRect(1, 1, 13, 13, 3, 3);
-      if (current && skin) {
-        // The skin's own green ✓ art, never the chip's ink (browser: icon('check') under webcore).
+      if (isPixel) p.drawRect(1, 1, 13, 13); else p.drawRoundedRect(1, 1, 13, 13, 3, 3);
+      if (current && isPixel) {
+        // The isPixel's own green ✓ art, never the chip's ink (browser: icon('check') under webcore).
         const QPixmap tick = themedIcon("check", QColor(), 11, dpr).pixmap(QSize(11, 11), dpr);
         p.drawPixmap(QRectF(2.5, 2.5, 11, 11), tick, QRectF(tick.rect()));
       } else if (current) {
@@ -92,6 +94,7 @@ namespace stencil::gui {
 
   void ThemePainter::commitAccent(const QString& key) {
     accentPreviewActive = false;   // a pick commits; no close or leave may revert it
+    support::setAsideAccent().reset();   // and stands when a session skin goes
     auto next = w.settings;
     next.accentColor = key;
     w.applySettings(next, true);   // the click-cycle's apply + persist path; re-marks the ✓ via applyTheme
@@ -150,7 +153,7 @@ namespace stencil::gui {
         [this](const QString& key) { previewAccent(key); }, [this] { endAccentPreview(); });
     dlg.installEventFilter(hover);
     auto* col = new QVBoxLayout(&dlg);
-    const int inset = support::isWebcore() ? 3 : 8;   // browser webcore .logo-accent-menu padding
+    const int inset = support::skinTraits().accentMenuInsetPx;
     col->setContentsMargins(inset, inset, inset, inset);
     col->setSpacing(1);
     // Rows are built once and RE-MARKED in place whenever the accent moves: picking must not rebuild or move the popover.

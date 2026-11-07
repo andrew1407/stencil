@@ -139,7 +139,7 @@ namespace stencil::gui {
       QListWidgetItem* it = list->item(i);
       if (it->data(Qt::UserRole).toString() == id &&
           it->data(Qt::UserRole + 1).toString() == serverUrl) {
-        it->setIcon(QIcon(squareThumb(pm, 112)));   // uniform square row icon (cover)
+        it->setIcon(QIcon(squareThumb(pm, 112, palette().color(QPalette::Dark))));   // uniform square row icon (cover)
         it->setData(Qt::UserRole + 2, pm);          // full-aspect source for hover-magnify
         break;
       }
@@ -152,7 +152,7 @@ namespace stencil::gui {
     for (int i = 0; list && i < list->count(); ++i) {
       QListWidgetItem* it = list->item(i);
       if (it->data(Qt::UserRole).toString() == id && it->data(Qt::UserRole + 1).toString().isEmpty()) {
-        it->setIcon(QIcon(squareThumb(thumb, 112)));
+        it->setIcon(QIcon(squareThumb(thumb, 112, palette().color(QPalette::Dark))));
         it->setData(Qt::UserRole + 2, thumb);
         break;
       }

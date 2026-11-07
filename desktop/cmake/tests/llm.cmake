@@ -86,6 +86,9 @@ stencil_headless_test(stencil_launchurifixtures_headless
 # The plan executor (src/llm/plan/executor) against a canvas target seeded with the PNG fixture.
 stencil_headless_test(stencil_llmexecutor_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/SurfaceCover.cpp
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/llm/plan/executor/llmExecutor.headless.cpp tests/llm/plan/executor/llmExecutorPlan.headless.cpp
     tests/llm/plan/executor/llmExecutorCoords.headless.cpp tests/llm/plan/executor/llmExecutorSettings.headless.cpp

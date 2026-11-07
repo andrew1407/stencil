@@ -1,5 +1,6 @@
 #include "theme.hpp"
 #include "themeTokens.hpp"
+#include "../skin/SkinLookStrategy.hpp"
 #include <QDir>
 #include <QFile>
 #include <QHash>
@@ -57,7 +58,8 @@ namespace stencil::gui {
         {"app", {"shell", "selectedLine", "toolButtons", "menus", "buttons", "fields", "dock",
                  "lists", "modals", "dialogs", "console", "overlays"}},
         {"webcore", {"chrome", "menus", "fields", "chat", "checks", "tables", "windows",
-                     "scrollbars", "notices"}}};
+                     "scrollbars", "notices"}},
+        {"aqua", {"chrome", "fields", "menus", "windows", "scrollbars"}}};
     return order.value(sheet);
   }
 
@@ -90,6 +92,14 @@ namespace stencil::gui {
     return out;
   }
 
+  namespace {
+    // A raw token the skin repaints (browser: a skin's tokens.css re-points the base tokens) reads the skin's.
+    QColor skinned(const char* css, bool dark, const QColor& plain) {
+      const QColor v = support::skinLook().token(css, dark);
+      return v.isValid() ? v : plain;
+    }
+  }  // namespace
+
   QString buildStylesheet(bool dark, const QString& accentKey) {
     const Palette p = themePalette(dark, accentKey);
     auto c = [](const QColor& q) { return q.name(); };
@@ -107,19 +117,19 @@ namespace stencil::gui {
     const QColor caretDim = mixSrgb(p.textMuted, disabledBg, 0.55);
     const QColor sbThumb = canvasScrollThumb(dark);
     // Browser --bg-drop-hint/--border-hint. NB: CSS color-mix(accent P%, base) == mixSrgb(base, accent, P).
-    const QColor dropHintBg = dark ? mixSrgb(p.bgPage, p.accent, 0.16)
-                                    : mixSrgb(QColor(Qt::white), p.accent, 0.09);
+    const QColor dropHintBg = skinned("--bg-drop-hint", dark, dark ? mixSrgb(p.bgPage, p.accent, 0.16)
+                                                             : mixSrgb(QColor(Qt::white), p.accent, 0.09));
     // Browser --bg-keywords: the keywords well's NEUTRAL fill; the accent is its border.
-    const QString keywordsBg = themeToken("--bg-keywords", dark).name();
-    const QColor dropHintBorder = dark ? mixSrgb(QColor("#2a2a2a"), p.accent, 0.50)
-                                        : mixSrgb(QColor(Qt::white), p.accent, 0.35);
+    const QString keywordsBg = skinned("--bg-keywords", dark, themeToken("--bg-keywords", dark)).name();
+    const QColor dropHintBorder = skinned("--border-hint", dark, dark ? mixSrgb(QColor("#2a2a2a"), p.accent, 0.50)
+                                                                 : mixSrgb(QColor(Qt::white), p.accent, 0.35));
     // Browser --border-tooltip.
-    const QColor borderTooltip = themeToken("--border-tooltip", dark);
+    const QColor borderTooltip = skinned("--border-tooltip", dark, themeToken("--border-tooltip", dark));
     // Browser --bg-info.
-    const QColor bgInfo = infoBackground(dark);
+    const QColor bgInfo = skinned("--bg-info", dark, infoBackground(dark));
     // Browser --success, lifted toward the light on dark like the reds are; --success-cta is
     // the deeper green the one filled GO button wears, so white ink reads on it.
-    const QColor success = themeToken("--success", dark);
+    const QColor success = skinned("--success", dark, themeToken("--success", dark));
     const QColor successCta = themeToken("--success-cta", dark);
 
     // Tracks browser/css. The sheet is the pieces under resources/qss/app/; only its %TOKEN% values are
@@ -137,7 +147,7 @@ namespace stencil::gui {
         {"%RADIO_IMG%", darkGlyph ? ":/icons/radio-dot-dark.png" : ":/icons/radio-dot.png"},
         {"%ACCENT_SOFT2%", rgba(p.accent, dark ? 0.30 : 0.20)},
         {"%ACCENT_SOFT%", rgba(p.accent, dark ? 0.18 : 0.11)},
-        {"%ACCENT_RING%", rgba(p.accent, 0.45)},
+        {"%ACCENT_RING%", rgba(p.accent, 0.45)}, {"%ACCENT_HALO%", rgba(p.accent, 0.25)},
         // A quarter of the control's own ink: light-grey on light, dark-grey on dark.
         {"%UI_OUTLINE%", rgba(p.textMain, 0.25)},
         {"%ACCENT2%", c(accent2)},
@@ -159,17 +169,17 @@ namespace stencil::gui {
         {"%DESELECT_BG%", c(p.bgSelBtn)},
         {"%DESELECT_HOVER%", c(p.bgSelBtnHov)},
         {"%DISABLED_BG%", c(disabledBg)},
-        {"%BG_PAGE%", c(p.bgPage)},
+        {"%BG_PAGE%", c(p.bgPage)}, {"%BG_CANVAS%", c(p.bgCanvas)},
         {"%BG_CONTAINER%", c(p.bgContainer)},
         {"%BG_CONTROLS%", c(p.bgControls)},
         {"%BG_COORD_HOVER%", c(p.bgCoordHover)},
         {"%BG_ROW_HOVER_SOFT%", c(mixSrgb(p.bgContainer, p.bgCoordHover, 0.5))},
         // Browser --bg-coord-even / --text-info (`inherit` on light = the main ink).
-        {"%BG_COORD_EVEN%", c(themeToken("--bg-coord-even", dark))},
-        {"%BG_COORD_TABLE%", c(themeToken("--bg-coord-table", dark))},
-        {"%BORDER_COORD%", c(themeToken("--border-coord", dark))},
-        {"%TEXT_COORD_H3%", c(themeToken("--text-coord-h3", dark))},
-        {"%TEXT_INFO%", c(dark ? themeToken("--text-info", dark) : p.textMain)},
+        {"%BG_COORD_EVEN%", c(skinned("--bg-coord-even", dark, themeToken("--bg-coord-even", dark)))},
+        {"%BG_COORD_TABLE%", c(skinned("--bg-coord-table", dark, themeToken("--bg-coord-table", dark)))},
+        {"%BORDER_COORD%", c(skinned("--border-coord", dark, themeToken("--border-coord", dark)))},
+        {"%TEXT_COORD_H3%", c(skinned("--text-coord-h3", dark, themeToken("--text-coord-h3", dark)))},
+        {"%TEXT_INFO%", c(skinned("--text-info", dark, dark ? themeToken("--text-info", dark) : p.textMain))},
         {"%BG_INFO%", c(bgInfo)},
         {"%BG_DROP_HINT%", c(dropHintBg)},
         {"%BG_KEYWORDS%", keywordsBg},

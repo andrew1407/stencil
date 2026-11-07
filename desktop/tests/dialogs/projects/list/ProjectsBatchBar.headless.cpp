@@ -58,6 +58,7 @@ int main(int argc, char** argv) {
   if (pinnedRows(locals)) return 1;
   if (batchBarVisibility(locals, mgr)) return 1;
   if (batchRemoveAndCheckboxPress(locals)) return 1;
+  if (removedTopRowKeepsItsSlot(locals)) return 1;
   if (filterTransitions(locals)) return 1;
   if (wheelScroll()) return 1;
 

@@ -96,3 +96,43 @@ test('the projects picker opens over the menu row that asked, not at the row\'s 
   open({ id: 'p1', color: '#112233' }, { getBoundingClientRect: () => rowRect });
   assert.deepEqual(picked, { left: 480, top: 360 });
 });
+
+// Chrome hangs its picker off a re-rooted fixed field shifted by the root's offset twice (the docked
+// chat's band), so such a field opens from <body>, at the button, and goes home once the pick ends.
+test('a re-rooted field opens from <body> and goes back home on the next touch or the commit', () => {
+  const nest = (name) => {
+    const n = { name, kids: [] };
+    const take = (el) => { el.parentNode?.kids.splice(el.parentNode.kids.indexOf(el), 1); el.parentNode = n; };
+    n.appendChild = (el) => { take(el); n.kids.push(el); return el; };
+    n.insertBefore = (el, at) => { take(el); n.kids.splice(at ? n.kids.indexOf(at) : n.kids.length, 0, el); return el; };
+    return n;
+  };
+  const body = nest('body'), shell = nest('.container');
+  const logo = { getBoundingClientRect: () => ({ left: 370, top: 20, width: 32, height: 32 }) };
+  const input = { style: {}, picks: [], ownerDocument: { body }, listeners: {} };
+  input.addEventListener = (t, fn) => { input.listeners[t] = fn; };
+  input.removeEventListener = (t, fn) => { if (input.listeners[t] === fn) delete input.listeners[t]; };
+  input.getBoundingClientRect = () => {
+    const ox = input.parentNode === body ? 0 : 350;
+    return { left: ox + px(input.style.left), top: px(input.style.top), width: px(input.style.width), height: px(input.style.height) };
+  };
+  input.showPicker = () => input.picks.push({ at: input.parentNode.name, ...input.getBoundingClientRect() });
+  Object.defineProperty(input, 'nextSibling', { get: () => input.parentNode.kids[input.parentNode.kids.indexOf(input) + 1] ?? null });
+  const sibling = { name: 'after' };
+  shell.appendChild(input);
+  shell.appendChild(sibling);
+  for (const close of [() => page.fire('pointerdown', {}), () => input.listeners.change()]) {
+    openColorPicker(input, logo);
+    const pick = input.picks.at(-1);
+    assert.equal(pick.at, 'body');
+    over(pick, logo.getBoundingClientRect());
+    assert.equal(px(input.style.left), 370, 'from <body>, fixed is the viewport: no correction left');
+    close();
+    assert.deepEqual(shell.kids, [input, sibling], 'back in its own slot');
+    assert.deepEqual(body.kids, []);
+    assert.equal(input.listeners.change, undefined, 'the homing listener goes with it');
+  }
+  const plain = fieldUnder();
+  plain.parentNode = shell;
+  assert.equal(anchorPickerInput(plain, logo), null, 'a field fixed to the viewport stays put');
+});

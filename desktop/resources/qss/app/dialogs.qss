@@ -117,7 +117,7 @@
       QWidget#keywordsChipArea { background: transparent; }
       QFrame[kwChip="true"] {
         border: 1px solid %BORDER%; border-radius: 13px; background: %INPUT_BG%;
-        min-height: 26px; max-height: 26px;
+        min-height: 24px; max-height: 24px;   /* the contents: with the border, the browser's 26px oval */
       }
       QPushButton[kwChipX="true"] {
         background: transparent; border: none; border-radius: 9px; padding: 0px;

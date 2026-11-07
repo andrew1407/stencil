@@ -1,8 +1,14 @@
 // The chat dock's slide clocks come from common/config/motion.json (CHAT_SURFACE_*), the pair
-// the browser's chat panel flies on: read, fallback and table agree.
+// the browser's chat panel flies on: the read value, the struct's fallback and the table agree.
+// Browser twin: the clocks ui/chat/panel/openState.js takes from tune.js.
 #include "chatSlideClocks.hpp"
 
 #include <QCoreApplication>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
+
+#include <cmath>
 #include <cstdio>
 
 #include "../../support/check.hpp"

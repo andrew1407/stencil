@@ -15,6 +15,8 @@
 namespace stencil::gui {
 
   void ProjectsDialog::scheduleRowOpen(QListWidgetItem* it) {
+    // The window's own unsaved row has nothing to switch to: a click just closes the list (browser localRow.js).
+    if (it && it->data(TEMP_ROLE).toBool() && !press.rowDragging) { reject(); return; }
     if (press.rowDragging || press.pressOnCheck || !it || it->data(Qt::UserRole).isNull()) return;
     press.pendingRow = list->row(it);
     press.pendingNewWindow = isNewWindowMod(press.pressMods);

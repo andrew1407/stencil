@@ -196,6 +196,34 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
+
+  // Blank image keeps Projects open (browser projects-blank-image): the Open Image dialog is raised over it.
+  void projectsBlankImageStacksOverTheOpenList() {
+    if (qApp->platformName() != QLatin1String("offscreen"))
+      QSKIP("modal-dialog gestures need the offscreen platform");
+    MainWindow win(nullptr, false);
+    QVERIFY(held::showForProjects(win));
+    bool stacked = false, stillOpen = false;
+    QTimer::singleShot(0, &win, [&] {
+      QDialog* projects = held::projectsWindow().dlg;
+      QPushButton* blank = nullptr;
+      if (projects) for (QPushButton* b : projects->findChildren<QPushButton*>()) if (b->text() == QLatin1String("Blank image")) blank = b;
+      if (!blank) { held::rejectModal(); return; }
+      QTimer::singleShot(0, &win, [&, projects] {
+        QDialog* top = nullptr;
+        for (int i = 0; i < 200 && (!top || top == projects); ++i) { top = qobject_cast<QDialog*>(QApplication::activeModalWidget()); QTest::qWait(10); }
+        stacked = top && top != projects && projects->isVisible();
+        if (top && top != projects) top->reject();
+      });
+      blank->click();
+      stillOpen = projects->isVisible();
+      projects->reject();
+    });
+    win.projectHost.flows.openProjects();
+    QVERIFY2(stacked, "the blank dialog was not raised over the still-open Projects window");
+    QVERIFY2(stillOpen, "Projects closed behind the blank dialog");
+  }
+
 };
 
 QTEST_MAIN(MainWindowGuiTest)

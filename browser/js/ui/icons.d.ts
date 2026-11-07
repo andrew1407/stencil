@@ -4,7 +4,8 @@ export declare const ICONS: Record<string, string>;
 export declare const DRAW_MODE_ICON: Record<string, string>;
 
 /** Install (or with null remove) a skin's art: name → 16-grid inner markup with the colour baked in. */
-export declare const setIconSkin: (table: Record<string, string> | null) => void;
+export declare const setIconSkin: (table: Record<string, string | (() => string)> | null,
+  opts?: { grid?: number; crisp?: boolean }) => void;
 
 /** One glyph as a complete `<svg>` string; '' for an unknown name. */
 export declare function icon(name: string, opts?: { size?: number; cls?: string; sw?: number }): string;

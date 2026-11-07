@@ -369,71 +369,10 @@
         "font-size": "13.5px",
         "font-family": "Arial, sans-serif"
       },
-      "text": "Enter Fullscreen"
+      "text": "Fullscreen"
     },
     {
       "path": ":root/div[4]/span[3]",
-      "tag": "span",
-      "classes": "ctx-hotkey",
-      "style": {
-        "display": "block",
-        "color": "rgb(153, 153, 153)",
-        "border-color": "rgb(153, 153, 153)",
-        "font-size": "11px",
-        "font-family": "Arial, sans-serif"
-      }
-    },
-    {
-      "path": ":root/div[4]/span[3]/kbd[1]",
-      "tag": "kbd",
-      "classes": "tip-key",
-      "style": {
-        "display": "inline-block",
-        "color": "color(srgb 0.418196 0.195608 0.799294)",
-        "background-color": "rgb(255, 255, 255)",
-        "border-color": "rgb(221, 221, 221)",
-        "border-width": "1px 1px 2px",
-        "border-radius": "5px",
-        "font-size": "14px",
-        "font-weight": "600",
-        "font-family": "Arial, sans-serif",
-        "text-align": "center"
-      },
-      "text": "Alt"
-    },
-    {
-      "path": ":root/div[4]/span[3]/span[1]",
-      "tag": "span",
-      "classes": "tip-plus",
-      "style": {
-        "display": "inline",
-        "color": "rgb(153, 153, 153)",
-        "border-color": "rgb(153, 153, 153)",
-        "font-size": "13px",
-        "font-family": "Arial, sans-serif"
-      },
-      "text": "+"
-    },
-    {
-      "path": ":root/div[4]/span[3]/kbd[2]",
-      "tag": "kbd",
-      "classes": "tip-key",
-      "style": {
-        "display": "inline-block",
-        "color": "color(srgb 0.418196 0.195608 0.799294)",
-        "background-color": "rgb(255, 255, 255)",
-        "border-color": "rgb(221, 221, 221)",
-        "border-width": "1px 1px 2px",
-        "border-radius": "5px",
-        "font-size": "14px",
-        "font-weight": "600",
-        "font-family": "Arial, sans-serif",
-        "text-align": "center"
-      },
-      "text": "F"
-    },
-    {
-      "path": ":root/div[4]/span[4]",
       "tag": "span",
       "classes": "ctx-arrow",
       "style": {
@@ -445,6 +384,18 @@
         "opacity": "0.55",
         "justify-content": "flex-end",
         "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[4]/span[3]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-chevron-right",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13.5px",
+        "font-family": "Arial, sans-serif"
       }
     },
     {

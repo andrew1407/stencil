@@ -1,6 +1,10 @@
 export declare const LEAVE_MS: number;
 export declare const CHAT_LEAVE_MS: number;
 export declare const LEAVING_CLASS: string;
+/** Sliding / Transition's row clock (ms). */
+export declare const MODE_ROW_MS: number;
+/** `ms`, lengthened to MODE_ROW_MS under Sliding or Transition. */
+export declare function rowClock(ms: number): number;
 
 /** Plays `el` out then runs `done` (always, even under reduced motion or with no element). */
 export declare function leaveThenRemove(

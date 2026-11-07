@@ -99,7 +99,7 @@ namespace stencil::gui {
                                     w.projectHost.copy.offer(req);
                                   });
                                 });
-    menu.addAction(w.acts.fullscreen);
+    w.parts.view.addFullscreenKindRows(*subMenu(w.fs.active ? "minimize" : "maximize", QStringLiteral("Fullscreen")), subIcon);
     menu.addSeparator();
 
     // Assistant submenu, always — with no provider its status says so (adds NO separator). Live-input handling is

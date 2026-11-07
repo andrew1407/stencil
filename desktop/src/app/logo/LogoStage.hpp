@@ -35,6 +35,8 @@ namespace stencil::gui {
       std::function<void(const QString&)> toast;
       std::function<void()> pinkVibe;
       std::function<bool()> webcore;             // the skin toggle; returns the state it left
+      std::function<bool()> aqua;                // the aqua skin's, the same way
+      std::function<bool()> dark;                // the face painted now, for a row that names one
       std::function<void()> stopClick;           // drop the pending accent cycle
       std::function<void(bool)> coverChrome;     // hide the header mark's own overlay
       std::function<void(bool)> hideNotices;    // momentary, for the backdrop photograph only

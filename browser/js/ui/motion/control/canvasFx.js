@@ -3,6 +3,7 @@ import { runDust } from '../dust/canvasDustDraw.js';
 import { GHOST_MS } from '../dust/canvasDustGrid.js';
 import { makeDustStage } from '../dust/canvasDustStage.js';
 import { arriveFrom, flashLanding } from '../enterLeave.js';
+import { slideCanvasIn } from './canvasSlide.js';
 // The arrival is the clear played backwards (sweep reversed, bottom-to-top); it does not
 // stream from the drop point because the stage is only as big as the image. Returns true
 // only when the dust is playing — the caller hides the real canvas only then.
@@ -49,6 +50,7 @@ export function playCanvasArrival(canvas, { from = null, viewport, container, gh
     if (vp) flashLanding(vp, ASSEMBLING_CLASS, GHOST_MS);
     return 'dust';
   }
+  if (slideCanvasIn(box, vp, from)) return 'slide';
   arriveFrom(box, from);
   return 'flight';
 }

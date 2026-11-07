@@ -5,9 +5,11 @@
 #include <QString>
 
 class QGraphicsOpacityEffect;
+class QMenu;
 class QScrollBar;
 class QTimer;
 class QToolBar;
+class QToolButton;
 class QVariantAnimation;
 
 namespace stencil::core {
@@ -38,7 +40,18 @@ namespace stencil::gui {
     void syncUnitControls();
     void zoomIn();
     void zoomOut();
+    // On: off. Off: the screen kind.
     void toggleFullscreen();
+    // Into `inWindow`'s kind, out when it is the live one, a switch from the other (browser layer.js choose).
+    void toggleFullscreenKind(bool inWindow);
+    void syncFullscreenTip();
+    void wireFullscreenButton();
+    void fullscreenButtonClick(bool inWindow);
+    void popupFullscreenMenu(QToolButton* btn, bool held);   // held: the press's release picks or closes
+    // The Full Screen and Fullscreen in Window rows; the live kind's row is its exit.
+    void addFullscreenKindRows(QMenu& menu, int iconPx);
+    // The system's own switch (the green button, ctrl-cmd-F, the Window menu), which skips toggleFullscreen.
+    void followSystemFullscreen(Qt::WindowStates was, Qt::WindowStates now);
     void setToolbarsVisible(bool on);
     void fsHoverTick();
     void setToolbarsShown(bool show, bool animate);
@@ -61,13 +74,16 @@ namespace stencil::gui {
     // QPointer: QWidget::setGraphicsEffect DELETES the previous effect, so a re-install dangles.
     QPointer<QGraphicsOpacityEffect> vScrollOpacity;
     QPointer<QGraphicsOpacityEffect> hScrollOpacity;
+    QPointer<QMenu> fsMenu;   // the fullscreen toggle's menu of both kinds, built on first use
     QTimer* scrollbarHideTimer = nullptr;
     bool scrollbarHovered = false;
     QVariantAnimation* barsAnim = nullptr;
 
     void validateAndApplyFormulas();
     void syncFullscreenGlyph();
+    void flipFullscreen();   // the live kind, on or off
     void markFullscreenBars(bool on);
+    void fitCanvasToWindow(bool fill);
     // The rows are veiled for the flight, as the panel and the chat are: the motes ARE the rows.
     QPointer<gui::DisintegrateOverlay> barsSurfaceFlight(const QList<QToolBar*>& bars,
                                                          bool gather, int ms);

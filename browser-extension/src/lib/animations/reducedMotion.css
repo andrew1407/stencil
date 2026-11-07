@@ -19,5 +19,5 @@
         -webkit-mask-image: none; mask-image: none;
     }
     .tip-key.key-shake { animation: none !important; }
-    .chat-slide-in { animation: none; }
+    .chat-slide-in, .chat-grow-in, .chat-side-in { animation: none; }
 }

@@ -27,11 +27,11 @@ namespace stencil::gui {
 
   QColor CliStage::inkColor() const {
     if (worn && worn->paintsCells) return worn->fg;
-    return themePalette(hooks.dark && hooks.dark(), hooks.accentKey ? hooks.accentKey() : QString()).textMain;
+    return unskinnedPalette(hooks.dark && hooks.dark(), hooks.accentKey ? hooks.accentKey() : QString()).textMain;
   }
   QColor CliStage::paperColor() const {
     if (worn && worn->paintsCells) return worn->bg;
-    return themePalette(hooks.dark && hooks.dark(), hooks.accentKey ? hooks.accentKey() : QString()).bgPage;
+    return unskinnedPalette(hooks.dark && hooks.dark(), hooks.accentKey ? hooks.accentKey() : QString()).bgPage;
   }
 
   // An accent cell's colour: the skin's hue, the wipe's old or new accent by the seam, else the accent.
@@ -60,7 +60,7 @@ namespace stencil::gui {
     const int nameX = x + fm.horizontalAdvance(head);
     statusName = QRect(nameX, y, fm.horizontalAdvance(s.name), cellH());
     const bool cells = worn && worn->paintsCells;
-    p.setPen(cells ? inkColor() : s.color.isValid() ? s.color : themePalette(hooks.dark && hooks.dark()).textMuted);
+    p.setPen(cells ? inkColor() : s.color.isValid() ? s.color : unskinnedPalette(hooks.dark && hooks.dark()).textMuted);
     p.drawText(QPoint(nameX, y + fm.ascent()), s.name);
     p.setPen(inkColor());
     p.drawText(QPoint(nameX + statusName.width(), y + fm.ascent()), tail);
@@ -77,7 +77,7 @@ namespace stencil::gui {
       for (int r = 0; r < rows && r < fx->rainRows().size(); ++r) p.drawText(QPoint(box.left(), box.top() + r * ch + fm.ascent()), fx->rainRows().at(r));
       return;
     }
-    const Palette pal = themePalette(hooks.dark && hooks.dark(), hooks.accentKey ? hooks.accentKey() : QString());
+    const Palette pal = unskinnedPalette(hooks.dark && hooks.dark(), hooks.accentKey ? hooks.accentKey() : QString());
     bodyRowsNow = rows;
     scrollOff = qBound(0, scrollOff, qMax(0, reveal->count() - rows));
     const int end = reveal->count() - scrollOff, first = qMax(0, end - rows);
@@ -132,7 +132,7 @@ namespace stencil::gui {
     const int c0 = i == lo.line ? qMin(lo.col, int(text.size())) : 0;
     const int c1 = i == hi.line ? qMin(hi.col, int(text.size())) : text.size();
     if (c1 <= c0) return;
-    QColor tint = themePalette(hooks.dark && hooks.dark(), hooks.accentKey ? hooks.accentKey() : QString()).accent;
+    QColor tint = unskinnedPalette(hooks.dark && hooks.dark(), hooks.accentKey ? hooks.accentKey() : QString()).accent;
     tint.setAlphaF(hooks.dark && hooks.dark() ? 0.30 : 0.20);
     p.fillRect(QRect(x + c0 * cellW(), y, (c1 - c0) * cellW(), cellH()), tint);
   }

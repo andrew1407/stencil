@@ -10,7 +10,8 @@ import { initTooltips } from '../lib/tip/controlTooltip.js';
 import { wireScrollbarHover } from '../lib/control/scrollbarHover.js';
 import { enhanceSelect } from '../lib/control/customSelect.js';
 import { beginQuarterTurn } from '../lib/motion/quarterTurn.js';
-import { installWebcore, wireWebcoreHold } from '../lib/webcore/skin.js';
+import { installSkins } from '../lib/skin/install.js';
+import { wireSkinHold } from '../lib/skin/hold.js';
 import { createCropStage } from './stage.js';
 import { createCropControls } from './controls.js';
 import { buildHandoffPayload } from './handoff.js';
@@ -26,8 +27,8 @@ const postToHost = (type) => {
 // all?" (a CSP / mixed-content block stops it dead), not "did the image finish loading".
 postToHost('ready');
 routeStoreWrites();
-installWebcore(document);
-wireWebcoreHold(document.querySelector('header .logo-wrap'));
+installSkins(document);
+wireSkinHold(document.querySelector('header .logo-wrap'));
 
 const statusEl = document.getElementById('status');
 

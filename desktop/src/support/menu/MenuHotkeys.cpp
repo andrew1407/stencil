@@ -1,12 +1,18 @@
 #include "MenuHotkeys.hpp"
+#include "../skin/SkinLookStrategy.hpp"
 #include "../skinPrefs.hpp"
 
 namespace stencil::support {
 
+  namespace {
+    // 14px × 11/14: the browser's aqua menu cap.
+    constexpr qreal AQUA_MENU_CAP_SCALE = 11.0 / 14.0;
+  }  // namespace
+
   // `compact` is for a FLAT list of hotkey rows, never one with submenu-opener rows. Never
   // setFixedWidth: calcActionRects() sizes the shortcut column from sizeHint, so the chip spills.
   MenuHotkeyChips::MenuHotkeyChips(QMenu* root, bool compact) : compact(compact) {
-    if (this->compact && root) root->setStyleSheet(gui::compactMenuQss());
+    if (this->compact && root) root->setStyleSheet(gui::compactMenuQss(isAqua()));
     wire(root, gui::currentPalette());
   }
 
@@ -70,7 +76,8 @@ namespace stencil::support {
       row.originalShortcut = a->shortcut();
       row.chip = new gui::TipBody(menu);
       row.chip->setAttribute(Qt::WA_TransparentForMouseEvents);
-      row.chip->setTip(gui::comboKeycapsHtml(combo, pal));
+      // Aqua's 3px rows: an 11px cap (browser css/aqua/menus.css .ctx-hotkey .tip-key) clears the row above.
+      row.chip->setTip(gui::comboKeycapsHtml(combo, pal, gui::ON_MAC, isAqua() ? AQUA_MENU_CAP_SCALE : 1.0));
       row.chip->show();
       row.chip->adjustSize();
       // Finds the keycap regions now; nothing else here calls capCount(), and the shake
@@ -120,8 +127,8 @@ namespace stencil::support {
       const QRect r = menu->actionGeometry(row.action);
       if (!r.isValid() || !row.action->isVisible()) { row.chip->hide(); continue; }
       if (row.chip->isHidden()) row.chip->show();
-      // Right-pinned like the browser's .ctx-hotkey; compact menus have no submenu arrow.
-      const int MENU_RIGHT_PAD = compact ? 10 : gui::MENU_ITEM_RIGHT_PAD_PX;
+      // Right-pinned like the browser's .ctx-hotkey; compact and flat menus have no submenu arrow.
+      const int MENU_RIGHT_PAD = compact || menu->property("flatMenu").toBool() ? 10 : gui::MENU_ITEM_RIGHT_PAD_PX;
       // Under the skin the hovered row's caps step 3px right and stay (browser overlays.css
       // .ctx-item:hover padding 14 → 17px) instead of shaking.
       const int nudge = support::isWebcore() && current.value(menu) == row.action ? 3 : 0;
@@ -137,7 +144,8 @@ namespace stencil::support {
     if (!menu->actionGeometry(a).isValid()) return;
     QPointer<QAction>& cur = current[menu];
     if (a == cur) return;
-    if (support::isWebcore()) {   // no keycap shake under the skin, only the step
+    // No keycap shake under a skin (webcore steps), nor in the None motion mode.
+    if (!support::skinTraits().hasKeycapShake || support::motionMode() == support::MotionMode::NONE) {
       cur = a;
       return place(menu);
     }

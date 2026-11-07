@@ -1,6 +1,7 @@
 // Batch remove: the confirm answered in-dialog, one dust cloud per VISIBLE checked row and none for
 // the scrolled-out ones, every checked id retired in place. Then the checkbox strip, which selects.
 #include "ProjectsBatchBarParts.hpp"
+#include "projectsRowChrome.hpp"   // TEMP_ROLE: the pinned temporary row
 #include <QScrollBar>
 #include <cstdlib>
 
@@ -112,5 +113,58 @@ int batchRemoveAndCheckboxPress(const std::vector<Project>& locals) {
     check(dlg.isVisible(), "checkbox-strip click never opens the row (dialog stays up)");
     dlg.reject();
   }
+  return 0;
+}
+
+// The open project's row at the top, removed: its slot is HELD until the owner's rebuild brings the pinned
+// temporary row, which takes it over — the rows below never go up and come straight back down (browser
+// renderList.js inPlace, desktop ProjectsDialog::retireRow + refresh's restoreDoomed).
+int removedTopRowKeepsItsSlot(const std::vector<Project>& locals) {
+  std::printf("a removed top row's slot is taken over by the temporary row:\n");
+  QString topId;
+  {
+    ProjectsDialog probe(locals, 5000);
+    auto* l = probe.findChild<QListWidget*>("projectsList");
+    if (!l || l->count() < 2) { check(false, "the probe lists the projects"); return 1; }
+    topId = l->item(0)->data(Qt::UserRole).toString();
+  }
+  ProjectsDialog dlg(locals, 5000, nullptr, {}, nullptr, topId);
+  dlg.resize(760, 420);
+  dlg.show();
+  pumpFor(50);
+  auto* list = dlg.findChild<QListWidget*>("projectsList");
+  if (!list || list->count() != int(locals.size())) { check(false, "every project has a row"); return 1; }
+  const QString nextId = list->item(1)->data(Qt::UserRole).toString();
+  const auto topOf = [list](const QString& id) {
+    for (int i = 0; i < list->count(); ++i)
+      if (list->item(i)->data(Qt::UserRole).toString() == id) return list->visualItemRect(list->item(i)).top();
+    return -1;
+  };
+  const int before = topOf(nextId);
+
+  list->item(0)->setCheckState(Qt::Checked);
+  pumpFor(20);
+  QTimer::singleShot(0, [] {
+    for (int i = 0; i < 200; ++i) {
+      QWidget* m = QApplication::activeModalWidget();
+      if (m && m->objectName() == QLatin1String("stencilConfirmModal")) {
+        for (QPushButton* b : m->findChildren<QPushButton*>())
+          if (b->text() == QLatin1String("OK")) { b->click(); return; }
+      }
+      pumpFor(5);
+    }
+  });
+  if (QPushButton* rm = btnByText(&dlg, QStringLiteral("Remove selected"))) rm->click();
+  pumpFor(400);   // past the dust mode's 220 ms slot close
+  check(topOf(nextId) == before, "while the leave plays the row below stays put");
+
+  std::vector<Project> rest;
+  for (const Project& p : locals)
+    if (QString::fromStdString(p.meta.id) != topId) rest.push_back(p);
+  dlg.setProjects(rest, /*temporary=*/true, /*incognito=*/false);
+  pumpFor(20);
+  check(list->count() >= 1 && list->item(0)->data(stencil::gui::TEMP_ROLE).toBool(), "the temporary row is pinned on top");
+  check(list->count() == int(rest.size()) + 1, "…in the removed row's place, with no leftover slot");
+  check(std::abs(topOf(nextId) - before) <= 8, "the row below barely moves when the temporary row takes over");
   return 0;
 }

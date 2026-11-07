@@ -78,6 +78,24 @@ const MANIFEST = [
     canonical: () => canonical('../../common/config/logoStage.json'),
   },
   {
+    name: 'aqua logo art: lib/aqua/svgArt.json ↔ config/svgArt.json',
+    mode: 'full',
+    extension: () => canonical('../src/lib/aqua/svgArt.json'),
+    canonical: () => canonical('../../common/config/svgArt.json'),
+  },
+  {
+    name: 'aqua table: lib/aqua/aqua.json ↔ config/aqua.json',
+    mode: 'full',
+    extension: () => canonical('../src/lib/aqua/aqua.json'),
+    canonical: () => canonical('../../common/config/aqua.json'),
+  },
+  {
+    name: 'aqua glossy icons: lib/aqua/iconsAqua.json ↔ config/iconsAqua.json',
+    mode: 'full',
+    extension: () => canonical('../src/lib/aqua/iconsAqua.json'),
+    canonical: () => canonical('../../common/config/iconsAqua.json'),
+  },
+  {
     name: 'op registry: src/config/opRegistry.json ↔ config/llm/opRegistry.json',
     mode: 'full',
     extension: () => canonical('../src/config/opRegistry.json'),

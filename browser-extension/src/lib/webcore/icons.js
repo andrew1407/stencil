@@ -2,6 +2,7 @@
 // tests/dataParity.test.js) as <rect> runs on a 16-grid, swapped into every svg.ic, the header
 // mark and the crop page's <img> mark. Browser twin: js/ui/webcore/icons.js.
 import PIXELS from './iconsWebcore.json' with { type: 'json' };
+import { glyphOf, glyphsAt } from '../skin/page.js';
 
 // One <rect> per run of a lit colour along each row. `ink` re-inks single palette characters.
 export const pixelRects = (rows, ink = null) => {
@@ -33,11 +34,7 @@ export const pixelIconSvg = (name, opts = {}, size = PIXELS.size) =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="${size}" height="${size}" ` +
   `shape-rendering="crispEdges">${pixelArt(name, opts)}</svg>`;
 
-const NAME_RE = /^ic-([a-z0-9-]+)$/;
 const kept = new WeakMap();   // element → what it wore before the skin
-
-const glyphOf = (el) => (el.classList.contains('logo') ? 'logo'
-  : [...el.classList].map((c) => NAME_RE.exec(c)?.[1]).find((n) => n && hasPixelIcon(n)));
 
 // An inline <svg> swaps its markup; the crop page's <img> mark swaps its source.
 const WEARERS = Object.freeze({
@@ -77,14 +74,10 @@ const restore = (el) => {
   kept.delete(el);
 };
 
-const GLYPHS = 'svg.ic, svg.logo, img.logo';
-
 // Every glyph at or under `root`, drawn in pixels (`on`) or put back as it was.
 export const swapIcons = (root, on, opts = {}) => {
-  if (!root?.querySelectorAll) return;
-  const els = [...(root.matches?.(GLYPHS) ? [root] : []), ...root.querySelectorAll(GLYPHS)];
-  for (const el of els) {
-    const name = glyphOf(el);
+  for (const el of glyphsAt(root)) {
+    const name = glyphOf(el, hasPixelIcon);
     if (!name) continue;
     if (on) paint(el, name, opts); else restore(el);
   }

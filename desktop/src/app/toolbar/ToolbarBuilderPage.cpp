@@ -12,6 +12,15 @@
 
 namespace stencil::gui {
 
+  namespace {
+    // The "%" beside the zoom field (browser: the span after #zoom-input).
+    QLabel* zoomPctLabel(QWidget* parent) {
+      auto* l = new QLabel(QStringLiteral("%"), parent);
+      l->setObjectName(QStringLiteral("zoomPctLabel"));
+      return l;
+    }
+  }  // namespace
+
   void ToolbarBuilder::buildPageFormulaToolbar() {
     QToolBar* row = toolRow();
 
@@ -25,7 +34,7 @@ namespace stencil::gui {
     // The browser's .zoom-controls, Fit first (browser twin: #zoom-fit); the steppers are the same
     // actions the View menu and Alt+↑/↓ drive.
     addWrapped(row,
-        makeToolSection("Zoom", { w.acts.zoomOut, w.acts.zoomIn }, { w.zoom }, { w.tools.zoomFitBtn }));
+        makeToolSection("Zoom", { w.acts.zoomOut, w.acts.zoomIn }, { w.zoom, zoomPctLabel(&w) }, { w.tools.zoomFitBtn }));
     addWrappedSeparator(row);
     // Built before the section so they can go inside it, or they centre on the toolbar's full
     // height and lose the row's baseline.

@@ -4,7 +4,9 @@ import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { loadAccent } from '../../helpers/accentSandbox.js';
-import { holdAllowed, wireWebcoreHold } from '../../../src/lib/webcore/skin.js';
+import { heldSkin, wireSkinHold } from '../../../src/lib/skin/hold.js';
+import { installSkins } from '../../../src/lib/skin/install.js';
+import { HEX, fakePage } from '../../helpers/aquaPage.js';
 import { HOLD_MS } from '../../../src/lib/logo/stageRules.js';
 import { pixelArt, pixelIconSvg, hasPixelIcon } from '../../../src/lib/webcore/icons.js';
 
@@ -40,10 +42,12 @@ const HOLD_CASES = Object.freeze([
   ['grey', 'none', '#64748b', false],
 ]);
 
+const holdAllowed = (win) => heldSkin(win) === 'webcore';
+
 test('the hold toggles only where the browser\'s opens its webcore row', () => {
   for (const [accent, motion, custom, allowed] of HOLD_CASES)
     assert.equal(holdAllowed(fakeWin(accent, motion, custom)), allowed, `${accent} + ${motion} + '${custom}'`);
-  assert.equal(holdAllowed({}), false, 'no pre-paint facades, no skin');
+  assert.equal(heldSkin({}), null, 'no pre-paint facades, no skin');
 });
 
 test('the hold reads the user\'s own mode, not the skin\'s stillness', () => {
@@ -90,7 +94,7 @@ test('a still press held for HOLD_MS flips the skin and eats the release\'s clic
   mock.timers.enable({ apis: ['setTimeout'] });
   try {
     const win = fakeWin('grey', 'none'), wrap = fakeWrap();
-    wireWebcoreHold(wrap, { win });
+    wireSkinHold(wrap, { win });
     wrap.fire('pointerdown');
     mock.timers.tick(HOLD_MS - 1);
     assert.equal(win.StencilSkin.on, false);
@@ -100,7 +104,7 @@ test('a still press held for HOLD_MS flips the skin and eats the release\'s clic
     assert.equal(wrap.count('click'), 1, 'the swallow waits for the click');
 
     const short = fakeWrap();
-    wireWebcoreHold(short, { win });
+    wireSkinHold(short, { win });
     short.fire('pointerdown');
     mock.timers.tick(HOLD_MS / 2);
     short.fire('pointerup');
@@ -113,7 +117,7 @@ test('a still press held for HOLD_MS flips the skin and eats the release\'s clic
     assert.equal(win.StencilSkin.on, true, 'a press that drifts is a drag');
 
     const barred = fakeWin('violet', 'none'), other = fakeWrap();
-    wireWebcoreHold(other, { win: barred });
+    wireSkinHold(other, { win: barred });
     other.fire('pointerdown');
     mock.timers.tick(HOLD_MS);
     assert.equal(barred.StencilSkin.on, false, 'outside grey + None the hold does nothing');
@@ -152,4 +156,23 @@ test('a mode already None stays None, and a pick under the skin is kept', () => 
   backToNone.motion.set('none');
   backToNone.skin.set(false);
   assert.equal(backToNone.motion.get(), 'none', 'None picked on purpose stays None');
+});
+
+// StencilAccent.previewAccent writes only data-accent (lib/accent/accent.js): the ring, the mark and
+// the favicon follow it live and come back with the worn accent (browser ui/accent/shownAccent.js).
+test('installSkins: a previewed accent repaints the ring and the mark, and its end puts them back', () => {
+  const p = fakePage('webcore');
+  try {
+    installSkins(p.doc, p.win);
+    assert.equal(p.root.style.getPropertyValue('--wc-focus'), HEX.blue);
+    const worn = p.link.href;
+    p.root.setAttribute('data-accent', 'green');
+    p.fire();
+    assert.equal(p.root.style.getPropertyValue('--wc-focus'), HEX.green, 'the hover ring wears the preview');
+    assert.notEqual(p.link.href, worn, 'so does the pixel mark in the tab');
+    p.root.setAttribute('data-accent', 'blue');
+    p.fire();
+    assert.equal(p.root.style.getPropertyValue('--wc-focus'), HEX.blue);
+    assert.equal(p.link.href, worn);
+  } finally { p.restore(); }
 });

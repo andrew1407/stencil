@@ -5,6 +5,7 @@
 # widget) plus the CanvasWidget partials (Canvas*.cpp) and the idle card's motion; every target
 # that draws a canvas needs the whole set, so they travel together under one name.
 set(STENCIL_CANVAS_SOURCES
+  src/support/genie/canvasSlide.cpp
   src/canvas/scene/CanvasScene.cpp
   src/canvas/scene/sceneDocument.cpp
   src/canvas/scene/scenePaint.cpp

@@ -24,6 +24,7 @@ namespace stencil::gui {
       // while the hint is held back or unpainted.
       idle.armed = event->button() == Qt::LeftButton && !idle.hidden &&
                    idle.cardRect().contains(event->position());
+      if (idle.armed) update();   // the aqua card wears the gel while held
       return;
     }
 

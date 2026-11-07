@@ -2,6 +2,7 @@
 // HoverSlide for an ITEM VIEW's rows — the browser's `.accent-dd-opt:hover
 // { transform: translateX(2px) }`. Wraps the view's delegate. Q_OBJECT-free, no MOC.
 #include "motionPrefs.hpp"   // support::motionReduced()
+#include "../skin/SkinLookStrategy.hpp"
 
 #include <QAbstractItemView>
 #include <QCursor>
@@ -90,7 +91,7 @@ namespace stencil::gui {
       at = 0.0;
       anim.stop();
       if (view) view->setProperty(ROW_SLIDE_PX_PROPERTY, 0);
-      if (!idx.isValid()) { if (view) view->viewport()->update(); return; }
+      if (!idx.isValid() || !support::skinTraits().hasRowHoverStep) { if (view) view->viewport()->update(); return; }
       if (support::motionReduced()) {
         at = 1.0;
         view->setProperty(ROW_SLIDE_PX_PROPERTY, px);

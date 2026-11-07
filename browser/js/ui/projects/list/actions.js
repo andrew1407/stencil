@@ -1,7 +1,7 @@
 // The two buttons under the projects list: a fresh editor tab, and Clear All. Clear All wipes
 // only LOCAL projects — server ones are never touched — and plays every row out first.
 import { notify } from '../../../utils.js';
-import { leaveThenRemove } from '../../motion/enterLeave.js';
+import { rowLeave } from './rowMotion.js';
 import { rowLeaveDust, ITEM_DUST_MS } from '../../motion/surface/tiles.js';
 import { clearedToast } from '../../../core/project/transferController.js';
 
@@ -28,7 +28,7 @@ export function wireListActions({ app, els, list, hasServers, selected, selectab
     const keys = [...selectables.keys()];
     for (const k of keys) doomed.add(k);
     const leaving = Promise.all(rows.map((row, i) =>
-      leaveThenRemove(row, () => {}, rowLeaveDust(rows.length, i, ITEM_DUST_MS))));
+      rowLeave(row, rowLeaveDust(rows.length, i, ITEM_DUST_MS))));
     selected.clear();
     updateBatchBar();
     await leaving;

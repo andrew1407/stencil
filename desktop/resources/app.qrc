@@ -14,7 +14,9 @@
     <file alias="logoStage.json">../../common/config/logoStage.json</file>
     <file alias="motion.json">../../common/config/motion.json</file>
     <file alias="webcore.json">../../common/config/webcore.json</file>
+    <file alias="aqua.json">../../common/config/aqua.json</file>
     <file alias="iconsWebcore.json">../../common/config/iconsWebcore.json</file>
+    <file alias="iconsAqua.json">../../common/config/iconsAqua.json</file>
     <file alias="svgArt.json">../../common/config/svgArt.json</file>
     <file alias="layoutFields.json">../../common/config/layoutFields.json</file>
     <file alias="console/commands.json">../../common/config/console/commands.json</file>
@@ -60,6 +62,12 @@
     <file alias="webcore/windows.qss">qss/webcore/windows.qss</file>
     <file alias="webcore/scrollbars.qss">qss/webcore/scrollbars.qss</file>
     <file alias="webcore/notices.qss">qss/webcore/notices.qss</file>
+    <!-- The aqua skin's overlay, appended after the app sheet while its word is on (support/aqua). -->
+    <file alias="aqua/chrome.qss">qss/aqua/chrome.qss</file>
+    <file alias="aqua/fields.qss">qss/aqua/fields.qss</file>
+    <file alias="aqua/menus.qss">qss/aqua/menus.qss</file>
+    <file alias="aqua/windows.qss">qss/aqua/windows.qss</file>
+    <file alias="aqua/scrollbars.qss">qss/aqua/scrollbars.qss</file>
   </qresource>
   <qresource prefix="/icons">
     <!-- Same icon as the browser app's favicon, so both front-ends share one

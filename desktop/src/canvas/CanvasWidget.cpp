@@ -9,7 +9,9 @@ namespace stencil::gui {
 
   CanvasWidget::CanvasWidget(QWidget* parent) : QWidget(parent) {
     setMouseTracking(true);
-    setMinimumSize(320, 240);
+    // Empty, it is the view's size up to 320×240 (OverlayScrollArea::fitLooseWidget), never a scroll's worth.
+    setMinimumSize(1, 1);
+    setBaseSize(320, 240);
     setFocusPolicy(Qt::StrongFocus);
     // Wheel edits (thickness/rotation) mutate live and commit one undo step once
     // the wheel goes quiet, mirroring the browser's debounced saveHistory.

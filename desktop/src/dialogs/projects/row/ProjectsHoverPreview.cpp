@@ -4,6 +4,8 @@
 #include "ProjectRowDelegate.hpp"
 #include "projectsRowChrome.hpp"
 #include "DisintegrateOverlay.hpp"
+#include "../../../support/menu/popupSlide.hpp"
+#include "../../../support/tip/tipFlight.hpp"
 
 #include <QCursor>
 #include <QGuiApplication>
@@ -24,16 +26,30 @@ namespace stencil::gui {
       hover.hoverDust->deleteLater();
       hover.hoverDust = nullptr;
     }
+    // The row's thumbnail centre (GLOBAL), the hover hit test's own rect: what the preview flies out of and back into.
+    QPoint iconOrigin(QListWidget* list, QListWidgetItem* it) {
+      const auto* del = static_cast<ProjectRowDelegate*>(list->itemDelegate());
+      QRect iconCell = del ? del->iconRectFor(list->row(it)) : QRect();
+      if (!iconCell.isValid()) iconCell = list->visualItemRect(it);
+      return list->viewport()->mapToGlobal(iconCell.center());
+    }
+    // Where no motes fly: Transition grows it out of the thumbnail and shrinks it back, Sliding pours it; it
+    // only faded (user report). False leaves it to the fade.
+    bool flyPreview(QWidget* preview, QListWidget* list, QListWidgetItem* it, bool in) {
+      if (!preview || !list || !it) return false;
+      const QPoint o = iconOrigin(list, it);
+      if (support::isTransitionMotionOk()) return in ? support::growTipAt(*preview, o) : support::shrinkTipAt(*preview, o);
+      if (!support::isSlideMotionOk()) return false;
+      if (in) { support::slidePopupIn(*preview, o); return true; }
+      return support::slidePopupOut(*preview, list->viewport(), o);
+    }
   }  // namespace
 
   bool ProjectsDialog::dustHoverPreview(QListWidgetItem* it, bool gather) {
     if (!hover.hoverPreview || !list || !it) return false;
     // The SAME thumbnail rect the hover hit test uses — the flight starts and
     // ends on the picture, never on the checkbox beside it.
-    const auto* del = static_cast<ProjectRowDelegate*>(list->itemDelegate());
-    QRect iconCell = del ? del->iconRectFor(list->row(it)) : QRect();
-    if (!iconCell.isValid()) iconCell = list->visualItemRect(it);
-    const QPoint origin = list->viewport()->mapToGlobal(iconCell.center());
+    const QPoint origin = iconOrigin(list, it);
     endHoverDust(hover);
     // alwaysEscape: the preview is its own ToolTip window ABOVE the dialog - a child layer's motes
     // played underneath it; paintNow on a close, so it never blinks out before any mote shows.
@@ -93,6 +109,8 @@ namespace stencil::gui {
       // (the shared surfaceForm ramp).
       hover.hoverPreview->setWindowOpacity(0.0);
       gui::holdFadeKeys(fade, gui::TIP_DUST_IN_MS);
+    } else if (flyPreview(hover.hoverPreview, list, it, /*in=*/true)) {
+      return;   // the flight owns the preview's opacity until it lands
     } else {
       fade->setDuration(support::motionMs(HOVER_FADE_MS));
       fade->setStartValue(hover.hoverPreview->windowOpacity());
@@ -106,6 +124,7 @@ namespace stencil::gui {
     // Photographed and dusted while it is still the box on screen, so the label fades out BEHIND the
     // leaving motes instead of blinking off under them.
     const bool dusted = !support::motionReduced() && dustHoverPreview(hover.hoverItem, /*gather=*/false);
+    if (!dusted && !support::motionReduced()) flyPreview(hover.hoverPreview, list, hover.hoverItem, /*in=*/false);
     hover.hoverItem = nullptr;
     if (!dusted) {
       endHoverDust(hover);

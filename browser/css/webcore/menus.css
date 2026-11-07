@@ -7,8 +7,7 @@
 :root[data-skin="webcore"] .zoom-menu,
 :root[data-skin="webcore"] .project-menu,
 :root[data-skin="webcore"] .chat-row-menu,
-:root[data-skin="webcore"] .chat-more-menu,
-:root[data-skin="webcore"] .hints-popup {
+:root[data-skin="webcore"] .chat-more-menu {
     background: var(--wc-face);
     color: var(--wc-ink);
     border: 0;
@@ -69,13 +68,8 @@
    "+" between them has no face, so it takes the row's own ink. */
 :root[data-skin="webcore"] :is(.ctx-item, .accent-dd-opt):hover .tip-key { color: var(--wc-ink); }
 :root[data-skin="webcore"] :is(.ctx-item, .accent-dd-opt):hover .tip-plus { color: var(--wc-on-select); }
-/* Nothing moves: no keycap shake, no row nudge, no hover lift. */
-:root[data-skin="webcore"] :is(.tip-key, .tip-key.key-shake, .ctx-item, .ctx-item *, .accent-dd-opt,
-.accent-dd-opt *, .project-row, .project-thumb img, .info-item, .hotkey-cell, .hotkey-default,
-.idle-create-btn, .idle-create-icon, .lines-row, .connect-row, .chat-suggest, .deselect-btn,
-.coordinates-table tbody tr, button, select, .btn-icon, .btn-icon-text) {
-    transform: none !important;
-}
+/* Nothing moves (css/skin/still.css), a row's own children included. */
+:root[data-skin="webcore"] :is(.ctx-item *, .accent-dd-opt *) { transform: none !important; }
 :root[data-skin="webcore"] .ctx-sep { background: var(--wc-shadow); box-shadow: 0 1px var(--wc-hilight); height: 1px; margin: 3px 1px; }
 :root[data-skin="webcore"] .ctx-item::after,
 :root[data-skin="webcore"] .shimmer::after,
@@ -91,14 +85,3 @@
 .coordinates-table tbody tr:hover:not(.row-focused):not(.lines-row-selected),
 .lines-row:hover:not(.lines-row-selected), .project-row:hover:not(.project-selected),
 .connect-row:hover:not(.connect-selected)) { background: var(--wc-light) !important; color: var(--wc-ink); }
-/* A navy row carries the on-select ink all the way down; a field or button in it keeps its face. */
-:root[data-skin="webcore"] :is(.coordinates-table tbody tr.row-focused, .lines-row-selected,
-.project-row.project-selected, .connect-row.connect-selected) { background: var(--wc-select) !important; }
-:root[data-skin="webcore"] :is(.coordinates-table tbody tr.row-focused, .lines-row-selected,
-.project-row.project-selected, .connect-row.connect-selected) :is(td, th, span, small, b, strong, div) {
-    color: var(--wc-on-select);
-}
-:root[data-skin="webcore"] :is(.coordinates-table tbody tr.row-focused, .lines-row-selected,
-.project-row.project-selected, .connect-row.connect-selected) :is(input, select, button, .btn-icon) {
-    color: var(--wc-ink);
-}

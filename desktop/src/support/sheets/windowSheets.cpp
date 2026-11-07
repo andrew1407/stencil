@@ -1,4 +1,5 @@
 #include "windowSheets.hpp"
+#include "../aqua/still.hpp"
 
 // The editor window's per-widget sheet text; the widgets wearing each live under src/app/ and src/canvas/.
 
@@ -56,21 +57,22 @@ namespace stencil::support {
                              .arg(accent.red())
                              .arg(accent.green())
                              .arg(accent.blue());
-    return QString("QLineEdit{color:%1;font-weight:600;border:1px solid transparent;"
-                   "border-radius:6px;background:transparent;padding:3px 8px;}"
+    // border-image:none: webcore's sunken well is an image, which a bare `border` leaves standing.
+    return stillUnderAqua(QString("QLineEdit{color:%1;font-weight:600;border:1px solid transparent;"
+                   "border-image:none;border-radius:6px;background:transparent;padding:3px 8px;}"
                    "QLineEdit:hover{border:2px solid %2;padding:2px 7px;}"
                    "QLineEdit:focus{border:1px solid transparent;}")
-        .arg(fg, ring);
+        .arg(fg, ring));
   }
 
   QString colorSwatchSheet(const gui::Palette& pal, bool labelled, bool skin) {
-    return QStringLiteral(
+    return stillUnderAqua(QStringLiteral(
                "QToolButton{background:%1;border:1px solid %2;border-radius:%6px;"
                "color:%4;padding:0 %5px;}"
                "QToolButton:hover{border-color:%3;}")
         .arg(pal.inputBg.name(), pal.borderMain.name(), pal.accent.name(),
              pal.textMain.name(), labelled ? QStringLiteral("6") : QStringLiteral("0"),
-             skin ? QStringLiteral("0") : QStringLiteral("7"));
+             skin ? QStringLiteral("0") : QStringLiteral("7")));
   }
 
   QString faceLeftPadSheet(int px) { return QStringLiteral("QToolButton{padding-left:%1px;}").arg(px); }

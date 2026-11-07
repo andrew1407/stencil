@@ -43,6 +43,7 @@ namespace stencil::gui {
     parts.menuBuilder.addDesktopSwitches();
     parts.toolbarBuilder.buildToolbar();
     parts.exportMenus.wireExportOptionsPopups();  // needs the copy/save-image buttons buildToolbar() just made
+    parts.view.wireFullscreenButton();
     parts.dockChrome.buildOverlayArrows();   // sync the Controls-pill chevron glyph (after the toolbar exists)
     parts.actionsBuilder.bindRevealAnchors();    // every action records where its dialog should fly from
 

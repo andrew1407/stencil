@@ -1,14 +1,14 @@
 // The one way into a logo show: the header mark's hold, a typed word and the console facade all
 // arrive here. Desktop twin: the LogoStage hooks in app/toolbar/ToolbarBuilderHeader.cpp.
 import { notify } from '../../utils.js';
-import { toggleWebcore, webcoreActive } from '../webcore/toggle.js';
+import { webcoreSkin } from '../webcore/toggle.js';
+import { aquaSkin } from '../aqua/toggle.js';
 import { closeOpenModal } from '../modal/registry.js';
-import { OFF_TOAST } from '../webcore/rules.js';
 import { PRESS_SLOP_PX } from '../tip/popover.js';
 import { storedMotionMode } from '../motion/motionPrefs.js';
 import { originOf } from '../motion/surface/themeSwapPlay.js';
 import { waitForImage } from '../../core/image/loadFlow.js';
-import { STAGE, HOLD_MS, TOAST_TEXT, effectOf, resolveShow, heartLine } from './stageRules.js';
+import { STAGE, HOLD_MS, TOAST_TEXT, SKINS, effectOf, resolveShow, heartLine } from './stageRules.js';
 import { openLogoStage, logoStageAllowed, closeLogoStage, currentLogoStage, markOrigin } from './stage.js';
 import { trackPointer } from './pointer.js';
 import { createBlankImage } from '../../core/image/blankImage.js';
@@ -31,10 +31,22 @@ export const pinkVibe = async (app) => {
   return drawn;
 };
 
+// The session skins by effect, one at a time: turning one on first turns the other off through its own path.
+const SKIN = Object.freeze({ webcore: webcoreSkin, aqua: aquaSkin });
+const toggleSkin = async (effect, app, { scene = true, toast = true } = {}) => {
+  const skin = SKIN[effect];
+  if (!skin.active()) {
+    for (const other of Object.values(SKIN)) if (other !== skin && other.active()) await other.toggle(app, undefined, { scene: false });
+  }
+  const on = await skin.toggle(app, undefined, { scene });
+  if (toast) notify(on ? TOAST_TEXT : skin.offToast, 'ok', { shine: true });
+  return on;
+};
+
 // Pink counts as on while its tint is the page's filter; webcore while the skin is stamped.
 export const showActive = (name, app) => {
   const effect = effectOf(name);
-  if (effect === 'webcore') return webcoreActive();
+  if (SKINS.has(effect)) return SKIN[effect].active();
   if (effect === 'pink') return !!app?.image && app.imageFilter === 'custom'
     && String(app.filterColor).toLowerCase() === STAGE.pink.tint;
   return !!effect && currentLogoStage()?.name === name;
@@ -55,12 +67,9 @@ export const clearWay = (app, doc = globalThis.document) => {
 export const activateShow = (name, app, origin = null, { replace = false, scene = true } = {}) => {
   const effect = effectOf(name);
   if (!effect) return false;
-  if (effect === 'webcore') {
+  if (SKINS.has(effect)) {
     if (!replace && !logoStageAllowed()) return false;
-    return toggleWebcore(app, undefined, { scene }).then((on) => {
-      notify(on ? TOAST_TEXT : OFF_TOAST, 'ok', { shine: true });
-      return on;
-    });
+    return toggleSkin(effect, app, { scene });
   }
   if (replace) {
     if (showActive(name, app)) return false;
@@ -81,13 +90,15 @@ export const activateShow = (name, app, origin = null, { replace = false, scene 
 export const setShow = (name, app, on) => {
   if (!!on === showActive(name, app)) return;
   if (on) activateShow(name, app, markOrigin(), { replace: true, scene: false });
-  else if (effectOf(name) === 'webcore') toggleWebcore(app);
+  else if (SKINS.has(effectOf(name))) toggleSkin(effectOf(name), app, { toast: false });
   else if (effectOf(name) === 'pink') app.settings.setImageFilter('none');
   else closeLogoStage();
 };
 
 // The show the header mark's hold opens right now, given the accent and the motion mode.
-export const heldShow = (app) => resolveShow(app?.accent, app?.customAccent, storedMotionMode());
+const faceOf = (doc = globalThis.document) =>
+  (doc?.documentElement?.getAttribute?.('data-theme') === 'dark' ? 'dark' : 'light');
+export const heldShow = (app) => resolveShow(app?.accent, app?.customAccent, storedMotionMode(), faceOf());
 
 // A press held on the mark for holdMs. The release must not reach the logo's own click, which
 // would cycle the accent 220ms later. The handle drops a waiting hold, and says if this press fired.

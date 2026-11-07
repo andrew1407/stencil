@@ -21,7 +21,10 @@
    "src/lib/animations/motionIcons.css",
    "src/lib/webcore/tokens.css",
    "src/lib/webcore/chrome.css",
-   "src/lib/webcore/windows.css"
+   "src/lib/webcore/windows.css",
+   "src/lib/aqua/tokens.css",
+   "src/lib/aqua/chrome.css",
+   "src/lib/aqua/windows.css"
   ],
   "src/devtools/panel.html": [
    "src/lib/theme/palette.css",
@@ -50,7 +53,10 @@
    "src/lib/animations/motionIcons.css",
    "src/lib/webcore/tokens.css",
    "src/lib/webcore/chrome.css",
-   "src/lib/webcore/windows.css"
+   "src/lib/webcore/windows.css",
+   "src/lib/aqua/tokens.css",
+   "src/lib/aqua/chrome.css",
+   "src/lib/aqua/windows.css"
   ],
   "src/options/options.html": [
    "src/lib/theme/palette.css",
@@ -74,7 +80,10 @@
    "src/options/secrets/secrets.css",
    "src/lib/webcore/tokens.css",
    "src/lib/webcore/chrome.css",
-   "src/lib/webcore/windows.css"
+   "src/lib/webcore/windows.css",
+   "src/lib/aqua/tokens.css",
+   "src/lib/aqua/chrome.css",
+   "src/lib/aqua/windows.css"
   ],
   "src/popup/popup.html": [
    "src/lib/theme/palette.css",
@@ -102,7 +111,10 @@
    "src/lib/animations/motionIcons.css",
    "src/lib/webcore/tokens.css",
    "src/lib/webcore/chrome.css",
-   "src/lib/webcore/windows.css"
+   "src/lib/webcore/windows.css",
+   "src/lib/aqua/tokens.css",
+   "src/lib/aqua/chrome.css",
+   "src/lib/aqua/windows.css"
   ],
   "src/sidepanel/sidepanel.html": [
    "src/lib/theme/palette.css",
@@ -131,7 +143,10 @@
    "src/lib/animations/motionIcons.css",
    "src/lib/webcore/tokens.css",
    "src/lib/webcore/chrome.css",
-   "src/lib/webcore/windows.css"
+   "src/lib/webcore/windows.css",
+   "src/lib/aqua/tokens.css",
+   "src/lib/aqua/chrome.css",
+   "src/lib/aqua/windows.css"
   ]
  },
  "sheets": {
@@ -1415,6 +1430,17 @@
   },
   "src/lib/animations/motionModes.css": {
    "rules": {
+    "@keyframes chatGrowIn|30%": {
+     "opacity": "1"
+    },
+    "@keyframes chatGrowIn|from": {
+     "opacity": "0",
+     "transform": "scale(0.2)"
+    },
+    "@keyframes chatGrowIn|to": {
+     "opacity": "1",
+     "transform": "none"
+    },
     "@keyframes chatRiseIn|from": {
      "opacity": "0",
      "transform": "translateY(10px)"
@@ -1423,8 +1449,49 @@
      "opacity": "1",
      "transform": "none"
     },
+    "@keyframes chatSideInLeft|40%": {
+     "opacity": "1"
+    },
+    "@keyframes chatSideInLeft|from": {
+     "opacity": "0",
+     "transform": "translateX(-110%)"
+    },
+    "@keyframes chatSideInLeft|to": {
+     "opacity": "1",
+     "transform": "none"
+    },
+    "@keyframes chatSideInRight|40%": {
+     "opacity": "1"
+    },
+    "@keyframes chatSideInRight|from": {
+     "opacity": "0",
+     "transform": "translateX(110%)"
+    },
+    "@keyframes chatSideInRight|to": {
+     "opacity": "1",
+     "transform": "none"
+    },
+    "|.chat-grow-in": {
+     "animation": "chatGrowIn 0.32s cubic-bezier(0.22, 0.61, 0.36, 1) both",
+     "transform-origin": "left bottom"
+    },
+    "|.chat-side-in": {
+     "animation": "chatSideInLeft 0.42s cubic-bezier(0.16, 1, 0.3, 1) both"
+    },
     "|.chat-slide-in": {
      "animation": "chatRiseIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) both"
+    },
+    "|.chat-swapped .msg.user.chat-grow-in": {
+     "transform-origin": "left bottom"
+    },
+    "|.chat-swapped .msg.user.chat-side-in": {
+     "animation-name": "chatSideInLeft"
+    },
+    "|.chat-swapped .msg:is(.assistant, .error).chat-grow-in, .msg.user.chat-grow-in": {
+     "transform-origin": "right bottom"
+    },
+    "|.chat-swapped .msg:is(.assistant, .error).chat-side-in, .msg.user.chat-side-in": {
+     "animation-name": "chatSideInRight"
     },
     "|:root[data-motion=\"none\"] *, :root[data-motion=\"none\"] *::after, :root[data-motion=\"none\"] *::before": {
      "animation-duration": "0.001ms !important",
@@ -1433,13 +1500,41 @@
      "transition-duration": "0.001ms !important",
      "transition-delay": "0s !important",
      "scroll-behavior": "auto !important"
+    },
+    "|:root[data-motion=\"transition\"] #chat-transcript > .leaving": {
+     "animation": "chatGrowIn 0.34s cubic-bezier(0.55, 0, 0.75, 0.4) reverse both",
+     "transform-origin": "left bottom"
+    },
+    "|:root[data-motion=\"transition\"] #chat-transcript > .msg.user.leaving, :root[data-motion=\"transition\"] .chat-swapped #chat-transcript > .msg:is(.assistant, .error).leaving": {
+     "transform-origin": "right bottom"
+    },
+    "|:root[data-motion=\"transition\"] .chat-swapped #chat-transcript > .msg.user.leaving": {
+     "transform-origin": "left bottom"
     }
    },
    "order": [
     "|:root[data-motion=\"none\"] *, :root[data-motion=\"none\"] *::after, :root[data-motion=\"none\"] *::before",
     "|.chat-slide-in",
     "@keyframes chatRiseIn|from",
-    "@keyframes chatRiseIn|to"
+    "@keyframes chatRiseIn|to",
+    "|.chat-grow-in",
+    "|.chat-swapped .msg:is(.assistant, .error).chat-grow-in, .msg.user.chat-grow-in",
+    "|.chat-swapped .msg.user.chat-grow-in",
+    "@keyframes chatGrowIn|from",
+    "@keyframes chatGrowIn|30%",
+    "@keyframes chatGrowIn|to",
+    "|:root[data-motion=\"transition\"] #chat-transcript > .leaving",
+    "|:root[data-motion=\"transition\"] #chat-transcript > .msg.user.leaving, :root[data-motion=\"transition\"] .chat-swapped #chat-transcript > .msg:is(.assistant, .error).leaving",
+    "|:root[data-motion=\"transition\"] .chat-swapped #chat-transcript > .msg.user.leaving",
+    "|.chat-side-in",
+    "|.chat-swapped .msg:is(.assistant, .error).chat-side-in, .msg.user.chat-side-in",
+    "|.chat-swapped .msg.user.chat-side-in",
+    "@keyframes chatSideInLeft|from",
+    "@keyframes chatSideInLeft|40%",
+    "@keyframes chatSideInLeft|to",
+    "@keyframes chatSideInRight|from",
+    "@keyframes chatSideInRight|40%",
+    "@keyframes chatSideInRight|to"
    ]
   },
   "src/lib/animations/overlays.css": {
@@ -1490,10 +1585,35 @@
     "@keyframes stSurfaceLeave|100%, 16%": {
      "opacity": "0"
     },
+    "@keyframes stTipGrowIn|20%": {
+     "opacity": "1"
+    },
+    "@keyframes stTipGrowIn|from": {
+     "opacity": "0",
+     "transform": "translateY(-4px) scale(0.05)"
+    },
+    "@keyframes stTipGrowIn|to": {
+     "opacity": "1",
+     "transform": "none"
+    },
+    "@keyframes stTipShrinkOut|60%": {
+     "opacity": "0.85"
+    },
+    "@keyframes stTipShrinkOut|from": {
+     "opacity": "1",
+     "transform": "none"
+    },
+    "@keyframes stTipShrinkOut|to": {
+     "opacity": "0",
+     "transform": "translateY(-4px) scale(0.05)"
+    },
     "@media (prefers-reduced-motion: reduce)|.accent-dd-menu.dd-closing, .accent-dd-menu:not([hidden])": {
      "animation": "none"
     },
     "@media (prefers-reduced-motion: reduce)|.dust-driven, .dust-driven.surface-forming, .dust-driven.surface-leaving": {
+     "animation": "none !important"
+    },
+    "@media (prefers-reduced-motion: reduce)|.dust-driven:is(.tip-grow-in, .tip-shrink-out), .tip-grow-in, .tip-shrink-out": {
      "animation": "none !important"
     },
     "@media (prefers-reduced-motion: reduce)|.genie-in, .genie-out": {
@@ -1526,6 +1646,12 @@
     "|.dust-driven.surface-leaving": {
      "animation": "stSurfaceLeave var(--dust-ms, 340ms) linear both !important"
     },
+    "|.dust-driven.tip-grow-in": {
+     "animation": "stTipGrowIn 0.22s cubic-bezier(0.22, 0.61, 0.36, 1) both !important"
+    },
+    "|.dust-driven.tip-shrink-out": {
+     "animation": "stTipShrinkOut 0.18s cubic-bezier(0.4, 0, 0.6, 1) both !important"
+    },
     "|.genie-driven": {
      "animation": "none !important",
      "opacity": "0 !important"
@@ -1552,6 +1678,14 @@
     },
     "|.leave-copy.dd-leaving": {
      "animation": "stMenuToAnchor 0.18s ease both !important"
+    },
+    "|.tip-grow-in": {
+     "animation": "stTipGrowIn 0.22s cubic-bezier(0.22, 0.61, 0.36, 1) both",
+     "transform-origin": "center top"
+    },
+    "|.tip-shrink-out": {
+     "animation": "stTipShrinkOut 0.18s cubic-bezier(0.4, 0, 0.6, 1) both",
+     "transform-origin": "center top"
     }
    },
    "order": [
@@ -1565,8 +1699,19 @@
     "|.accent-dd-menu.dd-above",
     "|.accent-dd-menu:not([hidden])",
     "|.accent-dd-menu.dd-closing",
+    "@keyframes stTipGrowIn|from",
+    "@keyframes stTipGrowIn|20%",
+    "@keyframes stTipGrowIn|to",
+    "@keyframes stTipShrinkOut|from",
+    "@keyframes stTipShrinkOut|60%",
+    "@keyframes stTipShrinkOut|to",
+    "|.tip-grow-in",
+    "|.tip-shrink-out",
+    "|.dust-driven.tip-grow-in",
+    "|.dust-driven.tip-shrink-out",
     "|.leave-copy.dd-leaving",
     "@media (prefers-reduced-motion: reduce)|.accent-dd-menu.dd-closing, .accent-dd-menu:not([hidden])",
+    "@media (prefers-reduced-motion: reduce)|.dust-driven:is(.tip-grow-in, .tip-shrink-out), .tip-grow-in, .tip-shrink-out",
     "|.genie-in, .genie-out",
     "|.genie-in",
     "|.genie-out",
@@ -1689,7 +1834,7 @@
      "transition-duration": "0.001ms !important",
      "scroll-behavior": "auto !important"
     },
-    "@media (prefers-reduced-motion: reduce)|.chat-slide-in": {
+    "@media (prefers-reduced-motion: reduce)|.chat-grow-in, .chat-side-in, .chat-slide-in": {
      "animation": "none"
     },
     "@media (prefers-reduced-motion: reduce)|.disintegrate-host": {
@@ -1719,7 +1864,7 @@
     "@media (prefers-reduced-motion: reduce)|.filter-in",
     "@media (prefers-reduced-motion: reduce)|#app-tooltip",
     "@media (prefers-reduced-motion: reduce)|.tip-key.key-shake",
-    "@media (prefers-reduced-motion: reduce)|.chat-slide-in"
+    "@media (prefers-reduced-motion: reduce)|.chat-grow-in, .chat-side-in, .chat-slide-in"
    ]
   },
   "src/lib/animations/reveal.css": {
@@ -1781,6 +1926,26 @@
      "padding-bottom": "0",
      "border-width": "0"
     },
+    "@keyframes stRowGrowIn|35%": {
+     "opacity": "0",
+     "transform": "scale(0.78)",
+     "max-height": "var(--enter-h, 200px)"
+    },
+    "@keyframes stRowGrowIn|from": {
+     "opacity": "0",
+     "transform": "scale(0.78)",
+     "max-height": "0",
+     "margin-top": "0",
+     "margin-bottom": "0",
+     "padding-top": "0",
+     "padding-bottom": "0",
+     "border-width": "0"
+    },
+    "@keyframes stRowGrowIn|to": {
+     "opacity": "1",
+     "transform": "none",
+     "max-height": "var(--enter-h, 200px)"
+    },
     "@keyframes stRowLeave|60%": {
      "opacity": "0",
      "transform": "translateX(-14px) scale(0.97)",
@@ -1815,6 +1980,62 @@
      "opacity": "1",
      "transform": "none",
      "max-height": "var(--enter-h, 200px)"
+    },
+    "@keyframes stRowShrinkLeave|55%": {
+     "opacity": "0",
+     "transform": "scale(0.78)",
+     "max-height": "var(--leave-h, 200px)"
+    },
+    "@keyframes stRowShrinkLeave|from": {
+     "opacity": "1",
+     "transform": "none",
+     "max-height": "var(--leave-h, 200px)"
+    },
+    "@keyframes stRowShrinkLeave|to": {
+     "opacity": "0",
+     "transform": "scale(0.78)",
+     "max-height": "0",
+     "margin-top": "0",
+     "margin-bottom": "0",
+     "padding-top": "0",
+     "padding-bottom": "0",
+     "border-width": "0"
+    },
+    "@keyframes stRowSlideIn|35%": {
+     "transform": "translateX(-104%)",
+     "max-height": "var(--enter-h, 200px)"
+    },
+    "@keyframes stRowSlideIn|from": {
+     "transform": "translateX(-104%)",
+     "max-height": "0",
+     "margin-top": "0",
+     "margin-bottom": "0",
+     "padding-top": "0",
+     "padding-bottom": "0",
+     "border-width": "0"
+    },
+    "@keyframes stRowSlideIn|to": {
+     "transform": "none",
+     "max-height": "var(--enter-h, 200px)"
+    },
+    "@keyframes stRowSlideLeave|55%": {
+     "opacity": "1",
+     "transform": "translateX(-104%)",
+     "max-height": "var(--leave-h, 200px)"
+    },
+    "@keyframes stRowSlideLeave|from": {
+     "transform": "none",
+     "max-height": "var(--leave-h, 200px)"
+    },
+    "@keyframes stRowSlideLeave|to": {
+     "opacity": "0",
+     "transform": "translateX(-104%)",
+     "max-height": "0",
+     "margin-top": "0",
+     "margin-bottom": "0",
+     "padding-top": "0",
+     "padding-bottom": "0",
+     "border-width": "0"
     },
     "@keyframes stStatusIn|from": {
      "opacity": "0",
@@ -1904,6 +2125,18 @@
     "|.status:not(:empty)": {
      "animation": "stStatusIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) both"
     },
+    "|:where(:root[data-motion=\"slide\"]) .leaving": {
+     "animation": "stRowSlideLeave 0.34s cubic-bezier(0.55, 0, 0.75, 0.4) both"
+    },
+    "|:where(:root[data-motion=\"slide\"]) .materializing": {
+     "animation": "stRowSlideIn 0.34s cubic-bezier(0.16, 1, 0.3, 1) both"
+    },
+    "|:where(:root[data-motion=\"transition\"]) .leaving": {
+     "animation": "stRowShrinkLeave 0.34s cubic-bezier(0.4, 0, 0.6, 1) both"
+    },
+    "|:where(:root[data-motion=\"transition\"]) .materializing": {
+     "animation": "stRowGrowIn 0.34s cubic-bezier(0.22, 0.61, 0.36, 1) both"
+    },
     "|@property --dissolve": {
      "syntax": "\"<number>\"",
      "inherits": "false",
@@ -1920,6 +2153,14 @@
     "@keyframes stRowLeave|from",
     "@keyframes stRowLeave|60%",
     "@keyframes stRowLeave|to",
+    "|:where(:root[data-motion=\"slide\"]) .leaving",
+    "|:where(:root[data-motion=\"transition\"]) .leaving",
+    "@keyframes stRowSlideLeave|from",
+    "@keyframes stRowSlideLeave|55%",
+    "@keyframes stRowSlideLeave|to",
+    "@keyframes stRowShrinkLeave|from",
+    "@keyframes stRowShrinkLeave|55%",
+    "@keyframes stRowShrinkLeave|to",
     "|#chat-transcript > .leaving, #chat-tray .leaving",
     "@keyframes stCardLeave|from",
     "@keyframes stCardLeave|to",
@@ -1935,6 +2176,14 @@
     "|.materializing",
     "@keyframes stRowMaterialize|from",
     "@keyframes stRowMaterialize|to",
+    "|:where(:root[data-motion=\"slide\"]) .materializing",
+    "|:where(:root[data-motion=\"transition\"]) .materializing",
+    "@keyframes stRowSlideIn|from",
+    "@keyframes stRowSlideIn|35%",
+    "@keyframes stRowSlideIn|to",
+    "@keyframes stRowGrowIn|from",
+    "@keyframes stRowGrowIn|35%",
+    "@keyframes stRowGrowIn|to",
     "|.materialize-veil",
     "|.status:not(:empty)",
     "@keyframes stStatusIn|from",
@@ -2023,6 +2272,712 @@
     "|html.dd-preview-cursor::view-transition",
     "|.swap-dust",
     "@media (prefers-reduced-motion: reduce)|.swap-dust"
+   ]
+  },
+  "src/lib/aqua/chrome.css": {
+   "rules": {
+    "@keyframes aquaThrob|0%, 100%": {
+     "filter": "brightness(1)"
+    },
+    "@keyframes aquaThrob|50%": {
+     "filter": "brightness(1.18) saturate(1.1)"
+    },
+    "|:root[data-skin=\"aqua\"] #sec-assistant .x-dismiss:is(*, :hover)": {
+     "box-shadow": "var(--aq-tile-ring)"
+    },
+    "|:root[data-skin=\"aqua\"] #sec-assistant :is(.chat-clear, .chat-retry, .chat-suggest, .chat-jump-btn, .x-dismiss):active:not(:disabled)": {
+     "background": "var(--aq-gel)",
+     "color": "var(--aq-on-gel)",
+     "box-shadow": "var(--aq-gel-ring)"
+    },
+    "|:root[data-skin=\"aqua\"] #sec-assistant :is(.chat-clear, .chat-retry, .chat-suggest, .chat-jump-btn, .x-dismiss):is(*, :hover)": {
+     "background": "var(--aq-glass)",
+     "color": "var(--aq-ink)",
+     "border-color": "transparent",
+     "box-shadow": "var(--aq-glass-ring)"
+    },
+    "|:root[data-skin=\"aqua\"] *, :root[data-skin=\"aqua\"] *::after, :root[data-skin=\"aqua\"] *::before": {
+     "font-family": "var(--aq-font) !important"
+    },
+    "|:root[data-skin=\"aqua\"] .accent-dd-trigger .accent-dd-caret": {
+     "display": "none"
+    },
+    "|:root[data-skin=\"aqua\"] .chat-composer textarea": {
+     "border-radius": "14px"
+    },
+    "|:root[data-skin=\"aqua\"] .chk": {
+     "font-weight": "normal"
+    },
+    "|:root[data-skin=\"aqua\"] .chk:not(:has(> input:checked))": {
+     "color": "var(--aq-ink)"
+    },
+    "|:root[data-skin=\"aqua\"] .confirm-actions": {
+     "gap": "6px"
+    },
+    "|:root[data-skin=\"aqua\"] .confirm-actions button": {
+     "padding": "3px 11px"
+    },
+    "|:root[data-skin=\"aqua\"] .confirm-btn.danger:not(:active):not(:disabled):is(*, :hover)": {
+     "color": "var(--aq-ink)"
+    },
+    "|:root[data-skin=\"aqua\"] .ic": {
+     "transform": "none !important"
+    },
+    "|:root[data-skin=\"aqua\"] .ic *": {
+     "transform-origin": "0 0"
+    },
+    "|:root[data-skin=\"aqua\"] .mm-icon *": {
+     "animation": "none !important"
+    },
+    "|:root[data-skin=\"aqua\"] .seg": {
+     "gap": "0"
+    },
+    "|:root[data-skin=\"aqua\"] .seg button": {
+     "border-radius": "0"
+    },
+    "|:root[data-skin=\"aqua\"] .seg button + button": {
+     "margin-left": "-1px"
+    },
+    "|:root[data-skin=\"aqua\"] .seg button:first-child": {
+     "border-radius": "999px 0 0 999px"
+    },
+    "|:root[data-skin=\"aqua\"] .seg button:last-child": {
+     "border-radius": "0 999px 999px 0"
+    },
+    "|:root[data-skin=\"aqua\"] .tip-key.key-shake": {
+     "animation": "none !important"
+    },
+    "|:root[data-skin=\"aqua\"] ::selection": {
+     "background": "var(--aq-gel-hi)",
+     "color": "#000000"
+    },
+    "|:root[data-skin=\"aqua\"] :focus-visible": {
+     "outline": "none",
+     "box-shadow": "0 0 0 3px color-mix(in srgb, var(--aq-focus) 70%, transparent)"
+    },
+    "|:root[data-skin=\"aqua\"] :is(.btn, button.primary, .dialog-actions button, .confirm-btn, .chat-send)": {
+     "min-height": "26px",
+     "padding": "3px 18px",
+     "border-radius": "999px"
+    },
+    "|:root[data-skin=\"aqua\"] :is(.ic, .ic *)": {
+     "--ic-on": "0 !important",
+     "animation-name": "none !important",
+     "transition": "none !important"
+    },
+    "|:root[data-skin=\"aqua\"] :is(.icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .pin-clear, .confirm-btn, .chat-send, .msg-menu-btn, .chk):hover:not(:disabled)": {
+     "background": "var(--aq-glass)",
+     "color": "var(--aq-ink)",
+     "box-shadow": "var(--aq-glass-ring)"
+    },
+    "|:root[data-skin=\"aqua\"] :is(.icon-btn, .mini, .btn-icon-text, .thumb, .chk, .accent-dd-opt, .shimmer)::after": {
+     "content": "none",
+     "animation": "none"
+    },
+    "|:root[data-skin=\"aqua\"] :is(.icon-btn, .mini, .zbtn, .more-btn, .pin-btn, .x-dismiss)": {
+     "border-radius": "7px",
+     "box-shadow": "var(--aq-tile-ring)"
+    },
+    "|:root[data-skin=\"aqua\"] :is(.icon-btn, .mini, .zbtn, .more-btn, .pin-btn, .x-dismiss):hover:not(:disabled)": {
+     "box-shadow": "var(--aq-tile-ring)"
+    },
+    "|:root[data-skin=\"aqua\"] :is(.more-btn.active, .pin-btn.active, .seg button.active, .chk:has(> input:checked)), :root[data-skin=\"aqua\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .confirm-btn, .chk):active:not(:disabled), :root[data-skin=\"aqua\"] :is(button.primary, .btn.primary, .dialog-actions button.primary, .chat-send)": {
+     "background": "var(--aq-gel)",
+     "color": "var(--aq-on-gel)",
+     "text-shadow": "0 1px 1px rgba(0, 0, 0, 0.3)",
+     "box-shadow": "var(--aq-gel-ring)"
+    },
+    "|:root[data-skin=\"aqua\"] :is(.pin-btn.danger, .pin-clear, .confirm-btn.danger)": {
+     "color": "var(--aq-red)"
+    },
+    "|:root[data-skin=\"aqua\"] :is(.pin-btn.danger, .pin-clear, .confirm-btn.danger):hover:not(:disabled)": {
+     "color": "var(--aq-red)"
+    },
+    "|:root[data-skin=\"aqua\"] :is(.search, .accent-dd-search)": {
+     "border-radius": "999px"
+    },
+    "|:root[data-skin=\"aqua\"] :is([aria-disabled=\"true\"], .is-disabled) :is(.ic, img), :root[data-skin=\"aqua\"] :is(button, select, a, [role=\"button\"]):disabled :is(.ic, img)": {
+     "filter": "grayscale(0.85) opacity(0.45) !important"
+    },
+    "|:root[data-skin=\"aqua\"] :is([aria-disabled=\"true\"], .is-disabled), :root[data-skin=\"aqua\"] :is(button, select, input, textarea):disabled": {
+     "background": "color-mix(in srgb, var(--aq-face) 88%, var(--aq-ink)) !important",
+     "box-shadow": "inset 0 0 0 1px color-mix(in srgb, var(--aq-edge) 70%, transparent), inset 0 1px 2px rgba(0, 0, 0, 0.22) !important",
+     "color": "color-mix(in srgb, var(--aq-ink) 60%, var(--aq-glass-bottom))",
+     "text-shadow": "none",
+     "opacity": "1",
+     "animation": "none",
+     "cursor": "not-allowed"
+    },
+    "|:root[data-skin=\"aqua\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .msg-menu-btn, .accent-dd-opt, .thumb, .handle, .tip-key)": {
+     "transform": "none !important"
+    },
+    "|:root[data-skin=\"aqua\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .pin-clear, .confirm-btn, .chat-send, .chat-retry, .chat-config-cta, .chat-suggest, .chat-ask-submit, .chat-jump-btn, .chat-clear, .msg-menu-btn, .x-dismiss, .chk)": {
+     "background": "var(--aq-glass)",
+     "color": "var(--aq-ink)",
+     "border": "0 !important",
+     "border-radius": "999px",
+     "box-shadow": "var(--aq-glass-ring)",
+     "text-shadow": "0 1px rgba(255, 255, 255, 0.6)"
+    },
+    "|:root[data-skin=\"aqua\"] :is(button.primary, .btn.primary, .dialog-actions button.primary):not(:disabled)": {
+     "animation": "aquaThrob 1.6s ease-in-out infinite"
+    },
+    "|:root[data-skin=\"aqua\"] :is(button.primary, .btn.primary, .dialog-actions button.primary, .chat-send, .more-btn.active, .pin-btn.active, .seg button.active, .chk:has(> input:checked), :is(button, .icon-btn, .mini, .btn, .zbtn, .confirm-btn, .chk):active):hover:not(:disabled)": {
+     "background": "var(--aq-gel)",
+     "color": "var(--aq-on-gel)",
+     "box-shadow": "var(--aq-gel-ring)"
+    },
+    "|:root[data-skin=\"aqua\"] :is(code, pre, .chat-composer textarea)": {
+     "font-family": "'Monaco', 'Menlo', monospace !important"
+    },
+    "|:root[data-skin=\"aqua\"] :is(input:not([type=\"checkbox\"]):not([type=\"radio\"]), textarea):focus": {
+     "outline": "none",
+     "border-color": "var(--aq-gel-edge)",
+     "box-shadow": "inset 0 1px 2px rgba(0, 0, 0, 0.18), 0 0 0 3px color-mix(in srgb, var(--aq-focus) 60%, transparent)"
+    },
+    "|:root[data-skin=\"aqua\"] :is(input[type=\"checkbox\"], input[type=\"radio\"]):not(.chk > input)": {
+     "appearance": "none",
+     "width": "14px !important",
+     "height": "14px",
+     "min-width": "14px",
+     "min-height": "14px",
+     "margin": "0 4px 0 0",
+     "padding": "0",
+     "background": "var(--aq-glass)",
+     "border": "0",
+     "border-radius": "2px",
+     "box-shadow": "var(--aq-glass-ring)",
+     "position": "relative",
+     "overflow": "visible",
+     "vertical-align": "middle",
+     "flex": "none"
+    },
+    "|:root[data-skin=\"aqua\"] :is(input[type=\"checkbox\"], input[type=\"radio\"]):not(.chk > input):checked": {
+     "background": "var(--aq-gel)",
+     "box-shadow": "var(--aq-gel-ring)"
+    },
+    "|:root[data-skin=\"aqua\"] :is(select, .accent-dd-trigger):hover:not(:disabled):not(:focus)": {
+     "border-color": "transparent !important",
+     "box-shadow": "var(--aq-popup-ring) !important"
+    },
+    "|:root[data-skin=\"aqua\"] :is(select, .page-select, .dialog-select, .accent-dd-trigger)": {
+     "appearance": "none",
+     "background": "var(--aq-arrows) right 6px center / 8px 12px no-repeat, var(--aq-gel) right / 20px 100% no-repeat, var(--aq-glass)",
+     "border": "0",
+     "border-radius": "6px",
+     "box-shadow": "var(--aq-popup-ring)",
+     "padding-right": "26px"
+    },
+    "|:root[data-skin=\"aqua\"] :is(select, .page-select, .dialog-select, .accent-dd-trigger):focus": {
+     "box-shadow": "var(--aq-popup-ring), 0 0 0 3px color-mix(in srgb, var(--aq-focus) 60%, transparent)"
+    },
+    "|:root[data-skin=\"aqua\"] :is(select, textarea, .search, .num, .page-select, .dialog-select, .accent-dd-search, .pin-kw-input), :root[data-skin=\"aqua\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"])": {
+     "background": "var(--aq-window)",
+     "color": "var(--aq-ink)",
+     "border": "1px solid var(--aq-edge)",
+     "border-top-color": "color-mix(in srgb, var(--aq-edge) 70%, #000000)",
+     "border-radius": "0",
+     "box-shadow": "inset 0 1px 2px rgba(0, 0, 0, 0.22)"
+    },
+    "|:root[data-skin=\"aqua\"] a": {
+     "color": "var(--aq-link)"
+    },
+    "|:root[data-skin=\"aqua\"] body:has(> header), :root[data-skin=\"aqua\"]:has(body > header)": {
+     "background": "var(--aq-pinstripe)"
+    },
+    "|:root[data-skin=\"aqua\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"]):hover:not(:disabled):not(:focus), :root[data-skin=\"aqua\"] textarea:hover:not(:disabled):not(:focus)": {
+     "border-color": "var(--aq-edge) !important",
+     "border-top-color": "color-mix(in srgb, var(--aq-edge) 70%, #000000) !important",
+     "box-shadow": "inset 0 1px 2px rgba(0, 0, 0, 0.22) !important"
+    },
+    "|:root[data-skin=\"aqua\"] input[type=\"checkbox\"]:not(.chk > input):checked::after": {
+     "content": "\"\"",
+     "position": "absolute",
+     "left": "5px",
+     "top": "-3px",
+     "width": "5px",
+     "height": "11px",
+     "border": "solid var(--aq-tick)",
+     "border-width": "0 3px 3px 0",
+     "transform": "rotate(40deg) skewX(-6deg)"
+    },
+    "|:root[data-skin=\"aqua\"] input[type=\"color\"]": {
+     "border-radius": "6px",
+     "box-shadow": "var(--aq-glass-ring)",
+     "background": "var(--aq-glass)",
+     "border": "0"
+    },
+    "|:root[data-skin=\"aqua\"] input[type=\"radio\"]:not(.chk > input)": {
+     "border-radius": "50%"
+    },
+    "|:root[data-skin=\"aqua\"] input[type=\"radio\"]:not(.chk > input):checked::after": {
+     "content": "\"\"",
+     "position": "absolute",
+     "inset": "5px",
+     "border-radius": "50%",
+     "background": "var(--aq-tick)"
+    },
+    "|:root[data-skin=\"aqua\"] input[type=\"range\"]": {
+     "accent-color": "var(--aq-gel-bottom)"
+    },
+    "|:root[data-skin=\"aqua\"] svg[data-aq].ic": {
+     "filter": "drop-shadow(0 1px 0.5px rgba(0, 0, 0, 0.25))"
+    },
+    "|:root[data-skin=\"aqua\"], :root[data-skin=\"aqua\"] body": {
+     "background": "var(--aq-desktop)",
+     "color": "var(--aq-ink)"
+    },
+    "|:root[data-skin=\"aqua\"][data-theme=\"dark\"] *": {
+     "text-shadow": "none !important"
+    },
+    "|:root[data-skin=\"aqua\"][data-theme=\"dark\"] :is(.btn, .btn-icon-text):not(.primary):not(:active):not(:hover)": {
+     "box-shadow": "var(--aq-tile-ring)"
+    },
+    "|:root[data-skin=\"aqua\"][data-theme=\"dark\"] :is(.pin-btn.danger, .pin-clear):is(*, :hover):not(:disabled)": {
+     "color": "var(--aq-ink)"
+    },
+    "|:root[data-skin=\"aqua\"][data-theme=\"dark\"] :is(.pin-btn.danger, .pin-clear):not(:disabled) svg": {
+     "color": "var(--aq-red)"
+    }
+   },
+   "order": [
+    "|:root[data-skin=\"aqua\"], :root[data-skin=\"aqua\"] body",
+    "|:root[data-skin=\"aqua\"] body:has(> header), :root[data-skin=\"aqua\"]:has(body > header)",
+    "|:root[data-skin=\"aqua\"] *, :root[data-skin=\"aqua\"] *::after, :root[data-skin=\"aqua\"] *::before",
+    "|:root[data-skin=\"aqua\"] :is(code, pre, .chat-composer textarea)",
+    "|:root[data-skin=\"aqua\"] ::selection",
+    "|:root[data-skin=\"aqua\"] :focus-visible",
+    "|:root[data-skin=\"aqua\"] a",
+    "|:root[data-skin=\"aqua\"] svg[data-aq].ic",
+    "|:root[data-skin=\"aqua\"] .ic *",
+    "|:root[data-skin=\"aqua\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .pin-clear, .confirm-btn, .chat-send, .chat-retry, .chat-config-cta, .chat-suggest, .chat-ask-submit, .chat-jump-btn, .chat-clear, .msg-menu-btn, .x-dismiss, .chk)",
+    "|:root[data-skin=\"aqua\"] :is(.icon-btn, .mini, .zbtn, .more-btn, .pin-btn, .x-dismiss)",
+    "|:root[data-skin=\"aqua\"] :is(.more-btn.active, .pin-btn.active, .seg button.active, .chk:has(> input:checked)), :root[data-skin=\"aqua\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .confirm-btn, .chk):active:not(:disabled), :root[data-skin=\"aqua\"] :is(button.primary, .btn.primary, .dialog-actions button.primary, .chat-send)",
+    "|:root[data-skin=\"aqua\"] :is(.btn, button.primary, .dialog-actions button, .confirm-btn, .chat-send)",
+    "|:root[data-skin=\"aqua\"] :is(button.primary, .btn.primary, .dialog-actions button.primary):not(:disabled)",
+    "@keyframes aquaThrob|0%, 100%",
+    "@keyframes aquaThrob|50%",
+    "|:root[data-skin=\"aqua\"] :is(.pin-btn.danger, .pin-clear, .confirm-btn.danger)",
+    "|:root[data-skin=\"aqua\"][data-theme=\"dark\"] :is(.pin-btn.danger, .pin-clear):is(*, :hover):not(:disabled)",
+    "|:root[data-skin=\"aqua\"][data-theme=\"dark\"] :is(.pin-btn.danger, .pin-clear):not(:disabled) svg",
+    "|:root[data-skin=\"aqua\"] .confirm-btn.danger:not(:active):not(:disabled):is(*, :hover)",
+    "|:root[data-skin=\"aqua\"] .confirm-actions",
+    "|:root[data-skin=\"aqua\"] .confirm-actions button",
+    "|:root[data-skin=\"aqua\"][data-theme=\"dark\"] :is(.btn, .btn-icon-text):not(.primary):not(:active):not(:hover)",
+    "|:root[data-skin=\"aqua\"] .chk",
+    "|:root[data-skin=\"aqua\"] .chk:not(:has(> input:checked))",
+    "|:root[data-skin=\"aqua\"] :is([aria-disabled=\"true\"], .is-disabled), :root[data-skin=\"aqua\"] :is(button, select, input, textarea):disabled",
+    "|:root[data-skin=\"aqua\"] :is([aria-disabled=\"true\"], .is-disabled) :is(.ic, img), :root[data-skin=\"aqua\"] :is(button, select, a, [role=\"button\"]):disabled :is(.ic, img)",
+    "|:root[data-skin=\"aqua\"] :is(select, textarea, .search, .num, .page-select, .dialog-select, .accent-dd-search, .pin-kw-input), :root[data-skin=\"aqua\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"])",
+    "|:root[data-skin=\"aqua\"] :is(.search, .accent-dd-search)",
+    "|:root[data-skin=\"aqua\"] .chat-composer textarea",
+    "|:root[data-skin=\"aqua\"] :is(select, .page-select, .dialog-select, .accent-dd-trigger)",
+    "|:root[data-skin=\"aqua\"] :is(input:not([type=\"checkbox\"]):not([type=\"radio\"]), textarea):focus",
+    "|:root[data-skin=\"aqua\"] :is(select, .page-select, .dialog-select, .accent-dd-trigger):focus",
+    "|:root[data-skin=\"aqua\"] input[type=\"range\"]",
+    "|:root[data-skin=\"aqua\"] input[type=\"color\"]",
+    "|:root[data-skin=\"aqua\"][data-theme=\"dark\"] *",
+    "|:root[data-skin=\"aqua\"] .accent-dd-trigger .accent-dd-caret",
+    "|:root[data-skin=\"aqua\"] :is(.icon-btn, .mini, .btn-icon-text, .thumb, .chk, .accent-dd-opt, .shimmer)::after",
+    "|:root[data-skin=\"aqua\"] :is(.icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .pin-clear, .confirm-btn, .chat-send, .msg-menu-btn, .chk):hover:not(:disabled)",
+    "|:root[data-skin=\"aqua\"] :is(.icon-btn, .mini, .zbtn, .more-btn, .pin-btn, .x-dismiss):hover:not(:disabled)",
+    "|:root[data-skin=\"aqua\"] :is(.pin-btn.danger, .pin-clear, .confirm-btn.danger):hover:not(:disabled)",
+    "|:root[data-skin=\"aqua\"] :is(button.primary, .btn.primary, .dialog-actions button.primary, .chat-send, .more-btn.active, .pin-btn.active, .seg button.active, .chk:has(> input:checked), :is(button, .icon-btn, .mini, .btn, .zbtn, .confirm-btn, .chk):active):hover:not(:disabled)",
+    "|:root[data-skin=\"aqua\"] #sec-assistant :is(.chat-clear, .chat-retry, .chat-suggest, .chat-jump-btn, .x-dismiss):is(*, :hover)",
+    "|:root[data-skin=\"aqua\"] #sec-assistant .x-dismiss:is(*, :hover)",
+    "|:root[data-skin=\"aqua\"] #sec-assistant :is(.chat-clear, .chat-retry, .chat-suggest, .chat-jump-btn, .x-dismiss):active:not(:disabled)",
+    "|:root[data-skin=\"aqua\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"]):hover:not(:disabled):not(:focus), :root[data-skin=\"aqua\"] textarea:hover:not(:disabled):not(:focus)",
+    "|:root[data-skin=\"aqua\"] :is(select, .accent-dd-trigger):hover:not(:disabled):not(:focus)",
+    "|:root[data-skin=\"aqua\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .msg-menu-btn, .accent-dd-opt, .thumb, .handle, .tip-key)",
+    "|:root[data-skin=\"aqua\"] .tip-key.key-shake",
+    "|:root[data-skin=\"aqua\"] .ic",
+    "|:root[data-skin=\"aqua\"] :is(.ic, .ic *)",
+    "|:root[data-skin=\"aqua\"] .mm-icon *",
+    "|:root[data-skin=\"aqua\"] :is(input[type=\"checkbox\"], input[type=\"radio\"]):not(.chk > input)",
+    "|:root[data-skin=\"aqua\"] input[type=\"radio\"]:not(.chk > input)",
+    "|:root[data-skin=\"aqua\"] :is(input[type=\"checkbox\"], input[type=\"radio\"]):not(.chk > input):checked",
+    "|:root[data-skin=\"aqua\"] input[type=\"checkbox\"]:not(.chk > input):checked::after",
+    "|:root[data-skin=\"aqua\"] input[type=\"radio\"]:not(.chk > input):checked::after",
+    "|:root[data-skin=\"aqua\"] .seg",
+    "|:root[data-skin=\"aqua\"] .seg button",
+    "|:root[data-skin=\"aqua\"] .seg button:first-child",
+    "|:root[data-skin=\"aqua\"] .seg button:last-child",
+    "|:root[data-skin=\"aqua\"] .seg button + button"
+   ]
+  },
+  "src/lib/aqua/tokens.css": {
+   "rules": {
+    "|:root[data-skin=\"aqua\"]": {
+     "--aq-face": "#ececec",
+     "--aq-stripe": "#f6f6f6",
+     "--aq-window": "#ffffff",
+     "--aq-edge": "#8e8e8e",
+     "--aq-metal-top": "#e2e2e2",
+     "--aq-metal-bottom": "#b4b4b4",
+     "--aq-glass-top": "#fefefe",
+     "--aq-glass-bottom": "#d4d4d4",
+     "--aq-gel-hi": "#cfddfb",
+     "--aq-gel-top": "#719af2",
+     "--aq-gel-bottom": "#2563eb",
+     "--aq-gel-edge": "#1943a0",
+     "--aq-select": "#2563eb",
+     "--aq-on-select": "#ffffff",
+     "--aq-on-gel": "#ffffff",
+     "--aq-ink": "#000000",
+     "--aq-muted": "#6d6d6d",
+     "--aq-desktop": "#2c63bf",
+     "--aq-canvas": "#b8bcc3",
+     "--aq-red": "#ec4b3c",
+     "--aq-yellow": "#f6b62c",
+     "--aq-green": "#49b83a",
+     "--aq-tip-bg": "#ffffc7",
+     "--aq-tip-ink": "#000000",
+     "--aq-link": "#1e51c1",
+     "--aq-focus": "#7ca1f3",
+     "--aq-pinstripe": "repeating-linear-gradient(180deg, var(--aq-stripe) 0 2px, var(--aq-face) 2px 4px)",
+     "--aq-metal": "linear-gradient(180deg, var(--aq-metal-top), var(--aq-metal-bottom))",
+     "--aq-glass": "linear-gradient(180deg, color-mix(in srgb, var(--aq-glass-top) 70%, #ffffff) 0%, var(--aq-glass-top) 49%, var(--aq-glass-bottom) 51%, color-mix(in srgb, var(--aq-glass-top) 60%, var(--aq-glass-bottom)) 75%, var(--aq-glass-top) 100%)",
+     "--aq-gel": "linear-gradient(180deg, var(--aq-gel-hi) 0%, color-mix(in srgb, var(--aq-gel-top) 70%, var(--aq-gel-hi)) 25%, var(--aq-gel-top) 49%, var(--aq-gel-bottom) 51%, var(--aq-gel-top) 82%, var(--aq-gel-hi) 100%)",
+     "--aq-tick": "#111111",
+     "--aq-glass-ring": "inset 0 0 0 1px var(--aq-edge), 0 1px 2px rgba(0, 0, 0, 0.22)",
+     "--aq-tile-ring": "inset 0 0 0 1px color-mix(in srgb, var(--aq-ink) 45%, transparent), inset 0 2px 0 -1px rgba(255, 255, 255, 0.75), 0 1px 2px rgba(0, 0, 0, 0.3)",
+     "--aq-gel-ring": "inset 0 0 0 1px var(--aq-gel-edge), 0 1px 2px rgba(0, 0, 0, 0.3)",
+     "--aq-popup-ring": "inset -20px 0 0 -19px var(--aq-gel-edge), var(--aq-glass-ring)",
+     "--aq-window-ring": "0 0 0 1px rgba(0, 0, 0, 0.28), 0 12px 32px rgba(0, 0, 0, 0.42)",
+     "--aq-arrows": "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 12'%3E%3Cpath d='M4 0L8 4.5H0Z M4 12L0 7.5H8Z' fill='%23111111'/%3E%3C/svg%3E\")",
+     "--aq-font": "\"Lucida Grande\", \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+     "--accent": "var(--aq-select)",
+     "--accent-2": "var(--aq-gel-bottom)",
+     "--on-accent": "var(--aq-on-select)",
+     "--bg": "var(--aq-desktop)",
+     "--panel": "var(--aq-face)",
+     "--panel-2": "var(--aq-window)",
+     "--line": "var(--aq-edge)",
+     "--text": "var(--aq-ink)",
+     "--muted": "var(--aq-muted)",
+     "--dust-ink": "var(--aq-ink)",
+     "--dust-accent": "var(--aq-focus)",
+     "--yellow": "var(--aq-yellow)",
+     "--danger": "var(--aq-red)",
+     "--ok": "var(--aq-green)",
+     "--sb-thumb": "var(--aq-gel-top)",
+     "--sb-thumb-hover": "var(--aq-gel-bottom)",
+     "--sb-thumb-active": "var(--aq-gel-bottom)",
+     "--btn-ink": "var(--aq-ink)",
+     "--drag-accent": "var(--aq-gel-bottom)"
+    },
+    "|:root[data-skin=\"aqua\"][data-theme=\"dark\"]": {
+     "--aq-face": "#2d3036",
+     "--aq-stripe": "#33363c",
+     "--aq-window": "#1e2024",
+     "--aq-edge": "#6e747e",
+     "--aq-metal-top": "#555a63",
+     "--aq-metal-bottom": "#2a2d33",
+     "--aq-glass-top": "#6c727c",
+     "--aq-glass-bottom": "#40454d",
+     "--aq-gel-hi": "#9db9f6",
+     "--aq-gel-top": "#467aee",
+     "--aq-gel-bottom": "#1d4db7",
+     "--aq-gel-edge": "#112d6a",
+     "--aq-select": "#1e4fbc",
+     "--aq-on-select": "#ffffff",
+     "--aq-on-gel": "#ffffff",
+     "--aq-ink": "#e8e8e8",
+     "--aq-muted": "#9aa0a8",
+     "--aq-desktop": "#142c5c",
+     "--aq-canvas": "#16181b",
+     "--aq-red": "#d8463a",
+     "--aq-yellow": "#d9a227",
+     "--aq-green": "#3f9e33",
+     "--aq-tip-bg": "#3a3a24",
+     "--aq-tip-ink": "#fffbd0",
+     "--aq-link": "#87a9f4",
+     "--aq-focus": "#719af2",
+     "--aq-tile-ring": "inset 0 0 0 1px color-mix(in srgb, var(--aq-ink) 40%, transparent), inset 0 2px 0 -1px rgba(255, 255, 255, 0.25), 0 1px 2px rgba(0, 0, 0, 0.6)",
+     "--aq-tick": "#f4f4f4"
+    }
+   },
+   "order": [
+    "|:root[data-skin=\"aqua\"]",
+    "|:root[data-skin=\"aqua\"][data-theme=\"dark\"]"
+   ]
+  },
+  "src/lib/aqua/windows.css": {
+   "rules": {
+    "|:root[data-skin=\"aqua\"] #sec-assistant .chat-config-cta:is(*, :hover)": {
+     "background": "var(--aq-glass)",
+     "color": "var(--aq-ink)",
+     "box-shadow": "var(--aq-glass-ring)",
+     "border-radius": "999px",
+     "font-weight": "normal"
+    },
+    "|:root[data-skin=\"aqua\"] #sec-assistant .chat-retry": {
+     "width": "23px",
+     "height": "23px",
+     "border-radius": "999px"
+    },
+    "|:root[data-skin=\"aqua\"] #sec-assistant .chip": {
+     "background": "var(--aq-gel)",
+     "color": "var(--aq-on-gel)",
+     "border": "0",
+     "border-radius": "999px",
+     "box-shadow": "var(--aq-gel-ring)"
+    },
+    "|:root[data-skin=\"aqua\"] #sec-assistant .chip .chip-x:is(*, :hover)": {
+     "background": "none",
+     "color": "var(--aq-on-gel)",
+     "box-shadow": "none"
+    },
+    "|:root[data-skin=\"aqua\"] *": {
+     "scrollbar-width": "auto",
+     "scrollbar-color": "auto"
+    },
+    "|:root[data-skin=\"aqua\"] *::-webkit-scrollbar": {
+     "width": "15px",
+     "height": "15px"
+    },
+    "|:root[data-skin=\"aqua\"] *::-webkit-scrollbar-corner, :root[data-skin=\"aqua\"] *::-webkit-scrollbar-track": {
+     "background": "linear-gradient(90deg, color-mix(in srgb, var(--aq-edge) 45%, var(--aq-window)), var(--aq-window))"
+    },
+    "|:root[data-skin=\"aqua\"] *::-webkit-scrollbar-thumb": {
+     "background": "linear-gradient(90deg, var(--aq-gel-bottom), var(--aq-gel-top) 45%, var(--aq-gel-hi) 60%, var(--aq-gel-top))",
+     "border": "2px solid transparent",
+     "background-clip": "padding-box",
+     "border-radius": "999px",
+     "box-shadow": "inset 0 0 0 1px var(--aq-gel-edge)"
+    },
+    "|:root[data-skin=\"aqua\"] *::-webkit-scrollbar-thumb:horizontal": {
+     "background": "linear-gradient(180deg, var(--aq-gel-hi), var(--aq-gel-top) 45%, var(--aq-gel-bottom) 55%, var(--aq-gel-top))",
+     "background-clip": "padding-box"
+    },
+    "|:root[data-skin=\"aqua\"] .accent-dd-menu:not(:has(.accent-swatch)) .accent-dd-opt": {
+     "position": "relative",
+     "padding-left": "24px !important"
+    },
+    "|:root[data-skin=\"aqua\"] .accent-dd-menu:not(:has(.accent-swatch)) .accent-dd-opt[aria-selected=\"true\"]::before": {
+     "content": "\"\\2713\"",
+     "position": "absolute",
+     "left": "7px",
+     "font-weight": "700"
+    },
+    "|:root[data-skin=\"aqua\"] .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover)": {
+     "background": "transparent",
+     "color": "var(--aq-ink)"
+    },
+    "|:root[data-skin=\"aqua\"] .action-menu .label": {
+     "color": "var(--aq-ink)",
+     "text-transform": "none",
+     "letter-spacing": "0",
+     "font-weight": "700",
+     "padding": "4px 12px 2px"
+    },
+    "|:root[data-skin=\"aqua\"] .action-menu .sep": {
+     "background": "color-mix(in srgb, var(--aq-edge) 70%, transparent)",
+     "height": "1px",
+     "margin": "4px 0"
+    },
+    "|:root[data-skin=\"aqua\"] .action-menu .submenu:hover > .submenu-head .caret, :root[data-skin=\"aqua\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover) .accent-dd-name": {
+     "color": "var(--aq-on-select)"
+    },
+    "|:root[data-skin=\"aqua\"] .chat-ask-option:hover, :root[data-skin=\"aqua\"] :is(.row, .ed-row, .src-row):hover:not(:nth-child(even)):not(.current):not(.picked)": {
+     "background": "transparent"
+    },
+    "|:root[data-skin=\"aqua\"] .dialog-title": {
+     "background": "var(--aq-metal)",
+     "color": "var(--aq-ink)",
+     "font-size": "13px",
+     "text-align": "center",
+     "border-radius": "8px 8px 0 0",
+     "border-bottom": "1px solid var(--aq-edge)"
+    },
+    "|:root[data-skin=\"aqua\"] .list.drag-over": {
+     "background": "color-mix(in srgb, var(--drag-accent) 12%, var(--aq-window))"
+    },
+    "|:root[data-skin=\"aqua\"] .logo-wrap .logo": {
+     "transition": "transform 0.22s cubic-bezier(0.3, 0.7, 0.4, 1.3), filter 0.22s ease"
+    },
+    "|:root[data-skin=\"aqua\"] .logo-wrap::before": {
+     "content": "none"
+    },
+    "|:root[data-skin=\"aqua\"] .logo-wrap:hover .logo": {
+     "animation": "none !important",
+     "transform": "scale(1.15)",
+     "filter": "drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35)) saturate(1.15)"
+    },
+    "|:root[data-skin=\"aqua\"] .notify-toast .notify-icon": {
+     "color": "var(--aq-gel-bottom)"
+    },
+    "|:root[data-skin=\"aqua\"] .pin-row:hover": {
+     "border-color": "var(--line)"
+    },
+    "|:root[data-skin=\"aqua\"] .tip-key": {
+     "background": "var(--aq-glass)",
+     "color": "var(--aq-ink)",
+     "border": "0",
+     "border-radius": "4px",
+     "box-shadow": "var(--aq-glass-ring)"
+    },
+    "|:root[data-skin=\"aqua\"] .toast-glow": {
+     "display": "none"
+    },
+    "|:root[data-skin=\"aqua\"] :is(#app-tooltip, .chat-status-tip)": {
+     "background": "var(--aq-tip-bg)",
+     "color": "var(--aq-tip-ink)",
+     "border": "1px solid color-mix(in srgb, var(--aq-edge) 80%, #000000)",
+     "border-radius": "0",
+     "box-shadow": "0 2px 6px rgba(0, 0, 0, 0.3)",
+     "padding": "4px 8px",
+     "font-size": "11px"
+    },
+    "|:root[data-skin=\"aqua\"] :is(.accent-dd-menu, .action-menu, .action-menu .flyout, #sec-assistant .chat-more-menu)": {
+     "overflow-x": "hidden"
+    },
+    "|:root[data-skin=\"aqua\"] :is(.accent-dd-menu, .action-menu, .action-menu .flyout, #sec-assistant .chat-more-menu, .leave-copy.chat-more-menu)": {
+     "background": "repeating-linear-gradient(180deg, color-mix(in srgb, var(--aq-stripe) 94%, transparent) 0 2px, color-mix(in srgb, var(--aq-face) 94%, transparent) 2px 4px)",
+     "color": "var(--aq-ink)",
+     "border": "0",
+     "border-radius": "0 0 5px 5px",
+     "box-shadow": "0 0 0 1px rgba(0, 0, 0, 0.18), 0 6px 18px rgba(0, 0, 0, 0.32)",
+     "padding": "4px 0",
+     "gap": "0"
+    },
+    "|:root[data-skin=\"aqua\"] :is(.accent-dd-opt, .action-menu button, .action-menu .drag-item, #sec-assistant .chat-more-item, .leave-copy .chat-more-item)": {
+     "background": "transparent",
+     "color": "var(--aq-ink)",
+     "border": "0 !important",
+     "border-radius": "0",
+     "box-shadow": "none",
+     "text-shadow": "none",
+     "margin": "0",
+     "min-height": "0",
+     "padding": "3px 18px 3px 12px",
+     "white-space": "nowrap"
+    },
+    "|:root[data-skin=\"aqua\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .action-menu button:hover, .action-menu .drag-item:hover, .action-menu .drag-item.over, .action-menu .submenu:hover > .submenu-head, #sec-assistant .chat-more-item:hover:not(:disabled))": {
+     "background": "linear-gradient(180deg, var(--aq-gel-top), var(--aq-select))",
+     "color": "var(--aq-on-select)",
+     "box-shadow": "none !important"
+    },
+    "|:root[data-skin=\"aqua\"] :is(.badge, .pin-kw, .pin-kind)": {
+     "background": "var(--aq-gel)",
+     "color": "var(--aq-on-gel)",
+     "border": "0",
+     "border-radius": "999px",
+     "box-shadow": "var(--aq-gel-ring)"
+    },
+    "|:root[data-skin=\"aqua\"] :is(.dialog, .confirm-box, #section-peek, .panel, .card)": {
+     "background": "var(--aq-pinstripe)",
+     "color": "var(--aq-ink)",
+     "border": "0",
+     "border-radius": "8px",
+     "box-shadow": "var(--aq-window-ring)"
+    },
+    "|:root[data-skin=\"aqua\"] :is(.dialog-back, .confirm-overlay)": {
+     "background": "rgba(0, 20, 60, 0.18)"
+    },
+    "|:root[data-skin=\"aqua\"] :is(.dlbl, label.f, .lbl, .peek-title)": {
+     "text-transform": "none",
+     "letter-spacing": "0",
+     "font-weight": "700"
+    },
+    "|:root[data-skin=\"aqua\"] :is(.ed-row.current, .src-row.picked)": {
+     "background": "var(--aq-select)",
+     "color": "var(--aq-on-select)"
+    },
+    "|:root[data-skin=\"aqua\"] :is(.ed-row.current, .src-row.picked) :is(.name, .sub, .dim)": {
+     "color": "var(--aq-on-select)"
+    },
+    "|:root[data-skin=\"aqua\"] :is(.list, .ed-list, .src-list)": {
+     "background": "var(--aq-window)",
+     "border": "1px solid var(--aq-edge)",
+     "border-radius": "4px"
+    },
+    "|:root[data-skin=\"aqua\"] :is(.notify-toast, .notify-toast.notify-shine)": {
+     "background": "var(--aq-pinstripe)",
+     "color": "var(--aq-ink)",
+     "border": "0",
+     "border-radius": "0 0 8px 8px",
+     "box-shadow": "var(--aq-window-ring)"
+    },
+    "|:root[data-skin=\"aqua\"] :is(.row, .ed-row, .src-row, .pin-row):nth-child(even)": {
+     "background": "var(--aq-stripe)"
+    },
+    "|:root[data-skin=\"aqua\"] :is(.thumb, .ed-thumb, .pin-thumb)": {
+     "border-radius": "4px",
+     "box-shadow": "0 1px 3px rgba(0, 0, 0, 0.35)"
+    },
+    "|:root[data-skin=\"aqua\"] :is(.tip-title, .tip-term, .tip-desc, .tip-line, .tip-hint, .tip-note, .tip-bullets li)": {
+     "color": "var(--aq-tip-ink)"
+    },
+    "|:root[data-skin=\"aqua\"] :is(header h1, .brand h1)": {
+     "color": "var(--aq-ink)",
+     "text-shadow": "0 1px rgba(255, 255, 255, 0.7)"
+    },
+    "|:root[data-skin=\"aqua\"] :is(header, .filters)": {
+     "background": "var(--aq-metal)",
+     "border-bottom": "1px solid var(--aq-edge)",
+     "box-shadow": "inset 0 1px rgba(255, 255, 255, 0.6)"
+    },
+    "|:root[data-skin=\"aqua\"] :is(select, .page-select, .dialog-select, .accent-dd-trigger)": {
+     "transition": "box-shadow 0.18s ease"
+    },
+    "|:root[data-skin=\"aqua\"] header .logo": {
+     "filter": "drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35)) saturate(1.15)"
+    },
+    "|:where(:root[data-skin=\"aqua\"]) .accent-dd-trigger": {
+     "padding-top": "4px",
+     "padding-bottom": "4px",
+     "font-size": "13px",
+     "line-height": "20px"
+    }
+   },
+   "order": [
+    "|:root[data-skin=\"aqua\"] :is(header, .filters)",
+    "|:root[data-skin=\"aqua\"] header .logo",
+    "|:root[data-skin=\"aqua\"] :is(header h1, .brand h1)",
+    "|:root[data-skin=\"aqua\"] :is(.dlbl, label.f, .lbl, .peek-title)",
+    "|:root[data-skin=\"aqua\"] :is(.list, .ed-list, .src-list)",
+    "|:root[data-skin=\"aqua\"] :is(.row, .ed-row, .src-row, .pin-row):nth-child(even)",
+    "|:root[data-skin=\"aqua\"] .chat-ask-option:hover, :root[data-skin=\"aqua\"] :is(.row, .ed-row, .src-row):hover:not(:nth-child(even)):not(.current):not(.picked)",
+    "|:root[data-skin=\"aqua\"] .pin-row:hover",
+    "|:root[data-skin=\"aqua\"] .list.drag-over",
+    "|:root[data-skin=\"aqua\"] :is(.ed-row.current, .src-row.picked)",
+    "|:root[data-skin=\"aqua\"] :is(.ed-row.current, .src-row.picked) :is(.name, .sub, .dim)",
+    "|:root[data-skin=\"aqua\"] :is(.thumb, .ed-thumb, .pin-thumb)",
+    "|:root[data-skin=\"aqua\"] :is(.badge, .pin-kw, .pin-kind)",
+    "|:root[data-skin=\"aqua\"] :is(.accent-dd-menu, .action-menu, .action-menu .flyout, #sec-assistant .chat-more-menu, .leave-copy.chat-more-menu)",
+    "|:root[data-skin=\"aqua\"] :is(.accent-dd-opt, .action-menu button, .action-menu .drag-item, #sec-assistant .chat-more-item, .leave-copy .chat-more-item)",
+    "|:root[data-skin=\"aqua\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .action-menu button:hover, .action-menu .drag-item:hover, .action-menu .drag-item.over, .action-menu .submenu:hover > .submenu-head, #sec-assistant .chat-more-item:hover:not(:disabled))",
+    "|:root[data-skin=\"aqua\"] .action-menu .submenu:hover > .submenu-head .caret, :root[data-skin=\"aqua\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover) .accent-dd-name",
+    "|:root[data-skin=\"aqua\"] .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover)",
+    "|:root[data-skin=\"aqua\"] .action-menu .sep",
+    "|:root[data-skin=\"aqua\"] .action-menu .label",
+    "|:root[data-skin=\"aqua\"] .accent-dd-menu:not(:has(.accent-swatch)) .accent-dd-opt",
+    "|:root[data-skin=\"aqua\"] .accent-dd-menu:not(:has(.accent-swatch)) .accent-dd-opt[aria-selected=\"true\"]::before",
+    "|:root[data-skin=\"aqua\"] :is(.dialog-back, .confirm-overlay)",
+    "|:root[data-skin=\"aqua\"] :is(.dialog, .confirm-box, #section-peek, .panel, .card)",
+    "|:root[data-skin=\"aqua\"] .dialog-title",
+    "|:root[data-skin=\"aqua\"] :is(#app-tooltip, .chat-status-tip)",
+    "|:root[data-skin=\"aqua\"] :is(.tip-title, .tip-term, .tip-desc, .tip-line, .tip-hint, .tip-note, .tip-bullets li)",
+    "|:root[data-skin=\"aqua\"] .tip-key",
+    "|:root[data-skin=\"aqua\"] :is(.notify-toast, .notify-toast.notify-shine)",
+    "|:root[data-skin=\"aqua\"] .notify-toast .notify-icon",
+    "|:root[data-skin=\"aqua\"] .toast-glow",
+    "|:root[data-skin=\"aqua\"] *",
+    "|:root[data-skin=\"aqua\"] *::-webkit-scrollbar",
+    "|:root[data-skin=\"aqua\"] *::-webkit-scrollbar-corner, :root[data-skin=\"aqua\"] *::-webkit-scrollbar-track",
+    "|:root[data-skin=\"aqua\"] *::-webkit-scrollbar-thumb",
+    "|:root[data-skin=\"aqua\"] *::-webkit-scrollbar-thumb:horizontal",
+    "|:root[data-skin=\"aqua\"] #sec-assistant .chip",
+    "|:root[data-skin=\"aqua\"] #sec-assistant .chip .chip-x:is(*, :hover)",
+    "|:root[data-skin=\"aqua\"] .logo-wrap::before",
+    "|:root[data-skin=\"aqua\"] .logo-wrap .logo",
+    "|:root[data-skin=\"aqua\"] .logo-wrap:hover .logo",
+    "|:root[data-skin=\"aqua\"] :is(.accent-dd-menu, .action-menu, .action-menu .flyout, #sec-assistant .chat-more-menu)",
+    "|:root[data-skin=\"aqua\"] #sec-assistant .chat-config-cta:is(*, :hover)",
+    "|:root[data-skin=\"aqua\"] #sec-assistant .chat-retry",
+    "|:where(:root[data-skin=\"aqua\"]) .accent-dd-trigger",
+    "|:root[data-skin=\"aqua\"] :is(select, .page-select, .dialog-select, .accent-dd-trigger)"
    ]
   },
   "src/lib/theme/controls.css": {
@@ -2691,7 +3646,13 @@
     },
     "|:root[data-skin=\"webcore\"] .accent-dd-trigger": {
      "position": "relative",
-     "padding-right": "24px"
+     "padding-right": "22px"
+    },
+    "|:root[data-skin=\"webcore\"] .accent-dd-trigger, :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"]), :root[data-skin=\"webcore\"] select": {
+     "height": "24px",
+     "min-height": "24px",
+     "padding": "2px 6px",
+     "line-height": "18px"
     },
     "|:root[data-skin=\"webcore\"] .chat-composer textarea": {
      "box-shadow": "none !important",
@@ -2719,6 +3680,9 @@
     "|:root[data-skin=\"webcore\"] .logo-wrap::before": {
      "display": "none"
     },
+    "|:root[data-skin=\"webcore\"] .mm-icon *": {
+     "animation": "none !important"
+    },
     "|:root[data-skin=\"webcore\"] .section-head .chev": {
      "transition": "none"
     },
@@ -2733,13 +3697,13 @@
     "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .action-menu button:hover, .action-menu .drag-item.over, .chat-more-item:hover) svg[data-wc]": {
      "filter": "drop-shadow(1px 0 0 var(--wc-hilight)) drop-shadow(-1px 0 0 var(--wc-hilight)) drop-shadow(0 1px 0 var(--wc-hilight)) drop-shadow(0 -1px 0 var(--wc-hilight)) !important"
     },
-    "|:root[data-skin=\"webcore\"] :is(.chk, label):has(> :disabled), :root[data-skin=\"webcore\"] :is(button, select, input, textarea, .chk):disabled": {
+    "|:root[data-skin=\"webcore\"] :is(.chk, label):has(> :disabled), :root[data-skin=\"webcore\"] :is([aria-disabled=\"true\"], .is-disabled), :root[data-skin=\"webcore\"] :is(button, select, input, textarea, .chk):disabled": {
      "background": "var(--wc-face)",
      "color": "var(--wc-muted)",
      "text-shadow": "1px 1px var(--wc-hilight) !important",
      "box-shadow": "var(--wc-raised)",
      "opacity": "1",
-     "cursor": "default"
+     "cursor": "not-allowed"
     },
     "|:root[data-skin=\"webcore\"] :is(.icon-btn, .mini, .btn-icon-text, .thumb, .chk, .accent-dd-opt, .shimmer)::after": {
      "display": "none"
@@ -2798,7 +3762,8 @@
      "background": "var(--wc-window)",
      "color": "var(--wc-ink)",
      "border": "0 !important",
-     "box-shadow": "var(--wc-sunken) !important"
+     "box-shadow": "var(--wc-sunken) !important",
+     "padding-left": "6px"
     },
     "|:root[data-skin=\"webcore\"] a": {
      "color": "var(--wc-link)"
@@ -2827,6 +3792,8 @@
      "height": "13px",
      "min-width": "13px",
      "min-height": "13px",
+     "margin": "0 4px 0 0",
+     "vertical-align": "-2px",
      "background": "var(--wc-window)",
      "border": "0",
      "box-shadow": "var(--wc-sunken)"
@@ -2841,11 +3808,14 @@
      "border": "0",
      "padding": "3px"
     },
+    "|:root[data-skin=\"webcore\"] input[type=\"color\"]::-webkit-color-swatch": {
+     "border": "1px solid var(--wc-dark)"
+    },
     "|:root[data-skin=\"webcore\"] input[type=\"radio\"]": {
      "border-radius": "50% !important"
     },
     "|:root[data-skin=\"webcore\"] input[type=\"radio\"]:checked": {
-     "background": "radial-gradient(circle, var(--wc-ink) 0 2.5px, var(--wc-window) 3px)"
+     "background": "radial-gradient(circle, var(--wc-ink) 0 3px, var(--wc-window) 3.5px)"
     },
     "|:root[data-skin=\"webcore\"] input[type=\"range\"]": {
      "accent-color": "var(--wc-select)"
@@ -2883,10 +3853,11 @@
     "|:root[data-skin=\"webcore\"] :is(.more-btn.active, .pin-btn.active, .seg button.active, .chk:has(> input:checked)), :root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .confirm-btn, .chat-send, .chk):active:not(:disabled)",
     "|:root[data-skin=\"webcore\"] :is(button.primary, .btn.primary, .dialog-actions button.primary, .confirm-btn.danger)",
     "|:root[data-skin=\"webcore\"] :is(.pin-btn.danger, .pin-clear, .confirm-btn.danger)",
-    "|:root[data-skin=\"webcore\"] :is(.chk, label):has(> :disabled), :root[data-skin=\"webcore\"] :is(button, select, input, textarea, .chk):disabled",
+    "|:root[data-skin=\"webcore\"] :is(.chk, label):has(> :disabled), :root[data-skin=\"webcore\"] :is([aria-disabled=\"true\"], .is-disabled), :root[data-skin=\"webcore\"] :is(button, select, input, textarea, .chk):disabled",
     "|:root[data-skin=\"webcore\"] :is(input, textarea):disabled",
     "|:root[data-skin=\"webcore\"] :is(.icon-btn, .mini, .btn-icon-text, .thumb, .chk, .accent-dd-opt, .shimmer)::after",
     "|:root[data-skin=\"webcore\"] :is(select, textarea, .search, .num, .page-select, .dialog-select, .accent-dd-search, .pin-kw-input, .accent-dd-trigger, .chat-composer), :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"])",
+    "|:root[data-skin=\"webcore\"] .accent-dd-trigger, :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"]), :root[data-skin=\"webcore\"] select",
     "|:root[data-skin=\"webcore\"] .chat-composer textarea",
     "|:root[data-skin=\"webcore\"] :is(select, textarea, .accent-dd-trigger):hover:not(:disabled):not(:focus), :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"]):hover:not(:disabled):not(:focus)",
     "|:root[data-skin=\"webcore\"] :is(input, select, textarea, .accent-dd-search):focus",
@@ -2902,6 +3873,7 @@
     "|:root[data-skin=\"webcore\"] .chk",
     "|:root[data-skin=\"webcore\"] input[type=\"range\"]",
     "|:root[data-skin=\"webcore\"] input[type=\"color\"]",
+    "|:root[data-skin=\"webcore\"] input[type=\"color\"]::-webkit-color-swatch",
     "|:root[data-skin=\"webcore\"] *",
     "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar",
     "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-corner, :root[data-skin=\"webcore\"] *::-webkit-scrollbar-track",
@@ -2916,7 +3888,8 @@
     "|:root[data-skin=\"webcore\"] .section-head .chev",
     "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .action-menu button:hover, .action-menu .drag-item.over, .chat-more-item:hover) svg[data-wc]",
     "|:root[data-skin=\"webcore\"] :is(button, .chk):disabled svg[data-wc]",
-    "|:root[data-skin=\"webcore\"] .chk:not(:has(> input:checked))"
+    "|:root[data-skin=\"webcore\"] .chk:not(:has(> input:checked))",
+    "|:root[data-skin=\"webcore\"] .mm-icon *"
    ]
   },
   "src/lib/webcore/tokens.css": {
@@ -2959,14 +3932,15 @@
      "--dust-accent": "var(--wc-focus)",
      "--dust-accent-2": "color-mix(in srgb, var(--wc-focus) 86%, black)",
      "--dust-accent-alt": "color-mix(in srgb, var(--wc-focus) 55%, #000000)",
+     "--drag-accent": "var(--wc-focus)",
      "--yellow": "#808000",
      "--danger": "#800000",
      "--ok": "#008000",
      "--check-a": "var(--wc-window)",
      "--check-b": "var(--wc-light)",
      "--sb-thumb": "var(--wc-face)",
-     "--sb-thumb-hover": "var(--wc-focus)",
-     "--sb-thumb-active": "var(--wc-focus)",
+     "--sb-thumb-hover": "var(--wc-face)",
+     "--sb-thumb-active": "var(--wc-face)",
      "--btn-ink": "var(--wc-ink)",
      "--btn-danger": "var(--wc-ink)"
     },
@@ -3005,13 +3979,20 @@
   },
   "src/lib/webcore/windows.css": {
    "rules": {
+    "|:root[data-skin=\"webcore\"] #sec-assistant .chat-config-cta": {
+     "background": "var(--wc-face)",
+     "color": "var(--wc-ink)",
+     "box-shadow": "var(--wc-raised)",
+     "font-weight": "normal"
+    },
     "|:root[data-skin=\"webcore\"] #sec-assistant .chip": {
      "background": "var(--wc-window)",
      "border": "0",
      "box-shadow": "var(--wc-well)"
     },
     "|:root[data-skin=\"webcore\"] #sec-assistant .msg.error": {
-     "color": "var(--danger)"
+     "color": "var(--danger)",
+     "box-shadow": "inset 0 0 0 1px var(--danger)"
     },
     "|:root[data-skin=\"webcore\"] #sec-assistant .msg.user": {
      "background": "var(--wc-light)"
@@ -3020,10 +4001,10 @@
      "display": "none"
     },
     "|:root[data-skin=\"webcore\"] #sec-assistant :is(.msg.user, .msg.assistant, .msg.error, .msg.note, .card, .warn, .chat-ask)": {
-     "background": "var(--wc-face)",
+     "background": "var(--wc-window)",
      "color": "var(--wc-ink)",
      "border": "0",
-     "box-shadow": "var(--wc-raised)"
+     "box-shadow": "var(--wc-well)"
     },
     "|:root[data-skin=\"webcore\"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover)": {
      "background": "transparent",
@@ -3041,7 +4022,7 @@
      "box-shadow": "none"
     },
     "|:root[data-skin=\"webcore\"] .action-menu .label": {
-     "color": "var(--wc-muted)",
+     "color": "var(--wc-ink)",
      "text-transform": "none",
      "letter-spacing": "0",
      "font-weight": "700"
@@ -3067,8 +4048,8 @@
      "box-shadow": "var(--wc-well)"
     },
     "|:root[data-skin=\"webcore\"] .chat-transcript": {
-     "background": "var(--wc-window)",
-     "box-shadow": "var(--wc-sunken)"
+     "background": "var(--wc-face)",
+     "box-shadow": "var(--wc-raised)"
     },
     "|:root[data-skin=\"webcore\"] .chat-typing i": {
      "animation": "none"
@@ -3108,11 +4089,17 @@
     "|:root[data-skin=\"webcore\"] .list": {
      "margin": "4px 6px 6px"
     },
+    "|:root[data-skin=\"webcore\"] .list.drag-over": {
+     "background": "color-mix(in srgb, var(--drag-accent) 12%, var(--wc-window))"
+    },
     "|:root[data-skin=\"webcore\"] .logo-stage": {
      "background": "rgba(0, 0, 0, 0.5)"
     },
     "|:root[data-skin=\"webcore\"] .meta .name.clickable:hover": {
      "color": "var(--wc-link)"
+    },
+    "|:root[data-skin=\"webcore\"] .notify-toast .notify-icon": {
+     "color": "var(--wc-ink)"
     },
     "|:root[data-skin=\"webcore\"] .notify-toast, :root[data-skin=\"webcore\"] .notify-toast.notify-shine": {
      "background": "var(--wc-face)",
@@ -3162,6 +4149,10 @@
     "|:root[data-skin=\"webcore\"] .viewport": {
      "border": "0",
      "box-shadow": "var(--wc-sunken)"
+    },
+    "|:root[data-skin=\"webcore\"] :is(#app-tooltip, .chat-status-tip)": {
+     "padding": "3px 6px",
+     "font-size": "11px"
     },
     "|:root[data-skin=\"webcore\"] :is(#app-tooltip, .chat-status-tip, .chat-thumb-preview)": {
      "background": "var(--wc-tip-bg)",
@@ -3264,6 +4255,7 @@
     "|:root[data-skin=\"webcore\"][data-theme=\"light\"] :is(.help, .status, p.sub, .dialog-note, .pin-sub, .pin-empty, .src-note)",
     "|:root[data-skin=\"webcore\"] :is(.list, .ed-list, .src-list)",
     "|:root[data-skin=\"webcore\"] .list",
+    "|:root[data-skin=\"webcore\"] .list.drag-over",
     "|:root[data-skin=\"webcore\"] :is(.row, .ed-row, .src-row, .pin-row)",
     "|:root[data-skin=\"webcore\"] .pin-row",
     "|:root[data-skin=\"webcore\"] :is(.row, .ed-row, .src-row, .pin-row):hover",
@@ -3292,11 +4284,13 @@
     "|:root[data-skin=\"webcore\"] .dialog-title",
     "|:root[data-skin=\"webcore\"] .confirm-box",
     "|:root[data-skin=\"webcore\"] :is(#app-tooltip, .chat-status-tip, .chat-thumb-preview)",
+    "|:root[data-skin=\"webcore\"] :is(#app-tooltip, .chat-status-tip)",
     "|:root[data-skin=\"webcore\"] :is(.tip-title, .tip-term, .tip-desc, .tip-line, .tip-hint, .tip-note, .tip-bullets li, .chat-status-tip th, .chat-status-tip td, .chat-thumb-preview-cap)",
     "|:root[data-skin=\"webcore\"] .tip-key",
     "|:root[data-skin=\"webcore\"] .chat-transcript",
     "|:root[data-skin=\"webcore\"] #sec-assistant :is(.msg.user, .msg.assistant, .msg.error, .msg.note, .card, .warn, .chat-ask)",
     "|:root[data-skin=\"webcore\"] #sec-assistant .msg.user",
+    "|:root[data-skin=\"webcore\"] #sec-assistant .chat-config-cta",
     "|:root[data-skin=\"webcore\"] #sec-assistant .msg.error",
     "|:root[data-skin=\"webcore\"] #sec-assistant .msg::after, :root[data-skin=\"webcore\"] #sec-assistant .msg::before",
     "|:root[data-skin=\"webcore\"] #sec-assistant .chip",
@@ -3309,6 +4303,7 @@
     "|:root[data-skin=\"webcore\"] .conn-status",
     "|:root[data-skin=\"webcore\"] .notify-toast, :root[data-skin=\"webcore\"] .notify-toast.notify-shine",
     "|:root[data-skin=\"webcore\"] .notify-toast::before",
+    "|:root[data-skin=\"webcore\"] .notify-toast .notify-icon",
     "|:root[data-skin=\"webcore\"] .toast-glow",
     "|:root[data-skin=\"webcore\"] .logo-stage"
    ]
@@ -4358,6 +5353,9 @@
      "animation": "none",
      "opacity": "0.6"
     },
+    "@media (prefers-reduced-motion: reduce)|:root[data-motion=\"transition\"] #sec-assistant .chat-more-menu:not([hidden])": {
+     "animation": "none"
+    },
     "|#sec-assistant .chat-clear:disabled": {
      "opacity": ".5",
      "cursor": "default"
@@ -4367,41 +5365,12 @@
      "border-color": "var(--accent)",
      "color": "var(--on-accent)"
     },
-    "|#sec-assistant .chat-more-item": {
-     "display": "flex",
-     "align-items": "center",
-     "gap": "8px",
-     "padding": "6px 8px",
-     "border": "none",
-     "border-radius": "6px",
-     "background": "none",
-     "color": "var(--text)",
-     "font": "inherit",
-     "font-size": "12px",
-     "text-align": "left",
-     "cursor": "pointer"
-    },
     "|#sec-assistant .chat-more-item:disabled": {
      "display": "none"
     },
     "|#sec-assistant .chat-more-item:hover:not(:disabled)": {
      "background": "var(--accent)",
      "color": "var(--on-accent)"
-    },
-    "|#sec-assistant .chat-more-menu": {
-     "position": "absolute",
-     "bottom": "calc(100% + 6px)",
-     "right": "0",
-     "z-index": "6",
-     "display": "flex",
-     "flex-direction": "column",
-     "gap": "2px",
-     "min-width": "150px",
-     "padding": "4px",
-     "background": "var(--panel-2)",
-     "border": "1px solid var(--line)",
-     "border-radius": "8px",
-     "box-shadow": "0 8px 24px rgba(0, 0, 0, .38)"
     },
     "|#sec-assistant .chat-more-menu[hidden]": {
      "display": "none"
@@ -4597,6 +5566,39 @@
      "display": "flex",
      "align-items": "center",
      "gap": "6px"
+    },
+    "|:is(#sec-assistant .chat-more-item, .leave-copy .chat-more-item)": {
+     "display": "flex",
+     "align-items": "center",
+     "gap": "8px",
+     "padding": "6px 8px",
+     "border": "none",
+     "border-radius": "6px",
+     "background": "none",
+     "color": "var(--text)",
+     "font": "inherit",
+     "font-size": "12px",
+     "text-align": "left",
+     "cursor": "pointer"
+    },
+    "|:is(#sec-assistant .chat-more-menu, .leave-copy.chat-more-menu)": {
+     "position": "absolute",
+     "bottom": "calc(100% + 6px)",
+     "right": "0",
+     "z-index": "6",
+     "display": "flex",
+     "flex-direction": "column",
+     "gap": "2px",
+     "min-width": "150px",
+     "padding": "4px",
+     "background": "var(--panel-2)",
+     "border": "1px solid var(--line)",
+     "border-radius": "8px",
+     "box-shadow": "0 8px 24px rgba(0, 0, 0, .38)"
+    },
+    "|:root[data-motion=\"transition\"] #sec-assistant .chat-more-menu:not([hidden])": {
+     "animation": "stMenuFromAnchor 0.26s cubic-bezier(0.22, 0.61, 0.36, 1) both",
+     "transform-origin": "right bottom"
     }
    },
    "order": [
@@ -4617,9 +5619,11 @@
     "|.chat-status-tip-foot",
     "|#sec-assistant .chat-more-wrap > .chat-clear",
     "|#sec-assistant .chat-more-wrap",
-    "|#sec-assistant .chat-more-menu",
+    "|:is(#sec-assistant .chat-more-menu, .leave-copy.chat-more-menu)",
     "|#sec-assistant .chat-more-menu[hidden]",
-    "|#sec-assistant .chat-more-item",
+    "|:root[data-motion=\"transition\"] #sec-assistant .chat-more-menu:not([hidden])",
+    "@media (prefers-reduced-motion: reduce)|:root[data-motion=\"transition\"] #sec-assistant .chat-more-menu:not([hidden])",
+    "|:is(#sec-assistant .chat-more-item, .leave-copy .chat-more-item)",
     "|#sec-assistant .chat-more-item:hover:not(:disabled)",
     "|#sec-assistant .chat-more-item:disabled",
     "|.chat-ask",
@@ -4735,6 +5739,9 @@
      "user-select": "text",
      "cursor": "text"
     },
+    "|#sec-assistant .msg .msg-menu-btn": {
+     "opacity": "0"
+    },
     "|#sec-assistant .msg.assistant": {
      "align-self": "flex-start",
      "--msg-fill": "var(--panel-2)",
@@ -4806,8 +5813,8 @@
      "min-height": "56px",
      "max-height": "240px",
      "overflow-y": "auto",
-     "padding": "2px 10px",
      "overflow-x": "hidden",
+     "padding": "2px 10px",
      "container-type": "inline-size",
      "container-name": "chat-transcript"
     },
@@ -4878,6 +5885,7 @@
     "|.msg-menu-btn.left::before",
     "|.msg-menu-btn.right::before",
     "|.msg-menu-btn:hover",
+    "|#sec-assistant .msg .msg-menu-btn",
     "@media (hover: hover)|#sec-assistant .msg:hover .msg-menu-btn",
     "@media (hover: hover)|#sec-assistant .msg:hover .msg-menu-btn:hover",
     "|.msg-menu-btn.msg-menu-btn-yield",
@@ -4898,6 +5906,17 @@
   },
   "src/popup/editor/mode.css": {
    "rules": {
+    "@keyframes action-menu-grow|0%": {
+     "opacity": "0",
+     "transform": "scale(.05)"
+    },
+    "@keyframes action-menu-grow|100%": {
+     "opacity": "1",
+     "transform": "none"
+    },
+    "@keyframes action-menu-grow|8%": {
+     "opacity": "1"
+    },
     "@keyframes action-menu-pop|from": {
      "transform": "scale(.62)",
      "opacity": "0"
@@ -4913,6 +5932,9 @@
      "background": "transparent"
     },
     "@media (prefers-reduced-motion: reduce)|.action-menu": {
+     "animation": "none"
+    },
+    "@media (prefers-reduced-motion: reduce)|:root[data-motion=\"transition\"] .action-menu, :root[data-motion=\"transition\"] .action-menu .submenu:hover > .flyout": {
      "animation": "none"
     },
     "|.action-menu": {
@@ -5314,6 +6336,16 @@
      "gap": "6px",
      "margin": "5px 0 4px"
     },
+    "|:root[data-motion=\"transition\"] .action-menu": {
+     "animation": "action-menu-grow .26s cubic-bezier(.22, .61, .36, 1)"
+    },
+    "|:root[data-motion=\"transition\"] .action-menu .submenu.open-left:hover > .flyout": {
+     "transform-origin": "right 16px"
+    },
+    "|:root[data-motion=\"transition\"] .action-menu .submenu:hover > .flyout": {
+     "animation": "action-menu-grow .26s cubic-bezier(.22, .61, .36, 1)",
+     "transform-origin": "left 16px"
+    },
     "|body.editor-mode #row-highlight, body.on-editor-page #row-highlight": {
      "display": "none"
     },
@@ -5398,18 +6430,25 @@
     "|.action-menu .submenu:hover > .submenu-head",
     "|.action-menu .flyout",
     "|.action-menu .submenu.open-left > .flyout",
-    "|.action-menu .submenu:hover > .flyout"
+    "|.action-menu .submenu:hover > .flyout",
+    "@keyframes action-menu-grow|0%",
+    "@keyframes action-menu-grow|8%",
+    "@keyframes action-menu-grow|100%",
+    "|:root[data-motion=\"transition\"] .action-menu",
+    "|:root[data-motion=\"transition\"] .action-menu .submenu:hover > .flyout",
+    "|:root[data-motion=\"transition\"] .action-menu .submenu.open-left:hover > .flyout",
+    "@media (prefers-reduced-motion: reduce)|:root[data-motion=\"transition\"] .action-menu, :root[data-motion=\"transition\"] .action-menu .submenu:hover > .flyout"
    ]
   },
   "src/popup/list.css": {
    "rules": {
     "@keyframes stencilLogoPulse|from": {
      "transform": "scale(1)",
-     "box-shadow": "0 0 0 0 color-mix(in srgb, var(--accent, #7c3aed) 55%, transparent)"
+     "box-shadow": "0 0 0 0 color-mix(in srgb, var(--drag-accent, var(--accent, #7c3aed)) 55%, transparent)"
     },
     "@keyframes stencilLogoPulse|to": {
      "transform": "scale(1.08)",
-     "box-shadow": "0 0 0 7px color-mix(in srgb, var(--accent, #7c3aed) 0%, transparent)"
+     "box-shadow": "0 0 0 7px color-mix(in srgb, var(--drag-accent, var(--accent, #7c3aed)) 0%, transparent)"
     },
     "@media (prefers-reduced-motion: reduce)|header .logo.drag-armed": {
      "animation": "none",
@@ -5489,10 +6528,10 @@
      "color": "#4ade80"
     },
     "|.list.drag-over": {
-     "outline": "2px dashed var(--accent, #7c3aed)",
+     "outline": "2px dashed var(--drag-accent, var(--accent, #7c3aed))",
      "outline-offset": "-4px",
      "border-radius": "8px",
-     "background-color": "color-mix(in srgb, var(--accent, #7c3aed) 10%, transparent)"
+     "background-color": "color-mix(in srgb, var(--drag-accent, var(--accent, #7c3aed)) 10%, transparent)"
     },
     "|.meta": {
      "flex": "1 1 auto",
@@ -5565,7 +6604,7 @@
     },
     "|header .logo.drag-armed": {
      "border-radius": "6px",
-     "outline": "2px dashed color-mix(in srgb, var(--accent, #7c3aed) 60%, transparent)",
+     "outline": "2px dashed color-mix(in srgb, var(--drag-accent, var(--accent, #7c3aed)) 60%, transparent)",
      "outline-offset": "3px",
      "animation": "stencilLogoPulse 1.2s ease-in-out infinite alternate"
     },
@@ -5574,10 +6613,10 @@
      "transform": "scale(1.08)"
     },
     "|header .logo.drop-over": {
-     "outline": "2px dashed var(--accent, #7c3aed)",
+     "outline": "2px dashed var(--drag-accent, var(--accent, #7c3aed))",
      "outline-offset": "3px",
      "border-radius": "6px",
-     "background-color": "color-mix(in srgb, var(--accent, #7c3aed) 14%, transparent)"
+     "background-color": "color-mix(in srgb, var(--drag-accent, var(--accent, #7c3aed)) 14%, transparent)"
     }
    },
    "order": [

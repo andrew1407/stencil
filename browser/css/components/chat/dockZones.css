@@ -44,6 +44,7 @@
 .chat-transcript {
     flex: 1 1 auto;
     overflow-y: auto;
+    overflow-x: hidden;   /* a bubble sliding in from its side never widens the scroll (motionModes.css chatSideIn) */
     padding: 10px;
     display: flex;
     flex-direction: column;

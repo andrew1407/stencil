@@ -18,6 +18,11 @@ namespace stencil::support {
   inline void markDangerRow(QMenu& menu, QAction* action, const QColor& danger) {
     if (!action) return;
     menu.setDefaultAction(action);
+    // Aqua: the row's word in the menu's ink, the gel bar under the pointer (browser css/aqua/menus.css).
+    if (isAqua()) {
+      menu.setStyleSheet(menu.styleSheet() + QStringLiteral("\nQMenu::item:default{font-weight:normal;}"));
+      return;
+    }
     menu.setStyleSheet(
         menu.styleSheet()
         + QStringLiteral(

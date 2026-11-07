@@ -16,14 +16,14 @@
    itself as a target before the pointer gets there — a gentle scale + a breathing accent
    ring. Only transform/box-shadow/outline animate, so the header never reflows. */
 @keyframes stencilLogoPulse {
-  from { transform: scale(1);    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent, #7c3aed) 55%, transparent); }
-  to   { transform: scale(1.08); box-shadow: 0 0 0 7px color-mix(in srgb, var(--accent, #7c3aed) 0%, transparent); }
+  from { transform: scale(1);    box-shadow: 0 0 0 0 color-mix(in srgb, var(--drag-accent, var(--accent, #7c3aed)) 55%, transparent); }
+  to   { transform: scale(1.08); box-shadow: 0 0 0 7px color-mix(in srgb, var(--drag-accent, var(--accent, #7c3aed)) 0%, transparent); }
 }
 header .logo.drag-armed {
   border-radius: 6px;
   /* DASHED throughout — armed and hovered differ by strength (and the pulse),
      never by switching the line style mid-drag. */
-  outline: 2px dashed color-mix(in srgb, var(--accent, #7c3aed) 60%, transparent);
+  outline: 2px dashed color-mix(in srgb, var(--drag-accent, var(--accent, #7c3aed)) 60%, transparent);
   outline-offset: 3px;
   animation: stencilLogoPulse 1.2s ease-in-out infinite alternate;
 }
@@ -39,24 +39,25 @@ header .logo.drag-armed.drop-over { animation: none; transform: scale(1.08); }
    springs open that menu. Same cue language as the other drop targets — an accent ring
    over a faint accent tint, never an opaque fill. */
 header .logo.drop-over {
-  outline: 2px dashed var(--accent, #7c3aed);
+  outline: 2px dashed var(--drag-accent, var(--accent, #7c3aed));
   outline-offset: 3px;
   border-radius: 6px;
   background-color: rgba(124, 58, 237, .14);                                  /* fallback */
-  background-color: color-mix(in srgb, var(--accent, #7c3aed) 14%, transparent);
+  background-color: color-mix(in srgb, var(--drag-accent, var(--accent, #7c3aed)) 14%, transparent);
 }
 
 /* ── Drop cue (shared) ───────────────────────────────────────────────────────
    The browser editor's treatment (components/chat/narrow.css .chat-drop-target / dropOverlay):
    a dashed ACCENT outline over a faint accent TINT the content still shows through.
    Never an opaque fill — a solid panel colour reads as a white block in light theme.
-   Used by the list's drag-to-pin cue and by the Assistant section's drop state. */
+   Used by the list's drag-to-pin cue and by the Assistant section's drop state. --drag-accent is
+   the chosen accent where a skin re-points --accent at a colour of its own. */
 .list.drag-over {
-  outline: 2px dashed var(--accent, #7c3aed);
+  outline: 2px dashed var(--drag-accent, var(--accent, #7c3aed));
   outline-offset: -4px;
   border-radius: 8px;
   background-color: rgba(124, 58, 237, .10);                                  /* fallback */
-  background-color: color-mix(in srgb, var(--accent, #7c3aed) 10%, transparent);
+  background-color: color-mix(in srgb, var(--drag-accent, var(--accent, #7c3aed)) 10%, transparent);
 }
 
 .row { display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: 8px; cursor: grab; }

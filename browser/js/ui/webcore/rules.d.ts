@@ -18,8 +18,6 @@ export interface WebcoreConfig {
   strings: { off: string; project: string; imageName: string };
 }
 export declare const WEBCORE: WebcoreConfig;
-/** The <html> attribute the skin stamps, and its value. */
-export declare const SKIN_ATTR: string;
 export declare const SKIN_NAME: string;
 export declare const OFF_TOAST: string;
 export declare const PROJECT_NAME: string;

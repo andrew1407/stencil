@@ -132,6 +132,28 @@ int main(int argc, char** argv) {
   check(KeywordChips::addTo({"a", "b"}, "a") == QStringList({"a", "b"}), "addTo: already first is a no-op");
   check(KeywordChips::addTo({"a", "b"}, " ") == QStringList({"a", "b"}), "addTo: nothing typed changes nothing");
 
+  {   // ── A word added to a SHOWN field is laid out at once: its entrance flies from its own slot ──
+    // A child added to a shown widget waited for a queued show, the layout skipped it, and its entrance started
+    // from the corner while the others glided, which then jumped on the late reflow (user report).
+    KeywordsDialog dlg({}, &host);   // the first word, into an empty well (user report)
+    dlg.show();
+    QCoreApplication::processEvents();
+    auto* input = dlg.findChild<QLineEdit*>("keywordsInput");
+    input->setText("delta");
+    btnByText(&dlg, "Add")->click();
+    QFrame* added = nullptr;
+    for (QFrame* c : chips(&dlg))
+      if (QLabel* l = c->findChild<QLabel*>(); l && l->text() == "delta") added = c;
+    check(added && added->isVisible(), "keywords: a new chip is shown in the same turn it is added");
+    QHash<QFrame*, QRect> now;
+    for (QFrame* c : chips(&dlg)) now.insert(c, c->geometry());
+    QElapsedTimer t;
+    t.start();
+    while (t.elapsed() < 1200) QCoreApplication::processEvents();   // past the others' glide to their slots
+    bool still = true;
+    for (QFrame* c : chips(&dlg)) still = still && now.value(c) == c->geometry();
+    check(still, "keywords: every chip ends where the add laid it out, no late reflow");
+  }
   std::printf("\n%s (%d failure%s)\n", failures ? "FAILURE" : "SUCCESS", failures,
               failures == 1 ? "" : "s");
   return failures ? 1 : 0;

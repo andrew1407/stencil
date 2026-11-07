@@ -80,7 +80,7 @@ class MainWindowGuiTest : public QObject {
     iconMouse(in, QEvent::MouseMove, from + QPoint(0, 150));
     const double far = win.canvas->getScale();
     QVERIFY2(near(far, std::exp(stencil::gui::ZOOM_DRAG_K * 150)), "150 px out, + zooms by e^(k·150)");
-    QCOMPARE(win.zoom->currentText(), QString::number(qRound(far * 100)) + "%");
+    QCOMPARE(win.zoom->currentText(), QString::number(qRound(far * 100)));
     iconMouse(in, QEvent::MouseMove, from + QPoint(0, 60));
     QVERIFY2(win.canvas->getScale() < far, "moving back toward + brings the zoom back down");
     dropIcon(in, from + QPoint(0, 60));

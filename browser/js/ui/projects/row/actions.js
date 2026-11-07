@@ -1,12 +1,15 @@
 import { icon } from '../../icons.js';
 import { notify, shortName } from '../../../utils.js';
-import { leaveThenRemove } from '../../motion/enterLeave.js';
+import { rowLeave } from '../list/rowMotion.js';
 import { rowLeaveDust, ITEM_DUST_MS } from '../../motion/surface/tiles.js';
 import { createOpenGesture } from '../../../core/project/openGesture.js';
 import { beginRowRename } from './rename.js';
 import { clearedToast } from '../../../core/project/transferController.js';
 import { publishIncognitoToServer } from '../../../core/launch/incognitoFlow.js';
 import { copyMenuItem, afterRowCopy } from './copyItem.js';
+
+// The active project's row at the top of the list: the pinned temporary row replaces it in place.
+const takesTopSlot = (el, isActive) => isActive && el?.parentElement?.querySelector('.project-row') === el;
 
 // Everything a SAVED project row can do: the ⋯ / right-click menu, its prompts, and the open
 // gestures. Returns the gesture so the rename editor can cancel an open it already armed.
@@ -54,10 +57,10 @@ export function attachRowActions(deps) {
       ? `Remove the local copy of "${shortName(meta.name || 'Untitled')}"? It stays on the server ${meta.address}.`
       : `Remove project "${shortName(meta.name || 'Untitled')}"? This cannot be undone.`;
     if (!(await app.confirm(note, { title: 'Remove project', danger: true, confirmIcon: 'trash', closeAnchor: menuBtn }))) return;
-    // The row collapses away first; render() then rebuilds the list without it.
-    const settle = beginRemoval();
+    // The row collapses away, then render() rebuilds without it; the pinned temp row takes a top active one's slot.
+    const el = rowById(meta.id), inPlace = takesTopSlot(el, isActive), settle = beginRemoval({ inPlace });
     const revive = retireKey(localKey(meta.id));
-    await leaveThenRemove(rowById(meta.id), () => {}, rowLeaveDust(1, 0, ITEM_DUST_MS));
+    await rowLeave(el, { ...rowLeaveDust(1, 0, ITEM_DUST_MS), hold: inPlace });
     app.projectTransfer.removeProject(meta.id);
     await settle();
     revive();

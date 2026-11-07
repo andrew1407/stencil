@@ -53,6 +53,21 @@ platform the suites run on.
   twice, and a 16 ms timer beats against the display. `AnimationDriver` puts Qt's animations on it.
   A `QWindow::requestUpdate()` on a widget's window is a full `repaint()` — the clock beats a
   hidden window of its own.
+- **A genie flight reads its target once**, as the browser's `genieIn` / `landingOf` do: where the
+  icon stands before an open, where a close lands it. A target re-read every frame (`fly`'s
+  `follow`, a chased pointer) rides the sliding layout and judders the funnel's mouth a pixel a
+  frame: the fullscreen top and side menus and the docked chat all read rough beside the browser for it.
+- **The raster engine pays per scanline span**: a genie flowing sideways cuts 3 px-wide,
+  full-height bands, ~7× the cost of the same picture flowing down. `support/genie/stripPaint.hpp`
+  merges bands and paints such a flow transposed; profile with `sample <pid>` on cocoa, not offscreen.
+- **A window-wide slide repaints the whole window every frame** (~5 ms full-screen @2x): at 120 Hz that
+  drops frames unevenly. Qt's dock animator made a zero-length animation per relayout and repainted the
+  separators a paint late (the app style now answers `SH_Widget_Animation_Duration` 0 for a QMainWindow's
+  children); a parent fills under any child Qt does not know is opaque (`WA_OpaquePaintEvent` + its own
+  `PE_Widget`, as the editor's ground); and `startExtentSlide` puts the pulse on half rate when the paint
+  outruns half a frame. Measure with `QWidget::render` into a 2x image — on screen a covered window paints nothing.
+- **A dock slide keeps the dock `isVisible()` throughout**, and Qt clamps negative contents margins: the
+  chat's 10 px page gap slides by setting the window's separator to 0 (`[chatGapless]`) while covered.
 
 ## macOS windows
 
@@ -66,6 +81,11 @@ platform the suites run on.
   parent's top edge: `move()` and every landing or flight are ignored. Show it parentless and
   restore the transient parent right after (`showUnsheeted`, `PopoverGesturesSideBySide.cpp`).
 - **Veil a top-level (`setWindowOpacity(0)`) before it maps**, or it flashes before its reveal.
+- **Mapping a window flushes the others**: a layout pinned only to be photographed (a pour's
+  `pin(full)` + `grab`) is put back before a ghost window shows and repaints, or that layout
+  blinks on screen for a frame (`DockChrome::pourDockedChat`).
+- **A layout that slides a widget out from under a still pointer leaves it hovered**: no Leave
+  comes. The motion's end calls `support::dropStaleHover` on the control that was pressed.
 - **A closed dialog can leave a stale cursor** — `setWindowCursor` skips an unchanged shape; the
   fix re-applies it through a different shape (`support/modal/hoverResync.cpp`).
 - **`QWidget::winId()` nativizes every sibling** — take an NSView through

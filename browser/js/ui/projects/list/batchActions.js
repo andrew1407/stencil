@@ -1,5 +1,5 @@
 import { notify, shortName } from '../../../utils.js';
-import { leaveThenRemove } from '../../motion/enterLeave.js';
+import { rowLeave } from './rowMotion.js';
 import { rowLeaveDust, ITEM_DUST_MS } from '../../motion/surface/tiles.js';
 import { deleteRemoteProject as removeRemoteProject } from '../../../net/remoteSync.js';
 import { clearedToast } from '../../../core/project/transferController.js';
@@ -54,7 +54,7 @@ export function wireBatchActions(deps) {
     for (const k of keys) doomed.add(k);
     const rows = sel();
     const leaving = Promise.all(rows.map((s, i) =>
-      leaveThenRemove(rowById(s.id), () => {}, rowLeaveDust(rows.length, i, ITEM_DUST_MS))));
+      rowLeave(rowById(s.id), rowLeaveDust(rows.length, i, ITEM_DUST_MS))));
     // The bar answers NOW, beside the rows' own dust, rather than after it (connections modal
     // parity — the rows are already `doomed`, so nothing is left to select).
     selected.clear();

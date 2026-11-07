@@ -19,6 +19,7 @@ import { wireJumpPills } from './panel/jumpPills.js';
 import { createPanelTurn } from './panel/turn.js';
 import { wirePanelDrop } from './panel/drop.js';
 import { wireOpenState } from './panel/openState.js';
+import { settleOnMotionChange } from './panel/motionSettle.js';
 import { createPanelApi } from './panel/api.js';
 export {
   FLOAT_MIN_W, FLOAT_MIN_H, clampFloatRect, COMPACT_CHAT_W, COMPACT_CHAT_H, compactChatRect,
@@ -28,7 +29,11 @@ export {
 // The AI assistant chat panel (llm-contract.md). Plans execute against the frozen
 // window.stencil facade — the panel never edits pixels itself. Layout is session-only.
 
+const settleReleases = new WeakMap();   // panel → the motion-settle watch it releases when unmounted
+
 export class StencilChatPanel extends StencilElement {
+  disconnectedCallback() { settleReleases.get(this)?.(); }
+
   static inner() { return chatPanelInner(); }
 // Sibling (not ancestor) backdrop, so a dock/float leaves the page clickable; CSS shows
 // it only under the ≤680px modal shape.
@@ -180,7 +185,7 @@ export class StencilChatPanel extends StencilElement {
       host, input, openBtn, panelIsOpen, refreshStatus, invalidatePillRects,
       resizer: $('chat-resizer'), header: $('chat-header'), backdrop: $('chat-backdrop'), closeBtn: $('chat-close'),
     });
-
+    settleReleases.set(this, settleOnMotionChange(host));
 // Clear = a fresh conversation; settings and the working image are untouched.
     const clearBtn = $('chat-clear');
     clearBtn.addEventListener('click', () => {

@@ -87,11 +87,11 @@ export class StencilCropModal extends StencilElement {
     // Only when the face actually changes: renderBox runs per drag frame, and rewriting the
     // glyph there rebuilds the SVG sixty times a second and drops any turn spinIconOnce started.
     let shownAlbum = null;
-    const FACES = ['Album', 'Portrait'].map((word) => icon('swap', { size: 14 }) + `<span>${word}</span>`);
+    const orientFaces = () => ['Album', 'Portrait'].map((word) => icon('swap', { size: 14 }) + `<span>${word}</span>`);
     const renderOrientFace = () => {
       if (shownAlbum === album) return;
       shownAlbum = album;
-      orientBtn.innerHTML = FACES[album ? 0 : 1];
+      orientBtn.innerHTML = icon('swap', { size: 14 }) + `<span>${album ? 'Album' : 'Portrait'}</span>`;
     };
     const renderDims = () => {
       dims.textContent = `${Math.round(rect.width)} × ${Math.round(rect.height)} px · ${album ? 'Album (landscape)' : 'Portrait'}`;
@@ -134,7 +134,7 @@ export class StencilCropModal extends StencilElement {
       img.src = app.imageModel.effectiveOriginalDataUrl();
       // The chrome the window is measured with: the size line, and the toggle at its widest face, so
       // a flip never re-wraps the footer (desktop twin: the button fixed to its longer face).
-      fit.fitWindow(() => { renderDims(); renderOrientFace(); pinWidestFace(orientBtn, FACES); });
+      fit.fitWindow(() => { renderDims(); renderOrientFace(); pinWidestFace(orientBtn, orientFaces()); });
     };
 
     const { open, close } = wireModalShell(overlay, null, document.getElementById('crop-close'), {

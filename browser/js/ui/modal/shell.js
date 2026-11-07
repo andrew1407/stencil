@@ -9,6 +9,11 @@ import { modalShells, wireEscapeOnce, wireCollapseOnce, closeOpenModal, closeOpe
 import { motionMs, multiWindow } from '../motion/motionPrefs.js';
 import { createModalFlight, shownRect, MODAL_CLOSE_MS } from './flight.js';
 import { canvasAnchorRect, toolbarAway } from './imageAnchor.js';
+// The box's laid-out size: its entrance transform (scaled from the icon) shrinks a client rect to the icon's.
+const layoutSize = (el) => {
+  const r = el.getBoundingClientRect();
+  return { width: el.offsetWidth || r.width, height: el.offsetHeight || r.height };
+};
 
 // Open/close/overlay-mousedown/Escape for every app modal. onOpen/onClose run BEFORE the
 // modal-open class toggles. The opener answers the popover gestures (ui/tip/popover.js).
@@ -89,8 +94,8 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     // `modal-closing`. Measure first — display:none measures 0.
     const named = typeof closeOriginEl === 'function' ? closeOriginEl() : closeOriginEl;
     const home = (anchorLike(backTo) ? backTo : null) || named || originEl || defaultOrigin();
-    // A named home that is hidden by now (a folded toolbar, a closed list) sends the close up.
-    const back = onScreenRect(rectOf(home)) ? home : ((fromAbove || closeOriginEl || toolbarAway(home)) ? null : canvasAnchorRect());
+    // A home whose toolbar is away or leaving, or one hidden by now (a closed list), sends the close up.
+    const back = !toolbarAway(home) && onScreenRect(rectOf(home)) ? home : ((fromAbove || closeOriginEl || toolbarAway(home)) ? null : canvasAnchorRect());
     const animate = overlay.classList.contains('modal-open') && !reducedMotion() && setOriginVars(back);
     overlay.classList.remove('modal-open');
     // It flies home at its own level: dropped at once, it would jump over the windows it sat under.
@@ -125,7 +130,7 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
       // The popover class caps the box's size.
       const p = popoverPosition({
         anchor: anchorEl.getBoundingClientRect(),
-        box: box.getBoundingClientRect(),
+        box: layoutSize(box),
         viewport: onScreenViewport(),
       });
       box.style.left = `${p.left}px`;

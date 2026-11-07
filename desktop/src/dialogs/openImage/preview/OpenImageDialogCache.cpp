@@ -86,6 +86,12 @@ namespace stencil::gui {
     clampToScreen();
   }
 
+  // What a flight stood down comes back; the scrollbar too, for a picture taller than the screen.
+  void OpenImageDialog::settleHeightFlight() {
+    if (QLayout* l = layout()) l->setSizeConstraint(QLayout::SetDefaultConstraint);
+    if (size.bodyScroll) size.bodyScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  }
+
   // The popover's height is the OVERLAY's: both are resized together, never past the cap
   // execMaybePopover set, and never past the bottom of the window they sit in.
   void OpenImageDialog::growPopoverToContent() {
@@ -108,7 +114,11 @@ namespace stencil::gui {
   void OpenImageDialog::animateHeightTo(int h) {
     const bool flying = size.anim && size.anim->state() == QAbstractAnimation::Running;
     const int start = flying || size.shownH <= 0 ? height() : size.shownH;
-    if (start == h && height() == h) return;
+    if (start == h && height() == h) {
+      // Already there, but a flight still aimed at an OLDER target would carry it off (user report).
+      if (flying) { size.anim->stop(); settleHeightFlight(); }
+      return;
+    }
     if (support::motionReduced() || !isVisible()) {
       setHeightNow(h);
       return;
@@ -125,11 +135,7 @@ namespace stencil::gui {
       size.anim->setEasingCurve(QEasingCurve::OutCubic);
       connect(size.anim, &QVariantAnimation::valueChanged, this,
               [this](const QVariant& v) { setHeightNow(v.toInt()); });
-      connect(size.anim, &QVariantAnimation::finished, this, [this] {
-        if (QLayout* l = layout()) l->setSizeConstraint(QLayout::SetDefaultConstraint);
-        // Back on: a picture tall enough to run the dialog past the screen still needs it.
-        if (size.bodyScroll) size.bodyScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-      });
+      connect(size.anim, &QVariantAnimation::finished, this, [this] { settleHeightFlight(); });
     }
     size.anim->stop();
     size.anim->setDuration(support::motionMs(OI_RESIZE_MS));

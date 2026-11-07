@@ -93,6 +93,10 @@ namespace stencil::gui {
     static constexpr int DUST_HAND_OVER_MS = TOOLTIP_HAND_OVER_MS;
     static constexpr int GAP = 15;         // cursor offset, as Qt's own tooltip uses
     static constexpr const char* OBJECT_NAME = "stencilAppTooltip";
+    // A sweep re-points ONE tip (browser controlTooltip.js LEAVE_GRACE_MS / WARM_MS): the gap between two
+    // controls is crossed with it up, and one just left comes back at once, unanimated. ms.
+    static constexpr int LEAVE_GRACE_MS = 140;
+    static constexpr int WARM_MS = 500;
 
     explicit AppTooltip(QWidget* parent = nullptr);
 
@@ -107,7 +111,7 @@ namespace stencil::gui {
     // Gone at once with the dust it threw, and none shown while held off: a control drag owns the
     // pointer, and a photograph of the window must catch neither.
     void dropTip();
-    void holdOff(bool on) { heldOff = on; if (on) dropTip(); }
+    void holdOff(bool isOn) { heldOff = isOn; if (isOn) dropTip(); }
     QWidget* liveDust() const { return dustFx.data(); }
 
     void shakeKeys();
@@ -117,9 +121,12 @@ namespace stencil::gui {
     bool shaking() const { return shake && shake->state() == QAbstractAnimation::Running; }
     bool shakePending() const { return shakeDelay && shakeDelay->isActive(); }
     bool fadingOut() const { return closing; }
+    bool isRepointable() const { return isVisible() && !closing; }
+    bool isWarm() const { return !warm.hasExpired(); }
+    void warmFor(int ms) { warm.setRemainingTime(ms); }
 
    private:
-    bool dust(bool gather);
+    bool dust(bool shouldGather);
 
     void place(const QPoint& cursor);
     void settleShake();
@@ -136,6 +143,7 @@ namespace stencil::gui {
     QPointer<QWidget> dustFx;   // the last dust this tip threw, while it flies
     QDeadlineTimer placeHold{0};   // moveTo is refused until this lapses (the gather)
     QRect origin;   // global; invalid = the owner's centre
+    QDeadlineTimer warm{0};   // a tip just left: the next one lands with no flight until this lapses
   };
 
   class AppTooltipFilter : public QObject {
@@ -149,11 +157,17 @@ namespace stencil::gui {
 
    private:
     void dismiss();
+    void showOn(QWidget* w, const QPoint& at);
 
     QPointer<AppTooltip> tip;
+    QTimer* leaveGrace = nullptr;   // the gap to the next control, crossed with the tip still up
+    QPointer<QWidget> left;         // the control that gap began on: coming back to it is a fresh hover
     QPointer<QWidget> tracked;   // the widget this tip switched mouse tracking on for
   };
 
+  // Rich text with a zero-width space every 18 unbroken characters: Qt breaks a line at spaces only, so a URL or
+  // a long file name ran past MAX_TIP_WIDTH (browser: overflow-wrap: anywhere). Markup and entities are kept whole.
+  QString softBreakLongRuns(const QString& rich);
   AppTooltipFilter* installAppTooltips();
 
   AppTooltip* appTooltip();

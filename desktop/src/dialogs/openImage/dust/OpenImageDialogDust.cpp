@@ -26,10 +26,11 @@ namespace stencil::gui {
     QGraphicsOpacityEffect* veil = veilBehindDust(previewLabel);
     QPointer<QLabel> label(previewLabel);
     const int gen = motion.gen;
-    // After the height ease has LANDED — a cloud pinned mid-resize flies to where the label
-    // was passing through — and after any departing picture has fallen: two clouds read as noise.
+    // After any departing picture has gone, and a CLOUD after the height ease too (pinned mid-resize it
+    // flies to where the label was passing through); Sliding / Transition fly with the resize, as the browser's.
     const qint64 left = motion.scatterEnds - QDateTime::currentMSecsSinceEpoch();
-    QTimer::singleShot(std::max<qint64>(support::motionMs(OI_RESIZE_MS), left), label,
+    const qint64 settle = support::isDustAllowed() ? support::motionMs(OI_RESIZE_MS) : 0;
+    QTimer::singleShot(std::max<qint64>(settle, left), label,
                        [this, label, shot, veil, gen] {
       if (!label || gen != motion.gen) return;   // the tab moved on while this waited
       if (QLayout* l = label->parentWidget()->layout()) l->activate();
@@ -40,8 +41,9 @@ namespace stencil::gui {
       const auto lift = [label, veil] {
         if (label && label->graphicsEffect() == veil) label->setGraphicsEffect(nullptr);
       };
-      if (cloud) connect(cloud, &QObject::destroyed, label, lift);
-      else lift();
+      if (cloud) { connect(cloud, &QObject::destroyed, label, lift); return; }
+      lift();   // Sliding / Transition: the picture itself flies in, from a grab taken unveiled
+      mediaFlight(this, label, label->grab(), true, previewOrigin());
     });
   }
 
@@ -63,7 +65,8 @@ namespace stencil::gui {
     // surface/tiles.js reshapeGrid): a fixed 64x22 budget over a 13px line flew as horizontal slices.
     if (!arriving) {
       const QPixmap shot = cropDims->grab();   // before it goes: see below
-      if (!shot.isNull()) chipCloud(host, cropDims, shot, DisintegrateOverlay::Sweep::FALL);
+      if (!shot.isNull() && !chipCloud(host, cropDims, shot, DisintegrateOverlay::Sweep::FALL))
+        modeFlight(host, cropDims, shot, false, OI_RESIZE_MS);
       slideRowHeight(this, cropDims, motion.dimsAnim, false);
       return;
     }
@@ -85,6 +88,7 @@ namespace stencil::gui {
           ? nullptr : chipCloud(host, label, shot, DisintegrateOverlay::Sweep::GATHER);
       if (!fx) {
         lift();
+        if (!shot.isNull()) modeFlight(host, label, shot, true, OI_RESIZE_MS);
         return;
       }
       // The line it is assembling is still MOVING - the column slides it and the first cropChanged
@@ -111,11 +115,18 @@ namespace stencil::gui {
     if (host && !shot.isNull() && !support::motionReduced()) {
       motion.scatterEnds = QDateTime::currentMSecsSinceEpoch() + support::motionMs(CANVAS_DUST_MS);
       motion.arrivalDue = true;   // whatever lands next flies in, seen before or not
-      DisintegrateOverlay::overRect(previewLabel, box, host, DisintegrateOverlay::Sweep::FALL,
-                                    false, DisintegrateOverlay::DUST_MAX_CELLS, CANVAS_DUST_MS,
-                                    QColor(), shot);
+      if (!DisintegrateOverlay::overRect(previewLabel, box, host, DisintegrateOverlay::Sweep::FALL,
+                                         false, DisintegrateOverlay::DUST_MAX_CELLS, CANVAS_DUST_MS,
+                                         QColor(), shot))
+        if (const int ms = mediaFlight(this, previewLabel, shot, false, previewOrigin()))
+          motion.scatterEnds = QDateTime::currentMSecsSinceEpoch() + ms;
     }
     clearPreviewImage();
+  }
+
+  QWidget* OpenImageDialog::previewOrigin() const {
+    if (tabs->currentIndex() == TabUrl) return previewBtn;
+    return findChild<QPushButton*>(QStringLiteral("oiChooseBtn"));
   }
 
   // A cloud is a child of the column, not of the picture it came from, so a tab switch left motes

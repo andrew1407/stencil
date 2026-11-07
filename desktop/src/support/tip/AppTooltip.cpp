@@ -112,4 +112,30 @@ namespace stencil::gui {
     piece.setDevicePixelRatio(dpr);
     return piece;
   }
+
+  QString softBreakLongRuns(const QString& rich) {
+    constexpr int RUN = 18;   // characters one unbroken token may hold before an opportunity
+    QString out;
+    out.reserve(rich.size() + rich.size() / RUN);
+    int run = 0;
+    for (int i = 0; i < rich.size(); ++i) {
+      const QChar c = rich.at(i);
+      if (c == u'<') {                       // markup, not text: copied whole
+        const int end = rich.indexOf(u'>', i);
+        out += rich.mid(i, (end < 0 ? rich.size() : end + 1) - i);
+        i = (end < 0 ? rich.size() : end);
+        run = 0;
+        continue;
+      }
+      if (c == u'&') {                       // an entity is one character, never split
+        const int end = rich.indexOf(u';', i);
+        if (end > i && end - i <= 8) { out += rich.mid(i, end + 1 - i); i = end; ++run; continue; }
+      }
+      out += c;
+      if (c.isSpace()) run = 0;
+      else if (++run >= RUN) { out += QChar(0x200B); run = 0; }
+    }
+    return out;
+  }
+
 }  // namespace stencil::gui

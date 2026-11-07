@@ -26,6 +26,7 @@
   box-shadow: var(--wc-sunken);
 }
 :root[data-skin="webcore"] .list { margin: 4px 6px 6px; }
+:root[data-skin="webcore"] .list.drag-over { background: color-mix(in srgb, var(--drag-accent) 12%, var(--wc-window)); }
 :root[data-skin="webcore"] :is(.row, .ed-row, .src-row, .pin-row) {
   background: transparent;
   border: 0;
@@ -86,7 +87,7 @@
 :root[data-skin="webcore"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected="true"]:not(:hover):not(.dd-hover) .accent-dd-name { color: var(--wc-ink); }
 :root[data-skin="webcore"] .accent-swatch { border: 1px solid var(--wc-dark); box-shadow: none; }
 :root[data-skin="webcore"] .action-menu .sep { background: var(--wc-shadow); box-shadow: 0 1px var(--wc-hilight); height: 1px; margin: 3px 1px; }
-:root[data-skin="webcore"] .action-menu .label { color: var(--wc-muted); text-transform: none; letter-spacing: 0; font-weight: 700; }
+:root[data-skin="webcore"] .action-menu .label { color: var(--wc-ink); text-transform: none; letter-spacing: 0; font-weight: 700; }
 :root[data-skin="webcore"] .accent-dd-search-row { background: var(--wc-face); border-bottom: 1px solid var(--wc-shadow); }
 
 /* ── Dialogs: a raised window with the navy title strip ── */
@@ -116,6 +117,7 @@
   border: 1px solid var(--wc-dark);
   box-shadow: none;
 }
+:root[data-skin="webcore"] :is(#app-tooltip, .chat-status-tip) { padding: 3px 6px; font-size: 11px; }
 :root[data-skin="webcore"] :is(.tip-title, .tip-term, .tip-desc, .tip-line, .tip-hint, .tip-note, .tip-bullets li,
 .chat-status-tip th, .chat-status-tip td, .chat-thumb-preview-cap) { color: var(--wc-tip-ink); }
 :root[data-skin="webcore"] .tip-key {
@@ -126,16 +128,18 @@
   animation: none !important;
 }
 
-/* ── Chat ── */
-:root[data-skin="webcore"] .chat-transcript { background: var(--wc-window); box-shadow: var(--wc-sunken); }
+/* ── Chat: a raised pane, each entry a white well (browser css/webcore/chat.css) ── */
+:root[data-skin="webcore"] .chat-transcript { background: var(--wc-face); box-shadow: var(--wc-raised); }
 :root[data-skin="webcore"] #sec-assistant :is(.msg.user, .msg.assistant, .msg.error, .msg.note, .card, .warn, .chat-ask) {
-  background: var(--wc-face);
+  background: var(--wc-window);
   color: var(--wc-ink);
   border: 0;
-  box-shadow: var(--wc-raised);
+  box-shadow: var(--wc-well);
 }
 :root[data-skin="webcore"] #sec-assistant .msg.user { background: var(--wc-light); }
-:root[data-skin="webcore"] #sec-assistant .msg.error { color: var(--danger); }
+/* The provider CTA is the skin's raised button, never the accent fill (browser css/webcore/chat.css). */
+:root[data-skin="webcore"] #sec-assistant .chat-config-cta { background: var(--wc-face); color: var(--wc-ink); box-shadow: var(--wc-raised); font-weight: normal; }
+:root[data-skin="webcore"] #sec-assistant .msg.error { color: var(--danger); box-shadow: inset 0 0 0 1px var(--danger); }
 :root[data-skin="webcore"] #sec-assistant .msg::before,
 :root[data-skin="webcore"] #sec-assistant .msg::after { display: none; }
 :root[data-skin="webcore"] #sec-assistant .chip { background: var(--wc-window); border: 0; box-shadow: var(--wc-well); }
@@ -174,5 +178,6 @@
   height: 15px;
   background: var(--wc-title);
 }
+:root[data-skin="webcore"] .notify-toast .notify-icon { color: var(--wc-ink); }
 :root[data-skin="webcore"] .toast-glow { display: none; }
 :root[data-skin="webcore"] .logo-stage { background: rgba(0, 0, 0, 0.5); }

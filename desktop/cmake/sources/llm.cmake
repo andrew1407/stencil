@@ -46,6 +46,7 @@ list(APPEND STENCIL_GUI_SOURCES
   src/llm/dock/ChatDockAppend.cpp
   src/llm/dock/ChatDockNotices.cpp
   src/llm/dock/card/ChatDockVariants.cpp
+  src/llm/dock/card/chatCardMotion.cpp
   src/llm/dock/ChatDockState.cpp
   src/llm/panel/chatWidgets.cpp
   src/llm/panel/chatBubbleTail.cpp

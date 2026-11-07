@@ -30,7 +30,7 @@ test('the gates read StencilMotion live, and fall back to the OS preference with
     mode = 'slide';
     assert.equal(m.motionReduced(), false, 'slide still moves');
     assert.equal(m.dustEnabled(), false, '…just never out of particles');
-    assert.equal(m.wipeDurationMs(), m.LEAVE_MS, 'a wipe is just the collapse then');
+    assert.equal(m.wipeDurationMs(), m.MODE_ROW_MS, 'a wipe is just the row\'s own slide then');
     // Every builder answers the gate: no cloud, no veil, the caller's own entrance.
     const el = { classList: new Set(), getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 20 }) };
     el.classList.add = (c) => Set.prototype.add.call(el.classList, c);
@@ -49,7 +49,14 @@ test('the mode is wired: the one cloud door, the chat slide, and the CSS half', 
   assert.ok(body.includes('if (!dustEnabled()) return false;'), 'the cloud is built behind the gate');
   assert.ok(body.includes('const style = styleCode();') && body.includes('const paints = paletteCss();'),
             'a styled cloud is painted from the accent palette');
-  assert.match(src, /if \(!dustEnabled\(\)\) \{ flashLanding\(el, CHAT_SLIDE_CLASS, CHAT_SLIDE_MS\); return Promise\.resolve\(\); \}/);
+  assert.match(src, /if \(!dustEnabled\(\)\) \{ enterWithoutDust\(el\); return Promise\.resolve\(\); \}/);
+  // Without particles each mode keeps its own entrance: Sliding pours, Transition grows, the rest rise.
+  assert.match(src, /slide: \(el\) => pourIn\(el\)/);
+  assert.match(src, /playGenie\(shot, r, from, \{ opening: true, ms: CHAT_SIDE_MS, clip: view/, 'the pour stays in the transcript');
+  assert.match(src, /flashLanding\(el, CHAT_SIDE_CLASS, CHAT_SIDE_MS\)/, 'the side slide is the fallback');
+  assert.match(src, /transition: \(el\) => flashLanding\(el, CHAT_GROW_CLASS, CHAT_SLIDE_MS\)/);
+  assert.match(src, /ENTER_WITHOUT_DUST\[motionMode\(\)\] \?\? \(\(row\) => flashLanding\(row, CHAT_SLIDE_CLASS, CHAT_SLIDE_MS\)\)/);
+  assert.match(css, /\.chat-grow-in \{ animation: chatGrowIn/);
   // No helper still reads the media query by hand — motionReduced() is the one gate.
   assert.equal((src.match(/matchMedia\('\(prefers-reduced-motion: reduce\)'\)/g) || []).length, 1, 'only prefersReducedMotion itself');
   assert.match(css, /:root\[data-motion="none"\] \*,/);

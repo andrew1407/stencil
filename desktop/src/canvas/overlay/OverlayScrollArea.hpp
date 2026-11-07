@@ -35,6 +35,7 @@ namespace stencil::gui {
     // MainWindow also calls it after a zoom (revealCanvasScrollbars) as a backstop.
     void relayout() {
       if (!viewport()) return;
+      fitLooseWidget();
       const QRect vp = viewport()->geometry();
       const bool showV = verticalScrollBar()->maximum() > verticalScrollBar()->minimum();
       const bool showH = horizontalScrollBar()->maximum() > horizontalScrollBar()->minimum();
@@ -59,6 +60,15 @@ namespace stencil::gui {
     }
 
    private:
+    // A widget not locked to a size (the empty canvas; an image fixes it) takes its baseSize but never
+    // more than the view, so a short view shows it whole instead of scrolling to the rest of it.
+    void fitLooseWidget() {
+      QWidget* w = widget();
+      if (!w || w->minimumSize() == w->maximumSize() || w->baseSize().isEmpty()) return;
+      const QSize want = w->baseSize().boundedTo(viewport()->size()).expandedTo(w->minimumSize());
+      if (w->size() != want) w->resize(want);
+    }
+
     // Two-way value sync; range/steps flow model → view only. A mirrored setValue of an
     // unchanged value emits nothing, so the pair can't ping-pong.
     void mirror(QScrollBar* model, QScrollBar* view) {

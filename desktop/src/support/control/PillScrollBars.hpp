@@ -107,10 +107,11 @@ namespace stencil::gui {
       const QRect slider = bar->style()->subControlRect(QStyle::CC_ScrollBar, &opt,
                                                          QStyle::SC_ScrollBarSlider, bar);
       const bool hot = bar->underMouse() || bar->isSliderDown();
-      if (support::isWebcore()) {   // the skin sheet's bevelled bar; the thumb lit in the chosen accent
+      // A skin's own bar: webcore's bevel, its thumb lit in the chosen accent; aqua's gel lozenge.
+      if (support::isWebcore() || support::isAqua()) {
         QPainter p(bar);
         bar->style()->drawComplexControl(QStyle::CC_ScrollBar, &opt, &p, bar);
-        if (hot && slider.isValid() && support::skinAccent().isValid())
+        if (support::isWebcore() && hot && slider.isValid() && support::skinAccent().isValid())
           p.fillRect(slider.adjusted(2, 2, -2, -2), support::skinAccent());
         return true;
       }

@@ -8,7 +8,7 @@
 #include "fileStore.hpp"
 #include "theme.hpp"
 #include "../../support/control/reveal/controlReveal.hpp"
-#include "../../support/skinPrefs.hpp"
+#include "../../support/skin/SkinLookStrategy.hpp"
 
 #include <QAction>
 #include <QLineEdit>
@@ -154,9 +154,8 @@ namespace stencil::gui {
     const QColor c(color);
     // Bold + a lighter grey than the browser's #80868f: Qt can't give a QLineEdit the legibility text-shadow.
     const QString fg = (!color.isEmpty() && c.isValid()) ? c.name()
-                       : support::isWebcore()
-                             ? themePalette(h.dark(), settings.accentColor).textMain.name()
-                             : QStringLiteral("#9aa0a8");
+                       : support::skinTraits().isInfoInkMuted ? QStringLiteral("#9aa0a8")
+                                                           : themePalette(h.dark(), settings.accentColor).textMain.name();
     if (editing) {
       const QColor accent = accentPrimary(settings.accentColor);
       nameBar.field->setStyleSheet(support::projectNameEditingSheet(fg, accent));

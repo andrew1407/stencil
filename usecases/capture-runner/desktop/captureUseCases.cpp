@@ -110,6 +110,7 @@ int main(int argc, char** argv) {
   QCoreApplication::setOrganizationName(QStringLiteral("StencilDocsCapture"));
   QCoreApplication::setApplicationName(QStringLiteral("stencilDocsCapture"));
   QApplication::setStyle(QStyleFactory::create("Fusion"));
+  QApplication::setCursorFlashTime(0);   // a steady text caret: a still never catches a blink phase
   qApp->setQuitOnLastWindowClosed(false);
 
   // STENCIL_DOCS_MODE=clip films the theme wipe; anything else takes the stills this pass

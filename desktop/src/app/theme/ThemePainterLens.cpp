@@ -6,6 +6,7 @@
 #include "ThemeLens.hpp"
 #include "CanvasWidget.hpp"
 #include "iconDrag.hpp"
+#include "../../support/skin/SkinLookStrategy.hpp"
 #include "../../support/skinPrefs.hpp"
 
 #include "AppTooltip.hpp"
@@ -13,6 +14,8 @@
 #include <QScrollArea>
 #include <QTimer>
 #include <QToolButton>
+
+#include <functional>
 #include <utility>
 
 namespace stencil::gui {
@@ -62,10 +65,10 @@ namespace stencil::gui {
     }
   }
 
-  // As in the browser, the webcore skin opens no lens; nor does a wipe in flight or an open popover,
+  // As in the browser, a session skin opens no lens; nor does a wipe in flight or an open popover,
   // which the photograph would carry. The drag goes on without one.
-  bool ThemePainter::lensAllowed() const {
-    return !support::isWebcore() && !w.painted.swapping() && !w.pop.active && !w.tearingDown && w.isVisible();
+  bool ThemePainter::isLensAllowed() const {
+    return support::skinTraits().isLensAllowed && !w.painted.swapping() && !w.pop.active && !w.tearingDown && w.isVisible();
   }
 
   QString ThemePainter::lensKey() const {
@@ -73,14 +76,14 @@ namespace stencil::gui {
   }
 
   void ThemePainter::primeLens() {
-    if (lens || !lensAllowed() || (!primed.isNull() && primedKey == lensKey())) return;
+    if (lens || !isLensAllowed() || (!primed.isNull() && primedKey == lensKey())) return;
     primed = otherThemeShot();
     primedKey = lensKey();
   }
 
   void ThemePainter::openLens(const QPoint& global) {
     closeLens();
-    if (!lensAllowed()) return;
+    if (!isLensAllowed()) return;
     QPixmap shot = primedKey == lensKey() ? std::exchange(primed, QPixmap()) : QPixmap();
     if (shot.isNull()) shot = otherThemeShot();
     QRect picture;

@@ -174,6 +174,8 @@ namespace stencil::gui {
       w.fitToWindow();   // the heart is the show — a page taller than the viewport hides it
     };
     hooks.webcore = [this] { return w.parts.theme.toggleWebcore(); };
+    hooks.aqua = [this] { return w.parts.theme.toggleAqua(); };
+    hooks.dark = [this] { return w.parts.theme.paintingDark(); };
     hooks.stopClick = [this] { if (w.tools.logoClickTimer) w.tools.logoClickTimer->stop(); };
     // LogoHoverFx re-raises itself on hover, so it would paint over the stage; it stands
     // down for the show and paints its resting mark again afterwards.

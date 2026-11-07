@@ -7,7 +7,7 @@
 #include "skinPrefs.hpp"
 #include "theme.hpp"
 #include "../../../src/support/tip/SnappyTooltipStyle.hpp"
-#include "../../../src/support/webcore/look.hpp"
+#include "../../../src/support/skin/skinAppliers.hpp"
 #include "../../../src/support/webcore/rules.hpp"
 #include "../../../src/support/webcore/stylesheet.hpp"
 

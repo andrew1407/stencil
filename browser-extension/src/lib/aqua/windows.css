@@ -1,0 +1,163 @@
+/* The aqua skin's windows: brushed-metal headers, pinstripe lists and dialogs, translucent menus
+   with the gel bar, the pale yellow tooltip and the toast as an alert sheet. Browser twin:
+   css/aqua/windows.css. */
+:root[data-skin="aqua"] :is(header, .filters) {
+  background: var(--aq-metal);
+  border-bottom: 1px solid var(--aq-edge);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.6);
+}
+:root[data-skin="aqua"] header .logo { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35)) saturate(1.15); }
+:root[data-skin="aqua"] :is(header h1, .brand h1) { color: var(--aq-ink); text-shadow: 0 1px rgba(255, 255, 255, 0.7); }
+:root[data-skin="aqua"] :is(.dlbl, label.f, .lbl, .peek-title) { text-transform: none; letter-spacing: 0; font-weight: 700; }
+:root[data-skin="aqua"] :is(.list, .ed-list, .src-list) { background: var(--aq-window); border: 1px solid var(--aq-edge); border-radius: 4px; }
+:root[data-skin="aqua"] :is(.row, .ed-row, .src-row, .pin-row):nth-child(even) { background: var(--aq-stripe); }
+/* A row under the pointer keeps its stripe: only a selection tints one. */
+:root[data-skin="aqua"] :is(.row, .ed-row, .src-row):hover:not(:nth-child(even)):not(.current):not(.picked),
+:root[data-skin="aqua"] .chat-ask-option:hover { background: transparent; }
+:root[data-skin="aqua"] .pin-row:hover { border-color: var(--line); }
+:root[data-skin="aqua"] .list.drag-over { background: color-mix(in srgb, var(--drag-accent) 12%, var(--aq-window)); }
+:root[data-skin="aqua"] :is(.ed-row.current, .src-row.picked) { background: var(--aq-select); color: var(--aq-on-select); }
+:root[data-skin="aqua"] :is(.ed-row.current, .src-row.picked) :is(.name, .sub, .dim) { color: var(--aq-on-select); }
+:root[data-skin="aqua"] :is(.thumb, .ed-thumb, .pin-thumb) { border-radius: 4px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); }
+:root[data-skin="aqua"] :is(.badge, .pin-kw, .pin-kind) {
+  background: var(--aq-gel);
+  color: var(--aq-on-gel);
+  border: 0;
+  border-radius: 999px;
+  box-shadow: var(--aq-gel-ring);
+}
+
+/* One pinstripe panel per menu, square on top; a row is flat type, never a glass capsule. The
+   #sec-assistant entries lend the chat's ID weight to the whole list (browser css/aqua/menus.css). */
+:root[data-skin="aqua"] :is(.accent-dd-menu, .action-menu, .action-menu .flyout, #sec-assistant .chat-more-menu, .leave-copy.chat-more-menu) {
+  background: repeating-linear-gradient(180deg,
+    color-mix(in srgb, var(--aq-stripe) 94%, transparent) 0 2px,
+    color-mix(in srgb, var(--aq-face) 94%, transparent) 2px 4px);
+  color: var(--aq-ink);
+  border: 0;
+  border-radius: 0 0 5px 5px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18), 0 6px 18px rgba(0, 0, 0, 0.32);
+  padding: 4px 0;
+  gap: 0;
+}
+:root[data-skin="aqua"] :is(.accent-dd-opt, .action-menu button, .action-menu .drag-item, #sec-assistant .chat-more-item, .leave-copy .chat-more-item) {
+  background: transparent;
+  color: var(--aq-ink);
+  border: 0 !important;
+  border-radius: 0;
+  box-shadow: none;
+  text-shadow: none;
+  margin: 0;
+  min-height: 0;
+  padding: 3px 18px 3px 12px;
+  white-space: nowrap;   /* a menu widens to its longest row, never wraps one */
+}
+/* The gel bar under the pointer, a drag's aim and an open flyout's head included. */
+:root[data-skin="aqua"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .action-menu button:hover,
+.action-menu .drag-item:hover, .action-menu .drag-item.over, .action-menu .submenu:hover > .submenu-head,
+#sec-assistant .chat-more-item:hover:not(:disabled)) {
+  background: linear-gradient(180deg, var(--aq-gel-top), var(--aq-select));
+  color: var(--aq-on-select);
+  box-shadow: none !important;
+}
+:root[data-skin="aqua"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover) .accent-dd-name,
+:root[data-skin="aqua"] .action-menu .submenu:hover > .submenu-head .caret { color: var(--aq-on-select); }
+/* The current value is marked by its tick in the row's own ink: never a tint. */
+:root[data-skin="aqua"] .accent-dd-opt[aria-selected="true"]:not(:hover):not(.dd-hover) { background: transparent; color: var(--aq-ink); }
+:root[data-skin="aqua"] .action-menu .sep { background: color-mix(in srgb, var(--aq-edge) 70%, transparent); height: 1px; margin: 4px 0; }
+:root[data-skin="aqua"] .action-menu .label { color: var(--aq-ink); text-transform: none; letter-spacing: 0; font-weight: 700; padding: 4px 12px 2px; }
+/* A list without swatches marks its current value with the era's ✓ in the row's left margin. */
+:root[data-skin="aqua"] .accent-dd-menu:not(:has(.accent-swatch)) .accent-dd-opt { position: relative; padding-left: 24px !important; }   /* the rows rule carries #sec-assistant */
+:root[data-skin="aqua"] .accent-dd-menu:not(:has(.accent-swatch)) .accent-dd-opt[aria-selected="true"]::before {
+  content: "\2713";
+  position: absolute;
+  left: 7px;
+  font-weight: 700;
+}
+
+:root[data-skin="aqua"] :is(.dialog-back, .confirm-overlay) { background: rgba(0, 20, 60, 0.18); }
+:root[data-skin="aqua"] :is(.dialog, .confirm-box, #section-peek, .panel, .card) {
+  background: var(--aq-pinstripe);
+  color: var(--aq-ink);
+  border: 0;
+  border-radius: 8px;
+  box-shadow: var(--aq-window-ring);
+}
+:root[data-skin="aqua"] .dialog-title {
+  background: var(--aq-metal);
+  color: var(--aq-ink);
+  font-size: 13px;
+  text-align: center;
+  border-radius: 8px 8px 0 0;
+  border-bottom: 1px solid var(--aq-edge);
+}
+:root[data-skin="aqua"] :is(#app-tooltip, .chat-status-tip) {
+  background: var(--aq-tip-bg);
+  color: var(--aq-tip-ink);
+  border: 1px solid color-mix(in srgb, var(--aq-edge) 80%, #000000);
+  border-radius: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  padding: 4px 8px;
+  font-size: 11px;
+}
+:root[data-skin="aqua"] :is(.tip-title, .tip-term, .tip-desc, .tip-line, .tip-hint, .tip-note, .tip-bullets li) { color: var(--aq-tip-ink); }
+:root[data-skin="aqua"] .tip-key { background: var(--aq-glass); color: var(--aq-ink); border: 0; border-radius: 4px; box-shadow: var(--aq-glass-ring); }
+:root[data-skin="aqua"] :is(.notify-toast, .notify-toast.notify-shine) {
+  background: var(--aq-pinstripe);
+  color: var(--aq-ink);
+  border: 0;
+  border-radius: 0 0 8px 8px;
+  box-shadow: var(--aq-window-ring);
+}
+:root[data-skin="aqua"] .notify-toast .notify-icon { color: var(--aq-gel-bottom); }
+:root[data-skin="aqua"] .toast-glow { display: none; }
+/* Gel lozenges in a pinstripe track; width/color back to auto, else Chrome ignores the pseudo-elements. */
+:root[data-skin="aqua"] * { scrollbar-width: auto; scrollbar-color: auto; }
+:root[data-skin="aqua"] *::-webkit-scrollbar { width: 15px; height: 15px; }
+:root[data-skin="aqua"] *::-webkit-scrollbar-track,
+:root[data-skin="aqua"] *::-webkit-scrollbar-corner {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--aq-edge) 45%, var(--aq-window)), var(--aq-window));
+}
+:root[data-skin="aqua"] *::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, var(--aq-gel-bottom), var(--aq-gel-top) 45%, var(--aq-gel-hi) 60%, var(--aq-gel-top));
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px var(--aq-gel-edge);
+}
+:root[data-skin="aqua"] *::-webkit-scrollbar-thumb:horizontal {
+  background: linear-gradient(180deg, var(--aq-gel-hi), var(--aq-gel-top) 45%, var(--aq-gel-bottom) 55%, var(--aq-gel-top));
+  background-clip: padding-box;
+}
+/* The attach chip is a gel capsule; its ✕ a bare glyph on it, never a glass button. */
+:root[data-skin="aqua"] #sec-assistant .chip {
+  background: var(--aq-gel);
+  color: var(--aq-on-gel);
+  border: 0;
+  border-radius: 999px;
+  box-shadow: var(--aq-gel-ring);
+}
+:root[data-skin="aqua"] #sec-assistant .chip .chip-x:is(*, :hover) { background: none; color: var(--aq-on-gel); box-shadow: none; }
+/* The mark magnifies like a Dock icon with no glow and no rays (browser css/aqua/chrome.css). */
+:root[data-skin="aqua"] .logo-wrap::before { content: none; }
+:root[data-skin="aqua"] .logo-wrap .logo { transition: transform 0.22s cubic-bezier(0.3, 0.7, 0.4, 1.3), filter 0.22s ease; }
+:root[data-skin="aqua"] .logo-wrap:hover .logo {
+  animation: none !important;
+  transform: scale(1.15);
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35)) saturate(1.15);
+}
+/* A list never scrolls sideways under the skin's classic bars (browser css/aqua/menus.css). */
+:root[data-skin="aqua"] :is(.accent-dd-menu, .action-menu, .action-menu .flyout, #sec-assistant .chat-more-menu) { overflow-x: hidden; }
+/* The provider CTA is a plain glass capsule in the word's own weight (browser css/aqua: .chat-config-cta
+   is a bare button); the id outranks popup/chat/composer.css's accent fill. */
+:root[data-skin="aqua"] #sec-assistant .chat-config-cta:is(*, :hover) {
+  background: var(--aq-glass); color: var(--aq-ink); box-shadow: var(--aq-glass-ring);
+  border-radius: 999px; font-weight: normal;
+}
+/* The retry is a 23px glass bead (browser css/aqua .chat-retry-cta), not composer.css's 5px tile. */
+:root[data-skin="aqua"] #sec-assistant .chat-retry { width: 23px; height: 23px; border-radius: 999px; }
+/* A selector is the era's slim popup button, the field's 13px type (browser css/aqua: 5px over and under),
+   not the base theme's 9px row; :where() keeps the popup's and the pins' own compact sizes on top. */
+:where(:root[data-skin="aqua"]) .accent-dd-trigger { padding-top: 4px; padding-bottom: 4px; font-size: 13px; line-height: 20px; }
+/* Only the focus ring eases: an eased background slid the gel cap in from the left on every press. */
+:root[data-skin="aqua"] :is(select, .page-select, .dialog-select, .accent-dd-trigger) { transition: box-shadow 0.18s ease; }

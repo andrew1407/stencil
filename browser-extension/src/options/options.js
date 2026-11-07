@@ -4,7 +4,7 @@ import { initTooltips } from '../lib/tip/controlTooltip.js';
 import { enhanceSelect } from '../lib/control/customSelect.js';
 import { installDblReset } from '../lib/control/dblReset.js';
 import { routeStoreWrites } from '../lib/prefs/writeChain.js';
-import { installWebcore } from '../lib/webcore/skin.js';
+import { installSkins } from '../lib/skin/install.js';
 import { wireLogoHold } from './secrets/trigger.js';
 import { wireTypedWords } from './secrets/typedWords.js';
 import { installStencilFacade } from './secrets/easterEggs.js';
@@ -20,7 +20,7 @@ import './connections.js';
 
 routeStoreWrites();
 installDblReset(document);
-installWebcore(document);
+installSkins(document);
 wireLogoHold(document.querySelector('.brand .logo-wrap'));
 wireTypedWords(document);
 installStencilFacade(window, document);

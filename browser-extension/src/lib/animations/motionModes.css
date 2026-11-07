@@ -15,3 +15,19 @@
 /* A chat entry's only entrance is its dust, so without particles it rises instead. */
 .chat-slide-in { animation: chatRiseIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) both; }
 @keyframes chatRiseIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+/* Transition: the bubble grows out of the corner its tail hangs from (motion/chatFx.js chatIn). */
+.chat-grow-in { animation: chatGrowIn 0.32s cubic-bezier(0.22, 0.61, 0.36, 1) both; transform-origin: left bottom; }
+.msg.user.chat-grow-in, .chat-swapped .msg:is(.assistant, .error).chat-grow-in { transform-origin: right bottom; }
+.chat-swapped .msg.user.chat-grow-in { transform-origin: left bottom; }
+@keyframes chatGrowIn { from { opacity: 0; transform: scale(0.2); } 30% { opacity: 1; } to { opacity: 1; transform: none; } }
+/* …and a Transition clear shrinks each one back into that corner (browser motionModes.css, the row clock 0.34s). */
+:root[data-motion="transition"] #chat-transcript > .leaving { animation: chatGrowIn 0.34s cubic-bezier(0.55, 0, 0.75, 0.4) reverse both; transform-origin: left bottom; }
+:root[data-motion="transition"] #chat-transcript > .msg.user.leaving,
+:root[data-motion="transition"] .chat-swapped #chat-transcript > .msg:is(.assistant, .error).leaving { transform-origin: right bottom; }
+:root[data-motion="transition"] .chat-swapped #chat-transcript > .msg.user.leaving { transform-origin: left bottom; }
+/* Sliding: the bubble slides in from its own side, the transcript clipping it (motion/chatFx.js chatIn). */
+.chat-side-in { animation: chatSideInLeft 0.42s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.msg.user.chat-side-in, .chat-swapped .msg:is(.assistant, .error).chat-side-in { animation-name: chatSideInRight; }
+.chat-swapped .msg.user.chat-side-in { animation-name: chatSideInLeft; }
+@keyframes chatSideInLeft { from { opacity: 0; transform: translateX(-110%); } 40% { opacity: 1; } to { opacity: 1; transform: none; } }
+@keyframes chatSideInRight { from { opacity: 0; transform: translateX(110%); } 40% { opacity: 1; } to { opacity: 1; transform: none; } }

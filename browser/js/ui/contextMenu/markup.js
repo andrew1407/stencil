@@ -3,6 +3,7 @@ import { ctxArrow } from '../ctx/arrow.js';
 import { EXPORT_VARIANTS, EXPORT_VARIANT_LABELS, EXPORT_VARIANT_ICONS } from '../export/variants.js';
 import { THICKNESS_RANGE, POINT_SIZE_RANGE } from '../../core/settings/limits.js';
 import { COPY_SCOPES, COPY_SCOPE_ICONS } from '../../core/project/copy/options.js';
+import { FS_KINDS, fsRowFace } from '../fullscreen/button.js';
 
 // The menu's own title case over the scopes copy/options.js names.
 const COPY_ROW_LABELS = Object.freeze({ image: 'Image Only', layout: 'Image and Layout', project: 'Whole Project' });
@@ -21,6 +22,20 @@ const exportVariantRows = (prefix, currentIcon, hks) => EXPORT_VARIANTS.map((v) 
     + `<span class="ctx-icon">${icon(v === 'current' ? currentIcon : EXPORT_VARIANT_ICONS[v])}</span>`
     + `<span class="ctx-label">${EXPORT_VARIANT_LABELS[v]}</span>${hk}</div>`;
 }).join('\n                        ');
+
+// Faces for the off state; syncState re-dresses the live kind's row as its exit.
+const fsKindRows = () => FS_KINDS.map((kind) => {
+  const f = fsRowFace(kind, null);
+  return `<div class="ctx-item ctx-sub-item" id="ctx-fs-${kind}" data-fs-kind="${kind}">`
+    + `<span class="ctx-icon">${icon(f.icon)}</span><span class="ctx-label">${f.label}</span>`
+    + `<span class="ctx-hotkey" data-hk="${f.hk}"></span>${ctxArrow()}</div>`;
+}).join('\n                ');
+const fullscreenItem = () => `<div class="ctx-item" id="ctx-fullscreen">
+            <span class="ctx-icon">${icon('maximize')}</span><span class="ctx-label" id="ctx-fs-label">Fullscreen</span>${ctxArrow(true)}
+            <div class="ctx-sub" id="ctx-fullscreen-sub">
+                ${fsKindRows()}
+            </div>
+        </div>`;
 
 // The menu's static markup; state (checks, hotkey chips, visibility) is written by syncState.
 export function contextMenuInner() {
@@ -69,8 +84,8 @@ export function contextMenuInner() {
                 ${copyScopeRows()}
             </div>
         </div>
-        <!-- Fullscreen toggle -->
-        <div class="ctx-item" id="ctx-fullscreen"><span class="ctx-icon">${icon('maximize')}</span><span class="ctx-label" id="ctx-fs-label">Enter Fullscreen</span><span class="ctx-hotkey" data-hk="fullscreen">Alt+F</span>${ctxArrow()}</div>
+        <!-- Fullscreen: the OS full screen, or the editor filling its own window (fullscreen/button.js) -->
+        ${fullscreenItem()}
         <div class="ctx-sep"></div>
         <!-- Stencil Script: a submenu parent whose flyout is a compact editor, hung off this
              row by script.js. Above it the Assistant entry syncAssistant builds. The

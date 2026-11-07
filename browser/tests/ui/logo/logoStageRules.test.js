@@ -12,9 +12,9 @@ test('every accent preset opens a show, told apart by motion, and every name is 
   for (const { key } of ACCENTS) {
     const owners = SHOW_NAMES.filter((n) => (SHOWS[n].accents || []).includes(key));
     assert.ok(owners.length >= 1, `${key} is owned by nobody`);
-    // A colour two rows share is told apart by their motion mode, never by their order.
+    // A colour two rows share is told apart by their motion mode (and face), never by their order.
     if (owners.length > 1)
-      assert.equal(new Set(owners.map((n) => SHOWS[n].motion || '')).size, owners.length,
+      assert.equal(new Set(owners.map((n) => `${SHOWS[n].motion || ''}/${SHOWS[n].theme || ''}`)).size, owners.length,
                    `${key}: ${owners.join(', ')} open under the same motion mode`);
   }
   for (const name of SHOW_NAMES) assert.match(name, /^[a-z][A-Za-z0-9]*$/);
@@ -22,7 +22,7 @@ test('every accent preset opens a show, told apart by motion, and every name is 
   for (const n of SHOW_NAMES) {
     const hex = SHOWS[n].customHex;
     if (hex) assert.equal(hex, hex.toLowerCase(), `${n}: customHex is lower-case`);
-    if (SHOWS[n].motion) assert.ok(['particles', 'water', 'fire', 'none'].includes(SHOWS[n].motion));
+    if (SHOWS[n].motion) assert.ok(['particles', 'water', 'fire', 'slide', 'none'].includes(SHOWS[n].motion));
   }
   assert.ok(STAGE.holdMs >= 1000 && STAGE.toast.length > 0);
   // The skin's row opens by word, by call, and by a hold on grey with the interface still.
@@ -31,6 +31,8 @@ test('every accent preset opens a show, told apart by motion, and every name is 
   assert.equal(SHOWS.webcore.motion, 'none');
   assert.equal(SHOWS.webcore.customHex, undefined);
   assert.equal(showStyle('webcore', 'dust'), null, 'no stage, so no cloud');
+  assert.equal(effectOf('someFruitCompany'), 'aqua');
+  assert.equal(showStyle('someFruitCompany', 'dust'), null, 'the aqua skin opens no stage either');
 });
 
 test('a preset resolves by its row; a styled row needs its motion mode', () => {
@@ -49,6 +51,10 @@ test('a preset resolves by its row; a styled row needs its motion mode', () => {
   assert.equal(resolveShow('brown', null, 'none'), 'punchToBloat');
   assert.equal(resolveShow('pink', null, 'none'), 'pinkVibe');
   assert.equal(resolveShow('nosuch', null, 'particles'), null);
+  assert.equal(resolveShow('blue', null, 'slide', 'light'), 'someFruitCompany', 'blue sliding on light: the aqua skin');
+  assert.equal(resolveShow('blue', null, 'slide', 'dark'), null, 'a themed row needs its face');
+  assert.equal(resolveShow('blue', null, 'slide'), null, 'and an unknown face is not it');
+  assert.equal(resolveShow('blue', null, 'water', 'light'), 'waterShow');
 });
 
 test('a custom hex resolves by value: white follows, black escapes, anything else flies', () => {

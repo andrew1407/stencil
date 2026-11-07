@@ -20,4 +20,6 @@ export declare function createPreviewDust(args: {
   video: () => HTMLVideoElement;
   isVideo: () => boolean;
   sourceKey: () => string;
+  /** The control the picture pours out of and back into (Choose File, or Preview). */
+  origin?: () => Element | null;
 }): PreviewDust;

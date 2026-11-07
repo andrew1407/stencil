@@ -23,6 +23,7 @@ export * from './motion/dust/canvasDustGrid.js';
 export * from './motion/dust/canvasDustStage.js';
 export * from './motion/dust/canvasDustDraw.js';
 export * from './motion/control/canvasFx.js';
+export * from './motion/control/canvasSlide.js';
 export * from './motion/strokeFly.js';
 export { genieIn, genieAway, settleGenie, menuIn, menuAway, pointBox, MENU_GENIE_MS } from './motion/genie/window.js';
 export { cssAway } from './motion/surface/leaveCopy.js';

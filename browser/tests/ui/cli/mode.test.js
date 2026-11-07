@@ -84,3 +84,17 @@ test('while CLI mode is on, a theme or accent change lands at once: no flood, no
   assert.equal(transitions, 0, 'the stage paints the recolour itself');
   exitCliMode(app);
 });
+
+test('a worn skin is lifted while the stage is up and worn again after, so the terminal looks the same', () => {
+  const { app } = rig();
+  const attrs = new Map([['data-skin', 'aqua']]);
+  doc.documentElement = {
+    getAttribute: (k) => attrs.get(k) ?? null,
+    setAttribute: (k, v) => { attrs.set(k, v); },
+    removeAttribute: (k) => { attrs.delete(k); },
+  };
+  assert.equal(enterCliMode(app), true);
+  assert.equal(attrs.has('data-skin'), false, 'no skin rule reaches the stage');
+  assert.equal(exitCliMode(app), true);
+  assert.equal(attrs.get('data-skin'), 'aqua');
+});

@@ -12,4 +12,5 @@ export declare function paintGenie(ctx: CanvasRenderingContext2D, shot: CanvasIm
 
 /** Plays the genie between `win` and `icon` (client rects) on a canvas over the page; returns `cancel()`. */
 export declare function playGenie(shot: CanvasImageSource & { width: number; height: number }, win: GenieRect, icon: GenieRect,
-                                  opts: { opening: boolean; ms: number; zIndex?: number; done?: () => void }): () => void;
+                                  opts: { opening: boolean; ms: number; zIndex?: number; done?: () => void;
+                                          /** A client rect the flight never paints outside. */ clip?: DOMRect | null }): () => void;

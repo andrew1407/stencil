@@ -138,7 +138,7 @@ export const createStencil = (app) => {
     // ── Settings / modes ──
     get settings() { return settings(); },
     get fullscreen() { return typeof document !== 'undefined' && document.body.classList.contains('fullscreen-mode'); },
-    set fullscreen(v) { if (v) cliModeGate('fullscreen'); if (!!v !== stencil.fullscreen && typeof app.toggleFullscreen === 'function') app.toggleFullscreen(); },
+    set fullscreen(v) { if (v) cliModeGate('fullscreen'); if (!!v !== stencil.fullscreen && typeof app.toggleFullscreen === 'function') app.toggleFullscreen(v ? 'window' : undefined); },
     get imageSize() { const img = app.image; return img ? { width: img.width, height: img.height } : undefined; },
     // Current crop rect in rotated-original px — {x,y,w,h} plus legacy width/height
     // aliases; null before an image loads. The LLM plan executor re-maps against it (§1).

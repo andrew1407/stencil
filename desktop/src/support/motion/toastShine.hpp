@@ -15,7 +15,7 @@
 #include "../vsync/FramePulse.hpp"
 #include "logoStageRules.hpp"    // the beat and the gold
 #include "modalReveal.hpp"       // motionReduced
-#include "skinPrefs.hpp"         // isWebcore
+#include "skin/SkinLookStrategy.hpp"
 
 namespace stencil::support {
 
@@ -109,7 +109,7 @@ namespace stencil::support {
 
   inline void installToastShine(QLabel* toast) {
     // A system message box has no aura round it (browser .toast-glow { display: none }).
-    if (toast && !isWebcore()) new ToastShine(toast);
+    if (toast && skinTraits().hasToastShine) new ToastShine(toast);
   }
 
 }  // namespace stencil::support

@@ -4,6 +4,11 @@
 import { popoverPosition } from '../../lib/tip/popover.js';
 import { menuTransformOrigin } from '../../lib/chat/msgMenu.js';
 import { surfaceIn, surfaceOut, centerOf, genieIn, genieOut, growIn, growOut } from '../../lib/motion.js';
+// The box's laid-out size: its entrance transform (scaled from the icon) shrinks a client rect to the icon's.
+const layoutSize = (el) => {
+  const r = el.getBoundingClientRect();
+  return { width: el.offsetWidth || r.width, height: el.offsetHeight || r.height };
+};
 
 // Resolves exactly once; `finish(undefined)` is a cancel, as click-away / Escape are.
 export const openPanelDialog = ({ build, anchor }) => new Promise((resolve) => {
@@ -39,7 +44,7 @@ export const openPanelDialog = ({ build, anchor }) => new Promise((resolve) => {
     // Measured after it is in the DOM: the popover class fixes the box's positioning.
     const p = popoverPosition({
       anchor: anchor.getBoundingClientRect(),
-      box: box.getBoundingClientRect(),
+      box: layoutSize(box),
       viewport: { width: window.innerWidth, height: window.innerHeight },
     });
     box.style.left = `${p.left}px`;

@@ -86,7 +86,7 @@ export function ghostOut(canvas, { ms = GHOST_MS, layers = [canvas] } = {}) {
   if (!dustEnabled()) return false;
   if (typeof requestAnimationFrame === 'undefined' || !canvas.parentElement) return false;
   try {
-    const st = makeDustStage(canvas, null, layers);
+    const st = makeDustStage(canvas, null, layers, { holdScreen: true });
     if (!st) return false;
     runDust(st, ms, false);
     return true;

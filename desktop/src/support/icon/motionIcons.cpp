@@ -1,6 +1,7 @@
 #include "motionIcons.hpp"
 #include "motionIconPainters.hpp"
 #include "motionPrefs.hpp"
+#include "skin/SkinLookStrategy.hpp"
 
 namespace stencil::support {
 
@@ -90,6 +91,7 @@ namespace stencil::support {
   }
 
   bool MotionIconDelegate::eventFilter(QObject* watched, QEvent* e) {
+    if (!support::skinTraits().hasIconMotion) return QStyledItemDelegate::eventFilter(watched, e);
     if (watched == view->viewport() && (e->type() == QEvent::MouseMove || e->type() == QEvent::HoverMove)) {
       const QPoint pos = e->type() == QEvent::MouseMove ? static_cast<QMouseEvent*>(e)->pos()
                                                         : static_cast<QHoverEvent*>(e)->position().toPoint();
@@ -111,6 +113,7 @@ namespace stencil::support {
   }
 
   void MotionIconFace::play() {
+    if (!support::skinTraits().hasIconMotion) return;
     clock.restart();
     scale = support::motionScale();
     tick.start();

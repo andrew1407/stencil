@@ -27,10 +27,40 @@
     40%  { opacity: 0; transform: translateX(-14px) scale(0.97); max-height: var(--enter-h, 200px); }
     to   { opacity: 1; transform: none; max-height: var(--enter-h, 200px); }
 }
+/* …and Sliding / Transition's arrivals, the leaves reversed (reveal.css rowSlideLeave / rowShrinkLeave). */
+:where(:root[data-motion="slide"]) .materializing { animation: rowSlideIn 0.34s cubic-bezier(0.16, 1, 0.3, 1) both; }
+:where(:root[data-motion="transition"]) .materializing { animation: rowGrowIn 0.34s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+/* …into a slot a held leave kept open (chatFx.js materialize inPlace): the box is already there. */
+.materializing.materialize-in-place { animation-name: rowMaterializeInPlace; }
+@keyframes rowMaterializeInPlace {
+    from { opacity: 0; transform: translateX(-14px) scale(0.97); }
+    40%  { opacity: 0; transform: translateX(-14px) scale(0.97); }
+    to   { opacity: 1; transform: none; }
+}
+:where(:root[data-motion="slide"]) .materializing.materialize-in-place { animation-name: rowSlideInPlace; }
+:where(:root[data-motion="transition"]) .materializing.materialize-in-place { animation-name: rowGrowInPlace; }
+@keyframes rowSlideInPlace { from { transform: translateX(-104%); } to { transform: none; } }
+@keyframes rowGrowInPlace { from { opacity: 0; transform: scale(0.78); } to { opacity: 1; transform: none; } }
+@keyframes rowSlideIn {
+    from { transform: translateX(-104%); max-height: 0; margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; border-width: 0; }
+    35%  { transform: translateX(-104%); max-height: var(--enter-h, 200px); }
+    to   { transform: none; max-height: var(--enter-h, 200px); }
+}
+@keyframes rowGrowIn {
+    from { opacity: 0; transform: scale(0.78); max-height: 0; margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; border-width: 0; }
+    35%  { opacity: 0; transform: scale(0.78); max-height: var(--enter-h, 200px); }
+    to   { opacity: 1; transform: none; max-height: var(--enter-h, 200px); }
+}
 /* !important: author !important beats rowMaterialize's keyframed opacity. */
 .materialize-veil { opacity: 0 !important; }
 /* A transition never starts on a property an animation holds: a dusted arrival animates no alpha. */
 .materializing.materialize-veil { animation-name: rowMaterializeBox; }
+.materializing.materialize-veil.materialize-in-place { animation-name: rowMaterializeBoxInPlace; }
+@keyframes rowMaterializeBoxInPlace {
+    from { transform: translateX(-14px) scale(0.97); }
+    40%  { transform: translateX(-14px) scale(0.97); }
+    to   { transform: none; }
+}
 @keyframes rowMaterializeBox {
     from { transform: translateX(-14px) scale(0.97);
            max-height: 0; margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; border-width: 0; }
@@ -119,13 +149,22 @@ input[type=checkbox].mark-forming:checked, input[type=radio].mark-forming:checke
 /* Dropped at a point (motion.js arriveFrom): the flight is an inline FLIP transform, so this variant
    animates the glow only — a CSS transform animation would win and snap the flight away. */
 .canvas-container.drop-arriving { animation: canvasLandGlow 0.7s ease both; }
+/* Transition's picture (canvasSlide.js): wiped in from the view's bottom edge upward, away from the top down.
+   --wipe-top / --wipe-bottom put the start at the VISIBLE bottom of a picture taller than the view. */
+@keyframes canvasRise {
+    from { clip-path: inset(var(--wipe-top, 100%) 0 var(--wipe-bottom, 0px) 0); }
+    to   { clip-path: inset(0 0 0 0); }
+}
+@keyframes canvasSink { from { clip-path: inset(0 0 0 0); } to { clip-path: inset(100% 0 0 0); } }
+.canvas-container.canvas-rise { animation: canvasRise 0.413s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.canvas-sink { animation: canvasSink 0.413s cubic-bezier(0.45, 0.05, 0.6, 0.9) both; }
 .canvas-container.arrive-active {
     will-change: transform;
     position: relative;
     z-index: 3;
 }
 @media (prefers-reduced-motion: reduce) {
-    #global-drop-overlay.drop-closing, .canvas-container.drop-landing,
+    #global-drop-overlay.drop-closing, .canvas-container.drop-landing, .canvas-container.canvas-rise, .canvas-sink,
     .canvas-container.drop-arriving { animation: none; }
     .canvas-container.arrive-active { will-change: auto; }
 }

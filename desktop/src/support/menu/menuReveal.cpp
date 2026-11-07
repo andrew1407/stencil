@@ -6,6 +6,7 @@
 #include <QGuiApplication>
 #include <QCursor>
 #include <QMenuBar>
+#include <QMouseEvent>
 #include <QPointer>
 #include <algorithm>
 
@@ -20,6 +21,29 @@ namespace stencil::support {
       return QGuiApplication::platformName() != QLatin1String("offscreen") && !showMotionReduced();
     }
 
+    // A press on the trigger closes the menu and is swallowed there, so its click cannot reopen it.
+    class TriggerPressGuard : public QObject {
+     public:
+      TriggerPressGuard(QMenu* menu, std::function<QRect()> zone) : QObject(menu), menu(menu), zone(std::move(zone)) {
+        setObjectName(QStringLiteral("stencilTriggerPressGuard"));
+        menu->installEventFilter(this);
+      }
+
+     protected:
+      bool eventFilter(QObject* watched, QEvent* event) override {
+        if (watched != menu) return false;
+        if (event->type() == QEvent::Show) menu->setAttribute(Qt::WA_NoMouseReplay, false);
+        if (event->type() != QEvent::MouseButtonPress) return false;
+        const QPoint at = static_cast<QMouseEvent*>(event)->globalPosition().toPoint();
+        if (!menu->geometry().contains(at) && zone().contains(at)) menu->setAttribute(Qt::WA_NoMouseReplay, true);
+        return false;
+      }
+
+     private:
+      QMenu* menu;
+      std::function<QRect()> zone;
+    };
+
     QPoint popupOriginGlobal(QWidget* anchor) {
       const QRect r = anchor->rect();
       if (qobject_cast<QComboBox*>(anchor))
@@ -28,6 +52,14 @@ namespace stencil::support {
       return anchor->mapToGlobal(r.center());
     }
   }  // namespace
+
+  QPoint submenuArrowPoint(const QMenu& parent, QAction* action) {
+    const QRect row = action ? parent.actionGeometry(action) : QRect();
+    if (!row.isValid()) return {};
+    // Qt's style draws the ▸ in a (h - 4) / 2 square, 3px in from the row's right edge.
+    const int dim = std::max(4, (row.height() - 4) / 2);
+    return parent.mapToGlobal(QPoint(row.right() - 3 - dim / 2, row.center().y()));
+  }
 
   bool revealPopup(QWidget& popup, QWidget* anchor, int ms) {
     if (!anchor || !anchor->isVisible()) return false;
@@ -61,12 +93,10 @@ namespace stencil::support {
     if (!menuMotionPossible()) return;
     QPointer<QMenu> parentGuard(&parent);
     QPointer<QAction> actionGuard(&parentAction);
-    // The row's ▸ caret at its RIGHT edge (browser contextMenu.js subPoint parity).
     new MenuReveal(&sub, [parentGuard, actionGuard] {
       if (!parentGuard || !actionGuard) return QCursor::pos();
-      const QRect row = parentGuard->actionGeometry(actionGuard);
-      return row.isValid() ? parentGuard->mapToGlobal(QPoint(row.right(), row.center().y()))
-                           : QCursor::pos();
+      const QPoint at = submenuArrowPoint(*parentGuard, actionGuard);
+      return at.isNull() ? QCursor::pos() : at;
     }, ms);
   }
 
@@ -84,8 +114,16 @@ namespace stencil::support {
   }
 
   void revealMenuFrom(QMenu& menu, QWidget* anchor) {
-    if (!anchor) return;
+    if (!anchor || menu.findChild<QObject*>(QStringLiteral("stencilMenuFlight"), Qt::FindDirectChildrenOnly)) return;
     new MenuFlight(&menu, anchor);  // owned by the menu
+    QPointer<QWidget> guard(anchor);
+    closeOnTriggerPress(menu, [guard] {
+      return guard && guard->isVisible() ? QRect(guard->mapToGlobal(QPoint(0, 0)), guard->size()) : QRect();
+    });
+  }
+
+  void closeOnTriggerPress(QMenu& menu, std::function<QRect()> globalZone) {
+    new TriggerPressGuard(&menu, std::move(globalZone));   // owned by the menu
   }
 
 }  // namespace stencil::support

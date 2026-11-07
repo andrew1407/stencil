@@ -63,6 +63,15 @@ namespace stencil::gui {
     };
   }  // namespace
 
+  namespace {
+    // The stretch after the close dot that centres the title; returns the dot's width, for the
+    // right side to balance.
+    int balanceCloseDot(QHBoxLayout* header, QWidget* close) {
+      header->insertStretch(header->indexOf(close) + 1, 1);
+      return close->sizeHint().width();
+    }
+  }  // namespace
+
   ModalChrome installModalChrome(QDialog* dlg, const QString& iconName, const QString& title) {
     ModalChrome c;
     // Translucent window so the shell's rounded corners clip; the QSS half lives in theme.cpp.
@@ -88,6 +97,7 @@ namespace stencil::gui {
     auto* header = new QHBoxLayout(headerW);
     header->setContentsMargins(PAD_X, HEADER_PAD_Y, PAD_X, HEADER_PAD_Y);
     if (support::isWebcore()) header->setContentsMargins(8, 3, 4, 3);
+    if (support::isAqua()) header->setContentsMargins(10, 6, 10, 6);   // browser aqua: 6px strip, dot at 10px
     header->setSpacing(8);
     if (!iconName.isEmpty()) {
       c.glyph = new QLabel(dlg);
@@ -114,7 +124,14 @@ namespace stencil::gui {
     c.close->setAutoDefault(false);
     c.close->setDefault(false);
     QObject::connect(c.close, &QPushButton::clicked, dlg, &QDialog::reject);
-    header->addWidget(c.close);
+    if (support::isAqua()) {   // the aqua skin's red dot leads the title strip, bare (qss/aqua/windows.qss)
+      c.close->setText(QString());
+      c.close->setIcon(QIcon());
+      header->insertWidget(0, c.close);
+      header->addSpacing(balanceCloseDot(header, c.close));
+    } else {
+      header->addWidget(c.close);
+    }
     c.root->addWidget(headerW);
     c.root->addWidget(modalDivider(dlg));
 
@@ -134,6 +151,7 @@ namespace stencil::gui {
     dlg.setWindowTitle(spec.title);
     ModalChrome chrome = installModalChrome(&dlg, spec.titleIcon, spec.title);
     auto* msg = new QLabel(spec.message, &dlg);
+    msg->setObjectName(QStringLiteral("confirmMessage"));
     msg->setWordWrap(true);
     msg->setTextInteractionFlags(Qt::NoTextInteraction);
     QSizePolicy wrap(QSizePolicy::Preferred, QSizePolicy::Minimum);
@@ -187,6 +205,7 @@ namespace stencil::gui {
     const QColor txt = dlg->palette().color(QPalette::WindowText);
     if (chrome.glyph) chrome.glyph->setPixmap(themedIcon(chrome.iconName, txt, 18).pixmap(18, 18));
     if (!chrome.close) return;
+    if (support::isAqua()) return;   // the red dot stays bare
     if (support::isWebcore()) chrome.close->setIcon(QIcon(themedIcon("x", txt, 14).pixmap(QSize(14, 14))));
     else chrome.close->setIcon(labelIcon("x", txt, 14));
   }

@@ -5,8 +5,9 @@ import { loadLlmSettings, serverBearerToken, withSessionKey } from '../../llm/se
 import { cacheProbe, probeStatusClass } from '../../llm/chat/session.js';
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';
 import { surfaceIn, surfaceOut, settleSurface } from '../motion/surface/surfaces.js';
-import { rectCenter, TIP_DUST_IN_MS, TIP_DUST_OUT_MS } from '../motion/control/tips.js';
+import { rectCenter, TIP_DUST_IN_MS, TIP_DUST_OUT_MS, tipFallbackIn, tipFallbackOut } from '../motion/control/tips.js';
 import { gearStatusRows, gearTipFootText } from './geometry.js';
+import { chatPopupOpen } from './row/chatRowMenu.js';
 
 // The status table a "…" trigger shows on hover or keyboard focus, fixed above it like #app-tooltip:
 // `probe()` is read at every show, and `refresh()` re-renders it in place while it is up.
@@ -46,17 +47,19 @@ export function wireStatusTip(statusHost, probe) {
   // Dust in/out of the trigger on the none↔visible edge only, never on a live re-render.
   const gearTipDustPoint = () => rectCenter(statusHost);
   const show = () => {
+    if (chatPopupOpen()) { hide(); return; }   // the open "…" menu covers it, and the tip drew over that (user report)
     const wasHidden = !gearTip.classList.contains('visible');
     renderGearTip();
     gearTip.classList.add('visible');
     placeGearTip();
     if (!wasHidden) return;
-    surfaceIn(gearTip, gearTipDustPoint(), { ms: TIP_DUST_IN_MS });
+    if (!surfaceIn(gearTip, gearTipDustPoint(), { ms: TIP_DUST_IN_MS })) tipFallbackIn(gearTip, gearTipDustPoint());
   };
   const hide = () => {
     if (!gearTip.classList.contains('visible')) { settleSurface(gearTip); return; }
+    // The fallback copies the tip, so it runs before the class goes; the dust takes its own picture either way.
+    if (!surfaceOut(gearTip, gearTipDustPoint(), { ms: TIP_DUST_OUT_MS })) tipFallbackOut(gearTip, gearTipDustPoint());
     gearTip.classList.remove('visible');
-    surfaceOut(gearTip, gearTipDustPoint(), { ms: TIP_DUST_OUT_MS });
   };
   // A click focuses the trigger and opens its menu, so `focus` would re-show the tip
   // pointerdown just hid; suppressed for that first click only.
@@ -69,6 +72,7 @@ export function wireStatusTip(statusHost, probe) {
   statusHost.addEventListener('pointerleave', hide);
   statusHost.addEventListener('blur', () => { suppressFocusTip = false; hide(); });
   statusHost.addEventListener('pointerdown', () => { suppressFocusTip = true; hide(); });
+  subscribe(EVENTS.chatPopup, () => { if (chatPopupOpen()) hide(); });   // a menu opened from the keyboard
   return { show, hide, refresh: () => { if (gearTip.classList.contains('visible')) show(); } };
 }
 

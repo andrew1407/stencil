@@ -7,6 +7,7 @@ import { closeOpenPopovers } from '../modal/registry.js';
 import { TOAST_TEXT } from '../logo/stageRules.js';
 import { setCliMode, cliModeOn } from '../../console/shell/gate.js';
 import { openCliStage } from './stage.js';
+import { holdSkin, releaseSkin } from '../skin/session.js';
 
 export const OPEN_CLASS = 'cli-mode-open';
 let stage = null;
@@ -21,6 +22,7 @@ export const enterCliMode = (app, { origin = null, doc = globalThis.document } =
   doc.activeElement?.blur?.();
   setCliMode(true);
   doc.body.classList?.add?.(OPEN_CLASS);
+  holdSkin(doc);   // the terminal looks the same under every skin
   stage = openCliStage(app, { origin, doc, onLeave: () => exitCliMode(app, doc) });
   notify(TOAST_TEXT, 'ok', { shine: true });
   return true;
@@ -31,6 +33,7 @@ export const exitCliMode = (app, doc = globalThis.document) => {
   stage?.release();
   stage = null;
   doc?.body?.classList?.remove?.(OPEN_CLASS);
+  releaseSkin(doc);
   setCliMode(false);
   return true;
 };

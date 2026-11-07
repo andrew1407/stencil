@@ -12,7 +12,7 @@ class MainWindowGuiTest : public QObject {
   // a light band crossing it once. Asserts the band genuinely MOVES, not just appears.
   void blankImageCardShimmersOnHover() {
     MainWindow win;
-    win.resize(900, 640);
+    win.resize(900, 900);   // the view under the ribbon and panels must hold the card whole
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     // A pixel test owns its palette: on the LIGHT theme the card's dashed border is paler than
@@ -70,6 +70,31 @@ class MainWindowGuiTest : public QObject {
     const int second = bandX();
     QVERIFY2(second > first,
              qPrintable(QString("the sweep does not travel: %1 then %2").arg(first).arg(second)));
+  }
+
+  // A hover from before a picture came in never lights the card it leaves behind (user report): a modal
+  // between them can swallow the Leave, so only a pointer that moves onto the card again lights it.
+  void blankImageCardArrivesUnlitAfterAnEarlierHover() {
+    const auto motion = withMotion();
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(900, 900);   // the view under the ribbon and panels must hold the card whole
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.canvas->clearImage();
+    win.refreshActions();
+    QVERIFY(waitForIdleCard(win));
+    const QPoint c = win.canvas->mapFromGlobal(win.canvas->idleCardGlobalRect().center());
+    QMouseEvent move(QEvent::MouseMove, QPointF(c), win.canvas->mapToGlobal(c),
+                     Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+    QApplication::sendEvent(win.canvas, &move);
+    QTRY_VERIFY(win.canvas->property("idleHoverT").toDouble() > 0.99);
+    win.openPathFromOS(guiTestImage());   // no move or Leave reaches the canvas on the way
+    settle([&win] { return win.canvas->hasImage(); }, 5000);
+    QVERIFY(win.canvas->hasImage());
+    win.canvas->clearImage();
+    QVERIFY(waitForIdleCard(win));
+    QTest::qWait(250);
+    QCOMPARE(win.canvas->property("idleHoverT").toDouble(), 0.0);
   }
 
   // "＋ Blank image" is a BUTTON, not the whole empty page: only the card's own rect clicks,

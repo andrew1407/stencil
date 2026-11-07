@@ -9,14 +9,21 @@ import { motionMs } from './motion/motionPrefs.js';
 // class="ic-…" hooks are inert here; config/iconMotion.json moves them via iconHover.css.
 export const ICONS = ICONS_DATA;
 
-// A skin's own art, name → inner markup on a 16-grid with the colour baked in (ui/webcore/icons.js).
-// While one is installed every glyph assembled afterwards is born in it; null = the line-art.
+// A skin's own art, name → inner markup (or a function minting it) with the colour baked in, on a
+// `grid` square (webcore's crisp 16, aqua's smooth 32); null = the line-art.
 let skinArt = null;
-export const setIconSkin = (table) => { skinArt = table || null; };
+let skinGrid = { grid: 16, crisp: true };
+export const setIconSkin = (table, { grid = 16, crisp = true } = {}) => {
+  skinArt = table || null;
+  skinGrid = { grid, crisp };
+};
 
-const skinFace = (name, cls, size) =>
-  `<svg class="ic ic-${name}${cls}" viewBox="0 0 16 16" width="${size}" height="${size}" ` +
-  `shape-rendering="crispEdges" aria-hidden="true" focusable="false">${skinArt[name]}</svg>`;
+const skinFace = (name, cls, size) => {
+  const art = skinArt[name];
+  return `<svg class="ic ic-${name}${cls}" viewBox="0 0 ${skinGrid.grid} ${skinGrid.grid}" width="${size}" height="${size}" ` +
+    `${skinGrid.crisp ? 'shape-rendering="crispEdges" ' : ''}aria-hidden="true" focusable="false">` +
+    `${typeof art === 'function' ? art() : art}</svg>`;
+};
 
 // The draw-mode toggle's two faces: complete <svg> strings on a 16-grid, not built by icon().
 export const DRAW_MODE_ICON = {

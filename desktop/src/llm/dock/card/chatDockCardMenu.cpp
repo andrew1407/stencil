@@ -6,6 +6,7 @@
 #include "../../../support/motion/MenuShimmer.hpp"
 #include "../../../support/menu/menuDangerRow.hpp"
 #include "../../../support/theme/theme.hpp"
+#include "../../../support/skinPrefs.hpp"
 #include "menuIconColumn.hpp"
 #include "iconSet.hpp"
 #include "chatWidgets.hpp"
@@ -26,10 +27,21 @@ namespace stencil::gui {
 
   using namespace chatdock;
   namespace {
+    // Blended, not translucent: themedIcon's cache is keyed on an alpha-less colour name. A skin's
+    // control wears its own ink (browser: the glass and raised buttons' --aq-ink / --wc-ink).
+    QColor moreInk(const QColor& muted, const QColor& chip) {
+      switch (support::skin()) {
+        case support::Skin::AQUA: return support::skinGlass().ink;
+        case support::Skin::WEBCORE: return support::skinBevel().ink;
+        case support::Skin::DEFAULT: break;
+      }
+      return blendColors(muted, chip, GHOST_REST_OPACITY);
+    }
+
     // Browser chat/view.js chatRowMenuItems. Popping a menu is a NESTED EVENT LOOP: the card or its
     // window can be gone after exec(), so every widget is a QPointer and a dead window refuses to pop.
     void showChatCardMenu(QPointer<QFrame> card, const QPoint& globalPos,
-                                 const ChatCardMenuHooks& hooks) {
+                                 const ChatCardMenuHooks& hooks, bool byButton) {
       if (!card) return;
       QPointer<QWidget> owner(hooks.owner);
       // windowHandle() is null before the window is mapped, and for a surface being torn down.
@@ -66,6 +78,11 @@ namespace stencil::gui {
       support::markAccentRows(menu, onAccentInk(menu.palette().color(QPalette::Highlight)));
       card->setProperty("chatMenuOpen", true);
       support::revealMenu(menu, globalPos);
+      // Only a menu the ⋯ opened is shut by it; one a right-click opened lets the ⋯ open its own.
+      QPointer<QWidget> more(byButton ? qobject_cast<QWidget*>(card->property("chatMoreBtn").value<QObject*>()) : nullptr);
+      support::closeOnTriggerPress(menu, [more] {
+        return more && more->isVisible() ? QRect(more->mapToGlobal(QPoint(0, 0)), more->size()) : QRect();
+      });
       QAction* picked = menu.exec(globalPos);
       // AFTER the nested loop: re-check every pointer
       if (card) {
@@ -83,13 +100,27 @@ namespace stencil::gui {
         hooks.resend(card, body ? body->property("chatBody").toString() : text);
       }
     }
+
+    void styleChatCardMore(QToolButton* more, const QColor& chip, const QColor& border, const QColor& accent,
+                           const QColor& muted) {
+      more->setStyleSheet(support::chatRowMenuButtonSheet(chip, border, GHOST_REST_OPACITY));
+      if (auto* glow = qobject_cast<QGraphicsDropShadowEffect*>(more->graphicsEffect())) glow->setColor(accent);
+      more->setIcon(themedIcon("more", moreInk(muted, chip), 16));
+    }
   }  // namespace
+
+  void restyleChatCardMores(QWidget* root, const QColor& chip, const QColor& border, const QColor& accent,
+                            const QColor& muted) {
+    if (!root) return;
+    for (QToolButton* more : root->findChildren<QToolButton*>(QStringLiteral("chatCardMore")))
+      styleChatCardMore(more, chip, border, accent, muted);
+  }
 
   void installChatCardMenu(QFrame* card, const ChatCardMenuHooks& hooks) {
     if (!card) return;
     // QPointer throughout: these lambdas outlive the card (a settling turn deletes rows).
-    const auto show = [hooks](QPointer<QFrame> c, const QPoint& at) {
-      showChatCardMenu(c, at, hooks);
+    const auto show = [hooks](QPointer<QFrame> c, const QPoint& at, bool byButton = false) {
+      showChatCardMenu(c, at, hooks, byButton);
     };
     const QPointer<QFrame> cardRef(card);
     const auto wire = [cardRef, show](QWidget* w) {
@@ -130,22 +161,19 @@ namespace stencil::gui {
     more->setIconSize(QSize(15, 15));
     // browser .chat-row-menu-btn. Not a QGraphicsOpacityEffect: a widget carries only ONE
     // graphics effect and the accent glow already claims it, so the 0.7 is baked into the chrome.
-    more->setStyleSheet(support::chatRowMenuButtonSheet(hooks.chip, hooks.border, GHOST_REST_OPACITY));
     auto* glow = new QGraphicsDropShadowEffect(more);
     glow->setOffset(0, 0);
     glow->setBlurRadius(12);
-    glow->setColor(hooks.accent);
     glow->setEnabled(false);
     more->setGraphicsEffect(glow);
     more->setCursor(Qt::PointingHandCursor);
     more->setFocusPolicy(Qt::NoFocus);
     installHoverShimmer(more);
-    // Blended, not translucent: themedIcon's cache is keyed on an alpha-less colour name.
-    more->setIcon(themedIcon("more", blendColors(hooks.muted, hooks.chip, GHOST_REST_OPACITY), 16));
+    styleChatCardMore(more, hooks.chip, hooks.border, hooks.accent, hooks.muted);
     more->hide();
     QObject::connect(more, &QToolButton::clicked, more, [cardRef, more, show] {
       if (!cardRef) return;
-      show(cardRef, more->mapToGlobal(QPoint(0, more->height())));
+      show(cardRef, more->mapToGlobal(QPoint(0, more->height())), true);
     });
     new ChatCardMore(card, more, hooks.scroll, hooks.moreMoved, hooks.avoidRect);
   }

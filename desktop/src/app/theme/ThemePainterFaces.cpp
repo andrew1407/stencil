@@ -3,6 +3,8 @@
 #include "toolbarMetrics.hpp"
 #include "CanvasWidget.hpp"
 #include "../../support/theme/faceSwap.hpp"
+#include "../../support/skinPrefs.hpp"
+#include "../../support/skin/SkinLookStrategy.hpp"
 #include "theme.hpp"
 #include "tipContent.hpp"
 
@@ -79,7 +81,8 @@ namespace stencil::gui {
     face.iconSize = TOOL_ICON;
     face.gapPx = FACE_ICON_GAP;   // air between glyph and word (see toolbarMetrics.hpp)
     // Idle: the theme's own ink, the accent outline says draw toggle; running: the fill's own ink.
-    face.glyphColor = drawing ? pal.onAccent : pal.textMain;
+    if (!drawing) face.glyphColor = pal.textMain;
+    else face.glyphColor = support::skinTraits().hasGlassToggles ? support::skinGlass().onGel : pal.onAccent;
     face.textColor = face.glyphColor;
     // The fill flip hides at the swap's pivot; it sets the state, so a superseded swap can be
     // dropped.
@@ -106,8 +109,8 @@ namespace stencil::gui {
     face.iconSize = 16;   // a touch under TOOL_ICON: this glyph reads heavier than the rest
     face.gapPx = FACE_ICON_GAP;   // …and the same air before the word as its twin
     const Palette pal = themePalette(paintingDark(), w.settings.accentColor);
-    face.glyphColor = pal.onAccent;
-    face.textColor = pal.onAccent;
+    face.glyphColor = support::skinTraits().hasGlassToggles ? pal.textMain : pal.onAccent;
+    face.textColor = face.glyphColor;
     setTipBase(w.tools.drawModeBtn, rect ? "Drawing mode: Rectangle (click to switch to Line)"
                                   : "Drawing mode: Line (click to switch to Rectangle)");
     const bool flipped =

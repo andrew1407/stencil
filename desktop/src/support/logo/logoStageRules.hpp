@@ -12,7 +12,9 @@
 
 namespace stencil::support {
 
-  enum class StageEffect { NEON, SUN, FIRE, WATER, DUST, SHRINK, GROW, FOLLOW, ESCAPE, PINK, FLY, WEBCORE };
+  enum class StageEffect { NEON, SUN, FIRE, WATER, DUST, SHRINK, GROW, FOLLOW, ESCAPE, PINK, FLY, WEBCORE, AQUA };
+  // A skin show stamps a session look on the window instead of opening a stage.
+  inline bool isSkinEffect(StageEffect e) { return e == StageEffect::WEBCORE || e == StageEffect::AQUA; }
 
   struct StageShow {
     QString name;
@@ -20,6 +22,7 @@ namespace stencil::support {
     QStringList accents;
     QString motion;      // empty = any mode
     QString customHex;   // "*" = every other custom hex
+    QString theme;       // "light" | "dark" the hold also needs; empty = either
   };
 
   struct LogoStageConfig {
@@ -62,8 +65,8 @@ namespace stencil::support {
   const LogoStageConfig& logoStageConfig();
 
   // The show a hold opens, or empty: a custom "#rrggbb" accent key picks by value, a preset by
-  // its row, and a row naming a motion mode opens only under it.
-  QString resolveShow(const QString& accentKey, MotionMode mode);
+  // its row, a row naming a motion mode opens only under it, and one naming a theme only on it.
+  QString resolveShow(const QString& accentKey, MotionMode mode, bool dark);
   const StageShow* showByName(const QString& name);
   // A styled show (firework, waterShow, dustySpot) flies its own style whatever the mode is.
   inline bool showHasOwnStyle(const QString& name) {

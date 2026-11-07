@@ -134,3 +134,18 @@ test('one signal naming several channels runs each area once; the full sweep run
   off();
   assert.deepEqual(ran, [['project', 'lines', 'list'], AREAS.map((a) => a.name)]);
 });
+
+test('the idle card arrives once: its class comes off on the end, one listener for every arrival', () => {
+  const app = makeApp();
+  const wrap = doc.getElementById('idle-create-wrap');
+  const arrive = () => { app.image = { width: 100, height: 80 }; updateButtons(app); app.image = null; updateButtons(app); };
+  arrive();
+  assert.ok(wrap.classes.has('idle-arriving'), 'a picture leaving brings the card in');
+  wrap.dispatch('animationend', { animationName: 'kwChipLeave' });
+  assert.ok(wrap.classes.has('idle-arriving'), 'another animation ending keeps it');
+  wrap.dispatch('animationend', { animationName: 'idleCardArrive' });
+  assert.ok(!wrap.classes.has('idle-arriving'), 'ended, nothing is left to replay it on a re-render');
+  arrive();
+  assert.ok(wrap.classes.has('idle-arriving'), 'a second removal plays it again');
+  assert.equal(wrap.listeners.animationend.length, 1, 'arriving again adds no listener');
+});

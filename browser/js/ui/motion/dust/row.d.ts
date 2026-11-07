@@ -13,3 +13,9 @@ export declare const makeDustToggle: (
   el: HTMLElement,
   display?: string,
 ) => (show: boolean, animate?: boolean) => void;
+
+/** Sliding / Transition's own flight of `el` in or out (no cloud); null in any other mode. */
+export declare const modeFlight: (el: HTMLElement, show: boolean, ms?: number) => Animation | null;
+
+/** Drops the flight `modeFlight` left holding on `el`. */
+export declare const cancelModeFlight: (el: HTMLElement) => void;

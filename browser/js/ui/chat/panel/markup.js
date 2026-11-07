@@ -14,7 +14,7 @@ export function chatPanelInner() {
                 <button id="chat-dock-right-btn" class="chat-hbtn chat-dock-btn" data-dock="right" data-title="Dock right — or drag the header to an edge">${icon('chevron-right', { size: 13 })}</button>
                 <button id="chat-float-btn" class="chat-hbtn chat-dock-btn" data-dock="float" data-title="Float — drag the header to move">${icon('maximize', { size: 13 })}</button>
             </span>
-            <button id="chat-close" class="chat-hbtn" data-title="Close assistant">${icon('x', { size: 13 })}</button>
+            <button id="chat-close" class="chat-hbtn" aria-label="Close assistant" data-title="Close the assistant chat">${icon('x', { size: 13 })}</button>
         </div>
         <div class="chat-transcript" id="chat-transcript">
             <div class="chat-empty" id="chat-empty">

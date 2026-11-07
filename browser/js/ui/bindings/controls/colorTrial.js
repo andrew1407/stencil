@@ -6,9 +6,22 @@ import { dismissTip } from '../../tip/controlTooltip.js';
 
 const TOUCHES = Object.freeze(['pointerdown', 'keydown']);
 
+// A field hoisted to <body> goes home on the commit or the page's next touch, both after the
+// picker has closed, so the box it hangs from never moves under it.
+const homeAfterPick = (input, restore) => {
+  const done = () => {
+    input.removeEventListener('change', done);
+    for (const t of TOUCHES) document.removeEventListener(t, done, true);
+    restore();
+  };
+  input.addEventListener('change', done);
+  for (const t of TOUCHES) document.addEventListener(t, done, true);
+};
+
 // Every native picker opens through here: laid over `anchor`, with that control's tip dropped.
 export const openColorPicker = (input, anchor) => {
-  if (anchor) anchorPickerInput(input, anchor);
+  const restore = anchor ? anchorPickerInput(input, anchor) : null;
+  if (restore) homeAfterPick(input, restore);
   dismissTip();
   try {
     if (typeof input.showPicker === 'function') input.showPicker();

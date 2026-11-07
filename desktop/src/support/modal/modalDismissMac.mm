@@ -160,8 +160,10 @@ namespace stencil::support {
 
         // A child of the dialog (dies with it, worksWhenModal for free); frameless, translucent,
         // never activating; over the app's own window, re-anchored as the dialog is dragged.
-        auto* backdrop = new QWidget(dlg, Qt::Tool | Qt::FramelessWindowHint
-                                              | Qt::NoDropShadowWindowHint);
+        // Never focusable: a clicked panel became the key window, and for the beat before the queued reject
+        // the dialog redrew as inactive under it — the blink every outside click closed with.
+        auto* backdrop = new QWidget(dlg, Qt::Tool | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint
+                                              | Qt::WindowDoesNotAcceptFocus);
         backdrop->setObjectName(QString::fromLatin1(MODAL_CATCHER_NAME));
         backdrop->setAttribute(Qt::WA_TranslucentBackground);
         backdrop->setAttribute(Qt::WA_NoSystemBackground);
@@ -184,6 +186,7 @@ namespace stencil::support {
           // A tool panel leaves with the app and comes back on its own, re-stacked: switching away and
           // back flashed the screen. It stays put, and lets clicks through while another app is up.
           bv.window.hidesOnDeactivate = NO;
+          if ([bv.window isKindOfClass:[NSPanel class]]) ((NSPanel*)bv.window).becomesKeyOnlyIfNeeded = YES;
           QObject::connect(qApp, &QGuiApplication::applicationStateChanged, bdP,
                            [bdP](Qt::ApplicationState state) {
                              if (!bdP) return;

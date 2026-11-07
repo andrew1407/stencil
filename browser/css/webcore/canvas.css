@@ -1,9 +1,6 @@
 /* The webcore skin's scrollbars (the page's and the canvas's own) and the canvas in its frame:
    the sunken viewport, the info bar and the toolbar captions. */
 /* ── Scrollbars: the grey track, a raised thumb ── */
-/* scrollbar-width/-color back to auto: set, they make Chrome ignore every pseudo-element below,
-   and the base sheet's face-grey thumb vanished on a face-grey dialog. */
-:root[data-skin="webcore"] * { scrollbar-width: auto; scrollbar-color: auto; }
 :root[data-skin="webcore"] *::-webkit-scrollbar { width: 16px; height: 16px; }
 :root[data-skin="webcore"] *::-webkit-scrollbar-track,
 :root[data-skin="webcore"] *::-webkit-scrollbar-corner {
@@ -67,3 +64,6 @@
 /* A toolbar caption is a caption, not a disabled control: grey reads as greyed-out in this skin,
    so it takes the ink the desktop's QToolBar labels do. !important because the colour is inline. */
 :root[data-skin="webcore"] .ctrl-section-row :is(label, span)[style*="--text-muted"] { color: var(--wc-ink) !important; }
+
+/* A drag's targets glow in the chosen colour; the skin's own bevels outrank the plain class. */
+:root[data-skin="webcore"] .icon-drop-target { box-shadow: var(--drop-glow) !important; }

@@ -1,6 +1,8 @@
 // The chat card's own chrome: its role and plain labels, the speech-bubble tail that points back at
 // the speaker, and the ⋯ button that rides the card's top-right corner inside the scroller.
 #include "chatWidgets.hpp"
+#include "../../support/motion/scrollReveal.hpp"
+#include "../../support/skin/SkinLookStrategy.hpp"
 
 #include <QFrame>
 #include <QLabel>
@@ -64,17 +66,17 @@ namespace stencil::gui {
     update();
   }
 
-  void ChatBubbleTail::setSide(bool right) {
-    if (this->right == right) return;
-    this->right = right;
+  void ChatBubbleTail::setSide(bool isOnRight) {
+    if (this->isOnRight == isOnRight) return;
+    this->isOnRight = isOnRight;
     update();
   }
 
   // Right-angle vertex `shift` px diagonally out from the bubble's corner; `leg` px legs.
-  static QPainterPath tailTriangle(bool right, qreal leg, qreal shift, qreal boxW) {
+  static QPainterPath tailTriangle(bool isOnRight, qreal leg, qreal shift, qreal boxW) {
     const qreal y = TAIL_FILL_LEG + shift;
     QPainterPath path;
-    if (right) {
+    if (isOnRight) {
       path.moveTo(shift, y - leg);
       path.lineTo(shift, y);
       path.lineTo(shift + leg, y);
@@ -89,14 +91,15 @@ namespace stencil::gui {
   }
 
   void ChatBubbleTail::paintEvent(QPaintEvent*) {
+    if (!support::skinTraits().hasChatTail) return;   // browser css/webcore/chat.css: a well has no tail
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing);
     p.setPen(Qt::NoPen);
     p.translate(TAIL_PAD, TAIL_PAD);
     p.setBrush(border);
-    p.drawPath(tailTriangle(right, TAIL_LEG, TAIL_SHIFT, TAIL_W));
+    p.drawPath(tailTriangle(isOnRight, TAIL_LEG, TAIL_SHIFT, TAIL_W));
     p.setBrush(fill);
-    p.drawPath(tailTriangle(right, TAIL_FILL_LEG, 0, TAIL_W));
+    p.drawPath(tailTriangle(isOnRight, TAIL_FILL_LEG, 0, TAIL_W));
   }
 
   static void placeChatBubbleTailAt(QFrame* card, ChatBubbleTail* tail) {
@@ -104,9 +107,11 @@ namespace stencil::gui {
     // QRect::right() is x()+width()-1; left() is the true edge, so it needs its own +1.
     const int left = (tail->isRight() ? g.right() : g.left() - TAIL_W + 1) - TAIL_PAD;
     tail->move(left, g.bottom() - TAIL_FILL_LEG - TAIL_PAD);
+    // A card still arriving is hidden behind its flight: its tail waits with it (settle() re-places them).
+    tail->setVisible(!card->property(ScrollReveal::ENTERING_PROPERTY).toBool());
   }
 
-  void placeChatBubbleTail(QFrame* card, const QColor& fill, const QColor& border, bool right) {
+  void placeChatBubbleTail(QFrame* card, const QColor& fill, const QColor& border, bool isOnRight) {
     if (!card) return;
     QWidget* host = card->parentWidget();
     if (!host) return;
@@ -122,9 +127,8 @@ namespace stencil::gui {
       });
     }
     tail->setColors(fill, border);
-    tail->setSide(right);
+    tail->setSide(isOnRight);
     placeChatBubbleTailAt(card, tail);
-    tail->show();
     tail->raise();
   }
 
@@ -155,10 +159,10 @@ namespace stencil::gui {
     }
     // The side the card actually renders on; falls back to the unswapped rule without it.
     const QVariant onRight = card->property(CHAT_ON_RIGHT_PROPERTY);
-    const bool right = onRight.isValid() ? onRight.toBool()
+    const bool isOnRight = onRight.isValid() ? onRight.toBool()
                                          : card->objectName() == QLatin1String("chatCardUser");
     const QRect g = card->geometry();
-    int x = right ? g.left() - more->width() - 6 : g.right() + 7;
+    int x = isOnRight ? g.left() - more->width() - 6 : g.right() + 7;
     int y = g.bottom() - more->height() + 1;
     if (scroll && scroll->viewport()) {
       // The viewport in content coordinates, intersected with the content widget's OWN rect: that

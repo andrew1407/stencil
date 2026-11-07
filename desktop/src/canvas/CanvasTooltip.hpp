@@ -1,4 +1,5 @@
 #pragma once
+#include <QDeadlineTimer>
 #include <QFrame>
 #include <QPoint>
 #include <QString>
@@ -27,17 +28,22 @@ namespace stencil::gui {
     // tooltip.js position(): offset +15, flip when overflowing, clamp to >= 10).
     void showAt(const QPoint& globalCursor);
 
+    // The animated hide, in the current motion mode (browser tooltip.js hide()); idempotent. A bare
+    // QWidget::hide() skips it, so every hover path that retires the tip calls this.
+    void dismiss() { hideTip(); }
+
    private:
     // Fade/dust out then hide (idempotent). The way back in lives in showAt().
     void hideTip();
     // Fly the tip's own motes out of / back into the point it appeared at. Measured in the top-level
     // window's coords so escapeHost can carry the cloud past it. False -> the caller plain-fades.
-    bool dust(bool gather);
+    bool dust(bool shouldGather);
 
     QLabel* body = nullptr;
     QVariantAnimation* fade = nullptr;
     QPoint lastCursor;      // where the dust flies out of / back into
     bool closing = false;   // fade is mid fade-OUT; its finished handler should hide()
+    QDeadlineTimer moveHold{0};   // moves are refused until its entrance lands where it aimed
   };
 
 }

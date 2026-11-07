@@ -35,6 +35,9 @@ namespace stencil::gui {
     QToolButton* closeBtn = nullptr;
     QList<QToolButton*> dockBtns;
   };
+  // Aqua: the close light and the dock lights lead, the title trails (browser css/aqua/windows.css);
+  // otherwise the title leads (ChatDockChrome.cpp).
+  void arrangeChatTitleBar(const ChatTitleBarParts& parts, bool aqua);
 
   struct ChatComposerParts {
     QWidget* dropCue = nullptr;

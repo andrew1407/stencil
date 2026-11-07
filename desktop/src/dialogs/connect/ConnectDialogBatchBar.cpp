@@ -43,10 +43,8 @@ namespace stencil::gui {
                        [this](bool on) { emit syncToServerToggled(on); });
       checks->addWidget(syncToServer);
       checks->addStretch(1);
-      root->addLayout(checks);
+      root->addWidget(modalRow(this, QString(), checks));   // its hairline is the section's rule
     }
-
-    root->addWidget(modalDivider(this));
 
     {
       auto* head = new QHBoxLayout;

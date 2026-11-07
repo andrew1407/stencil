@@ -15,10 +15,14 @@ export const TOAST_TEXT = LOGO_STAGE.toast;
 const ROAMING = new Set(['follow', 'escape', 'fly']);
 
 export const effectOf = (name) => SHOWS[name]?.effect ?? null;
+// The effects that stamp a session skin on the page rather than open a stage; one at a time.
+export const SKINS = new Set(['webcore', 'aqua']);
+export const isSkin = (name) => SKINS.has(effectOf(name));
 
 // A custom accent picks by its hex ('*' = every other one); a preset by its row, and a row with a
-// `motion` opens only under that mode (grey: dustySpot moving, webcore still). null = nothing.
-export const resolveShow = (accentKey, customHex, motionMode) => {
+// `motion` opens only under that mode (grey: dustySpot moving, webcore still), a row with a
+// `theme` only on that face ('light' | 'dark'; blue sliding on light: the aqua skin). null = nothing.
+export const resolveShow = (accentKey, customHex, motionMode, theme = null) => {
   const hex = typeof customHex === 'string' ? customHex.trim().toLowerCase() : '';
   if (hex) {
     return SHOW_NAMES.find((n) => SHOWS[n].customHex === hex)
@@ -26,7 +30,8 @@ export const resolveShow = (accentKey, customHex, motionMode) => {
   }
   return SHOW_NAMES.find((n) => {
     const show = SHOWS[n];
-    return (show.accents || []).includes(accentKey) && (!show.motion || show.motion === motionMode);
+    return (show.accents || []).includes(accentKey) && (!show.motion || show.motion === motionMode)
+      && (!show.theme || show.theme === theme);
   }) ?? null;
 };
 
@@ -38,7 +43,7 @@ export const resolveShow = (accentKey, customHex, motionMode) => {
 const LIGHT_ONLY = new Set(['neon', 'sun']);
 export const showStyle = (name, currentStyle = null) => {
   const show = SHOWS[name];
-  if (!show || show.effect === 'webcore') return null;   // a skin toggle opens no stage
+  if (!show || SKINS.has(show.effect)) return null;   // a skin toggle opens no stage
   if (show.motion) return show.effect;
   return LIGHT_ONLY.has(show.effect) ? null : currentStyle;
 };

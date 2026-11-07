@@ -17,6 +17,7 @@ namespace stencil::support {
     int previewHoverMs = 280;   // DEBOUNCE.previewHoverMs: a rested hover previews
     int doubleClickMs = 250;    // POPOVER.doubleClickMs: a plain click waits this long for a second
     int doubleTapMs = 350;      // POPOVER.doubleTapMs: a second tap (or ~ press) inside it is a double
+    int longPressMs = 500;      // POPOVER.longPressMs: a press held this long opens the control's menu
     int pressSlopPx = 10;       // POPOVER.pressSlopPx: px a held press may drift
     int lingerCloseMs = 250;    // POPOVER.lingerCloseMs: a peek released inside outlasts a leave by this
   };
@@ -34,6 +35,7 @@ namespace stencil::support {
       out.previewHoverMs = num("DEBOUNCE", "previewHoverMs", out.previewHoverMs);
       out.doubleClickMs = num("POPOVER", "doubleClickMs", out.doubleClickMs);
       out.doubleTapMs = num("POPOVER", "doubleTapMs", out.doubleTapMs);
+      out.longPressMs = num("POPOVER", "longPressMs", out.longPressMs);
       out.pressSlopPx = num("POPOVER", "pressSlopPx", out.pressSlopPx);
       out.lingerCloseMs = num("POPOVER", "lingerCloseMs", out.lingerCloseMs);
       return out;

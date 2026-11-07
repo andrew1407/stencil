@@ -577,7 +577,7 @@
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
         "gap": "10px",
-        "width": "393.1px",
+        "width": "414px",
         "height": "16px",
         "align-items": "center"
       }
@@ -608,7 +608,7 @@
         "border-color": "rgb(0, 0, 0)",
         "font-size": "14px",
         "font-family": "Arial, sans-serif",
-        "width": "368.1px",
+        "width": "389px",
         "height": "16px"
       },
       "text": "Edit without saving — the image is never written to storage."

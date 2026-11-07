@@ -4,8 +4,9 @@
 #include "modalRevealParts.hpp"
 #include "../genie/GenieGhost.hpp"
 
-#include <QToolBar>
 
+#include <algorithm>
+#include <climits>
 #include <optional>
 
 namespace stencil::support {
@@ -36,6 +37,21 @@ namespace stencil::support {
     return genie::fly(host, shot, win, icon, opening, own, std::move(done));
   }
 
+  // An icon's centre x (GLOBAL) while it is on its window; INT_MIN once a folded row has moved it off.
+  int anchorX(const QWidget* anchor, const QWidget* host) {
+    if (!anchor || !host) return INT_MIN;
+    const int x = anchor->mapToGlobal(QPoint(anchor->width() / 2, 0)).x();
+    const QRect box(host->mapToGlobal(QPoint(0, 0)), host->size());
+    return x >= box.left() && x <= box.right() ? x : INT_MIN;
+  }
+  // The strip of the window's top edge at `x` (mid-window for INT_MIN), never off it: where a close goes
+  // once the icon's row folds away.
+  QRect edgeAbove(int x, const QWidget* host) {
+    const QRect box(host->mapToGlobal(QPoint(0, 0)), host->size());
+    const int lo = box.left() + 12, hi = std::max(lo, box.right() - 12);
+    return QRect(std::clamp(x == INT_MIN ? box.center().x() : x, lo, hi) - 4, box.top(), 8, 2);
+  }
+
   void flyWindow(QWidget& w, QWidget* anchor, bool opening, std::function<void()> after,
                  const QRect& from = QRect()) {
     QPointer<QWidget> guard(&w);
@@ -47,9 +63,10 @@ namespace stencil::support {
     QWidget* host = anchor ? anchor->window() : nullptr;
     const QRect target(w.mapToGlobal(QPoint(0, 0)), w.size());
     settleLayout(w);
-    const QPixmap shot = w.grab();
+    const QPixmap shot = ModalBackdrop::cleanShot(&w);
     if (!host || !target.isValid() || shot.isNull()) return land();
-    const QRect icon = from.isValid() ? from : originRect(anchor, target, QRect(), host);
+    QRect icon = from.isValid() ? from : originRect(anchor, target, QRect(), host);
+    if (!opening && !from.isValid() && gui::toolbarAway(anchor)) icon = edgeAbove(anchorX(anchor, host), host);
     if (icon == target) return land();
     const QRect start = opening ? icon : target;
     const QRect to = opening ? target : icon;
@@ -69,14 +86,6 @@ namespace stencil::support {
              opening ? 0.0 : 1.0, opening ? 1.0 : 0.0, opening ? openEase() : closeEase(), landed);
   }
 
-  // Its tool row out of sight (folded, or fullscreen's bars slid away): the close rises to the top
-  // edge, as an open from a hidden row falls from it (browser modal/imageAnchor.js toolbarAway).
-  bool toolbarAway(QWidget* anchor) {
-    for (QWidget* w = anchor; w; w = w->parentWidget())
-      if (auto* bar = qobject_cast<QToolBar*>(w)) return !bar->isVisible() || bar->height() < 1;
-    return false;
-  }
-
   // Parented to the dialog; fires once — a dialog can be hidden again on its way to
   // destruction, and a second flight would fly an already-landed ghost.
   class CloseFlight : public QObject {
@@ -86,7 +95,8 @@ namespace stencil::support {
                 std::function<QRect(bool)> closeRectFor = {})
         : QObject(dlg), dlg(dlg), anchor(std::move(anchor)),
           anchorRect(anchorRect), closeRect(closeRect), closeRectFor(std::move(closeRectFor)),
-          shot(std::move(shot)), fromAbove(!this->anchor && !anchorRect.isValid()) {}
+          shot(std::move(shot)), fromAbove(!this->anchor && !anchorRect.isValid()),
+          openX(anchorX(this->anchor.data(), this->anchor ? this->anchor->window() : nullptr)) {}
 
    protected:
     bool eventFilter(QObject* watched, QEvent* event) override {
@@ -108,7 +118,7 @@ namespace stencil::support {
       QWidget* host = hostFor(*dlg);
       // Re-photograph NOW (grab() renders a hidden widget): the open-time shot is stale
       // once the content changed; it is only the fallback for a render that yields nothing.
-      QPixmap shot = dlg->grab();
+      QPixmap shot = ModalBackdrop::cleanShot(dlg);
       if (shot.isNull() && this->shot) shot = *this->shot;
       if (!host || !target.isValid() || shot.isNull()) return;
       // done() sets the result before the hide this runs on, so the outcome is already known.
@@ -116,9 +126,11 @@ namespace stencil::support {
       if (!outcome.isValid()) outcome = closeRect;
       QRect to = outcome.isValid() ? outcome
                                    : originRect(anchor.data(), target, anchorRect, host);
+      if (!outcome.isValid() && anchor && gui::toolbarAway(anchor.data()))
+        to = edgeAbove(openX != INT_MIN ? openX : anchorX(anchor.data(), host), host);
       // An opener gone by close time pours into the canvas; one that fell from above rises back.
       if (!outcome.isValid() && !fromAbove && !anchorOnScreen(anchor.data(), anchorRect)
-          && !toolbarAway(anchor.data())) {
+          && !gui::toolbarAway(anchor.data())) {
         const QRect home = canvasHomeRect(host);
         if (home.isValid()) to = home;
       }
@@ -138,6 +150,7 @@ namespace stencil::support {
     std::function<QRect(bool)> closeRectFor;
     std::shared_ptr<QPixmap> shot;
     bool fromAbove = false;   // no icon and no rect at open: the flight fell from the window's top
+    int openX = INT_MIN;      // the icon's x as the dialog opened, while its row was still on the window
     bool flown = false;
   };
 
@@ -178,7 +191,7 @@ namespace stencil::support {
         const QRect target(guard->mapToGlobal(QPoint(0, 0)), guard->size());
         QWidget* host = hostFor(*guard);
         settleLayout(*guard);   // the scrollbar in, before the photograph
-        const QPixmap shot = guard->grab();
+        const QPixmap shot = ModalBackdrop::cleanShot(guard);
         *shotWhileOpen = shot;
         if (!host || !target.isValid() || shot.isNull()) { restore(); return; }
         const QVariant landing = guard->property(LANDING_PROPERTY);

@@ -1,0 +1,271 @@
+{
+ "_doc": "The aqua skin: the session-only early-2000s gel-and-pinstripe look the `someFruitCompany` cheat word (logoStage.json) toggles on the browser, the desktop and the extension. `tokens` are the CSS custom properties css/aqua/tokens.css declares (the stylesheet is the source of truth; tests/config/aqua.test.js pins this copy against it) and the desktop's aquaPalette reads them over the qrc alias. `aliases` are the base theme tokens the skin points at one of those (the same sheet, the same pin), which the desktop fills its sheet with in their place. `tint` is how the accent paints the gel: each token is the chosen accent mixed in sRGB toward its colour by its share (0 = the accent itself), `--aq-on-select` is the accent's on-colour over `--aq-select` and `--aq-on-gel` the one over the gel's deep half (`--aq-gel-bottom`), both by accents.js onAccentInk; the `tokens` above are that recipe over `base`, the Blue preset, the face before any accent is painted. `image` is the wallpaper the word paints when no image is loaded, on an integer `cell`-px grid so the two painters agree pixel for pixel: `ramp` is the base blue in equal bands top to bottom, and every swoosh a parabola of `span` cells from column `x0`, its crest `amp` cells above row `base`, `width` cells deep, painted later over earlier, its first and last `edge` rows a checker of `edgeColor` over what lies beneath. `word` is the STENCIL glyphs of webcore.json `word` in this skin's colours, laid `widthShare` wide and centred on `centerYShare` of the height.",
+ "tokens": {
+  "light": {
+   "--aq-face": "#ececec",
+   "--aq-stripe": "#f6f6f6",
+   "--aq-window": "#ffffff",
+   "--aq-edge": "#8e8e8e",
+   "--aq-metal-top": "#e2e2e2",
+   "--aq-metal-bottom": "#b4b4b4",
+   "--aq-glass-top": "#fefefe",
+   "--aq-glass-bottom": "#d4d4d4",
+   "--aq-gel-hi": "#cfddfb",
+   "--aq-gel-top": "#719af2",
+   "--aq-gel-bottom": "#2563eb",
+   "--aq-gel-edge": "#1943a0",
+   "--aq-select": "#2563eb",
+   "--aq-on-select": "#ffffff",
+   "--aq-on-gel": "#ffffff",
+   "--aq-ink": "#000000",
+   "--aq-muted": "#6d6d6d",
+   "--aq-desktop": "#2c63bf",
+   "--aq-canvas": "#b8bcc3",
+   "--aq-red": "#ec4b3c",
+   "--aq-yellow": "#f6b62c",
+   "--aq-green": "#49b83a",
+   "--aq-tip-bg": "#ffffc7",
+   "--aq-tip-ink": "#000000",
+   "--aq-link": "#1e51c1",
+   "--aq-focus": "#7ca1f3"
+  },
+  "dark": {
+   "--aq-face": "#2d3036",
+   "--aq-stripe": "#33363c",
+   "--aq-window": "#1e2024",
+   "--aq-edge": "#6e747e",
+   "--aq-metal-top": "#555a63",
+   "--aq-metal-bottom": "#2a2d33",
+   "--aq-glass-top": "#6c727c",
+   "--aq-glass-bottom": "#40454d",
+   "--aq-gel-hi": "#9db9f6",
+   "--aq-gel-top": "#467aee",
+   "--aq-gel-bottom": "#1d4db7",
+   "--aq-gel-edge": "#112d6a",
+   "--aq-select": "#1e4fbc",
+   "--aq-on-select": "#ffffff",
+   "--aq-on-gel": "#ffffff",
+   "--aq-ink": "#e8e8e8",
+   "--aq-muted": "#9aa0a8",
+   "--aq-desktop": "#142c5c",
+   "--aq-canvas": "#16181b",
+   "--aq-red": "#d8463a",
+   "--aq-yellow": "#d9a227",
+   "--aq-green": "#3f9e33",
+   "--aq-tip-bg": "#3a3a24",
+   "--aq-tip-ink": "#fffbd0",
+   "--aq-link": "#87a9f4",
+   "--aq-focus": "#719af2"
+  }
+ },
+ "aliases": {
+  "--accent": "--aq-select",
+  "--accent-2": "--aq-gel-bottom",
+  "--on-accent": "--aq-on-select",
+  "--dust-ink": "--aq-ink",
+  "--dust-accent": "--aq-focus",
+  "--bg-page": "--aq-desktop",
+  "--bg-container": "--aq-face",
+  "--bg-controls": "--aq-face",
+  "--bg-info": "--aq-face",
+  "--bg-coord-panel": "--aq-face",
+  "--bg-coord-table": "--aq-window",
+  "--bg-coord-even": "--aq-stripe",
+  "--bg-coord-hover": "--aq-gel-hi",
+  "--bg-coord-th": "--aq-face",
+  "--bg-tooltip": "--aq-tip-bg",
+  "--bg-tt-th": "--aq-face",
+  "--bg-tt-td": "--aq-tip-bg",
+  "--bg-sel-panel": "--aq-face",
+  "--bg-drop-hint": "--aq-face",
+  "--bg-keywords": "--aq-window",
+  "--border-main": "--aq-edge",
+  "--border-canvas": "--aq-edge",
+  "--border-coord": "--aq-edge",
+  "--border-tooltip": "--aq-edge",
+  "--border-sel": "--aq-edge",
+  "--bg-sel-btn": "--aq-glass-top",
+  "--bg-sel-btn-hov": "--aq-gel-hi",
+  "--text-sel-btn": "--aq-ink",
+  "--border-hint": "--aq-edge",
+  "--text-main": "--aq-ink",
+  "--text-label": "--aq-ink",
+  "--text-muted": "--aq-muted",
+  "--section-title": "--aq-ink",
+  "--ui-outline": "--aq-edge",
+  "--text-info": "--aq-ink",
+  "--text-coord-h3": "--aq-ink",
+  "--text-sel-label": "--aq-ink",
+  "--text-shortcut": "--aq-muted",
+  "--text-key": "--aq-link",
+  "--text-empty": "--aq-muted",
+  "--project-name-fg": "--aq-ink",
+  "--text-tooltip": "--aq-tip-ink",
+  "--text-tt-header": "--aq-tip-ink",
+  "--input-bg": "--aq-window",
+  "--input-text": "--aq-ink",
+  "--danger": "--aq-red",
+  "--success": "--aq-green",
+  "--warning": "--aq-yellow",
+  "--disabled-bg": "--aq-face",
+  "--disabled-text": "--aq-muted",
+  "--sb-track": "--aq-stripe",
+  "--sb-thumb": "--aq-gel-top",
+  "--sb-thumb-hover": "--aq-gel-bottom",
+  "--sb-thumb-active": "--aq-gel-bottom",
+  "--resizer-grip": "--aq-edge"
+ },
+ "tint": {
+  "base": "#2563eb",
+  "light": {
+   "--aq-gel-hi": [
+    "#ffffff",
+    0.78
+   ],
+   "--aq-gel-top": [
+    "#ffffff",
+    0.35
+   ],
+   "--aq-gel-bottom": [
+    "#ffffff",
+    0
+   ],
+   "--aq-gel-edge": [
+    "#000000",
+    0.32
+   ],
+   "--aq-select": [
+    "#ffffff",
+    0
+   ],
+   "--aq-focus": [
+    "#ffffff",
+    0.4
+   ],
+   "--aq-link": [
+    "#000000",
+    0.18
+   ],
+   "--aq-desktop": [
+    "#41633b",
+    0.25
+   ]
+  },
+  "dark": {
+   "--aq-gel-hi": [
+    "#ffffff",
+    0.55
+   ],
+   "--aq-gel-top": [
+    "#ffffff",
+    0.15
+   ],
+   "--aq-gel-bottom": [
+    "#000000",
+    0.22
+   ],
+   "--aq-gel-edge": [
+    "#000000",
+    0.55
+   ],
+   "--aq-select": [
+    "#000000",
+    0.2
+   ],
+   "--aq-focus": [
+    "#ffffff",
+    0.35
+   ],
+   "--aq-link": [
+    "#ffffff",
+    0.45
+   ],
+   "--aq-desktop": [
+    "#0d141f",
+    0.7
+   ]
+  }
+ },
+ "font": {
+  "families": [
+   "Lucida Grande",
+   "Helvetica Neue",
+   "Helvetica",
+   "Arial",
+   "sans-serif"
+  ],
+  "px": 13,
+  "pt": 10
+ },
+ "image": {
+  "width": 1024,
+  "height": 768,
+  "cell": 2,
+  "ramp": [
+   "#0d2f7a",
+   "#123a8c",
+   "#17459c",
+   "#1d51ab",
+   "#245db8",
+   "#2c69c3",
+   "#3474cb",
+   "#3a7cd0",
+   "#3576c8",
+   "#2d6bbd",
+   "#2560b0",
+   "#1d54a2"
+  ],
+  "swooshes": [
+   {
+    "x0": -60,
+    "span": 640,
+    "base": 330,
+    "amp": 150,
+    "width": 26,
+    "edge": 3,
+    "color": "#5d9be6",
+    "edgeColor": "#4a8ad9"
+   },
+   {
+    "x0": 40,
+    "span": 600,
+    "base": 360,
+    "amp": 120,
+    "width": 18,
+    "edge": 2,
+    "color": "#7fb4f0",
+    "edgeColor": "#5f9de4"
+   },
+   {
+    "x0": 140,
+    "span": 520,
+    "base": 384,
+    "amp": 96,
+    "width": 12,
+    "edge": 2,
+    "color": "#a6cdf7",
+    "edgeColor": "#7fb4ef"
+   }
+  ]
+ },
+ "word": {
+  "stroke": "#0b2a6e",
+  "thickness": 3,
+  "colors": [
+   "#2f7fe0",
+   "#7d8a99",
+   "#3cc4e0",
+   "#7ccf3a",
+   "#ff9a1f",
+   "#ff4f6a",
+   "#9a5be0"
+  ],
+  "widthShare": 0.8,
+  "centerYShare": 0.3
+ },
+ "strings": {
+  "off": "Aqua off — your own look is back",
+  "project": "somefruitcompany",
+  "imageName": "somefruitcompany.png"
+ }
+}

@@ -1,5 +1,6 @@
 import type { StagePoint } from '../../lib/logo/stageRules.js';
 export declare const OFF_TOAST: string;
+export declare const AQUA_OFF_TOAST: string;
 /** Every show this page can run: the browser's list without the image-painting pink one. */
 export declare const PAGE_SHOWS: readonly string[];
 export declare const showActive: (name: string) => boolean;

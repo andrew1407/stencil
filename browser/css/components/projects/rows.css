@@ -26,10 +26,11 @@
 /* z-index must clear the modal overlay (100001). */
 .project-thumb-zoom {
     position: fixed; z-index: 100002; display: none; pointer-events: none;
-    padding: 4px; background: var(--input-bg); border-radius: 8px;
-    border: 2px solid var(--accent); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+    padding: 0; background: var(--input-bg); border-radius: 0;   /* the picture edge to edge in one hairline */
+    border: 1px solid var(--border-main); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
     /* positionZoom pins the box per move; the clip covers a picture not yet shrunk. */
     overflow: hidden;
+    transform-origin: left top;   /* Transition's grow (motion/control/tips.js): it sits below-right of the pointer */
 }
 /* A glance, not a lightbox: quarter width / fifth height keep the list readable; `width: auto`
    lets the height cap bind on portraits. */
@@ -107,3 +108,9 @@
 .project-to-server:hover, .project-to-local:hover { color: var(--remote-gold); border-color: var(--remote-gold); }
 .project-to-server:disabled, .project-to-local:disabled { opacity: 0.6; cursor: default; }
 
+/* Transition: a row leaves out the list's left edge and an arrival slides in from it, the way Sliding pours
+   them (projects/list/rowMotion.js); the list clips both. */
+:root[data-motion="transition"] #projects-list > .leaving { animation-name: rowSlideLeave; }
+:root[data-motion="transition"] #projects-list > .leaving.leave-hold { animation-name: rowSlideAway; }
+:root[data-motion="transition"] #projects-list > .materializing { animation-name: rowSlideIn; }
+:root[data-motion="transition"] #projects-list > .materializing.materialize-in-place { animation-name: rowSlideInPlace; }

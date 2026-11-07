@@ -84,3 +84,8 @@
         background: %ACCENT%; border-color: %ACCENT%; image: url(%TICK_IMG%);
       }
 
+      /* Browser #zoom-input: a typed number, its presets opening on focus; no arrow, bold, the "%" its own word. */
+      QComboBox#zoomCombo { font-weight: bold; font-size: 13px; }
+      QComboBox#zoomCombo::drop-down { width: 0px; margin: 0px; border: 0px; }
+      QComboBox#zoomCombo::down-arrow { image: none; width: 0px; }
+      QLabel#zoomPctLabel { color: %MUTED%; font-weight: bold; font-size: 13px; background: transparent; }

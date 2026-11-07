@@ -61,6 +61,7 @@ namespace stencil::gui {
     QScrollArea* scroll = nullptr;
     QWidget* chipArea = nullptr;
     FlowLayout* flow = nullptr;
+    bool animate = false;   // off for the constructor's own build
   };
 
 }  // namespace stencil::gui

@@ -4,8 +4,10 @@ import { makeDustStage } from '../motion/dust/canvasDustStage.js';
 import { runDust } from '../motion/dust/canvasDustDraw.js';
 import { GHOST_MS } from '../motion/dust/canvasDustGrid.js';
 import { dustEnabled, motionMs } from '../motion/motionPrefs.js';
+import { flyMedia, cancelMediaFlight } from './previewGenie.js';
 
-export function createPreviewDust({ img, video, isVideo, sourceKey }) {
+// `origin`: the control the picture pours out of and back into (Choose File, or Preview).
+export function createPreviewDust({ img, video, isVideo, sourceKey, origin = () => null }) {
   // ghostIn IDENTICAL (motion/control/canvasFx.js). Plays ONCE per source ever seen this session.
   const animatedSources = new Set();
   // A departure ALWAYS has an arrival: the old picture blowing away and the new one
@@ -17,11 +19,17 @@ export function createPreviewDust({ img, video, isVideo, sourceKey }) {
   };
   const preVeilIfNew = (el) => { if (willFly()) el.style.opacity = '0'; };
 
-  let swapTimer = 0;
+  let swapTimer = 0, flightMs = GHOST_MS;
   // Decoration only: a taint or a zero-sized box must never leave the media veiled.
   let ghostStage = null, ghostTimer = 0;
+  // Returns the length of a Sliding / Transition flight (ms), 0 for none.
   const dustOver = (el, size, gathering) => {
-    if (!dustEnabled() || !size.width || !size.height) { el.style.opacity = ''; return; }
+    if (!dustEnabled() || !size.width || !size.height) {
+      el.style.opacity = '';
+      const ms = flyMedia(el, origin(), gathering);
+      if (!ms && !gathering) el.style.opacity = '0';
+      return ms;
+    }
     try {
       const st = makeDustStage(el, size);
       if (!st) { el.style.opacity = ''; return; }
@@ -45,15 +53,15 @@ export function createPreviewDust({ img, video, isVideo, sourceKey }) {
   };
   // The picture goes NOW and its cloud carries it out, so whatever lands next flies in too.
   const scatter = (el, size) => {
-    el.style.opacity = '0';
-    dustOver(el, size, false);
+    if (dustEnabled()) { el.style.opacity = '0'; flightMs = GHOST_MS; dustOver(el, size, false); }
+    else flightMs = dustOver(el, size, false) || 0;
     arrivalDue = true;
   };
   // The arrival starts only once the departure has landed: run together, the two
   // clouds share one host and the second wipes the first off it.
   const queueArrival = (fn) => {
     clearTimeout(swapTimer);
-    swapTimer = setTimeout(() => { swapTimer = 0; fn(); }, motionMs(GHOST_MS));
+    swapTimer = setTimeout(() => { swapTimer = 0; fn(); }, motionMs(flightMs));
   };
 
   // The stage is a canvas over the media, so the overlay's sweepDust never reaches it: left
@@ -63,6 +71,7 @@ export function createPreviewDust({ img, video, isVideo, sourceKey }) {
     clearTimeout(ghostTimer);
     clearTimeout(swapTimer);
     ghostTimer = swapTimer = 0;
+    cancelMediaFlight(img()); cancelMediaFlight(video());
     img().style.opacity = video().style.opacity = '';
   };
   const reset = () => { animatedSources.clear(); arrivalDue = false; };

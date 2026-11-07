@@ -40,10 +40,12 @@ class MainWindowGuiTest : public QObject {
     QLabel* body = tip->findChild<QLabel*>();
     QVERIFY(body && !body->text().isEmpty());
 
-    // Leaving the control fades it OUT — still visible while it goes, gone at the end.
+    // Leaving the control keeps it up across the gap to a next one (AppTooltip::LEAVE_GRACE_MS), then fades
+    // it OUT — still visible while it goes, gone at the end.
     QEvent leave(QEvent::Leave);
     QApplication::sendEvent(btn, &leave);
-    QVERIFY2(tip->fadingOut(), "it vanished instead of fading");
+    QVERIFY2(tip->isVisible() && !tip->fadingOut(), "it went before the pointer could reach a next control");
+    QTRY_VERIFY2_WITH_TIMEOUT(tip->fadingOut(), "it vanished instead of fading", 1000);
     QTRY_VERIFY_WITH_TIMEOUT(!tip->isVisible(), 1500);
 
     // Reduced motion: shown solid at once, hidden at once — the same end states.
@@ -52,7 +54,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(tip->isVisible());
     QCOMPARE(tip->windowOpacity(), 1.0);
     QApplication::sendEvent(btn, &leave);
-    QVERIFY2(!tip->isVisible(), "reduced motion still played the fade-out");
+    QTRY_VERIFY_WITH_TIMEOUT(!tip->isVisible(), stencil::gui::AppTooltip::LEAVE_GRACE_MS + 200);
+    QVERIFY2(!tip->fadingOut(), "reduced motion still played the fade-out");
     qunsetenv("STENCIL_NO_ANIM");
     beat();
   }

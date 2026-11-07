@@ -1,6 +1,6 @@
 // A row arriving/leaving on the KEYWORD-CHIP recipe (tiles.js CHIP_*): the particles carry
 // the line while the row's height slides under them. Desktop twin: slideCropDims.
-import { motionMs, motionReduced } from '../motionPrefs.js';
+import { motionMode, motionMs, motionReduced } from '../motionPrefs.js';
 import { disintegrate } from '../disintegrate.js';
 import { speckPainter } from '../surface/painters.js';
 import { BOX_RESIZE_MS } from '../easeBoxHeight.js';
@@ -8,6 +8,27 @@ import { CHIP_MOTE_PX, CHIP_DUST_MS, CHIP_DUST_DRIFT, chipGrid } from '../surfac
 
 export const CHIP_DUST = Object.freeze({ ms: CHIP_DUST_MS, drift: CHIP_DUST_DRIFT,
                                          px: CHIP_MOTE_PX, ...chipGrid(1) });
+
+// Sliding and Transition fly no cloud, so the element itself slides out of its left edge (clipped
+// to its own box) or grows from 0.78, as a list row does (reveal.css rowSlideLeave / rowShrinkLeave).
+const FLIGHT_FRAMES = Object.freeze({
+  slide: [{ transform: 'translateX(-104%)', clipPath: 'inset(0 0 0 104%)' },
+          { transform: 'none', clipPath: 'inset(0 0 0 0)' }],
+  transition: [{ opacity: 0, transform: 'scale(0.78)' }, { opacity: 1, transform: 'none' }],
+});
+const flights = new WeakMap();
+// The Animation, or null when the mode flies a cloud (or nothing). A hide holds its last frame.
+export const modeFlight = (el, show, ms = BOX_RESIZE_MS) => {
+  const frames = FLIGHT_FRAMES[motionMode()];
+  flights.get(el)?.cancel();
+  if (!frames || !el?.animate || motionReduced()) return null;
+  const f = el.animate(show ? frames : [...frames].reverse(), {
+    duration: motionMs(ms), fill: show ? 'backwards' : 'forwards',
+    easing: show ? 'cubic-bezier(0.16,1,0.3,1)' : 'cubic-bezier(0.55,0,0.75,0.4)' });
+  flights.set(el, f);
+  return f;
+};
+export const cancelModeFlight = (el) => { flights.get(el)?.cancel(); flights.delete(el); };
 
 /**
  * One flight per row, so two rows fly together without fighting each other's state. `dustEl`
@@ -59,9 +80,9 @@ export const makeDustRow = (el, display = 'block', dustEl = () => el) => {
       el.style.display = display;
       el.style.opacity = '0';   // while they fly, the motes ARE the line
       if (cloud(true)) setTimeout(() => { el.style.opacity = ''; }, motionMs(CHIP_DUST_MS));
-      else el.style.opacity = '';
-    } else {
-      cloud(false);
+      else { el.style.opacity = ''; modeFlight(el, true); }
+    } else if (!cloud(false)) {
+      modeFlight(el, false)?.finished.then(() => { if (!shown) cancelModeFlight(el); }, () => {});
     }
     slide(show);
   };
@@ -94,11 +115,17 @@ export const makeDustToggle = (el, display = 'inline-flex') => {
       el.style.visibility = 'visible';
       el.style.opacity = '0';
       if (cloud(true)) setTimeout(() => { el.style.opacity = ''; }, motionMs(CHIP_DUST_MS));
-      else el.style.opacity = '';
-    } else {
-      cloud(false);
-      el.style.opacity = '0';
-      setTimeout(() => { el.style.visibility = 'hidden'; el.style.opacity = ''; }, motionMs(CHIP_DUST_MS));
+      else { el.style.opacity = ''; modeFlight(el, true, CHIP_DUST_MS); }
+      return;
     }
+    const hide = () => { if (shown) return; el.style.visibility = 'hidden'; el.style.opacity = ''; cancelModeFlight(el); };
+    if (cloud(false)) {
+      el.style.opacity = '0';
+      setTimeout(hide, motionMs(CHIP_DUST_MS));
+      return;
+    }
+    const f = modeFlight(el, false, CHIP_DUST_MS);
+    if (f) f.finished.then(hide, () => {});
+    else { el.style.opacity = '0'; setTimeout(hide, motionMs(CHIP_DUST_MS)); }
   };
 };

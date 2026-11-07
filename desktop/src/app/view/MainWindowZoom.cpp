@@ -18,7 +18,7 @@ namespace stencil::gui {
     scale = core::clampScale(scale);  // shared [ZOOM_MIN, ZOOM_MAX] bound (core/state/zoomPan)
     canvas->setScale(scale);
     if (syncCombo) {
-      const QString pct = QString::number(qRound(scale * 100)) + "%";
+      const QString pct = QString::number(qRound(scale * 100));   // the "%" is its own label (browser #zoom-input)
       // setEditText with NoInsert never appends list items; signals blocked so a programmatic zoom
       // does not re-trigger setZoom.
       QSignalBlocker block(zoom);

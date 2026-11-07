@@ -25,8 +25,13 @@ export const announcePopup = () => {
   publish(CHAT_POPUP_EVENT);
 };
 
-const openChatRowMenu = (row, x, y, hooks) => {
+// `trigger` is the ⋯ that opened it: pressing it again closes the menu, never reopens it.
+let rowMenuTrigger = null;
+const openChatRowMenu = (row, x, y, hooks, trigger = null) => {
+  const again = !!rowMenuEl && !!trigger && rowMenuTrigger === trigger;
   closeChatRowMenu();
+  if (again) return;
+  rowMenuTrigger = trigger;
   const menu = document.createElement('div');
   menu.className = 'chat-row-menu';
 // Must not bubble to the ctx-menu's document mousedown closer.
@@ -44,7 +49,7 @@ const openChatRowMenu = (row, x, y, hooks) => {
     window.removeEventListener('scroll', close, true);
     window.removeEventListener('blur', close);
   };
-  const onDown = (e) => { if (!menu.contains(e.target)) close(); };
+  const onDown = (e) => { if (!menu.contains(e.target) && !trigger?.contains?.(e.target)) close(); };
   const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
   const act = {
     copy: async () => {
@@ -146,7 +151,7 @@ export const wireChatRowMenu = (transcript, hooks = {}) => {
     e.preventDefault();
     e.stopPropagation();
     const r = btn.getBoundingClientRect?.();
-    openChatRowMenu(row, r ? r.left : 0, r ? r.bottom + 4 : 0, hooks);
+    openChatRowMenu(row, r ? r.left : 0, r ? r.bottom + 4 : 0, hooks, btn);
   });
   let touchRow = null;
   const gesture = touchMenuGesture((x, y) => {

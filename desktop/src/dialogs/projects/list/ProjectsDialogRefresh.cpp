@@ -2,6 +2,7 @@
 // tests/dialogs/projects/list/ProjectsDialogRows.headless.cpp.
 #include "ProjectsDialog.hpp"
 #include "projectsRowChrome.hpp"
+#include <algorithm>
 #include <QColor>
 #include <QIcon>
 #include <QPalette>
@@ -10,6 +11,9 @@
 #include "fileStore.hpp"
 #include "projectSort.hpp"
 #include "../../../support/theme/filterFade.hpp"
+#include "../../../support/control/reveal/edgeFlight.hpp"
+#include "../../../support/control/reveal/modeGhost.hpp"
+#include "../../../support/motionPrefs.hpp"
 namespace stencil::gui {
 
   namespace {
@@ -20,6 +24,34 @@ namespace stencil::gui {
       const QVariant id = it->data(Qt::UserRole);
       if (id.isNull()) return QString();
       return it->data(Qt::UserRole + 1).toString() + "|" + id.toString();
+    }
+    // "No projects yet"; `edge`, it comes in by the list's left edge `delay` ms on (browser renderList.js notice).
+    void addEmptyRow(QListWidget* list, ListFilterFade* fade, QWidget* host, bool edge, int delay) {
+      auto* it = new QListWidgetItem(QStringLiteral("No projects yet"), list);
+      it->setFlags(Qt::NoItemFlags);
+      if (edge && fade) fade->dustRowIn(it, host, ROW_ARRIVE_MS, /*fromEdge=*/true, delay);
+    }
+    // A row mid-retire outlives the rebuild its own removal triggers (the owner's setProjects), or the rows
+    // below it jumped into its slot at once; the browser holds its render the same way (beginRemoval).
+    QList<QPair<int, QListWidgetItem*>> takeDoomed(QListWidget* list) {
+      QList<QPair<int, QListWidgetItem*>> out;
+      for (int i = list->count() - 1; i >= 0; --i)
+        if (list->item(i)->data(DOOMED_ROLE).toBool()) out.prepend({i, list->takeItem(i)});
+      return out;
+    }
+
+    // Back at their old places; a pinned temporary row arriving where the removed first row stood takes that
+    // slot (renderList.js inPlace), which `replaced` reports. Returns the count put back.
+    int restoreDoomed(QListWidget* list, const QList<QPair<int, QListWidgetItem*>>& doomed, bool tempNew,
+                      bool& replaced) {
+      const bool tempArrives = tempNew && list->count() > 0 && list->item(0)->data(TEMP_ROLE).toBool();
+      int carried = 0;
+      for (const auto& [at, item] : doomed) {
+        if (tempArrives && at == 0) { delete item; replaced = true; continue; }
+        list->insertItem(std::min(at, list->count()), item);
+        ++carried;
+      }
+      return carried;
     }
   }  // namespace
 
@@ -41,9 +73,12 @@ namespace stencil::gui {
     building = true;
     hideHoverPreview();
     closeInlineRename();
+    const auto doomed = takeDoomed(list);
     list->clear();
     const core::ProjectsStore store;
     buildSortedRows(store);
+    bool replaced = false;
+    const int carried = restoreDoomed(list, doomed, wasBuilt && !keysBefore.contains(QStringLiteral("temp")), replaced);
 
     // While the first server listing is in flight, a loading hint rather than a misleading "No projects yet".
     if (connections && !connections->urls().isEmpty() && !remoteLoaded) {
@@ -66,9 +101,9 @@ namespace stencil::gui {
       }
     }
 
-    if (list->count() == 0) {
-      auto* it = new QListWidgetItem("No projects yet", list);
-      it->setFlags(Qt::NoItemFlags);
+    const int edgeDelay = carried > 0 && !support::isDustAllowed() ? edgeFlightMs() : 0;   // arrivals trail the leave
+    if (list->count() == carried) {
+      addEmptyRow(list, getFilterFade(), window(), wasBuilt && isVisible() && modeGhostMotion(), edgeDelay);
       building = false;
       updateBatchBar();
       return;
@@ -87,15 +122,17 @@ namespace stencil::gui {
         if (k.isEmpty() || it->isHidden() || keysBefore.contains(k)) continue;
         arriving.insert(k);
       }
-      if (!arriving.isEmpty())
-        // Re-found by key: another rebuild may have replaced the items in the meantime.
-        QTimer::singleShot(support::motionMs(ROW_ARRIVE_DELAY_MS), this, [this, arriving] {
-          for (int i = 0; i < list->count(); ++i) {
-            QListWidgetItem* it = list->item(i);
-            if (it->isHidden() || !arriving.contains(rebuildKeyOf(it))) continue;
-            if (auto* fade = getFilterFade()) fade->dustRowIn(it, window(), ROW_ARRIVE_MS);
-          }
-        });
+      // Re-found by key: another rebuild may have replaced the items in the meantime.
+      const auto arrive = [this, arriving, edgeDelay] {
+        for (int i = 0; i < list->count(); ++i) {
+          QListWidgetItem* it = list->item(i);
+          if (it->isHidden() || !arriving.contains(rebuildKeyOf(it))) continue;
+          if (auto* fade = getFilterFade()) fade->dustRowIn(it, window(), ROW_ARRIVE_MS, /*fromEdge=*/true, edgeDelay);
+        }
+      };
+      // No ash to wait out (Sliding / Transition, or a held slot's fallen already): in now, never shown plain first.
+      if (!arriving.isEmpty() && (!support::isDustAllowed() || replaced)) arrive();
+      else if (!arriving.isEmpty()) QTimer::singleShot(support::motionMs(ROW_ARRIVE_DELAY_MS), this, arrive);
     }
   }
 
@@ -126,7 +163,7 @@ namespace stencil::gui {
       entries.push_back({ true, i, sp.serverUrl + "|" + sp.id, sp.name.toLower(), static_cast<long long>(sp.createdAt), 0 });
     }
     sortProjectItems(entries, g_projectsSortMode, g_projectsManualOrder);
-    // Inert (browser parity): no id, so no open, rename, checkbox, drag or "⋯".
+    // No id (browser parity): no open, rename, checkbox, drag or "⋯"; a click closes the list (ProjectsOpen.cpp).
     if (temporary) {
       auto* it = new QListWidgetItem(incognito ? QStringLiteral("Incognito (unsaved)")
                                                 : QStringLiteral("Temporary (unsaved)"), list);

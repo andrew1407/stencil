@@ -31,7 +31,7 @@ export function paintGenie(ctx, shot, win, icon, side, p) {
 
 // `win` and `icon` are client rects; `opening` plays it out of the icon. `done` runs once, as it
 // lands or is cancelled. Returns `cancel()`.
-export function playGenie(shot, win, target, { opening, ms, zIndex = 100005, done } = {}) {
+export function playGenie(shot, win, target, { opening, ms, zIndex = 100005, done, clip = null } = {}) {
   const icon = genieSink(target);
   const doc = globalThis.document;
   const canvas = doc.createElement('canvas');
@@ -52,6 +52,11 @@ export function playGenie(shot, win, target, { opening, ms, zIndex = 100005, don
     position: 'fixed', left: `${left}px`, top: `${top}px`, width: `${w}px`, height: `${h}px`,
     pointerEvents: 'none', zIndex: String(zIndex),
   });
+  // `clip` (a client rect): the flight never paints outside it — a chat entry stays inside its transcript.
+  if (clip) {
+    const cut = (n) => `${Math.max(0, Math.round(n))}px`;
+    canvas.style.clipPath = `inset(${cut(clip.top - top)} ${cut(right - clip.left - clip.width)} ${cut(bottom - clip.top - clip.height)} ${cut(clip.left - left)})`;
+  }
   doc.body.appendChild(canvas);
   const ctx = canvas.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, -left * dpr, -top * dpr);

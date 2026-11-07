@@ -99,6 +99,22 @@
     background: radial-gradient(circle, var(--wc-ink) 0 3px, var(--wc-window) 3.5px);
 }
 :root[data-skin="webcore"] input[type="range"] { accent-color: var(--wc-select); }
+/* The trackbar (desktop qss/webcore/fields.qss QSlider): a white groove ringed in --wc-shadow, the
+   played side navy up to --scrub-fill, the thumb a raised square. */
+:root[data-skin="webcore"] :is(.vs-range, .oi-scrub)::-webkit-slider-runnable-track {
+    border: 1px solid var(--wc-shadow); border-radius: 0;
+    background: linear-gradient(to right, var(--wc-select) 0 var(--scrub-fill, 0%),
+                                          var(--wc-window) var(--scrub-fill, 0%) 100%);
+}
+:root[data-skin="webcore"] :is(.vs-range, .oi-scrub)::-webkit-slider-thumb {
+    width: 11px; height: 17px; margin-top: -6px; border: 0; border-radius: 0;
+    background: var(--wc-face); box-shadow: var(--wc-raised);
+}
+:root[data-skin="webcore"] :is(.vs-range, .oi-scrub)::-moz-range-track { border: 1px solid var(--wc-shadow); border-radius: 0; background: var(--wc-window); }
+:root[data-skin="webcore"] :is(.vs-range, .oi-scrub)::-moz-range-progress { border-radius: 0; background: var(--wc-select); }
+:root[data-skin="webcore"] :is(.vs-range, .oi-scrub)::-moz-range-thumb {
+    width: 11px; height: 17px; border: 0; border-radius: 0; background: var(--wc-face); box-shadow: var(--wc-raised);
+}
 
 /* ── The console window: the shell's own command prompt — light grey monospace on a black,
    sunken field, the heads in the chosen accent, its selection colours (desktop

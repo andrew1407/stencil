@@ -1,4 +1,6 @@
 #include "ConnectDialog.hpp"
+#include "../../support/control/reveal/modeGhost.hpp"
+#include <QVariantAnimation>
 #include "connectDialogParts.hpp"
 #include "../../support/motion/scrollReveal.hpp"             // revealDissolve (scroll edge fade)
 #include "../../support/motion/DisintegrateOverlay.hpp"  // disconnected rows come apart
@@ -66,15 +68,20 @@ namespace stencil::gui {
       const int row = all.indexOf(u);
       QListWidgetItem* it = row >= 0 ? list->item(row) : nullptr;
       if (!it) continue;
-      if (!DisintegrateOverlay::overRect(list->viewport(), list->visualItemRect(it), this,
+      const QRect r = list->visualItemRect(it);
+      // Sliding / Transition: the row's picture slides out or shrinks away in place of the dust.
+      if (!DisintegrateOverlay::overRect(list->viewport(), r, this,
                                          DisintegrateOverlay::Sweep::ROWS, /*dust=*/true, budget,
                                          DisintegrateOverlay::CONN_MS,
-                                         list->palette().color(QPalette::Text)))   // lifted to the row's ink
+                                         list->palette().color(QPalette::Text))   // lifted to the row's ink
+          && !playModeGhost(list->viewport(), list->viewport()->grab(r), r, list->viewport()->rect(),
+                            /*in=*/false, Qt::Horizontal, MODE_ROW_MS))
         continue;   // nothing to animate (hidden/tiny) → this row just removes instantly
       // Retire the row at once (projectsDialog::retireRow parity): the snapshot is what
       // flies, so the real row blanks and its empty slot is held until the dust settles.
       list->removeItemWidget(it);
       it->setFlags(Qt::NoItemFlags);
+      if (!support::isDustAllowed()) closeSlot(it, support::motionMs(MODE_ROW_MS));
       selected.remove(u);   // …and it stops counting towards the bar with its own dust
       doomed.insert(u);
       doomedNow.append(u);
@@ -83,10 +90,27 @@ namespace stencil::gui {
     // Finalize when the dust settles: slots collapse and (only now) the empty state may
     // appear. Dies with the dialog — done() covers an early close.
     updateBatchBar();   // the count and the buttons come apart WITH the rows, not after
-    QTimer::singleShot(support::motionMs(DisintegrateOverlay::CONN_MS), this, [this, doomedNow] {
+    const int hold = support::isDustAllowed() ? DisintegrateOverlay::CONN_MS : MODE_ROW_MS;
+    QTimer::singleShot(support::motionMs(hold), this, [this, doomedNow] {
       for (const QString& u : doomedNow) doomed.remove(u);
       if (doomed.isEmpty()) rebuildList();
     });
+  }
+
+  // Sliding / Transition: the emptied slot shuts over the slide's second half (browser rowSlideLeave's max-height).
+  void ConnectDialog::closeSlot(QListWidgetItem* it, int ms) {
+    const QSize full = it->sizeHint();
+    QPersistentModelIndex idx(list->indexFromItem(it));
+    auto* anim = new QVariantAnimation(this);
+    anim->setDuration(ms);
+    anim->setKeyValueAt(0.0, 1.0);
+    anim->setKeyValueAt(0.55, 1.0);
+    anim->setKeyValueAt(1.0, 0.0);
+    QObject::connect(anim, &QVariantAnimation::valueChanged, this, [this, idx, full](const QVariant& v) {
+      if (QListWidgetItem* row = idx.isValid() ? list->item(idx.row()) : nullptr)
+        row->setSizeHint(QSize(full.width(), std::max(0, int(full.height() * v.toDouble()))));
+    });
+    anim->start(QAbstractAnimation::DeleteWhenStopped);
   }
 
   void ConnectDialog::done(int r) {

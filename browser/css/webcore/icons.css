@@ -27,15 +27,8 @@
 }
 :root[data-skin="webcore"] .app-logo { width: 32px; height: 32px; }
 :root[data-skin="webcore"] .app-logo-frame { display: none; }
-/* …with one exception: a fold chevron's angle is STATE, not motion. Without this both
-   toggles point the same way whether the panel is open or shut. */
-:root[data-skin="webcore"] .controls-wrapper:has(#controls-body.hidden) #toggle-controls .ic,
-:root[data-skin="webcore"] .coordinates-panel.coord-collapsed #toggle-coord-panel .ic {
-    transform: rotate(180deg) !important;
-}
 :root[data-skin="webcore"] .is-loading .ic,
 :root[data-skin="webcore"] .swapping > svg { animation: none !important; }
-:root[data-skin="webcore"] .swap-ghost { display: none; }
 :root[data-skin="webcore"] .icm-spun :is(.ic, .draw-mode-icon) { animation: none !important; }
 :root[data-skin="webcore"] .mm-icon { shape-rendering: crispEdges; }
 :root[data-skin="webcore"] :is(.ic, .draw-mode-icon) rect { stroke: none; }

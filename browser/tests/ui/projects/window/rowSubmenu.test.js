@@ -1,6 +1,6 @@
 // A row menu's nested list (ui/projects/window/rowSubmenu.js): it flies out beside its item on
 // click, folds when another item is hovered, runs a nested pick after closing everything, and
-// a press inside it never reads as a click-away.
+// a press inside it never reads as a click-away; its ⋯ toggles the menu.
 import test from 'node:test';
 import assert from 'node:assert';
 import { createStubElement } from '../../../helpers/dom.js';
@@ -78,4 +78,27 @@ test('ArrowRight flies the list out onto its first item; ArrowLeft and Escape fo
   }
   assert.deepEqual(focused, ['item', 'item'], 'focus goes back to the item each time');
   rows.closeMenu?.();
+});
+
+test('its own ⋯ toggles it: a press there is not a click-away, and the click closes it', async () => {
+  const rows = createProjectRowMenu();
+  const dots = createStubElement('button', { getBoundingClientRect: () => rect(500, 100, 24, 24) });
+  dots.contains = (t) => t === dots;
+  const items = [{ icon: 'folder', label: 'Open', onClick() {} }];
+  rows.showMenu(dots, items);
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(menus().length, 1);
+  doc.dispatch('mousedown', ev({ target: dots }));
+  assert.equal(menus().length, 1, 'the press on its own ⋯ leaves it for the click');
+  rows.showMenu(dots, items);
+  assert.equal(menus().length, 0, 'the click closes it');
+  rows.showMenu(dots, items);
+  assert.equal(menus().length, 1, 'and the next one opens it again');
+  rows.showMenu(dots, items, { x: 300, y: 40 });
+  assert.equal(menus().length, 1, 'a right-click on the row reopens it at the cursor');
+  doc.dispatch('mousedown', ev({ target: dots }));
+  rows.showMenu(dots, items);
+  assert.equal(menus().length, 1, 'the ⋯ then opens it again from itself rather than closing it');
+  rows.showMenu(dots, items);
+  assert.equal(menus().length, 0, 'and now toggles it shut');
 });

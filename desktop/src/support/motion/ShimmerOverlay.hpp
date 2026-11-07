@@ -2,6 +2,7 @@
 // Hover "glass shimmer" — the desktop port of the browser's ui-shimmer rule
 // (browser/css/layout/). Header-only and Q_OBJECT-free, so no MOC.
 #include "modalReveal.hpp"   // support::motionReduced()
+#include "../skin/SkinLookStrategy.hpp"
 
 #include <QAbstractAnimation>
 #include <QAbstractButton>
@@ -164,9 +165,9 @@ namespace stencil::gui {
       const auto* at = dynamic_cast<QSinglePointEvent*>(e);
       return !at || QRectF(target->rect()).adjusted(-1, -1, 1, 1).contains(at->position());
     }
-    // Reduced motion: no sweep at all — pure feedback with no end state (faceSwap / filterFade rule).
+    // Reduced motion or a skin that never shimmers: no sweep at all — pure feedback with no end state.
     void startSweep(const QRect& band) {
-      if (support::motionReduced()) return;
+      if (support::motionReduced() || !support::skinTraits().hasShimmer) return;
       this->band = band;
       if (view) raise();   // cell widgets a row rebuild added since would otherwise cover the band
       anim->stop();

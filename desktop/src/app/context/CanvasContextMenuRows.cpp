@@ -134,9 +134,7 @@ namespace stencil::gui {
   void CanvasContextMenu::syncContextActions() {
     const bool hasImg = w.canvas->hasImage();
     const bool hasLines = !w.canvas->allLines().empty();
-    w.acts.fullscreen->setText(w.isFullScreen() ? QStringLiteral("Exit Fullscreen")
-                                           : QStringLiteral("Enter Fullscreen"));
-    w.setActionTip(w.acts.fullscreen, w.isFullScreen() ? "Exit fullscreen" : "Fullscreen mode");
+    w.parts.view.syncFullscreenTip();
 
     // contextMenu.js:254-264
     w.parts.exportMenus.syncExportActions();

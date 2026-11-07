@@ -1,4 +1,6 @@
 #include "filterFade.hpp"
+#include "../control/reveal/modeGhost.hpp"
+#include "../control/reveal/edgeFlight.hpp"
 
 namespace stencil::gui {
 
@@ -60,7 +62,7 @@ namespace stencil::gui {
 
   // Browser js/ui/motion.js filterDust: the row is veiled (FILTER_DUST_ROLE, honoured by
   // a delegate through filterInk) while its motes gather over its rect.
-  void ListFilterFade::dustRowIn(QListWidgetItem* it, QWidget* host, int ms) {
+  void ListFilterFade::dustRowIn(QListWidgetItem* it, QWidget* host, int ms, bool fromEdge, int delayMs) {
     if (!it || !list || !host || !host->isVisible() || support::motionReduced()) return;
     if (dustBudget >= FILTER_DUST_MAX_ROWS) return;
     ++dustBudget;
@@ -71,7 +73,7 @@ namespace stencil::gui {
     QPointer<QWidget> hostP(host);
     QListWidget* list = this->list;
     QPersistentModelIndex idx(list->indexFromItem(it));
-    const auto fly = [self, list, idx, hostP, ms] {
+    const auto fly = [self, list, idx, hostP, ms, fromEdge] {
       if (!self || !hostP || !idx.isValid()) return;
       QListWidgetItem* row = list->item(idx.row());
       if (!row) return;
@@ -103,6 +105,11 @@ namespace stencil::gui {
                                                DisintegrateOverlay::Sweep::GATHER,
                                                /*dust=*/true, FILTER_DUST_ROW_CELLS, ms,
                                                QColor(), shot);
+      // Sliding / Transition: the row slides in from its side or grows, veiled under its picture till it lands.
+      if (!fx && (fromEdge ? edgeIn(list->viewport(), shot, r, unveil)
+                           : playModeGhost(list->viewport(), shot, r, list->viewport()->rect(), /*in=*/true,
+                                           Qt::Horizontal, MODE_ROW_MS, unveil)))
+        return;
       if (!fx) { unveil(); return; }
       fx->setObjectName(QString::fromLatin1(FILTER_DUST_OBJECT_NAME));
       self->clipToViewport(fx, hostP);
@@ -110,7 +117,8 @@ namespace stencil::gui {
       QTimer::singleShot(support::motionMs(int(ms * FILTER_DUST_VEIL_STOP)), self, unveil);
     };
     // A row being revealed has no box yet: wait out the slot opening.
-    if (list->visualItemRect(it).height() >= 8) fly();
+    if (delayMs > 0) QTimer::singleShot(support::motionMs(delayMs), this, fly);
+    else if (list->visualItemRect(it).height() >= 8) fly();
     else QTimer::singleShot(support::motionMs(FILTER_FADE_MS), this, fly);
   }
 

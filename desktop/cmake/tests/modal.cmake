@@ -3,6 +3,8 @@
 # Toast coalescing (support/notifications): an identical text refreshes the standing toast.
 stencil_headless_test(stencil_notifications_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/support/notify/Notifications.headless.cpp ${STENCIL_NOTIFY_SOURCES}
     src/support/logo/logoStageRules.cpp src/support/logo/logoStageConfig.cpp
@@ -14,6 +16,8 @@ stencil_headless_test(stencil_notifications_headless
 # The notice channel: toasts by default, the OS sink while it accepts, toasts when it declines.
 stencil_headless_test(stencil_notifychannel_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/support/notify/channel.headless.cpp ${STENCIL_NOTIFY_SOURCES}
     src/support/logo/logoStageRules.cpp src/support/logo/logoStageConfig.cpp
@@ -26,6 +30,8 @@ stencil_headless_test(stencil_notifychannel_headless
 # fade; a mock QTcpServer stands in for the collaboration server.
 stencil_headless_test(stencil_connectrow_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp src/support/aqua/AquaCheckDelegate.cpp
     ${STENCIL_FILTERFADE_SOURCES}
     ${STENCIL_CONTROLREVEAL_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
@@ -48,6 +54,8 @@ stencil_headless_test(stencil_connectrow_headless
 # and the Open In… dialog's Telegram fallback row.
 stencil_headless_test(stencil_modalchrome_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp src/support/aqua/AquaCheckDelegate.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/support/modal/modalChrome.headless.cpp tests/support/modal/modalChromePrompt.headless.cpp
     tests/support/modal/modalChromeFooter.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
@@ -60,6 +68,8 @@ stencil_headless_test(stencil_modalchrome_headless
 # Project ▸ Open In Targets… (dialogs/meta/OpenInTargetsDialog): the URL and bot validation, and Save's refusal.
 stencil_headless_test(stencil_openintargets_headless
   SOURCES tests/dialogs/meta/openInTargets.headless.cpp src/dialogs/meta/OpenInTargetsDialog.cpp
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp src/support/aqua/AquaCheckDelegate.cpp
     ${STENCIL_DUSTKIT_SOURCES} ${STENCIL_DISINTEGRATE_SOURCES} ${STENCIL_MODALCHROME_SOURCES}
     src/support/icon/iconSet.cpp
     src/support/modal/modalReveal.cpp resources/app.qrc src/support/sheets/dialogSheets.cpp
@@ -69,6 +79,8 @@ stencil_headless_test(stencil_openintargets_headless
 # local / incognito / Just copy interlocks.
 stencil_headless_test(stencil_copyprojectdialog_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp src/support/aqua/AquaCheckDelegate.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/dialogs/projects/copy/copyProjectDialog.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
     src/dialogs/projects/copy/CopyProjectDialog.cpp
@@ -80,6 +92,8 @@ stencil_headless_test(stencil_copyprojectdialog_headless
 # execMaybePopover reparented into the popover overlay.
 stencil_headless_test(stencil_modalheaderdrag_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp src/support/aqua/AquaCheckDelegate.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/support/modal/modalHeaderDrag.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
     src/support/icon/iconSet.cpp
@@ -89,10 +103,12 @@ stencil_headless_test(stencil_modalheaderdrag_headless
 # The DESCRIPTION & ATTRIBUTES editors: the shell, Enter/Escape, keywords and the store write.
 stencil_headless_test(stencil_projectmeta_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp src/support/aqua/AquaCheckDelegate.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/dialogs/meta/projectMetaDialogs.headless.cpp src/dialogs/meta/DescriptionDialog.cpp
     src/dialogs/meta/keywords/KeywordsDialog.cpp src/dialogs/meta/keywords/KeywordChips.cpp
-    src/dialogs/meta/keywords/KeywordChipsMotion.cpp
+    src/dialogs/meta/keywords/KeywordChipsMotion.cpp src/support/control/reveal/modeGhost.cpp
     ${STENCIL_MODALCHROME_SOURCES} src/support/icon/iconSet.cpp
     src/support/modal/modalReveal.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
     resources/app.qrc
@@ -124,10 +140,12 @@ stencil_headless_test(stencil_chipclocks_headless
 # The keywords FIELD (dialogs/KeywordChips), with its browser twin's parse and addTo cases.
 stencil_headless_test(stencil_keywordchips_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp src/support/aqua/AquaCheckDelegate.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/dialogs/meta/keywords/keywordChips.headless.cpp
     src/dialogs/meta/keywords/KeywordsDialog.cpp src/dialogs/meta/keywords/KeywordChips.cpp
-    src/dialogs/meta/keywords/KeywordChipsMotion.cpp
+    src/dialogs/meta/keywords/KeywordChipsMotion.cpp src/support/control/reveal/modeGhost.cpp
     ${STENCIL_MODALCHROME_SOURCES} src/support/icon/iconSet.cpp
     src/support/modal/modalReveal.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
     resources/app.qrc

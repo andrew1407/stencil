@@ -96,3 +96,43 @@ textarea.meta-text {
         margin-right: calc(0px - var(--chip-gap, 6px));
     }
 }
+/* Sliding and Transition (no cloud): a new chip slides in out of the well's edge or grows out of its
+   left end while the rest FLIP aside; a leaving one slides or shrinks away, THEN its width folds. */
+:root[data-motion="slide"] .kw-chip.filter-entering { animation: kwChipSlideIn 0.51s cubic-bezier(0.16, 1, 0.3, 1) both; }
+:root[data-motion="transition"] .kw-chip.filter-entering {
+    animation: kwChipGrowIn 0.51s cubic-bezier(0.22, 0.61, 0.36, 1) both; transform-origin: left center;
+}
+:root[data-motion="slide"] .kw-chip.leaving { animation-name: kwChipSlideLeave; }
+:root[data-motion="transition"] .kw-chip.leaving { animation-name: kwChipShrinkLeave; transform-origin: left center; }
+@keyframes kwChipSlideIn {
+    from { opacity: 0; transform: translateX(calc(-100% - 12px)); }
+    40%  { opacity: 1; }
+    to   { opacity: 1; transform: none; }
+}
+@keyframes kwChipGrowIn {
+    from { opacity: 0; transform: scale(0.2); }
+    30%  { opacity: 1; }
+    to   { opacity: 1; transform: none; }
+}
+@keyframes kwChipSlideLeave {
+    from { opacity: 1; transform: none; max-width: var(--leave-w, 240px); }
+    50%  {
+        opacity: 0; transform: translateX(calc(-100% - 12px)); max-width: var(--leave-w, 240px);
+        padding-left: 10px; padding-right: 4px; border-left-width: 1px; border-right-width: 1px; margin-right: 0;
+    }
+    to   {
+        opacity: 0; transform: translateX(calc(-100% - 12px)); max-width: 0; padding-left: 0; padding-right: 0;
+        border-left-width: 0; border-right-width: 0; margin-right: calc(0px - var(--chip-gap, 6px));
+    }
+}
+@keyframes kwChipShrinkLeave {
+    from { opacity: 1; transform: none; max-width: var(--leave-w, 240px); }
+    50%  {
+        opacity: 0; transform: scale(0.4); max-width: var(--leave-w, 240px);
+        padding-left: 10px; padding-right: 4px; border-left-width: 1px; border-right-width: 1px; margin-right: 0;
+    }
+    to   {
+        opacity: 0; transform: scale(0.4); max-width: 0; padding-left: 0; padding-right: 0;
+        border-left-width: 0; border-right-width: 0; margin-right: calc(0px - var(--chip-gap, 6px));
+    }
+}

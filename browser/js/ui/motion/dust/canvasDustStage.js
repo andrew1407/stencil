@@ -14,8 +14,9 @@ export const pinDustStage = (stage, host, baseLeft = 0, baseTop = 0) => {
 
 // `size` overrides the snapshot's pixel dimensions for a source whose .width/.height aren't
 // its pixel buffer (an <img>/<video>); omitted, it reads canvas.width/height. `layers` are the
-// canvases stacked over that box, bottom first: the snapshot is what they show together.
-export const makeDustStage = (canvas, size = null, layers = [canvas]) => {
+// canvases stacked over that box, bottom first: the snapshot is what they show together. `holdScreen`
+// keeps a LEAVING cloud where the picture stood when the view itself moves (an emptied toolbar re-wraps).
+export const makeDustStage = (canvas, size = null, layers = [canvas], { holdScreen = false } = {}) => {
   const field = dustField(canvas);
   if (!field) return null;
   const { r, vis } = field;
@@ -41,6 +42,13 @@ export const makeDustStage = (canvas, size = null, layers = [canvas]) => {
   const finish = () => { unpin(); stage.remove(); };
   const ctx = stage.getContext('2d');
   ctx.scale(dpr, dpr);
+  const home = field.host.getBoundingClientRect();
+  const hold = () => {
+    if (!holdScreen) return;
+    const now = field.host.getBoundingClientRect();
+    const dx = home.left - now.left, dy = home.top - now.top;
+    stage.style.transform = dx || dy ? `translate(${dx}px, ${dy}px)` : '';
+  };
 // Sources are bitmap pixels, the visible box screen pixels: at zoom they differ.
   const kx = snap.width / r.width, ky = snap.height / r.height;
   return {
@@ -55,6 +63,7 @@ export const makeDustStage = (canvas, size = null, layers = [canvas]) => {
       const step = (now) => {
         const t = (now - started) / ms;
         if (t >= 1) { finish(); return; }
+        hold();
         ctx.clearRect(0, 0, vis.width, vis.height);
         draw(t);
         requestAnimationFrame(step);

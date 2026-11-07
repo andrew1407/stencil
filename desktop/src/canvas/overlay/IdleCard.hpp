@@ -20,6 +20,8 @@ namespace stencil::gui {
     // The page fill and the card on it; `dark` and `accentKey` are the host's look.
     void paint(QPainter& p, const Palette& pal, bool dark, const QString& accentKey);
     void setHover(bool on);
+    // At rest at once: a hover from before the picture came must not light the card it leaves.
+    void dropHover();
     // The card grows in from the centre the editor just emptied (browser @keyframes idleCardArrive).
     void startArrival();
     // Widget space, as last painted: the RESTING rect, never the lifted one.

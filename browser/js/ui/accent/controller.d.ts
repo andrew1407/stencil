@@ -14,9 +14,10 @@ export declare class AccentController {
   readonly themeMode: string;
   updateThemeIcon(): void;
   applyGlyphContrast(hex: string): void;
-  setAccent(key: string, originEl?: Element | null): void;
+  /** `persist: false` paints a session accent: no store write, no broadcast to other tabs. */
+  setAccent(key: string, originEl?: Element | null, opts?: { persist?: boolean }): void;
   announce(value: string): void;
-  applyAccent(key: string, originEl?: Element | null): string;
+  applyAccent(key: string, originEl?: Element | null, opts?: { persist?: boolean }): string;
   previewAccent(key: string, originEl?: Element | null): void;
   endAccentPreview(originEl?: Element | null): void;
   setCustomAccent(hex: string, originEl?: Element | null): string | null;

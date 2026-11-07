@@ -41,6 +41,7 @@ namespace stencil::gui {
     // closes it (browser dropdownMenu.js wireDragPick). Qt's own combo list already does this.
     bool dragPick(QObject* watched, QEvent* event);
     void ensurePopup();
+    void installListDelegate();
     void choose(int proxyRow);
     void restorePreview();          // put the committed value back after a hover preview
     void moveHighlight(int delta);

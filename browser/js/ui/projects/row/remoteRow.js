@@ -1,7 +1,7 @@
 import { icon } from '../../icons.js';
 import { escapeHtml } from '../../base.js';
 import { notify, shortName } from '../../../utils.js';
-import { leaveThenRemove } from '../../motion/enterLeave.js';
+import { rowLeave } from '../list/rowMotion.js';
 import { rowLeaveDust, ITEM_DUST_MS } from '../../motion/surface/tiles.js';
 import { clearedToast } from '../../../core/project/transferController.js';
 import { copyMenuItem, afterRowCopy } from './copyItem.js';
@@ -183,7 +183,7 @@ export function createRemoteRow(deps) {
         try {
           const settle = beginRemoval();
           const revive = retireKey(remoteKey(meta));
-          await leaveThenRemove(rowById(meta.id), () => {}, rowLeaveDust(1, 0, ITEM_DUST_MS));
+          await rowLeave(rowById(meta.id), rowLeaveDust(1, 0, ITEM_DUST_MS));
           await conn.deleteProject(meta.id); invalidateRemotes(); await settle();
           revive();
           notify(clearedToast(1), 'ok');

@@ -2,7 +2,9 @@
 
 #include "ScriptEditorWidget.hpp"
 #include "scriptFile.hpp"
+#include "../../support/modal/hoverResync.hpp"
 
+#include <QTimer>
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QFileDialog>
@@ -36,6 +38,7 @@ namespace stencil::gui {
   void ScriptDialog::loadFile() {
     const QString path = QFileDialog::getOpenFileName(this, tr("Open script"), QString(),
                                                       scriptFileFilter());
+    support::reclaimFront(this);
     if (!path.isEmpty()) readInto(path);
   }
 

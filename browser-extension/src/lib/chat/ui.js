@@ -1,6 +1,8 @@
+// Assistant transcript widgets: the message rows, the pending chips and the thumbnail magnifier, DOM-injected
+// so `node --test` drives them with a stub. Browser twin: browser/js/ui/chat/composer/chatThumbPreview.js for the
+// magnifier, ui/chat/row/ for the rows.
 import { leaveThenRemove } from '../motion.js';
 import { setTip } from '../tip/tip.js';
-// Assistant transcript widgets, DOM-injected so `node --test` drives them with a stub.
 
 // Attach-failure cards clear themselves after this long; everything else waits for the ×.
 export const AUTO_DISMISS_MS = 8000;
@@ -14,10 +16,10 @@ export const makeDismissible = (el, { doc, autoMs = 0, timer = setTimeout, onDis
   button.textContent = '×';
   if (button.setAttribute) button.setAttribute('aria-label', 'Dismiss');
 
-  let gone = false;
+  let isGone = false;
   const dismiss = () => {
-    if (gone) return;
-    gone = true;
+    if (isGone) return;
+    isGone = true;
     leaveThenRemove(el, () => {
       el.remove();
       if (onDismiss) onDismiss();
@@ -34,14 +36,15 @@ export const makeDismissible = (el, { doc, autoMs = 0, timer = setTimeout, onDis
 };
 
 // Hover preview for a 28–56px thumbnail, appended to the BODY because the popup's
-// regions scroll and would clip it. Mirror of the browser's view.js wireThumbPreview.
+// regions scroll and would clip it. Mirror of the browser's chat/composer/chatThumbPreview.js.
 let openPreview = null;
-export const hideThumbPreview = () => { openPreview?.remove?.(); openPreview = null; };
+let placeOpen = null;   // re-places the open preview where its thumbnail stands
+export const hideThumbPreview = () => { openPreview?.remove?.(); openPreview = null; placeOpen = null; };
 // Alt HELD doubles the glance; pressed or released mid-hover it re-places itself.
 const altPreview = (on) => {
   if (!openPreview?.classList) return;
   openPreview.classList.toggle('chat-thumb-preview-xl', on);
-  openPreview.__place?.();
+  placeOpen?.();
 };
 globalThis.addEventListener?.('keydown', (e) => { if (e.key === 'Alt') altPreview(true); });
 globalThis.addEventListener?.('keyup', (e) => { if (e.key === 'Alt') altPreview(false); });
@@ -80,7 +83,7 @@ export const wireThumbPreview = (img, { doc = globalThis.document, caption = '',
       box.style.top = `${Math.round(Math.max(8, top))}px`;
       box.classList.add('chat-thumb-preview-in');
     };
-    box.__place = place;
+    placeOpen = place;
     if (big.complete) place(); else big.addEventListener('load', place, { once: true });
   };
   img.addEventListener('mouseenter', show);

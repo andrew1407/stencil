@@ -1,10 +1,12 @@
-// ── Materialize: leaveThenRemove reversed, for a freshly-ADDED row ──────────
-// The box expands on the short timer while a dust copy gathers into its final rect; the row
-// stays veiled until the motes land. Reduced motion resolves at once.
-import { motionReduced, dustEnabled } from '../prefs/motionPrefs.js';
+// A chat entry's motion without or beside its cloud: materialize (the slot opening while the motes gather),
+// the entry's pour out of its tail home and back (chatIn, pourIn, chatPourAway) and Transition's grow.
+// Browser twin: ui/motion/control/chatFx.js; the clocks are motion.json's through tests/lib/motion/motionClocks.test.js.
+import { motionReduced, dustEnabled, motionMode } from '../prefs/motionPrefs.js';
 import { reintegrate } from './disintegrate.js';
-import { LEAVE_MS, flashLanding, wipeDurationMs } from './enterLeave.js';
+import { LEAVE_MS, flashLanding, rowClock, wipeDurationMs } from './enterLeave.js';
 import { DISINTEGRATE_MS, cancelDust, scatterGridFor } from './tiles.js';
+import { snapshot } from './genie/shot.js';
+import { playGenie } from './genie/flight.js';
 export const MATERIALIZE_CLASS = 'materializing';
 export const MATERIALIZE_VEIL_CLASS = 'materialize-veil';
 export function materialize(el, { ms = LEAVE_MS, cols, rows } = {}) {
@@ -20,7 +22,7 @@ export function materialize(el, { ms = LEAVE_MS, cols, rows } = {}) {
   return new Promise((resolve) => setTimeout(() => {
     el.classList.remove(MATERIALIZE_CLASS, MATERIALIZE_VEIL_CLASS);
     resolve();
-  }, dusted ? wipeDurationMs() : ms));
+  }, dusted ? wipeDurationMs() : rowClock(ms)));
 }
 
 // A fraction of the row's flight (browser motion.js twin): the motes carry no text.
@@ -84,13 +86,49 @@ const trackDust = (el, ms, onDrop = () => {}) => {
   return () => { live = false; if (raf) cancelAnimationFrame(raf); };
 };
 
-// A chat entry's only entrance is its dust, so in 'slide' it rises
+// The fallback entrance where neither the pour nor the grow plays: the row rises into place
 // (browser css/animations/motionModes.css chatRiseIn twin).
 export const CHAT_SLIDE_CLASS = 'chat-slide-in';
 export const CHAT_SLIDE_MS = 320;
+// Transition's entrance: the bubble grows out of its tail corner (animations/motionModes.css chatGrowIn);
+// Sliding pours it (pourIn), with the side slide (CHAT_SIDE_CLASS) as its fallback. Both stay inside the chat (browser chatFx.js).
+export const CHAT_GROW_CLASS = 'chat-grow-in';
+export const CHAT_SIDE_CLASS = 'chat-side-in';
+export const CHAT_SIDE_MS = 420;   // ms, motion.json CHAT_SIDE_MS: the side slide, as the browser's
+// Where Sliding pours an entry from and back into: a strip on the transcript's edge on the entry's own side,
+// level with its tail at the bubble's foot (browser chatFx.js chatTailHome).
+export const chatTailHome = (el, r = el?.getBoundingClientRect?.(), view = el?.parentElement?.getBoundingClientRect?.()) => {
+  if (!r || !view || !(r.width > 0)) return null;
+  const isRight = (view.right - r.right) <= (r.left - view.left);
+  return { left: isRight ? view.right - 3 : view.left + 1, top: Math.max(view.top, r.bottom - 18), width: 2, height: 16 };
+};
+// Sliding's pour (browser chatFx.js pourIn): veiled, photographed, poured out of its tail home and clipped
+// to the transcript; the side slide when no picture can be made.
+const pourIn = (el) => {
+  el.classList.add(CHAT_ENTERING_CLASS);
+  const slide = () => { el.classList.remove(CHAT_ENTERING_CLASS); flashLanding(el, CHAT_SIDE_CLASS, CHAT_SIDE_MS); };
+  afterLayout(() => {
+    const view = el.parentElement?.getBoundingClientRect?.();
+    const r = el.getBoundingClientRect?.();
+    if (!view || !(r?.width > 0 && r.height > 0)) { slide(); return; }
+    snapshot(el).then((shot) => {
+      if (!shot || !el.isConnected) { slide(); return; }
+      const from = chatTailHome(el, r, view);
+      playGenie(shot, r, from, { opening: true, ms: CHAT_SIDE_MS, clip: view,
+        done: () => el.classList.remove(CHAT_ENTERING_CLASS) });
+    }, slide);
+  });
+};
+// The entry without a cloud, by mode: Sliding pours the row in, Transition grows it, any other slides it.
+const ENTER_WITHOUT_DUST = Object.freeze({
+  slide: (el) => pourIn(el),
+  transition: (el) => flashLanding(el, CHAT_GROW_CLASS, CHAT_SLIDE_MS),
+});
+const enterWithoutDust = (el) => (ENTER_WITHOUT_DUST[motionMode()] ?? ((row) => flashLanding(row, CHAT_SLIDE_CLASS, CHAT_SLIDE_MS)))(el);
+
 export function chatIn(el, count = 1, index = 0, { host = null } = {}) {
   if (!el?.classList || motionReduced()) return Promise.resolve();
-  if (!dustEnabled()) { flashLanding(el, CHAT_SLIDE_CLASS, CHAT_SLIDE_MS); return Promise.resolve(); }
+  if (!dustEnabled()) { enterWithoutDust(el); return Promise.resolve(); }
   const { cols, rows } = scatterGridFor(count, index);
   // Veiled from the first frame, keeping its height, never seen ahead of its motes.
   el.classList.add(CHAT_ENTERING_CLASS);
@@ -122,3 +160,14 @@ export function chatIn(el, count = 1, index = 0, { host = null } = {}) {
     if (ready?.then) ready.then(go, go); else go();
   });
 }
+
+// …and a clear pours each one back into it, the row hidden at once while its picture flies (browser chat/leave.js).
+export const chatPourAway = (el) => {
+  if (motionMode() !== 'slide' || motionReduced() || !el?.getBoundingClientRect) return false;
+  const view = el.parentElement?.getBoundingClientRect?.();
+  const r = el.getBoundingClientRect();
+  const home = chatTailHome(el, r, view);
+  if (!home || !(r.height > 0)) return false;
+  snapshot(el).then((shot) => { if (shot) playGenie(shot, r, home, { opening: false, ms: CHAT_SIDE_MS, clip: view }); }, () => {});
+  return true;
+};

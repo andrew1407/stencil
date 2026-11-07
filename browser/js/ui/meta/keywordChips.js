@@ -39,6 +39,23 @@ export const addKeywords = (list, raw) => {
   return next;
 };
 
+// One oval: the word and its ✕ (`onRemove` gets the word).
+const makeChip = (word, onRemove) => {
+  const chip = document.createElement('span');
+  chip.className = 'kw-chip';
+  chip.setAttribute('role', 'listitem');
+  const label = document.createElement('span');
+  label.className = 'kw-chip-name';
+  label.textContent = word;
+  const rm = document.createElement('button');
+  rm.className = 'kw-chip-x';
+  rm.setAttribute('aria-label', `Remove ${word}`);   // no data-title: the word says it
+  rm.innerHTML = icon('x', { size: 12 });
+  rm.addEventListener('click', () => onRemove(word));
+  chip.append(label, rm);
+  return chip;
+};
+
 export const keywordChipsField = ({ placeholder }) => ({
   markup: (name) => `
                 <div class="kw-add">
@@ -49,7 +66,7 @@ export const keywordChipsField = ({ placeholder }) => ({
 
   // In the footer beside Cancel, with the window's other verbs — never over the well.
   footer: (name) =>
-    `<button id="${name}-clear" class="btn-icon-text danger">${icon('x', { size: 14 })}<span>Clear all</span></button>`,
+    `<button id="${name}-clear" class="btn-icon-text danger">${icon('trash', { size: 14 })}<span>Clear all</span></button>`,
 
   wire: (name) => {
     const $ = (id) => document.getElementById(id);
@@ -62,21 +79,7 @@ export const keywordChipsField = ({ placeholder }) => ({
 // survivor a new node with no box to fly from.
     const nodeFor = new Map();
 
-    const makeChip = (word) => {
-      const chip = document.createElement('span');
-      chip.className = 'kw-chip';
-      chip.setAttribute('role', 'listitem');
-      const label = document.createElement('span');
-      label.className = 'kw-chip-name';
-      label.textContent = word;
-      const rm = document.createElement('button');
-      rm.className = 'kw-chip-x';
-      rm.setAttribute('aria-label', `Remove ${word}`);   // no data-title: the word says it
-      rm.innerHTML = icon('x', { size: 12 });
-      rm.addEventListener('click', () => { drop(word); input.focus(); });
-      chip.append(label, rm);
-      return chip;
-    };
+    const chipFor = (word) => makeChip(word, (w) => { drop(w); input.focus(); });
 
 // A chip mid-arrival, finished at once. Safe on one that never had a flight.
     const settle = (el) => {
@@ -109,7 +112,7 @@ export const keywordChipsField = ({ placeholder }) => ({
       });
       const arrived = [];
       for (const word of list)
-        if (!nodeFor.has(word)) { const el = makeChip(word); nodeFor.set(word, el); arrived.push(el); }
+        if (!nodeFor.has(word)) { const el = chipFor(word); nodeFor.set(word, el); arrived.push(el); }
 // Re-appending an existing node MOVES it, so only restack when the ORDER really changed; on a
 // plain removal the survivors keep their places.
       const shown = laidOut.filter((w) => nodeFor.has(w));
@@ -139,6 +142,17 @@ export const keywordChipsField = ({ placeholder }) => ({
 
     const drop = (word) => { list = list.filter((k) => k !== word); render(); };
 
+// An open shows what is stored, never a diff against the last session's chips: animating that
+// flashed the unsaved or cleared words and then flew them out.
+    const snap = () => {
+      for (const el of [...chips.children]) clearTimeout(el.__settle);
+      chips.replaceChildren();
+      nodeFor.clear();
+      for (const word of list) { const el = chipFor(word); nodeFor.set(word, el); chips.appendChild(el); }
+      laidOut = [...list];
+      clearBtn.disabled = list.length === 0;
+    };
+
     const add = () => {
       const next = addKeywords(list, input.value);
       input.value = '';
@@ -158,7 +172,7 @@ export const keywordChipsField = ({ placeholder }) => ({
     });
 
     return {
-      set: (value) => { list = parseKeywords(value); render(); },
+      set: (value) => { list = parseKeywords(value); snap(); },
       // Whatever is still typed counts as named — Save never drops it on the floor.
       get: () => addKeywords(list, input.value),
       focus: () => input.focus(),

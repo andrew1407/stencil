@@ -11,5 +11,5 @@ export declare const pixelIconSvg: (name: string, size?: number, accent?: string
 export declare const paintLogoMark: (root: ParentNode, accent: string | null, dark?: boolean) => void;
 /** Install the skin table into ui/icons.js, or take it out. */
 export declare const setPixelIcons: (on: boolean, dark?: boolean) => void;
-/** Redraw every glyph under `root` in the art ui/icons.js serves now. */
+/** The glyphs and the header mark in the pixel art (on) or back in the app's own (off). */
 export declare const swapIconArt: (root: ParentNode, on: boolean, accent?: string | null, dark?: boolean) => void;

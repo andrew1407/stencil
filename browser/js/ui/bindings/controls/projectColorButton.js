@@ -1,5 +1,5 @@
 import { SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../../motion/surface/motion.js';
-import { surfaceIn, surfaceOut } from '../../motion/surface/surfaces.js';
+import { popupIn, popupOut } from '../../motion/control/popup.js';
 import { rectCenter } from '../../motion/control/tips.js';
 import { icon } from '../../icons.js';
 import { normalizeHex } from '../../../core/settings/accents.js';
@@ -55,7 +55,7 @@ export function wireProjectColorButton(app) {
       menu.id = 'project-color-menu';
       menu.className = 'project-menu';
       const close = () => {
-        surfaceOut(menu, btnPoint(), { ms: SURFACE_MENU_OUT_MS });
+        popupOut(menu, btnPoint(), SURFACE_MENU_OUT_MS);
         menu.remove();
         openMenuNow = null;
         document.removeEventListener('mousedown', onDoc, true);
@@ -78,7 +78,7 @@ export function wireProjectColorButton(app) {
       const mw = menu.offsetWidth;
       menu.style.left = `${Math.max(8, Math.min(r.right - mw, window.innerWidth - mw - 8))}px`;
       menu.style.top = `${r.bottom + 6}px`;
-      surfaceIn(menu, btnPoint(), { ms: SURFACE_MENU_IN_MS });
+      popupIn(menu, btnPoint(), SURFACE_MENU_IN_MS);
       const onDoc = ev => { if (!menu.contains(ev.target)) close(); };
       setTimeout(() => document.addEventListener('mousedown', onDoc, true), 0);
     };

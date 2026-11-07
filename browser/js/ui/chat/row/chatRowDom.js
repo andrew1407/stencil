@@ -1,11 +1,13 @@
 // Transcript row DOM: classes, text node, shrink-wrap.
 import { REVEAL_ENTERING_CLASS, REVEAL_IN_CLASS, REVEAL_ITEM_CLASS, REVEAL_MASKED_CLASS, REVEAL_NO_TRIGGER_CLASS, REVEAL_SMOOTH_CLASS } from '../../motion/reveal.js';
-import { CHAT_ENTERING_CLASS } from '../../motion/control/chatFx.js';
+import { CHAT_ENTERING_CLASS, CHAT_SLIDE_CLASS, CHAT_GROW_CLASS, CHAT_SIDE_CLASS } from '../../motion/control/chatFx.js';
+import { GENIE_DRIVEN_CLASS } from '../../motion/genie/window.js';
 
-// Repaints rewrite className wholesale, so motion.js's classes are kept here — CHAT_ENTERING_CLASS
-// too: a turn appends two rows, and the second repaint would tear the first's veil off mid-flight.
+// Repaints rewrite className wholesale, so motion.js's classes are kept here — the entrances too
+// (the dust veil, the slide's rise): a turn appends two rows, and the second repaint cut the first's.
 const MOTION_CLASSES = [REVEAL_ITEM_CLASS, REVEAL_IN_CLASS, REVEAL_MASKED_CLASS, REVEAL_ENTERING_CLASS,
-  REVEAL_SMOOTH_CLASS, REVEAL_NO_TRIGGER_CLASS, CHAT_ENTERING_CLASS];
+  REVEAL_SMOOTH_CLASS, REVEAL_NO_TRIGGER_CLASS, CHAT_ENTERING_CLASS, CHAT_SLIDE_CLASS, CHAT_GROW_CLASS,
+  CHAT_SIDE_CLASS, GENIE_DRIVEN_CLASS];
 export const setRowClass = (el, cls) => {
   const keep = MOTION_CLASSES.filter((k) => el.classList.contains(k));
   el.className = cls;
@@ -33,11 +35,15 @@ export const shrinkWrapWidth = (lineWidths) => {
 
 // A max-width, not a fixed width, so a narrower resize still reflows; a wider one is
 // covered by bindShrinkWrapResize. Guarded for the DOM-lite test tree (no Range).
+// Client rects are drawn sizes: a row measured mid-entrance, scaled down (its own grow, the panel's pour), pinned
+// a bubble too narrow for good, its text running past its edge once the scale lifted (user report). Unscaled.
 const measureShrinkWrap = (el) => {
   if (!el.firstChild) return null;
   const range = document.createRange();
   range.selectNodeContents(el);
-  return shrinkWrapWidth([...range.getClientRects()].map((r) => r.width));
+  const drawn = el.getBoundingClientRect?.().width;
+  const scale = drawn > 0 && el.offsetWidth > 0 ? drawn / el.offsetWidth : 1;
+  return shrinkWrapWidth([...range.getClientRects()].map((r) => r.width / scale));
 };
 
 export const applyShrinkWrap = (el) => {

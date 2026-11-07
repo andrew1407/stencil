@@ -3,6 +3,7 @@
 #include "RowHoverSlide.hpp"    // the hovered row eases 2px right (browser .accent-dd-opt:hover)
 #include "ShimmerOverlay.hpp"   // …and takes the app's glass sweep with it, as the trigger does
 #include "uiTimings.hpp"
+#include "../aqua/AquaCheckDelegate.hpp"
 
 #include <QLabel>
 #include <QLineEdit>
@@ -73,10 +74,8 @@ namespace stencil::gui {
     list->setEditTriggers(QAbstractItemView::NoEditTriggers);
     // QSS ::item:hover needs it.
     list->setMouseTracking(true);
-    if (delegate) list->setItemDelegate(delegate);
-    // The slide WRAPS whatever delegate is installed, so a popup with its own painter keeps it.
     installRowShimmer(list);
-    installRowHoverSlide(list);
+    installListDelegate();
     list->setFocusPolicy(searchable ? Qt::NoFocus : Qt::StrongFocus);   // keys go to
     if (!searchable) list->installEventFilter(this);                    // whoever has focus
     // Hover preview (repaint only); waits for the pointer to settle so skimming does not repaint per row.

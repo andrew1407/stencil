@@ -137,9 +137,9 @@ test('clearing waits out the wipe before the empty state returns', () => {
     + 'check is :scope-d, or the scatter\'s own .msg clones read as live conversation');
   const motion = motionSrc();
   const shared = readFileSync(new URL('../../../src/popup/assistant/shared.js', import.meta.url), 'utf8');
-  assert.match(shared, /chatIn, leaveThenRemove, CHAT_LEAVE_MS, scatterGridFor/);
-  // Chat entries leave on the slower, finer dissolve — more particles, more time.
-  assert.match(shared, /export const chatLeave = \(el, done, count = 1, index = 0\) =>\n\s*leaveThenRemove\(el, done, \{ ms: CHAT_LEAVE_MS, \.\.\.scatterGridFor\(count, index\) \}\);/);
+  assert.match(shared, /chatIn, chatPourAway, leaveThenRemove, CHAT_LEAVE_MS, scatterGridFor/);
+  // Chat entries leave on the slower, finer dissolve — more particles, more time; Sliding pours them home first.
+  assert.match(shared, /export const chatLeave = \(el, done, count = 1, index = 0\) => \{\n\s*if \(chatPourAway\(el\)\) el\.style\.opacity = '0';\n\s*return leaveThenRemove\(el, done, \{ ms: CHAT_LEAVE_MS, \.\.\.scatterGridFor\(count, index\) \}\);/);
   assert.match(motion, /export const CHAT_LEAVE_MS = 260;/);
   assert.match(motion, /export const CHAT_DISINTEGRATE_COLS = 32;/);
   // A wipe scatters every entry at once, so the mesh is budgeted by how many are going.

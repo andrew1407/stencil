@@ -1,4 +1,5 @@
 #include "controlSwap.hpp"
+#include "../../theme/faceSwap.hpp"
 
 namespace stencil::gui {
 
@@ -118,11 +119,7 @@ namespace stencil::gui {
     return pm;
   }
 
-  void ctl::repolish(QWidget* w) {
-    w->style()->unpolish(w);
-    w->style()->polish(w);
-    w->update();
-  }
+  void ctl::repolish(QWidget* w) { gui::repolish(w); }
 
 
   // A widget stylesheet is the only lever over the app-wide `QComboBox { color: … }`;

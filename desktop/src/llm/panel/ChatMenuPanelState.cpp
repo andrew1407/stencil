@@ -51,6 +51,7 @@ namespace stencil::gui {
     send->setIcon(themedIcon(busy ? "stop" : "send", onAccent, MENU_CHAT_ICON));
     more->setIcon(themedIcon("dots", onAccent, MENU_CHAT_ICON));
     restyleChatMoreMenu(moreRows, pal.textMain);   // the dock's own glyphs on the same rows
+    restyleChatCardMores(this, chip, border, accent, muted);
     splitter->setPillColors(pal.borderMain, pal.accent);
     styleSuggestionChips(suggest, pal);
     // The tails are painted, not styled: a theme change recolours them here.

@@ -4,7 +4,7 @@
 // Desktop twin: desktop/src/app/theme/ThemeLens.{hpp,cpp}, opened by ThemePainterLens.cpp.
 import { wireIconDrag } from './iconDrag.js';
 import { NO_COPY_ATTR, buildPageCopy, cutInheritance, pageSheets, readPageCss } from '../accent/themeCopy.js';
-import { webcoreActive } from '../webcore/toggle.js';
+import { activeSkin } from '../skin/session.js';
 import { THEME_INSTANT_CLASS, THEME_SWAP_CLASS } from '../motion/surface/themeSwap.js';
 import { motionReduced } from '../motion/motionPrefs.js';
 
@@ -98,11 +98,11 @@ export const openThemeLens = (x, y, { theme, isPicture, doc = globalThis.documen
   return lens;
 };
 
-// No lens opens under the webcore skin (its face paints its own icon art) or over a swap still in
+// No lens opens under a session skin (its face is not the theme the copy previews) or over a swap still in
 // flight, which the copy would carry; the drag goes on without one, and ends as one does.
 const lensAllowed = (doc) => {
   const root = doc.documentElement;
-  return !webcoreActive(doc) && !root?.classList?.contains(THEME_INSTANT_CLASS)
+  return !activeSkin(doc) && !root?.classList?.contains(THEME_INSTANT_CLASS)
     && !root?.classList?.contains(THEME_SWAP_CLASS);
 };
 

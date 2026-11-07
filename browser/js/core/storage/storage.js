@@ -3,7 +3,7 @@ import { normalizePageSize } from '../settings/units.js';
 import { normalizeCropRect } from '../layout.js';
 import { editorMemento } from '../historyStack.js';
 import { createTrailingSave } from '../zoom/pan.js';
-import { ghostOut, flashLanding, playCanvasArrival, GHOST_MS } from '../../ui/motion.js';
+import { ghostOut, flashLanding, playCanvasArrival, slideCanvasAway, GHOST_MS } from '../../ui/motion.js';
 import { showImageMissingBanner as paintImageMissingBanner } from '../../ui/shell/imageMissingBanner.js';
 import { paintPageSize, paintDrawingControls, paintVisibilityChecks, paintFormulaFields,
          hideSelectionPanels, resetViewportScroll, scrollViewportTo } from '../../ui/panel/layoutControls.js';
@@ -159,6 +159,7 @@ export class Storage {
           // Empty lines → step -1, so a brand-new project has no phantom undo.
           this.app.history.reset(editorMemento(this.app), this.app.lines.length ? 0 : -1);
 
+          this.app.updateButtons();   // before the fit and the arrival, as the loader's (image/settle.js)
           if (layout.zoom) {
             this.app.zoomPan.setZoom(layout.zoom);
             // BEFORE the arrival, so the dust forms over the slice the user will see.
@@ -171,7 +172,6 @@ export class Storage {
           this.app.renderer.redraw();
           // Same beat as the file loader: in THIS tick, or a frame of the finished image flashes first.
           if (landing) playCanvasArrival(this.app.canvas, { layers: this.app.renderer.layers() });
-          this.app.updateButtons();
           this.app.updateCoordStatus();
           // The selection resets and the table lists this project's last line, or empties: it kept the last project's.
           settleReplacedLines(this.app);
@@ -199,9 +199,9 @@ export class Storage {
     this.app.activeProjectId = null;
     // Chat persistence (§12): no project to file a chat under → a fresh scope.
     if (!keepChat) this.app.chatPersistence?.projectOpened(null);
-
-    // Boot starts blank: no dust/hold when there was nothing on screen.
-    const hadImage = !!this.app.image;
+    // Boot starts blank: no dust/hold when there was nothing on screen; Sliding/Transition copy it away first.
+    const slid = !!this.app.image && slideCanvasAway(this.app.canvas);
+    const hadImage = !!this.app.image && !slid;
 
     clearEditorState(this.app);
 

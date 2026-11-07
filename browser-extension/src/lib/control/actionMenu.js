@@ -26,6 +26,9 @@ export const flyoutPlacement = ({ head, wrap, size, viewport }) => {
   return { left: vLeft - wrap.left, top: vTop - wrap.top };
 };
 
+// A flyout grows out of, and goes back into, its row's ▸ (browser rowSubmenu.js arrowPoint).
+const arrowPoint = (head) => centerOf(head.querySelector('.caret')) || centerOf(head);
+
 // `run` wraps a clicked item's action in the caller's error reporting.
 export const createActionMenu = ({ menuEl, run = (fn) => fn(), doc = document, win = window }) => {
   let anchorBtn = null;
@@ -85,12 +88,12 @@ export const createActionMenu = ({ menuEl, run = (fn) => fn(), doc = document, w
     };
     wrap.addEventListener('mouseenter', () => {
       place();
-      if (!surfaceIn(fly, centerOf(head))) menuIn(fly, head);
+      if (!surfaceIn(fly, arrowPoint(head))) menuIn(fly, pointBox(arrowPoint(head)));
     });
     wrap.addEventListener('mouseleave', () => {
       // Already display:none by mouseleave — unhide it for the frame the motes are cloned in.
       fly.style.display = 'block';
-      if (!menuAway(fly, head)) surfaceOut(fly, centerOf(head));
+      if (!menuAway(fly, pointBox(arrowPoint(head)))) surfaceOut(fly, arrowPoint(head));
       fly.style.display = '';
     });
     wrap.append(head, fly);

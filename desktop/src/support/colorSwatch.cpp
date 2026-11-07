@@ -1,7 +1,7 @@
 #include "colorSwatch.hpp"
 
 #include "theme.hpp"
-#include "skinPrefs.hpp"
+#include "skin/SkinLookStrategy.hpp"
 #include <QAbstractButton>
 #include <QGuiApplication>
 #include <QColor>
@@ -53,8 +53,8 @@ namespace stencil::gui {
     btn->setCursor(Qt::PointingHandCursor);
     // Written only when it would change: a live picker preview re-swatches on every drag
     // tick, and each setStyleSheet is a QSS re-parse plus re-polish. Hex sits flush left (browser .vs-color).
-    // A skin squares every corner (support/skinPrefs.hpp), the chip below included.
-    const bool skin = support::isWebcore();
+    // A skin may square every corner (support/skin/SkinTraits.hpp), the chip below included.
+    const bool skin = support::skinTraits().hasSquareCorners;
     const QString sheet = QString("QAbstractButton{background:%1;border:1px solid %2;"
                                   "border-radius:%4;padding:%5;%6}"
                                   "QAbstractButton:hover{border-color:%3;}")

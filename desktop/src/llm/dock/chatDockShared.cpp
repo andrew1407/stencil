@@ -1,4 +1,5 @@
 #include "chatDockShared.hpp"
+#include "../../support/theme/faceSwap.hpp"
 
 #include "../../support/motion/DisintegrateOverlay.hpp"
 #include "../../support/motion/scrollReveal.hpp"        // ENTERING_PROPERTY — the entrance claims the effect
@@ -6,7 +7,9 @@
 #include "../../support/motionPrefs.hpp"
 #include "../../support/rowWork.hpp"
 
+#include <QApplication>
 #include <QEasingCurve>
+#include <cmath>
 #include <QFileInfo>
 #include <QGraphicsOpacityEffect>
 #include <QImage>
@@ -58,6 +61,22 @@ namespace stencil::gui::chatdock {
     anim->start(QAbstractAnimation::DeleteWhenStopped);
   }
 
+  QIcon liftedIcon(const QIcon& icon, int px, double gain) {
+    const qreal dpr = qApp ? qApp->devicePixelRatio() : 1.0;
+    QImage img = icon.pixmap(QSize(px, px), dpr).toImage().convertToFormat(QImage::Format_ARGB32_Premultiplied);
+    const auto up = [gain](int c, int a) { return std::min(a, static_cast<int>(std::lround(c * gain))); };   // premultiplied: never past alpha
+    for (int y = 0; y < img.height(); ++y) {
+      auto* row = reinterpret_cast<QRgb*>(img.scanLine(y));
+      for (int x = 0; x < img.width(); ++x) {
+        const int a = qAlpha(row[x]);
+        row[x] = qRgba(up(qRed(row[x]), a), up(qGreen(row[x]), a), up(qBlue(row[x]), a), a);
+      }
+    }
+    QPixmap out = QPixmap::fromImage(img);
+    out.setDevicePixelRatio(dpr);
+    return QIcon(out);
+  }
+
   QToolButton* makeGhostButton(QWidget* parent, const QString& tooltip) {
     auto* b = new QToolButton(parent);
     b->setAutoRaise(true);
@@ -72,13 +91,8 @@ namespace stencil::gui::chatdock {
     return b;
   }
 
-  // Re-run the stylesheet for a widget whose objectName just changed (Qt matches
-  // selectors at polish time, not on every paint).
   void repolish(QWidget* w) {
-    if (!w || !w->style()) return;
-    w->style()->unpolish(w);
-    w->style()->polish(w);
-    w->update();
+    gui::repolish(w);
   }
 
   void readImageFilesThen(QObject* ctx, const QStringList& paths,

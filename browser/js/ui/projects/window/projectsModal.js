@@ -87,7 +87,7 @@ export class StencilProjectsModal extends StencilElement {
     // A delete plays the row out before the rebuild.
     const rowById = (id) => (id == null ? null : list.querySelector(`[data-id="${id}"]`));
     const render = () => rows.render();
-    const beginRemoval = () => rows.beginRemoval();
+    const beginRemoval = (opts) => rows.beginRemoval(opts);
 
     const scrollRowIntoView = (id) => {
       if (id == null) return;

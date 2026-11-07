@@ -79,18 +79,32 @@ export const supportsShareFiles = () => {
 
 // The native colour picker opens under the input's own box, so the hidden input is laid over
 // the button. A transformed ancestor re-roots position:fixed, hence the measured correction.
-export const anchorPickerInput = (input, btn) => {
-  const r = btn?.getBoundingClientRect?.();
-  if (!r) return;
+const layPickerInput = (input, r) => {
   const st = input.style;
   const w = Math.max(1, r.width || 0), h = Math.max(1, r.height || 0);
   Object.assign(st, { position: 'fixed', margin: '0', transform: 'none', boxSizing: 'border-box',
     left: `${r.left}px`, top: `${r.top}px`, width: `${w}px`, height: `${h}px` });
   const got = input.getBoundingClientRect?.();
-  if (!got || !(got.width > 0)) return;
+  if (!got || !(got.width > 0)) return false;
   const sx = got.width / w, sy = got.height > 0 ? got.height / h : sx;
+  const near = (a, b, eps) => Math.abs(a - b) < eps;   // 0.5px: a layout unit's rounding is no re-root
+  if (near(got.left, r.left, 0.5) && near(got.top, r.top, 0.5) && near(sx, 1, 1e-3) && near(sy, 1, 1e-3)) return false;
   Object.assign(st, { left: `${r.left + (r.left - got.left) / sx}px`, top: `${r.top + (r.top - got.top) / sy}px`,
     width: `${w / sx}px`, height: `${h / sy}px` });
+  return true;
+};
+
+// Chrome hangs its picker off a re-rooted fixed box shifted by the root's offset twice (a docked
+// chat's band, user report), so such a field opens from <body>; the result puts it back home.
+export const anchorPickerInput = (input, btn) => {
+  const r = btn?.getBoundingClientRect?.();
+  if (!r) return null;
+  const body = input.ownerDocument?.body;
+  if (!layPickerInput(input, r) || !body || input.parentNode === body || !input.parentNode) return null;
+  const home = input.parentNode, next = input.nextSibling;
+  body.appendChild(input);
+  layPickerInput(input, r);
+  return () => { if (input.parentNode === body) home.insertBefore(input, next?.parentNode === home ? next : null); };
 };
 
 

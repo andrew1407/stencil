@@ -1,11 +1,45 @@
 #include "chatSheets.hpp"
+#include "../aqua/gradient.hpp"
+#include "../aqua/still.hpp"
 
 // The chat surfaces' sheet text; the widgets that wear each one live under src/llm/ and src/app/chat/.
 
 namespace stencil::support {
 
+  namespace {
+    // Aqua's close is the window's red light (qss/aqua/windows.qss #modalClosePill): the title bar's own
+    // transparent-button rule would outrank the app sheet, so it rides here. pal.danger is --aq-red.
+    QString aquaCloseLight(const gui::Palette& pal) {
+      if (!isAqua()) return QString();
+      const SkinGlass& g = skinGlass();
+      return QStringLiteral(
+                 // The dock lights are 17 px glass beads beside the 13 px close light (browser
+                 // css/aqua/windows.css); the retry is a 23 px one (.chat-retry-cta).
+                 "#chatTitleBar QToolButton{min-width:17px;max-width:17px;min-height:17px;max-height:17px;"
+                 "padding:0;border:1px solid %2;border-radius:8px;background:%3;}"
+                 "QToolButton#chatRetry{min-width:23px;max-width:23px;min-height:23px;max-height:23px;"
+                 "padding:0;border:1px solid %2;border-radius:11px;background:%3;}"
+                 "#chatTitleBar QToolButton[chatClose=\"true\"]{min-width:13px;max-width:13px;min-height:13px;"
+                 "max-height:13px;margin:0 4px 0 2px;border:1px solid #00000060;border-radius:7px;background:%1;}")
+          .arg(aquaCloseLightQss(pal.danger), g.edge.name(), aquaQssGradient(g.glassStops));
+    }
+    // browser css/webcore/chat.css: square white wells (--wc-well), the user's on --wc-light, no
+    // tail; an error is framed and worded in --danger.
+    QString webcoreCardSheet(const gui::Palette& pal) {
+      const QString well = QStringLiteral("border:1px solid;border-color:%1 %2 %2 %1;border-radius:0;")
+                               .arg(pal.borderMain.name(), skinBevel().hilight.name());
+      return QStringLiteral(
+                 "#chatCardUser{background:%2;%1}"
+                 "#chatCardAssistant, #chatCardMuted, #chatResult{background:%3;%1}"
+                 "#chatCardMuted QLabel, #chatResult QLabel{color:%4;background:transparent;}"
+                 "#chatCardError{background:%3;border:1px solid %5;border-radius:0;}"
+                 "#chatCardError QLabel{color:%5;background:transparent;}")
+          .arg(well, pal.bgCoordHover.name(), pal.inputBg.name(), pal.textMuted.name(), pal.danger.name());
+    }
+  }  // namespace
+
   QString chatDockSheet(const gui::Palette& pal) {
-    return QStringLiteral(
+    return stillUnderAqua(QStringLiteral(
                "#chatTitleBar{background:%1;border:1px solid %2;border-bottom:1px solid %2;}"
                // .chat-hbtn has no padding/border, so the 13 px glyph fills the 23 px chip.
                "#chatTitleBar QToolButton{padding:0;border:none;background:transparent;"
@@ -32,11 +66,13 @@ namespace stencil::support {
                  .arg(pal.textMuted.red())
                  .arg(pal.textMuted.green())
                  .arg(pal.textMuted.blue())
-                 .arg(pal.textMuted.alphaF()));
+                 .arg(pal.textMuted.alphaF())))
+        + aquaCloseLight(pal);
   }
 
   // Browser .chat-msg parity: the ROLE is colour and side; role/body ride as widget PROPERTIES.
   QString chatCardStyleSheet(const gui::Palette& pal, bool swapped) {
+    if (isWebcore()) return webcoreCardSheet(pal);
     const auto rgba = [](const QColor& c, double a) {
       return QStringLiteral("rgba(%1,%2,%3,%4)")
           .arg(c.red()).arg(c.green()).arg(c.blue()).arg(a);
@@ -96,11 +132,11 @@ namespace stencil::support {
   // browser .chat-jump-btn: its hover fill comes from the app-wide generic `button:hover`
   // rule, which QSS has no equivalent of, so it is stated here. pal.textKey doubles as --accent-2.
   QString chatJumpButtonSheet(const gui::Palette& pal) {
-    return QStringLiteral(
+    return stillUnderAqua(QStringLiteral(
                "QToolButton{border:1px solid %1;border-radius:14px;background:%2;}"
                "QToolButton:hover{border-color:%3;background:%4;}")
         .arg(pal.borderMain.name(), pal.bgControls.name(), pal.accent.name(),
-             pal.textKey.name());
+             pal.textKey.name()));
   }
 
   // Badge on the gear's corner: filled dot + a subtle ring for legibility.
@@ -112,6 +148,8 @@ namespace stencil::support {
   // Quiet solid chips: normal border/card background/text, accent border + a
   // faint accent fill on hover. The boxes are qss/app/modals.qss's; only the palette is live.
   QString chatSuggestChipSheet(const gui::Palette& pal) {
+    // A skin's chip is its own button (browser .chat-suggest: aqua glass, webcore raised): the overlay's.
+    if (isAqua() || isWebcore()) return QString();
     return QStringLiteral("QPushButton{border:1px solid %1;background:%2;color:%3;}"
                           "QPushButton:hover{border-color:%4;background:rgba(%5,%6,%7,26);}")
         .arg(pal.borderMain.name(), pal.bgContainer.name(), pal.textMain.name(),
@@ -132,13 +170,29 @@ namespace stencil::support {
       return QStringLiteral("rgba(%1,%2,%3,%4)")
           .arg(c.red()).arg(c.green()).arg(c.blue()).arg(a);
     };
-    return QStringLiteral("QToolButton{padding:1px;background:%1;"
+    // Under a skin the trigger is its control: aqua's 21 px glass bead, webcore's raised button
+    // (the overlay's own QToolButton rule, which an empty local sheet leaves standing).
+    if (isWebcore()) return QString();
+    if (isAqua()) {
+      const SkinGlass& g = skinGlass();
+      return QStringLiteral("QToolButton{padding:0;border:1px solid %1;border-radius:10px;background:%2;}")
+          .arg(g.edge.name(), aquaQssGradient(g.glassStops));
+    }
+    return stillUnderAqua(QStringLiteral("QToolButton{padding:1px;background:%1;"
                           "border:1px solid %2;border-radius:10px;}"
                           "QToolButton:hover{background:%3;border-color:%4;}")
-        .arg(rgba(chip, restOpacity), rgba(border, restOpacity), chip.name(), border.name());
+        .arg(rgba(chip, restOpacity), rgba(border, restOpacity), chip.name(), border.name()));
   }
 
   QString chatPlacementActiveSheet(const QColor& chip) {
+    // Aqua's current dock is a blue gel bead; webcore's stays the raised button the rest are (browser
+    // .chat-dock-btn-active under css/aqua/ and css/webcore/).
+    if (isWebcore()) return QString();
+    if (isAqua()) {
+      const SkinGlass& g = skinGlass();
+      return QStringLiteral("background:%1;border:1px solid %2;border-radius:8px;")
+          .arg(aquaQssGradient(g.gelStops), g.gelEdge.name());
+    }
     return QStringLiteral("background:%1;border:none;border-radius:5px;").arg(chip.name());
   }
 

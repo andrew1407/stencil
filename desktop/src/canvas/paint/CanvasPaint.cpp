@@ -28,15 +28,15 @@ namespace stencil::gui {
     const CompareMode compare = effectiveCompareMode();
     const QRectF target(0, 0, image.width() * scale, image.height() * scale);
     if (cleanPreview) {   // the logo drag's clean view: the bare picture, nothing over it
-      p.drawImage(target, basePremul.of(image));
+      basePremul.draw(p, target, image);
       return;
     }
     if (compare == CompareMode::ORIGINAL) {
-      p.drawImage(target, basePremul.of(compareBaseImage()));
+      basePremul.draw(p, target, compareBaseImage());
       return;
     }
     // A "none" filter leaves no filtered picture behind (rebuildFilteredImage).
-    p.drawImage(target, shownPremul.of(filteredImage.isNull() ? image : filteredImage));
+    shownPremul.draw(p, target, filteredImage.isNull() ? image : filteredImage);
     // A split compare view is read-only: no selection glow, no hover/focus rings. A line whose
     // padded bounds miss the exposed rect would paint nothing there, so it is not stroked.
     const bool hl = compare == CompareMode::NONE;

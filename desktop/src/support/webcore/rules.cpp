@@ -10,12 +10,6 @@
 namespace stencil::support {
 
   namespace {
-    QStringList strings(const QJsonArray& a) {
-      QStringList out;
-      for (const QJsonValue& v : a) out << v.toString();
-      return out;
-    }
-
     QVector<QRect> rects(const QJsonArray& a) {
       QVector<QRect> out;
       for (const QJsonValue& v : a) {
@@ -23,10 +17,6 @@ namespace stencil::support {
         if (r.size() == 4) out.push_back(QRect(r.at(0).toInt(), r.at(1).toInt(), r.at(2).toInt(), r.at(3).toInt()));
       }
       return out;
-    }
-
-    void readTokens(const QJsonObject& o, QHash<QString, QColor>& into) {
-      for (auto it = o.begin(); it != o.end(); ++it) into.insert(it.key(), QColor(it.value().toString()));
     }
 
     WebcoreConfig parseConfig() {
@@ -38,7 +28,7 @@ namespace stencil::support {
       readTokens(tokens.value("light").toObject(), c.tokens[0]);
       readTokens(tokens.value("dark").toObject(), c.tokens[1]);
       const QJsonObject font = root.value("font").toObject();
-      c.fontFamilies = strings(font.value("families").toArray());
+      c.fontFamilies = jsonStrings(font.value("families").toArray());
       c.fontPx = font.value("px").toInt(c.fontPx);
       c.fontPt = font.value("pt").toInt(c.fontPt);
       const QJsonObject img = root.value("image").toObject();
@@ -46,12 +36,12 @@ namespace stencil::support {
       c.height = img.value("height").toInt(c.height);
       c.cell = img.value("cell").toInt(c.cell);
       c.horizonShare = img.value("horizonShare").toDouble(c.horizonShare);
-      c.skyBands = strings(img.value("skyBands").toArray());
+      c.skyBands = jsonStrings(img.value("skyBands").toArray());
       const QJsonObject hill = img.value("hill").toObject();
       c.ampCells = hill.value("ampCells").toInt(c.ampCells);
       c.spanCells = hill.value("spanCells").toInt(c.spanCells);
       c.offsetCells = hill.value("offsetCells").toInt(c.offsetCells);
-      c.grass = strings(img.value("grass").toArray());
+      c.grass = jsonStrings(img.value("grass").toArray());
       c.cloudInk = img.value("cloudInk").toString();
       c.cloudShade = img.value("cloudShade").toString();
       for (const QJsonValue& v : img.value("clouds").toArray()) {
@@ -67,7 +57,7 @@ namespace stencil::support {
       c.text = word.value("text").toString();
       c.stroke = word.value("stroke").toString();
       c.thickness = word.value("thickness").toDouble(c.thickness);
-      c.colors = strings(word.value("colors").toArray());
+      c.colors = jsonStrings(word.value("colors").toArray());
       const QJsonArray grid = word.value("grid").toArray();
       if (grid.size() == 2) { c.gridW = grid.at(0).toInt(); c.gridH = grid.at(1).toInt(); }
       c.gapCells = word.value("gapCells").toInt(c.gapCells);
@@ -89,7 +79,6 @@ namespace stencil::support {
       return c;
     }
 
-    double round2(double v) { return std::round(v * 100) / 100; }
   }  // namespace
 
   const WebcoreConfig& webcoreConfig() {
@@ -143,19 +132,7 @@ namespace stencil::support {
   }
 
   QVector<CellRun> cellRuns(const CellGrid& grid) {
-    QVector<CellRun> runs;
-    for (int cy = 0; cy < grid.rows; ++cy) {
-      int start = 0;
-      QString color = cellColorAt(0, cy, grid);
-      for (int cx = 1; cx <= grid.cols; ++cx) {
-        const QString c = cx < grid.cols ? cellColorAt(cx, cy, grid) : QString();
-        if (c == color) continue;
-        runs.push_back({start, cy, cx - start, 1, color});
-        start = cx;
-        color = c;
-      }
-    }
-    return runs;
+    return runsOf(grid.cols, grid.rows, [&grid](int cx, int cy) { return cellColorAt(cx, cy, grid); });
   }
 
   QString pixelColorAt(int px, int py) {
@@ -167,25 +144,14 @@ namespace stencil::support {
     return color;
   }
 
+  WordGlyphs webcoreWordGlyphs() {
+    const WebcoreConfig& c = webcoreConfig();
+    return WordGlyphs{c.text, c.glyphs, c.gridW, c.gridH, c.gapCells};
+  }
+
   QVector<WordLine> wordLines(int w, int h) {
     const WebcoreConfig& c = webcoreConfig();
-    const int n = int(c.text.size());
-    const int totalCells = n * c.gridW + (n - 1) * c.gapCells;
-    const double cellPx = (w * c.widthShare) / totalCells;
-    const double left = (w - totalCells * cellPx) / 2;
-    const double top = h * c.centerYShare - (c.gridH * cellPx) / 2;
-    QVector<WordLine> out;
-    for (int i = 0; i < n; ++i) {
-      WordLine line;
-      for (const QPoint& p : c.glyphs.value(c.text.at(i)))
-        line.points.push_back(QPointF(round2(left + (i * (c.gridW + c.gapCells) + p.x()) * cellPx),
-                                      round2(top + p.y() * cellPx)));
-      line.color = c.stroke;
-      line.fillColor = c.colors.value(i % int(c.colors.size()));
-      line.thickness = c.thickness;
-      out.push_back(line);
-    }
-    return out;
+    return wordLinesOf(w, h, webcoreWordGlyphs(), WordStyle{c.widthShare, c.centerYShare, c.colors, c.stroke, c.thickness});
   }
 
 }  // namespace stencil::support

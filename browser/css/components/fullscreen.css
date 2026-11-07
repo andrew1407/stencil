@@ -37,15 +37,17 @@ body.fullscreen-mode .canvas-section {
 }
 body.fullscreen-mode .canvas-viewport {
     position: fixed !important;
-    inset: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
+    /* Beside a docked chat, so the canvas centres in what shows (chat/dock.js updateNotifyInset). */
+    inset: var(--chat-inset-top, 0px) var(--chat-inset-right, 0px) var(--chat-inset-bottom, 0px) var(--chat-inset-left, 0px) !important;
+    width: auto !important;
+    height: auto !important;
     max-width: none !important;
     max-height: none !important;
     margin: 0 !important;
-    /* The only chrome left on screen takes the strip's hairline (desktop shell.qss [fsView]). */
-    border: 1px solid var(--border-main) !important;
-    border-radius: 8px !important;
+    /* No frame: below the system's menu-bar band its hairline and corners showed (desktop shell.qss [fsView]). */
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;   /* a skin's well shadow (aqua/canvas.css) is an edge too */
     background: var(--bg-page);
     overflow: auto;
     /* Centring is layout/canvas/frame.css's: a flex column, the canvas on `margin: auto` (a
@@ -53,23 +55,18 @@ body.fullscreen-mode .canvas-viewport {
     display: flex;
     z-index: 0; /* below fixed fullscreen panels (z-index 10000) */
 }
-body.fullscreen-mode .canvas-viewport.remote-editing { border-color: var(--remote-gold) !important; }
+body.fullscreen-mode .canvas-viewport.remote-editing { border: 1px solid var(--remote-gold) !important; }
 
-/* Fullscreen enter/exit flight (motion.js flipFrom): no scrollbars and nothing painted over the
-   viewport while it is transform-scaled between its in-flow box and the window. */
+/* Fullscreen enter/exit flight (motion/flip.js glideFrom): no scrollbars while the viewport's box
+   glides between its in-flow slot and the window. */
 .canvas-viewport.flip-active {
     overflow: hidden !important;
-    will-change: transform;
-    backface-visibility: hidden;   /* no sub-pixel shimmer while scaling */
 }
 body:not(.fullscreen-mode) .canvas-viewport.flip-active {
     position: relative;
     z-index: 10050;                /* over the toolbars, under nothing that matters */
     background: var(--bg-page);    /* the fullscreen ground it is shrinking out of */
     border-radius: 0;
-}
-@media (prefers-reduced-motion: reduce) {
-    .canvas-viewport.flip-active { will-change: auto; }
 }
 
 /* ── Fullscreen slide-in panels ── */
@@ -155,6 +152,11 @@ body.fullscreen-mode #fs-points-panel.fs-panel-visible ~ #fs-panel-resizer {
 /* The handle is part of the dusted panel: it forms and goes with the motes, never on a slide of
    its own. 460ms is POINTS_DUST_IN_MS (fullscreenPanels.js). */
 body.fullscreen-mode #fs-points-panel.dust-driven ~ #fs-panel-resizer { transition: right 0.25s ease; }
+/* A pouring panel stays hit-testable, though unseen (overlays.css clips a genie box away): the pointer
+   crossing onto it holds it, rather than leaving both band and panel and pouring it again. */
+:is(#fs-controls-panel, #fs-points-panel).genie-driven { clip-path: none !important; }
+/* Sliding pours the list's picture without its handle: the handle shows as the list lands. */
+body.fullscreen-mode #fs-points-panel.genie-driven ~ #fs-panel-resizer { opacity: 0; pointer-events: none; }
 body.fullscreen-mode #fs-points-panel.surface-forming ~ #fs-panel-resizer { animation: surfaceForm 460ms linear both; }
 body.fullscreen-mode #fs-points-panel.surface-leaving ~ #fs-panel-resizer { opacity: 0; pointer-events: none; }
 #fs-panel-resizer::before {

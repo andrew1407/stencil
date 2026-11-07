@@ -1,6 +1,6 @@
 #include "LogoHoverFx.hpp"
 #include "../../support/motionPrefs.hpp"
-#include "../../support/skinPrefs.hpp"
+#include "../../support/skin/SkinLookStrategy.hpp"
 
 #include <QPainter>
 #include <QRadialGradient>
@@ -40,7 +40,7 @@ namespace stencil::gui {
 
   // STENCIL_NO_ANIM is the one opt-out besides the skin (motionPrefs.hpp motionReduced).
   bool LogoHoverFx::stillHover() {
-    return support::isWebcore() || !qEnvironmentVariableIsEmpty("STENCIL_NO_ANIM");
+    return support::skinTraits().isLogoStill || !qEnvironmentVariableIsEmpty("STENCIL_NO_ANIM");
   }
 
   void LogoHoverFx::paintEvent(QPaintEvent*) {
@@ -56,11 +56,12 @@ namespace stencil::gui {
     const bool still = stillHover();
     const qreal beat = anim && !still ? this->beat : 0.0;
     const qreal lift = 2.0 * beat;               // translateY(-2px) at the peak
-    const qreal scale = anim && still ? 1.08 : 1.0 + 0.12 * beat;
+    // Still, the mark grows by its skin's share (aqua magnifies like a Dock icon, browser css/aqua/chrome.css).
+    const qreal scale = anim && still ? support::skinTraits().logoHoverScale : 1.0 + 0.12 * beat;
     const QPointF mc(c.x(), c.y() - lift);       // the levitating mark's centre
     const QSizeF s(mark.width() * scale, mark.height() * scale);
     const QRectF at(mc.x() - s.width() / 2, mc.y() - s.height() / 2, s.width(), s.height());
-    if (anim && still) paintEdgeGlow(p, pm, at, accent);
+    if (anim && still && support::skinTraits().hasLogoGlow) paintEdgeGlow(p, pm, at, accent);
     // Accent glow, radial falloff — the CSS drop-shadow halo on the pulse's beat.
     if (anim && !still) {
       const qreal r = mark.width() * 0.5 * scale + 2.0 + 5.0 * this->beat;

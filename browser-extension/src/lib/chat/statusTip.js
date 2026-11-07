@@ -2,7 +2,7 @@
 // showGearTip). It says only what the dropdown does not: reachability.
 import {
   surfaceIn, surfaceOut, settleSurface, motionReduced, centerOf,
-  TIP_DUST_IN_MS, TIP_DUST_OUT_MS,
+  TIP_DUST_IN_MS, TIP_DUST_OUT_MS, tipFallbackIn, tipFallbackOut,
 } from '../motion.js';
 
 // `probe` null = in flight; `labels` maps a provider id to its display name.
@@ -69,20 +69,25 @@ export const createChatStatusTip = ({ doc = globalThis.document, getAnchor = () 
     tip.style.left = `${Math.round(x)}px`;
     tip.style.top = `${Math.round(above >= pad ? above : r.bottom + pad)}px`;
   };
+  let isBlocked = () => false;   // a menu the trigger opened covers the tip (user report)
   const show = () => {
+    if (isBlocked()) { hide(); return; }
     const wasHidden = !tip.classList.contains('visible');
     render();
     tip.classList.add('visible');
     place();
     if (!wasHidden) return;
     const point = centerOf(getAnchor());
-    if (motionReduced() || !point || !surfaceIn(tip, point, { ms: TIP_DUST_IN_MS })) settleSurface(tip);
+    if (motionReduced() || !point) { settleSurface(tip); return; }
+    if (!surfaceIn(tip, point, { ms: TIP_DUST_IN_MS }) && !tipFallbackIn(tip, point)) settleSurface(tip);
   };
   const hide = () => {
     if (!tip.classList.contains('visible')) { settleSurface(tip); return; }
-    tip.classList.remove('visible');
     const point = centerOf(getAnchor());
-    if (motionReduced() || !point || !surfaceOut(tip, point, { ms: TIP_DUST_OUT_MS })) settleSurface(tip);
+    // The fallback copies the tip, so it runs before the class goes.
+    const left = !motionReduced() && !!point && (surfaceOut(tip, point, { ms: TIP_DUST_OUT_MS }) || tipFallbackOut(tip, point));
+    tip.classList.remove('visible');
+    if (!left) settleSurface(tip);
   };
   const setProbe = (p) => {
     probe = p;
@@ -101,5 +106,5 @@ export const createChatStatusTip = ({ doc = globalThis.document, getAnchor = () 
     btn.addEventListener('blur', () => { suppressFocus = false; hide(); });
     btn.addEventListener('pointerdown', () => { suppressFocus = true; hide(); });
   };
-  return { el: tip, show, hide, setProbe, wire };
+  return { el: tip, show, hide, setProbe, wire, setBlocked: (fn) => { isBlocked = fn; } };
 };

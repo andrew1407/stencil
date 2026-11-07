@@ -11,6 +11,12 @@ stencil_headless_test(stencil_geniewarp_headless
   SOURCES tests/support/motion/genieWarp.headless.cpp
   LIBS Qt6::Core)
 
+# The genie's band painting (support/genie/stripPaint.hpp): merged draws, the transposed sideways paint.
+stencil_headless_test(stencil_geniestrippaint_headless
+  SOURCES tests/support/motion/genieStripPaint.headless.cpp
+    src/support/genie/stripPaint.cpp
+  LIBS Qt6::Gui)
+
 # The display-synced frame clock (support/vsync/): steps in lockstep and order, the ticker, Qt's
 # animations driven off it, and every step gone once its owner is.
 stencil_headless_test(stencil_framepulse_headless
@@ -26,6 +32,8 @@ stencil_headless_test(stencil_displayname_headless
 # plus the driver on a live QToolButton.
 stencil_headless_test(stencil_faceswap_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/support/theme/faceSwap.headless.cpp ${STENCIL_FACESWAP_SOURCES}
     src/support/icon/iconSet.cpp       # the glyphs it turns
@@ -37,6 +45,8 @@ stencil_headless_test(stencil_faceswap_headless
 # stylesheet, which draws the indicator.
 stencil_headless_test(stencil_controlswap_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp
     ${STENCIL_CONTROLREVEAL_SOURCES}
     ${STENCIL_CONTROLSWAP_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
@@ -70,6 +80,8 @@ stencil_headless_test(stencil_dblreset_headless
 # pins, and the driver on a live button.
 stencil_headless_test(stencil_iconmotion_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp
     ${STENCIL_ICONMOTION_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/support/icon/iconMotion.headless.cpp tests/support/icon/iconMotionCanon.headless.cpp

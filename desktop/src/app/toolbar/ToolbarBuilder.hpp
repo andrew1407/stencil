@@ -3,12 +3,17 @@
 #include <QString>
 
 class QAction;
+class QLabel;
 class QToolBar;
 class QWidget;
 
 namespace stencil::gui {
 
   class MainWindow;
+
+  // A section's caption in the skin's dress: the browser's spaced capitals, or aqua's plain 11px
+  // bold (css/aqua/chrome.css .ctrl-section-label). Re-run on every skin change.
+  void styleSectionCaption(QLabel* label);
 
   // Builds the editor's toolbar rows (browser toolbar.js) into the window's ToolbarControls and
   // wires each control to the window. Runs once, from the constructor.

@@ -193,3 +193,12 @@ body.on-editor-page #row-highlight { display: none; }
 }
 .action-menu .submenu.open-left > .flyout { left: auto; right: 100%; margin: 0 -2px 0 0; }
 .action-menu .submenu:hover > .flyout { display: block; }
+/* Transition (browser overlays.css menuPop): the menu grows out of the click from a speck, and a flyout out of
+   its row's caret, on the browser menu's clock. */
+@keyframes action-menu-grow { 0% { opacity: 0; transform: scale(.05); } 8% { opacity: 1; } 100% { opacity: 1; transform: none; } }
+:root[data-motion="transition"] .action-menu { animation: action-menu-grow .26s cubic-bezier(.22, .61, .36, 1); }
+:root[data-motion="transition"] .action-menu .submenu:hover > .flyout { animation: action-menu-grow .26s cubic-bezier(.22, .61, .36, 1); transform-origin: left 16px; }
+:root[data-motion="transition"] .action-menu .submenu.open-left:hover > .flyout { transform-origin: right 16px; }
+@media (prefers-reduced-motion: reduce) {
+  :root[data-motion="transition"] .action-menu, :root[data-motion="transition"] .action-menu .submenu:hover > .flyout { animation: none; }
+}

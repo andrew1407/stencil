@@ -5,6 +5,7 @@
 #include "iconSet.hpp"
 #include "iconMotionTypes.hpp"
 #include "chatSheets.hpp"
+#include "../../../support/skinPrefs.hpp"
 
 #include <QApplication>
 #include <QCursor>
@@ -35,13 +36,26 @@ namespace stencil::gui {
     const Qt::DockWidgetArea current =
         (!isFloating() && mw) ? mw->dockWidgetArea(this) : Qt::NoDockWidgetArea;
     // Also asked on every move (below), so a repaint happens only when something it shows changed.
-    const QString key = QStringLiteral("%1|%2|%3|%4").arg(int(current)).arg(int(isFloating()))
+    const QString key = QStringLiteral("%1|%2|%3|%4").arg(static_cast<int>(current)).arg(static_cast<int>(isFloating()))
                             .arg(accentCache.name(), textCache.name());
     if (key == placementKey) return;
     placementKey = key;
     const QString activeQss = support::chatPlacementActiveSheet(chipCache);
+    // The current dock's glyph: the accent, aqua's gel ink on its bead, webcore's plain ink.
+    const auto placementInk = [&](bool active) {
+      if (!active) return textCache;
+      switch (support::skin()) {
+        case support::Skin::WEBCORE: return textCache;
+        case support::Skin::AQUA: return support::skinGlass().onGel;
+        case support::Skin::DEFAULT: break;
+      }
+      return accentCache;
+    };
     const auto paint = [&](QToolButton* b, const char* glyph, bool active) {
-      b->setIcon(themedIcon(glyph, active ? accentCache : textCache, HEADER_ICON));
+      const QIcon art = themedIcon(glyph, placementInk(active), HEADER_ICON);
+      // Aqua's dark face: the graphite art lifted to read (browser css/aqua/windows.css brightness(1.9)).
+      const bool darkAqua = support::isAqua() && support::skinDark();
+      b->setIcon(darkAqua ? liftedIcon(art, HEADER_ICON, 1.9) : art);
       b->setStyleSheet(active ? activeQss : QString());
       // The float button's `maximize` glyph has a second motion for the ALREADY-floating
       // state: its corners retract instead of extending (iconMotion.json variants.active).

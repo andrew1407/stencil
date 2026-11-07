@@ -4,6 +4,7 @@ import { icon } from '../icons.js';
 import { keysHtml } from '../tip/content.js';
 import { revealControls } from '../motion/control/revealControls.js';
 import { EXPORT_VARIANTS, exportVariantState } from '../export/variants.js';
+import { FS_KINDS, fsRowFace } from '../fullscreen/button.js';
 
 // Reflect the app's live state into the open context menu, after each updateButtons sweep; setHtml
 // writes only on a real change, so a hovered row's glyph is never rebuilt under the pointer.
@@ -64,9 +65,14 @@ export const ctxSyncState = (app) => {
     const tintRow = document.getElementById('ctx-tint-row');
     tintRow.classList.toggle('ctx-tint-visible', app.imageFilter === 'custom');
 
-    const isFS = document.body.classList.contains('fullscreen-mode');
-    document.getElementById('ctx-fs-label').textContent = isFS ? 'Exit Fullscreen' : 'Enter Fullscreen';
-    setHtml(document.getElementById('ctx-fullscreen').querySelector('.ctx-icon'), icon(isFS ? 'minimize' : 'maximize'));
+    const fsKind = app.fullscreenKind?.() ?? null;
+    setHtml(document.getElementById('ctx-fullscreen')?.querySelector?.(':scope > .ctx-icon'), icon(fsKind ? 'minimize' : 'maximize'));
+    for (const kind of FS_KINDS) {
+      const row = document.getElementById(`ctx-fs-${kind}`), face = fsRowFace(kind, fsKind);
+      const label = row?.querySelector?.('.ctx-label');
+      if (label) label.textContent = face.label;
+      setHtml(row?.querySelector?.('.ctx-icon'), icon(face.icon));
+    }
 
     document.getElementById('ctx-tt-enabled').checked = app.tooltipEnabled;
     document.getElementById('ctx-tt-page').checked = app.tooltipShowPage;

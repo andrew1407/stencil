@@ -1,8 +1,10 @@
 #pragma once
 // The app style, wrapped so tooltips wake at the browser's pace (controlTooltip.js SHOW_DELAY_MS)
-// whichever base style is installed — Fusion at boot, Windows under the webcore skin.
+// whichever base style is installed — Fusion at boot, Windows under the webcore skin — and so a
+// QMainWindow places its docks in one pass: the app slides them itself (app/chrome/windowMotion.hpp).
 #include <QApplication>
 #include <QLatin1String>
+#include <QMainWindow>
 #include <QProxyStyle>
 #include <QString>
 #include <QStyleFactory>
@@ -17,6 +19,8 @@ namespace stencil::support {
                   QStyleHintReturn* ret = nullptr) const override {
       if (hint == SH_ToolTip_WakeUpDelay) return 200;   // ms
       if (hint == SH_ToolTip_FallAsleepDelay) return 0;
+      // Qt's own dock glide: a zero-length one per relayout still repainted every separator a beat late.
+      if (hint == SH_Widget_Animation_Duration && w && qobject_cast<const QMainWindow*>(w->parentWidget())) return 0;
       return QProxyStyle::styleHint(hint, opt, w, ret);
     }
   };

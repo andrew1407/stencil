@@ -4,7 +4,7 @@
 #include "chatMenuPanelParts.hpp"
 
 #include "../../support/motion/MenuShimmer.hpp"   // the shared per-row hover sweep
-#include "menuIconColumn.hpp"    // compactIconMenu / fitMenuWidth
+#include "menuIconColumn.hpp"    // compactIconMenu
 #include "../../support/menu/menuReveal.hpp"    // the menu grows out of its trigger
 
 #include <QAction>
@@ -58,7 +58,7 @@ namespace stencil::gui {
     // An item that cannot act right now HIDES rather than greys out (browser parity).
     QObject::connect(menu, &QMenu::aboutToShow, this, [this, menu] {
       moreRows.attach->setVisible(!busy);
-      fitMenuWidth(*menu);
+      compactIconMenu(*menu);   // a skin swapped since the build re-pads it
     });
     compactIconMenu(*menu);
     new support::MenuShimmer(menu, menu);

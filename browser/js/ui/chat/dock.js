@@ -5,6 +5,29 @@ import {
   clampFloatRect, resizeFloatRect, dockZoneAt, floatRectAt,
 } from './geometry.js';
 import { createDockZones } from './dockZones.js';
+import { flipFrom } from '../motion/flip.js';
+import { genieIn } from '../motion/genie/window.js';
+
+// The panel's box while it is on screen, else null: only a shown panel plays its move.
+const shownRect = (host) => (host.classList.contains('chat-open') && !host.classList.contains('chat-closing')
+  ? host.getBoundingClientRect() : null);
+// Re-formed out of the new edge where particles fly; Sliding pours it out of its old box, any other
+// moving mode carries that box into the new one.
+const arriveMoved = (host, from, playDust) => {
+  if (!playDust(true) && !genieIn(host, from)) flipFrom(host, from);
+};
+
+const DOCK_SIDES = Object.freeze(['left', 'right', 'top', 'bottom']);
+// The band a docked chat takes from each window edge; the fullscreen viewport sits beside it.
+const writeDockInsets = (host) => {
+  const open = host.classList.contains('chat-open');
+  const r = open ? host.getBoundingClientRect() : { width: 0, height: 0 };
+  for (const side of DOCK_SIDES) {
+    const edge = side === 'left' || side === 'right' ? r.width : r.height;
+    const px = open && host.classList.contains(`chat-dock-${side}`) ? Math.round(edge) : 0;
+    document.body.style.setProperty(`--chat-inset-${side}`, `${px}px`);
+  }
+};
 
 // Where the chat panel lives: dock edge or float rect, the gestures that change it, and
 // the insets a docked panel takes out of the editor column. Session-only by design.
@@ -30,12 +53,7 @@ export function createChatDock(deps) {
 // observer would watch. The notify stack reads these vars to dodge a docked chat.
   const updateNotifyInset = () => {
     invalidatePillRects();
-    const open = host.classList.contains('chat-open');
-    const r = open ? host.getBoundingClientRect() : { width: 0, height: 0 };
-    const left = open && host.classList.contains('chat-dock-left') ? Math.round(r.width) : 0;
-    const bottom = open && host.classList.contains('chat-dock-bottom') ? Math.round(r.height) : 0;
-    document.body.style.setProperty('--chat-inset-left', `${left}px`);
-    document.body.style.setProperty('--chat-inset-bottom', `${bottom}px`);
+    writeDockInsets(host);
   };
   if (typeof ResizeObserver !== 'undefined') new ResizeObserver(updateNotifyInset).observe(host);
   const announceLayout = () => {
@@ -50,14 +68,14 @@ export function createChatDock(deps) {
       el.style.setProperty('--chat-size', chatSize);
   };
   const setDock = (mode) => {
+    const from = shownRect(host);
     dock = mode;
     for (const d of DOCKS) host.classList.toggle(`chat-dock-${d}`, d === mode);
     host.removeAttribute('style');
     applySize();
     if (mode === 'float') applyFloatRect();
     for (const b of dockBtns) b.classList.toggle('chat-dock-btn-active', b.dataset.dock === mode);
-// Re-forms out of the new edge; only while on screen.
-    if (host.classList.contains('chat-open') && !host.classList.contains('chat-closing')) playDust(true);
+    if (from) arriveMoved(host, from, playDust);
     announceLayout();
   };
 // A compact float opened by the popover gestures is transient: once it closes the prior

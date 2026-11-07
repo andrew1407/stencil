@@ -73,6 +73,9 @@ namespace stencil::gui {
       to = 0;
     }
     if (!animate) { selPanel->setFixedWidth(to); finish(); return; }
+    // Fullscreen, poured: the space opens at once under the ground-coloured cover and shuts as the picture
+    // lands, so the canvas beside it is never re-laid per frame.
+    if (fs.active && poured) { from = to = show ? full : from; selPanel->setFixedWidth(from); }
     // The canvas' right inset rides the width, so the canvas lands on the reopen chevron's band rather
     // than running past it and snapping back: shut, the inset stands in for the separator and the sliver.
     const bool right = editor->dockWidgetArea(selPanel) != Qt::LeftDockWidgetArea;

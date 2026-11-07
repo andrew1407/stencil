@@ -68,6 +68,22 @@
     to   { opacity: 0; transform: translateX(-14px) scale(0.97);
            max-height: 0; margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; border-width: 0; }
 }
+/* Sliding and Transition (enterLeave.js MODE_ROW_MS): the row slides out its side or shrinks away, then its
+   space closes. :where() keeps the list rule's weight, so a chat entry keeps its own (browser reveal.css). */
+:where(:root[data-motion="slide"]) .leaving { animation: stRowSlideLeave 0.34s cubic-bezier(0.55, 0, 0.75, 0.4) both; }
+:where(:root[data-motion="transition"]) .leaving { animation: stRowShrinkLeave 0.34s cubic-bezier(0.4, 0, 0.6, 1) both; }
+@keyframes stRowSlideLeave {
+    from { transform: none; max-height: var(--leave-h, 200px); }
+    55%  { opacity: 1; transform: translateX(-104%); max-height: var(--leave-h, 200px); }
+    to   { opacity: 0; transform: translateX(-104%);
+           max-height: 0; margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; border-width: 0; }
+}
+@keyframes stRowShrinkLeave {
+    from { opacity: 1; transform: none; max-height: var(--leave-h, 200px); }
+    55%  { opacity: 0; transform: scale(0.78); max-height: var(--leave-h, 200px); }
+    to   { opacity: 0; transform: scale(0.78);
+           max-height: 0; margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; border-width: 0; }
+}
 /* A height collapse fights a flex column's gap, so these dissolve in place. */
 #chat-transcript > .leaving, #chat-tray .leaving {
     animation: stCardLeave 0.22s ease both;
@@ -120,6 +136,19 @@
 @keyframes stRowMaterialize {
     from { opacity: 0; transform: translateY(-6px) scale(0.985);
            max-height: 0; margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; border-width: 0; }
+    to   { opacity: 1; transform: none; max-height: var(--enter-h, 200px); }
+}
+/* …and Sliding / Transition's arrivals, their leaves reversed. */
+:where(:root[data-motion="slide"]) .materializing { animation: stRowSlideIn 0.34s cubic-bezier(0.16, 1, 0.3, 1) both; }
+:where(:root[data-motion="transition"]) .materializing { animation: stRowGrowIn 0.34s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+@keyframes stRowSlideIn {
+    from { transform: translateX(-104%); max-height: 0; margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; border-width: 0; }
+    35%  { transform: translateX(-104%); max-height: var(--enter-h, 200px); }
+    to   { transform: none; max-height: var(--enter-h, 200px); }
+}
+@keyframes stRowGrowIn {
+    from { opacity: 0; transform: scale(0.78); max-height: 0; margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; border-width: 0; }
+    35%  { opacity: 0; transform: scale(0.78); max-height: var(--enter-h, 200px); }
     to   { opacity: 1; transform: none; max-height: var(--enter-h, 200px); }
 }
 /* Hidden while the motes gather; !important outranks stRowMaterialize's opacity. The lift

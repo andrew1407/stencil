@@ -103,6 +103,8 @@ set(STENCIL_GUI_SOURCES
   src/app/chrome/DockChromeDust.cpp
   src/app/chrome/DockChromeDrop.cpp
   src/app/view/EditorViewFullscreen.cpp
+  src/app/view/EditorViewFullscreenZoom.cpp
+  src/app/view/FullscreenButton.cpp
   src/app/meta/HoverTip.cpp
   src/app/meta/MainWindowImageInfo.cpp
   src/app/events/ArrowPanner.cpp
@@ -175,7 +177,7 @@ set(STENCIL_GUI_SOURCES
   src/app/logo/LogoStagePaint.cpp
   src/app/logo/LogoDrag.cpp
   src/app/logo/LogoLineAims.cpp
-  src/app/theme/ThemePainterWebcore.cpp
+  src/app/theme/ThemePainterSkins.cpp
   src/app/theme/ThemePainterLens.cpp
   src/app/theme/ThemeLens.cpp
   src/app/meta/DockZonesOverlay.cpp

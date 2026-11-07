@@ -28,8 +28,11 @@ export declare const canvasSpan: (viewport: Element | null | undefined, chat: El
  */
 export declare function syncFsTriggers(): void;
 
-/** A panel's dust past its own edge; true while the motes fly, false hands the reveal to the CSS slide. */
-export declare function panelDust(panel: HTMLElement, dock: 'top' | 'right', hiding: boolean, inMs?: number): boolean;
+/** A panel's flight past its own edge: 'poured' while Sliding's picture flies (`landed` runs as it lands;
+ * it pours where `pointer`, client px, crossed the edge),
+ * true while the motes fly, false once the reveal is handed back to the panel's own CSS slide. */
+export declare function panelDust(panel: HTMLElement, dock: 'top' | 'right', hiding: boolean, inMs?: number,
+                                  landed?: (() => void) | null, pointer?: { x: number; y: number } | null): boolean | 'poured';
 
 /** The two slide-in panels and their auto-hide timers. `showPoints` re-clones the list; `dust` is panelDust unless a test supplies its own. */
 export declare function createFsPanels(deps: {

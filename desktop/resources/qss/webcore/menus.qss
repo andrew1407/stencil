@@ -7,6 +7,7 @@
         border: 2px solid transparent; border-image: url(%WC_RAISED%) 2 2 2 2 stretch;
       }
       QMenu::item { border-radius: 0; margin: 0; padding: 6px %MENU_PAD_R%px 6px 4px; }
+      QMenu[flatMenu="true"]::item { padding-right: 10px; }
       QMenu::item:selected { background: %WC_SELECT%; color: %WC_ON_SELECT%; padding-left: 7px; }   /* browser .ctx-item:hover +3px */
       QMenu[accentRows="true"]::item:selected { background: %WC_SELECT%; color: %WC_ON_SELECT%; padding-left: 7px; }   /* the skin's one bar */
       QMenu::item:disabled { color: %WC_DISABLED%; }

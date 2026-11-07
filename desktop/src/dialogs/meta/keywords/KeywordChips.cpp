@@ -4,6 +4,7 @@
 #include "../../../support/modal/modalChrome.hpp"
 #include "projectMetaDialog.hpp"
 
+#include <QFont>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -33,6 +34,7 @@ namespace stencil::gui {
     input->setPlaceholderText(tr("Add a keyword…"));
     auto* addBtn = new QPushButton(tr("Add"), this);
     makeModalCta(addBtn, QStringLiteral("plus"));
+    markModalPrimary(addBtn);
     addBtn->setAutoDefault(false);   // no tooltip: the placeholder beside it says what it does
     addRow->addWidget(fieldRing(input, this), 1);   // rings only while it has focus
     addRow->addWidget(addBtn);
@@ -55,7 +57,7 @@ namespace stencil::gui {
 
     // Clear all is laid out by the dialog, in its footer beside Cancel (clearButton()).
     clearBtn = new QPushButton(tr("Clear all"), this);
-    makeModalDanger(clearBtn, QStringLiteral("x"));
+    makeModalDanger(clearBtn, QStringLiteral("trash"));   // never Cancel's ✕ beside it
     clearBtn->setAutoDefault(false);   // no tooltip: the label already says it
     connect(clearBtn, &QPushButton::clicked, this, [this] {
       words.clear();
@@ -68,6 +70,7 @@ namespace stencil::gui {
     // Enter adds the word; it never accepts the dialog, or a half-typed keyword is lost.
     connect(input, &QLineEdit::returnPressed, this, &KeywordChips::addTyped);
     rebuild();
+    animate = true;   // the opening list is laid out, never flown in
   }
 
   void KeywordChips::addTyped() {
@@ -96,7 +99,8 @@ namespace stencil::gui {
     QList<QPointer<QFrame>> going;
     for (auto it = was.cbegin(); it != was.cend(); ++it)
       if (!still.contains(it.key())) going << chipFor.take(it.key());
-    playLeave(going);
+    if (animate) playLeave(going);
+    else for (QFrame* chip : going) { chip->setParent(nullptr); chip->deleteLater(); }
 
     QList<QFrame*> arrived;
     const QColor muted = palette().color(QPalette::PlaceholderText);
@@ -117,10 +121,12 @@ namespace stencil::gui {
     }
     laidOut = words;
     flow->activate();
+    // activate() posts a box that has not changed: a new chip sat at 0,0 and its arrival flew from the corner.
+    flow->setGeometry(chipArea->rect());
     clearBtn->setEnabled(!words.isEmpty());
     // While chips are leaving, THEIR collapse moves the survivors; gliding them too would
     // race it and slide them over the dust.
-    playMotion(going.isEmpty() ? was : QHash<QString, QRect>(), arrived);
+    if (animate) playMotion(going.isEmpty() ? was : QHash<QString, QRect>(), arrived);
   }
 
   QFrame* KeywordChips::makeChip(const QString& word, const QColor& muted) {
@@ -130,7 +136,12 @@ namespace stencil::gui {
     auto* row = new QHBoxLayout(chip);
     row->setContentsMargins(10, 0, 4, 0);
     row->setSpacing(4);
-    row->addWidget(new QLabel(word, chip));
+    auto* label = new QLabel(word, chip);
+    QFont f = label->font();
+    f.setPixelSize(13);   // browser .kw-chip font-size
+    label->setFont(f);
+    label->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+    row->addWidget(label);
     auto* rm = new QPushButton(chip);
     rm->setProperty("kwChipX", true);
     rm->setIcon(themedIcon("x", muted, 12));

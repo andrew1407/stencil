@@ -121,8 +121,11 @@ test('the row and its arrival land together, once the ash has thinned', async (t
   r.plan.keys = [];
   const now = settleNow();
   await settled();
-  assert.deepStrictEqual([r.keys(), r.timers.map((x) => x.ms)], [[], [0]], 'no arrival beat without a wipe');
-  r.fire(0);
+  const notice = r.list.querySelector('.info-empty');
+  assert.deepStrictEqual([r.keys(), r.timers.filter((x) => x.ms === 0).length], [[], 1], 'no arrival beat without a wipe');
+  assert.ok(notice?.classList.contains('materializing') && r.timers.length === 2,
+    'only the emptied list notice comes in, from the left (rowMotion.js rowArrive)');
+  for (const x of r.timers.splice(0)) x.fn();
   await now;
 });
 

@@ -87,7 +87,9 @@ namespace stencil::gui {
 
     bool running() const { return timer && timer->isActive(); }
 
-    void dustRowIn(QListWidgetItem* it, QWidget* host, int ms = FILTER_DUST_MS);
+    // `fromEdge`: Sliding / Transition bring it in by the list's left edge (edgeFlight.hpp) rather than its side;
+    // `delayMs`: veiled now, in that much later (a removal's pictures still leaving).
+    void dustRowIn(QListWidgetItem* it, QWidget* host, int ms = FILTER_DUST_MS, bool fromEdge = false, int delayMs = 0);
     // The row dissolves where it sat (browser filterDustOut); its slot closes under the motes.
     void dustRowOut(QListWidgetItem* it, QWidget* host, int ms = FILTER_DUST_MS);
 

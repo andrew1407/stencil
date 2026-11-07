@@ -51,15 +51,17 @@ test('the button carries no "load an image" reason to show in its tooltip', asyn
             'a disabled-reason would print a stale "Load an image" line in the tooltip');
 });
 
-test('fullscreen keeps the themed page ground and a hairline frame, image or not (desktop [fsView])', async () => {
+test('fullscreen keeps the themed page ground and no frame, image or not (desktop [fsView])', async () => {
   const css = COMPONENTS_CSS;
   const bodyOf = (at) => css.slice(at, css.indexOf('}', at));
   const fs = css.indexOf('body.fullscreen-mode .canvas-viewport {');
   const flight = css.indexOf('body:not(.fullscreen-mode) .canvas-viewport.flip-active {');
   assert.ok(fs >= 0 && flight >= 0);
   assert.match(bodyOf(fs), /background:\s*var\(--bg-page\)/);
-  assert.match(bodyOf(fs), /border:\s*1px solid var\(--border-main\)/);
-  assert.match(bodyOf(fs), /border-radius:\s*8px/);
+  // Below the system's menu-bar band a hairline and its corners showed (user report).
+  assert.match(bodyOf(fs), /border:\s*0 !important/);
+  assert.match(bodyOf(fs), /border-radius:\s*0 !important/);
+  assert.match(bodyOf(fs), /box-shadow:\s*none !important/);
   assert.match(bodyOf(flight), /background:\s*var\(--bg-page\)/, 'the leave-flight shrinks out of that same ground');
   assert.equal(/fullscreen-mode[^{]*\{[^}]*#000/.test(css), false, 'no black ground is left anywhere in fullscreen');
 });

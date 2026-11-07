@@ -1,6 +1,6 @@
+// The webcore skin's live half (browser twin: js/ui/webcore/toggle.js).
+import type { SessionSkin } from '../skin/install.js';
+/** True while `<html data-skin="webcore">` is stamped. */
 export declare const isSkinOn: (doc?: Document) => boolean;
-/** True where the browser's hold would open its webcore row: grey, and the user's own None. */
-export declare const holdAllowed: (win?: Window & typeof globalThis) => boolean;
-export declare const installWebcore: (doc?: Document, win?: Window & typeof globalThis) => void;
-export declare const wireWebcoreHold: (wrap: Element | null | undefined,
-  opts?: { holdMs?: number; win?: Window & typeof globalThis }) => void;
+/** The skin's painters over `doc`, as lib/skin/install.js drives them. */
+export declare const makeWebcoreSkin: (doc: Document) => SessionSkin;

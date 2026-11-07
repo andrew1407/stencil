@@ -163,6 +163,20 @@ class MainWindowGuiTest : public QObject {
     settle([&] { return !QApplication::activeModalWidget(); }, 1000);
     win.parts.view.toggleFullscreen();
   }
+  // The system's own switch (the green button, ctrl-cmd-F) skips the toggle: left in the mode's state, a
+  // normal window kept its tool rows hidden (user report). Both directions follow it.
+  void theSystemsOwnFullscreenSwitchIsFollowed() {
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.showFullScreen();
+    QTRY_VERIFY(win.fs.active);
+    QTRY_VERIFY(!win.tools.headerToolbar->isVisible());
+    win.showNormal();
+    QTRY_VERIFY(!win.fs.active);
+    QTRY_VERIFY(win.tools.headerToolbar->isVisible());
+  }
 };
 
 QTEST_MAIN(MainWindowGuiTest)

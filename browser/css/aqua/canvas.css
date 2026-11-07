@@ -1,0 +1,68 @@
+/* The aqua skin's scrollbars (the page's and the canvas's own) as blue gel lozenges in a
+   pinstripe track, the canvas framed on its graphite desk, and its fullscreen slide-ins. */
+:root[data-skin="aqua"] *::-webkit-scrollbar { width: 15px; height: 15px; }
+:root[data-skin="aqua"] *::-webkit-scrollbar-track,
+:root[data-skin="aqua"] *::-webkit-scrollbar-corner {
+    background: linear-gradient(90deg, color-mix(in srgb, var(--aq-edge) 45%, var(--aq-window)), var(--aq-window));
+}
+:root[data-skin="aqua"] *::-webkit-scrollbar-thumb {
+    background: linear-gradient(90deg, var(--aq-gel-bottom), var(--aq-gel-top) 45%, var(--aq-gel-hi) 60%, var(--aq-gel-top));
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    border-radius: 999px;
+    box-shadow: inset 0 0 0 1px var(--aq-gel-edge);
+}
+:root[data-skin="aqua"] *::-webkit-scrollbar-thumb:horizontal {
+    background: linear-gradient(180deg, var(--aq-gel-hi), var(--aq-gel-top) 45%, var(--aq-gel-bottom) 55%, var(--aq-gel-top));
+    background-clip: padding-box;
+}
+:root[data-skin="aqua"] .canvas-sb { background: color-mix(in srgb, var(--aq-window) 70%, transparent); border-radius: 999px; }
+:root[data-skin="aqua"] .canvas-sb-thumb {
+    background: var(--aq-gel);
+    border-radius: 999px;
+    box-shadow: var(--aq-gel-ring);
+    opacity: 1;
+}
+
+:root[data-skin="aqua"] .canvas-viewport {
+    background: var(--aq-canvas);
+    border: 1px solid color-mix(in srgb, var(--aq-edge) 80%, #000000);
+    border-radius: 4px;
+    box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+:root[data-skin="aqua"] .canvas-section { background: transparent; border: 0; box-shadow: none; }
+:root[data-skin="aqua"] .canvas-container { box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); }
+:root[data-skin="aqua"] .canvas-viewport:is(.canvas-assembling, .canvas-clearing) .canvas-container { box-shadow: none; }
+:root[data-skin="aqua"] :is(.coord-status, .drop-hint) {
+    background: var(--aq-pinstripe);
+    color: var(--aq-ink);
+    border: 1px solid var(--aq-edge);
+    border-radius: 8px;
+}
+:root[data-skin="aqua"] .empty-message { color: var(--aq-muted); text-shadow: none; }
+:root[data-skin="aqua"] .ic { color: var(--aq-ink); }
+
+
+/* A drag's targets wear the era's drop ring in the accent's gel, over the glass ring every control
+   holds (!important: those rings are, on hover); the one under the pointer burns brighter. */
+:root[data-skin="aqua"] .icon-drop-target {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--aq-focus) 75%, transparent),
+                0 0 9px 1px color-mix(in srgb, var(--aq-focus) 55%, transparent) !important;
+}
+:root[data-skin="aqua"] .icon-drop-target-over {
+    box-shadow: 0 0 0 3px var(--aq-gel-bottom), 0 0 16px 3px var(--aq-focus) !important;
+}
+:root[data-skin="aqua"] .icon-drag-source { outline-color: var(--aq-gel-bottom); }
+
+/* Fullscreen: the slide-ins wear the docked surfaces' faces, the brushed-metal strip and the pinstripe list. */
+:root[data-skin="aqua"] #fs-controls-panel {
+    background: var(--aq-metal);
+    border-color: var(--aq-edge);
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.55), var(--aq-window-ring);
+}
+:root[data-skin="aqua"] :is(#fs-points-panel, #fs-selection-panel) { background: var(--aq-pinstripe); border-color: var(--aq-edge); }
+:root[data-skin="aqua"] #fs-points-panel { box-shadow: var(--aq-window-ring); }
+/* A folding panel is its dust and its card, never the pinstripe behind them (animations/collapse.css). */
+:root[data-skin="aqua"] .coordinates-panel.coord-veiled { background: transparent; border-color: transparent; box-shadow: none; }
+:root[data-skin="aqua"] .coordinates-panel.coord-tall { background: var(--coord-tall-fill, transparent); }
+:root[data-skin="aqua"] .coordinates-panel.coord-tall::before { background: var(--aq-pinstripe); }

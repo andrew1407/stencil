@@ -9,6 +9,7 @@
 #include <QLineEdit>
 #include <QLocale>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPen>
 #include <QPointF>
 #include <utility>
@@ -138,13 +139,29 @@ namespace stencil::gui {
                  chip.width(), chip.height());
   }
 
-  QPixmap squareThumb(const QPixmap& src, int size) {
+  // The browser's .project-thumb: the picture covers a 56px cell cut to 6px corners and ringed in
+  // --border-main (`edge`), so a white page still reads against a white row. `size` is the icon's px.
+  QPixmap squareThumb(const QPixmap& src, int size, const QColor& edge) {
     if (src.isNull()) return src;
     const QPixmap scaled =
         src.scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-    const int x = (scaled.width() - size) / 2;
-    const int y = (scaled.height() - size) / 2;
-    return scaled.copy(x, y, size, size);
+    const QPixmap crop = scaled.copy((scaled.width() - size) / 2, (scaled.height() - size) / 2, size, size);
+    QPixmap out(size, size);
+    out.fill(Qt::transparent);
+    QPainter p(&out);
+    p.setRenderHint(QPainter::Antialiasing, true);
+    const qreal k = size / 56.0;   // one CSS px of the 56px cell, in this pixmap
+    QPainterPath cell;
+    cell.addRoundedRect(QRectF(0, 0, size, size), 6 * k, 6 * k);
+    p.setClipPath(cell);
+    p.drawPixmap(0, 0, crop);
+    p.setClipping(false);
+    if (edge.isValid()) {
+      p.setPen(QPen(edge, k));
+      p.setBrush(Qt::NoBrush);
+      p.drawRoundedRect(QRectF(k / 2, k / 2, size - k, size - k), 6 * k - k / 2, 6 * k - k / 2);
+    }
+    return out;
   }
 
 }  // namespace stencil::gui

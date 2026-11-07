@@ -65,9 +65,16 @@ stencil_headless_test(stencil_canonassets_headless
     ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Svg)
 
+# The aqua skin against the browser's, value for value.
+stencil_headless_test(stencil_aqua_headless
+  SOURCES tests/support/aqua/table.headless.cpp ${STENCIL_AQUA_SOURCES} ${STENCIL_WEBCORE_SOURCES} ${STENCIL_SKIN_SOURCES} ${STENCIL_THEME_SOURCES}
+    resources/app.qrc
+  LIBS stencil_core Qt6::Widgets Qt6::Svg
+  INCLUDE_TESTS)
+
 # The webcore skin against the browser's, value for value.
 stencil_headless_test(stencil_webcore_headless
-  SOURCES tests/support/webcore/rules.headless.cpp ${STENCIL_WEBCORE_SOURCES} ${STENCIL_THEME_SOURCES}
+  SOURCES tests/support/webcore/rules.headless.cpp ${STENCIL_WEBCORE_SOURCES} ${STENCIL_SKIN_SOURCES} ${STENCIL_THEME_SOURCES}
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Svg
   INCLUDE_TESTS)

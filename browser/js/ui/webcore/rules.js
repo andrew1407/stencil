@@ -2,9 +2,9 @@
 // cells and the word's lines. DOM-free; desktop twin: support/webcore/rules.{hpp,cpp}, value
 // for value.
 import WEBCORE_DATA from '../../../../common/config/webcore.json' with { type: 'json' };
+import { colorRuns, wordLinesOf } from '../skin/rules.js';
 
 export const WEBCORE = WEBCORE_DATA;
-export const SKIN_ATTR = 'data-skin';
 export const SKIN_NAME = 'webcore';
 export const OFF_TOAST = WEBCORE.strings.off;
 export const PROJECT_NAME = WEBCORE.strings.project;
@@ -51,41 +51,8 @@ export const cloudBlocks = () => {
   return out;
 };
 
-// Same-colour runs along each row: fewer rects, the same pixels.
-export const cellRuns = (grid) => {
-  const runs = [];
-  for (let cy = 0; cy < grid.rows; cy++) {
-    let start = 0, color = cellColorAt(0, cy, grid);
-    for (let cx = 1; cx <= grid.cols; cx++) {
-      const c = cx < grid.cols ? cellColorAt(cx, cy, grid) : null;
-      if (c === color) continue;
-      runs.push({ x: start, y: cy, w: cx - start, h: 1, color });
-      start = cx;
-      color = c;
-    }
-  }
-  return runs;
-};
-
-const round2 = (v) => Math.round(v * 100) / 100;
+// Same-colour runs along each row of the base picture.
+export const cellRuns = (grid) => colorRuns(grid, cellColorAt);
 
 // The word as closed, locked, filled lines across the sky of a w×h image, one colour each.
-export const wordLines = (w, h) => {
-  const { text, glyphs, grid, gapCells, widthShare, centerYShare, colors, stroke, thickness } = WEBCORE.word;
-  const [gw, gh] = grid;
-  const n = text.length;
-  const totalCells = n * gw + (n - 1) * gapCells;
-  const cellPx = (w * widthShare) / totalCells;
-  const left = (w - totalCells * cellPx) / 2;
-  const top = h * centerYShare - (gh * cellPx) / 2;
-  return [...text].map((ch, i) => ({
-    points: glyphs[ch].map(([x, y]) => ({
-      x: round2(left + (i * (gw + gapCells) + x) * cellPx),
-      y: round2(top + y * cellPx),
-    })),
-    locked: true,
-    color: stroke,
-    fillColor: colors[i % colors.length],
-    thickness,
-  }));
-};
+export const wordLines = (w, h) => wordLinesOf(w, h, WEBCORE.word, WEBCORE.word);

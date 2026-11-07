@@ -29,6 +29,7 @@ namespace stencil::gui {
     footer->addWidget(cancel);
     auto* save = new QPushButton(tr("Save"), this);
     makeModalCta(save, "check");
+    markModalPrimary(save);
     save->setDefault(true);
     connect(save, &QPushButton::clicked, this, &QDialog::accept);
     footer->addWidget(save);

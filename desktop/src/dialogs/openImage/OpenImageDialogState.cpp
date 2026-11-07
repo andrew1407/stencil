@@ -1,8 +1,10 @@
 #include "openImageDialogParts.hpp"
 #include "OpenImageDialog.hpp"
 #include "colorSwatch.hpp"
+#include "../../support/modal/hoverResync.hpp"
 #include "../../support/modal/modalReveal.hpp"
 #include <algorithm>
+#include <QTimer>
 #include <QFileDialog>
 #include <QKeyEvent>
 #include <QPushButton>
@@ -60,6 +62,7 @@ namespace stencil::gui {
         this, "Open image or video", QString(),
         "Images and video (*.png *.jpg *.jpeg *.bmp *.gif *.webp *.mp4 *.mov *.webm "
         "*.mkv *.avi *.m4v *.mpg *.mpeg);;All files (*)");
+    support::reclaimFront(this);
     if (p.isEmpty()) return;
     if (p != previewedSource) scatterPreviewDust();
     path->setText(p);

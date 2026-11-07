@@ -63,7 +63,7 @@ export function hotkeyActions(app) {
     resetZoom: () => app.zoomPan.fitToWindow(),
     toggleControls: () => { const b = document.getElementById('toggle-controls');   if (b) b.click(); },
     togglePointsList: () => { const b = document.getElementById('toggle-coord-panel'); if (b) b.click(); },
-    fullscreen: () => app.toggleFullscreen?.(),
+    fullscreen: () => app.toggleFullscreen?.('screen'), fullscreenWindow: () => app.toggleFullscreen?.('window'),
     zoomIn: () => app.zoomPan.zoomAroundCenter(app.scale + 0.25),
     zoomOut: () => app.zoomPan.zoomAroundCenter(app.scale - 0.25),
     zoomInBig: () => app.zoomPan.zoomAroundCenter(app.scale + 1.0),

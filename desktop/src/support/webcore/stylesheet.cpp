@@ -177,6 +177,7 @@ namespace stencil::support {
     p.selGlow = stencil::gui::displayColor(QColor(stencil::gui::defaultVisuals::table().selGlow));
     p.hoverRing = stencil::gui::displayColor(QColor(stencil::gui::DEFAULT_ACCENT_HEX));
     p.bgPage = tok(dark, "--wc-desktop");
+    p.bgCanvas = p.bgPage;
     p.bgContainer = tok(dark, "--wc-face");
     p.bgControls = tok(dark, "--wc-face");
     p.bgSelPanel = tok(dark, "--wc-face");

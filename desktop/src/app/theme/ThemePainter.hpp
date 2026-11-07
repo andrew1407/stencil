@@ -15,16 +15,17 @@ class QMenu;
 namespace stencil::gui {
 
   class MainWindow;
+  struct SkinShow;
 
   // Paints the chosen look onto the window's own chrome: the accent preview and pick, the action
-  // and toolbar icons, the danger and toggle faces, the image-info line, and the webcore skin.
+  // and toolbar icons, the danger and toggle faces, the image-info line, and the session skins.
   class ThemePainter {
    public:
     explicit ThemePainter(MainWindow& w) : w(w) {}
 
+    // The session skins' words (ThemePainterSkins.cpp): the state the skin is left in.
     bool toggleWebcore();
-    void unpinFaceWidths();
-    void webcoreScene();
+    bool toggleAqua();
     void syncImageInfoDockHeight();
     QPixmap makeLogoPixmap(int size) const;
     void openAccentPicker();
@@ -64,10 +65,21 @@ namespace stencil::gui {
     QPixmap otherThemeShot();
 
    private:
+    bool toggleSkin(const SkinShow& show);
+    void shedSkin(const SkinShow& show);
+    void dressWindows(bool on);
+    void dressWindow(bool on);
+    void wearWebcore(bool on);
+    void wearAqua(bool on);
+    void wearSessionAccent(bool on);
+    void restyleConnectionRows();
+    void unpinFaceWidths();
+    bool openSkinProject(const QString& name);
+    void skinScene(const SkinShow& show);
     void openLens(const QPoint& global);
     // `done` runs once the circle has closed (at once with no lens up).
     void closeLens(std::function<void()> done = {});
-    bool lensAllowed() const;
+    bool isLensAllowed() const;
     QString lensKey() const;
     void primeLens();
 

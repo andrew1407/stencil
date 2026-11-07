@@ -11,6 +11,8 @@
 #include "launchOptions.hpp"
 #include "../../../support/modal/imageAnchor.hpp"
 
+#include <QApplication>
+
 #include <QFileInfo>
 #include <memory>
 
@@ -51,7 +53,9 @@ namespace stencil::gui {
   // The unified Open dialog (browser openImageModal.js): file, URL, or a NEW BLANK canvas.
   void SourceOpener::openImageDialog(bool startBlank) {
     const auto px = core::defaultBlankSizePx(w.currentPageDimensions());
-    OpenImageDialog dlg(&w, canReplaceActive(), px.width, px.height, startBlank,
+    // Over a window already raised on the editor (Projects' Blank image), or macOS opens it behind that one.
+    QWidget* over = QApplication::activeModalWidget();
+    OpenImageDialog dlg(over ? over : &w, canReplaceActive(), px.width, px.height, startBlank,
                         w.settings.pageSize);
     if (w.remote.conns() && !w.projectHost.incognito) dlg.setServerTargets(w.remote.conns()->urls());
     w.projectHost.docSource.pendingServerTarget.clear();

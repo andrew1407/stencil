@@ -118,7 +118,7 @@ The filter list in the **Edit** section holds **B&W**, **Sepia**, **Invert**, **
 
 **Crop** (`Ctrl+Shift+X`) opens a crop box locked to the page's shape: **Portrait** flips it to
 album, **Apply Crop** keeps it. The window opens sized around the picture, as large as the screen
-allows, and resizing it fits the picture to its new room. Flip (`Alt+Shift+F`) mirrors the
+allows, and resizing it fits the picture to its new room. Flip (`Alt+Shift+H`) mirrors the
 picture left to right and the two rotate buttons turn it by quarter turns. The lines follow a
 flip and a turn, the zoom and the spot you were looking at stay put, and undo (`Ctrl+Z`) and redo
 (`Ctrl+Shift+Z`) cover all of it.
@@ -229,8 +229,11 @@ closes and the theme stays as it was.
 
 ## Work in fullscreen
 
-Fullscreen (`Alt+F`) hides the toolbar so the canvas fills the screen; it slides back in when
-the pointer touches the top edge, and leaves again when the pointer moves away.
+Fullscreen (`Alt+F`, or a click on the fullscreen button) takes the whole screen and hides the
+toolbar so the canvas fills it; it slides back in when the pointer touches the top edge, and
+leaves again when the pointer moves away. Fullscreen in Window (`Alt+Shift+F`, or a double-click
+on the button) does the same inside the browser window as it is. Right-click the button, or hold
+it down, for a menu of both; the canvas menu's **Fullscreen ›** offers the same pair.
 
 ![the toolbar sliding in at the top edge in fullscreen, and leaving again](img/fullscreen-strip.gif)
 

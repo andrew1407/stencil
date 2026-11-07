@@ -20,8 +20,8 @@ namespace stencil::support {
     return out;
   }
 
-  // Two rows may share a colour, told apart by `motion` alone.
-  QString resolveShow(const QString& accentKey, MotionMode mode) {
+  // Two rows may share a colour, told apart by `motion` and `theme`.
+  QString resolveShow(const QString& accentKey, MotionMode mode, bool dark) {
     const LogoStageConfig& cfg = logoStageConfig();
     if (accentKey.startsWith('#')) {
       const QString hex = accentKey.trimmed().toLower();
@@ -35,6 +35,7 @@ namespace stencil::support {
     for (const StageShow& s : cfg.shows) {
       if (!s.accents.contains(accentKey)) continue;
       if (!s.motion.isEmpty() && motionModeFromKey(s.motion) != mode) continue;
+      if (!s.theme.isEmpty() && (s.theme == QLatin1String("dark")) != dark) continue;
       return s.name;
     }
     return QString();
@@ -42,7 +43,7 @@ namespace stencil::support {
 
   bool showHasCloud(const QString& name, ParticleStyle* out) {
     const StageShow* s = showByName(name);
-    if (!s || s->effect == StageEffect::WEBCORE) return false;   // a skin toggle opens no stage
+    if (!s || isSkinEffect(s->effect)) return false;   // a skin toggle opens no stage
     if (!s->motion.isEmpty()) {
       if (out) *out = s->effect == StageEffect::FIRE ? ParticleStyle::FIRE
                     : s->effect == StageEffect::WATER ? ParticleStyle::WATER : ParticleStyle::DUST;

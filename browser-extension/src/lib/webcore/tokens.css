@@ -45,14 +45,15 @@
   --dust-accent:   var(--wc-focus);
   --dust-accent-2: color-mix(in srgb, var(--wc-focus) 86%, black);
   --dust-accent-alt: color-mix(in srgb, var(--wc-focus) 55%, #000000);
+  --drag-accent:   var(--wc-focus);   /* a drag's cues glow in the chosen colour, not the navy */
   --yellow:        #808000;
   --danger:        #800000;
   --ok:            #008000;
   --check-a:       var(--wc-window);
   --check-b:       var(--wc-light);
   --sb-thumb:      var(--wc-face);
-  --sb-thumb-hover:  var(--wc-focus);
-  --sb-thumb-active: var(--wc-focus);
+  --sb-thumb-hover:  var(--wc-face);
+  --sb-thumb-active: var(--wc-face);
   --btn-ink:       var(--wc-ink);
   --btn-danger:    var(--wc-ink);
 }

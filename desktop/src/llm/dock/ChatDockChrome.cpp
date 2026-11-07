@@ -4,6 +4,7 @@
 #include "theme.hpp"        // Palette (restyleIcons)
 #include "chatSheets.hpp"
 #include "../../support/control/FlowLayout.hpp"           // the suggestion chips wrap like browser chips
+#include "../../support/tip/AppTooltip.hpp"
 
 #include <QHBoxLayout>
 #include <QLabel>
@@ -97,9 +98,13 @@ namespace stencil::gui {
     // the same dust flight a side switch plays, ending in setFloating (or a re-dock) itself.
     connect(chrome.floatBtn, &QToolButton::clicked, this, [this] { emit floatToggleRequested(); });
     row->addWidget(chrome.floatBtn);
-    chrome.closeBtn = makeGhostButton(chrome.titleBar, "Close assistant");
+    // Its tip goes with the press, never left up over the toolbar as the chat slides away (user report).
+    chrome.closeBtn = makeGhostButton(chrome.titleBar, QStringLiteral("Close the assistant chat"));
+    chrome.closeBtn->setAccessibleName(QStringLiteral("Close assistant"));
+    chrome.closeBtn->setProperty("chatClose", true);   // a property, not a name: the focus chain is pinned by names
     // NOT QWidget::close(): that hides the dock on the spot. The owner runs the same animated path
     // the toolbar toggle uses (closeEvent below routes every OTHER close the same way).
+    connect(chrome.closeBtn, &QToolButton::pressed, this, [] { if (auto* tip = appTooltip()) tip->dropTip(); });
     connect(chrome.closeBtn, &QToolButton::clicked, this, [this] { emit closeRequested(); });
     row->addWidget(chrome.closeBtn);
     setTitleBarWidget(chrome.titleBar);
@@ -150,5 +155,21 @@ namespace stencil::gui {
     });
     log.transcriptLayout->addWidget(cmp.suggest);
   }
+
+  void arrangeChatTitleBar(const ChatTitleBarParts& parts, bool aqua) {
+    auto* row = parts.titleBar ? qobject_cast<QHBoxLayout*>(parts.titleBar->layout()) : nullptr;
+    QWidget* group = parts.dockBtns.isEmpty() ? nullptr : parts.dockBtns.first()->parentWidget();
+    if (!row || !group) return;
+    // nullptr is the stretch between the two ends.
+    const QList<QWidget*> order = aqua
+        ? QList<QWidget*>{parts.closeBtn, group, parts.floatBtn, nullptr, parts.headerIcon, parts.headerTitle}
+        : QList<QWidget*>{parts.headerIcon, parts.headerTitle, nullptr, group, parts.floatBtn, parts.closeBtn};
+    while (QLayoutItem* item = row->takeAt(0)) delete item;   // the items, never their widgets
+    for (QWidget* x : order) {
+      if (x) row->addWidget(x);
+      else row->addStretch(1);
+    }
+  }
+
 }  // namespace stencil::gui
 

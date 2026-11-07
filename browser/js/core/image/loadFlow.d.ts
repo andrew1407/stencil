@@ -42,6 +42,8 @@ export interface LoadImageOptions {
   from?: { x: number; y: number } | Element | null;
   color?: string | null;
   keywords?: string[];
+  /** A layout installed over the picture as its first undo step, before the first paint. */
+  firstStep?: RemoteLayout | null;
 }
 
 /** What the first half worked out for settle.js. */

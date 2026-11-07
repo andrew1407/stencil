@@ -5,6 +5,7 @@
 #include "imageAnchor.hpp"
 
 #include <QApplication>
+#include <QToolBar>
 #include <QWidget>
 #include <cstdio>
 
@@ -67,6 +68,19 @@ int main(int argc, char** argv) {
   check(bool(flight.closeRectFor), "and resolves where it lands from the outcome");
   check(flight.closeRectFor(true) == globalOf(*openAnother), "an answer that opens an image lands on the Open control");
   check(flight.closeRectFor(false) == canvasAnchorRect(&host), "a cancel pours back into the canvas");
+
+  // A row that has started to fold away is away already: a close aims up, not at the icon's stale spot.
+  QToolBar row(&host);
+  row.setGeometry(0, 0, 400, 40);
+  QWidget* icon = child(row, "rowIcon", QRect(10, 4, 28, 28));
+  row.show();
+  check(!toolbarAway(icon), "a shown row is home");
+  row.setProperty(TOOLBAR_FOLDING_PROPERTY, true);
+  check(toolbarAway(icon), "a row folding away is not, though it is still on screen");
+  row.setProperty(TOOLBAR_FOLDING_PROPERTY, false);
+  row.hide();
+  check(toolbarAway(icon), "a hidden row is not either");
+  check(!toolbarAway(viewport), "nor is anything outside a row away");
 
   std::printf("\n%s (%d failure%s)\n", failures ? "FAILURE" : "SUCCESS", failures,
               failures == 1 ? "" : "s");

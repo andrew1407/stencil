@@ -55,8 +55,8 @@ namespace stencil::gui {
 
   // One door for the flag: the dock forbids its title-bar drag while this is set, so a
   // missed clear here would leave the full-shape panel unable to move or re-dock.
-  void DockChrome::setChatCompactPopover(bool on) {
-    chatCompactPopover = on;
-    if (w.chatDock) w.chatDock->setCompactPopover(on);
+  void DockChrome::setChatCompactPopover(bool isOn) {
+    chatCompactPopover = isOn;
+    if (w.chatDock) w.chatDock->setCompactPopover(isOn);
   }
 }  // namespace stencil::gui

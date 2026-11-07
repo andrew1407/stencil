@@ -1,9 +1,9 @@
 #include "ConnectDialog.hpp"
+#include "../../support/control/reveal/modeGhost.hpp"
 #include "connectDialogParts.hpp"
 #include "../../support/motion/DisintegrateOverlay.hpp"  // disconnected rows come apart
 #include "../../support/modal/modalChrome.hpp"          // the browser modal shell
 
-#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -55,22 +55,18 @@ namespace stencil::gui {
 
   QPushButton* ConnectDialog::buildConnectForm(QVBoxLayout* root) {
     root->addWidget(modalSectionLabel(tr("Connect a server"), this));
-    auto* form = new QGridLayout;
-    form->setColumnStretch(1, 1);
-    form->setHorizontalSpacing(10);
-    auto* urlLbl = new QLabel(tr("URL"));
-    urlLbl->setToolTip(tr("Server URL, e.g. http://localhost:8090"));
-    form->addWidget(urlLbl, 0, 0);
+    // Browser .vs-row each: the label column, the field, a hairline under the row.
+    constexpr int LABEL_W = 48;
     urlEdit = new QLineEdit;
     urlEdit->setPlaceholderText("http://localhost:8090");
-    form->addWidget(urlEdit, 0, 1);
-    auto* tokenLbl = new QLabel(tr("Token"));
-    tokenLbl->setToolTip(tr("Optional access token (issued otherwise)"));
-    form->addWidget(tokenLbl, 1, 0);
+    QWidget* urlRow = modalRow(this, tr("URL"), urlEdit, true, LABEL_W);
+    if (QLabel* l = urlRow->findChild<QLabel*>()) l->setToolTip(tr("Server URL, e.g. http://localhost:8090"));
+    root->addWidget(urlRow);
     tokenEdit = new QLineEdit;
     tokenEdit->setPlaceholderText(tr("(optional)"));
-    form->addWidget(tokenEdit, 1, 1);
-    root->addLayout(form);
+    QWidget* tokenRow = modalRow(this, tr("Token"), tokenEdit, true, LABEL_W);
+    if (QLabel* l = tokenRow->findChild<QLabel*>()) l->setToolTip(tr("Optional access token (issued otherwise)"));
+    root->addWidget(tokenRow);
 
     // Connect (left) + Reconnect all (right), grouped on one row.
     auto* actions = new QHBoxLayout;
@@ -88,7 +84,7 @@ namespace stencil::gui {
     makeModalCta(reconnectAllBtn, "refresh");
     reconnectAllBtn->setToolTip(tr("Re-establish every connection (re-validate / reissue tokens)"));
     actions->addWidget(reconnectAllBtn);
-    root->addLayout(actions);
+    root->addWidget(modalRow(this, QString(), actions));
     return connectBtn;
   }
 
@@ -140,11 +136,15 @@ namespace stencil::gui {
           if (!w->isVisible()) w->show();   // the view may not have polished it yet
           // On the CONTROL clock, not the row's: Select all arrives in the same turn, and a row still
           // forming after the button had landed read as the two appearing one after the other.
+          QPointer<QWidget> wp(w);
           if (DisintegrateOverlay::over(w, this, DisintegrateOverlay::Sweep::GATHER, 0, 0,
                                         CONN_ARRIVE_MS)) {
             w->setVisible(false);   // the slot stays; the motes are what the eye follows
-            QPointer<QWidget> wp(w);
             QTimer::singleShot(support::motionMs(CONN_ARRIVE_MS), this, [wp] { if (wp) wp->setVisible(true); });
+          } else if (playModeGhost(list->viewport(), w->grab(), QRect(w->mapTo(list->viewport(), QPoint()), w->size()),
+                                   list->viewport()->rect(), /*in=*/true, Qt::Horizontal, MODE_ROW_MS,
+                                   [wp] { if (wp) wp->setVisible(true); })) {
+            w->setVisible(false);   // Sliding / Transition: its picture slides in or grows where it will stand
           }
         }
       });

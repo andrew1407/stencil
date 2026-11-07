@@ -29,10 +29,11 @@ export const wireComposerMenu = ({ transcriptEl, gearTip, queueFiles, state }) =
   // The trigger's rich status tooltip (browser panel.js statusHost parity):
   // hover/focus reveal it, one click's focus suppressed (statusTip.js wire).
   gearTip.wire(moreBtn);
+  gearTip.setBlocked?.(() => !moreMenu.hidden);   // never over the open menu
   for (const item of moreMenu.querySelectorAll('.chat-more-item'))
     item.addEventListener('click', closeMore);
   document.addEventListener('pointerdown', (e) => {
-    if (!moreMenu.hidden && !moreMenu.contains(e.target) && e.target !== moreBtn) closeMore();
+    if (!moreMenu.hidden && !moreMenu.contains(e.target) && !moreBtn.contains(e.target)) closeMore();
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMore(); });
   // Add image → the hidden picker; its files ride the same queue as a drop.

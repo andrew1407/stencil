@@ -15,7 +15,9 @@ const makeEl = (tag) => {
     appendChild(c) { el.children.push(c); return c; },
     remove() { el.removed = true; },
     classList: {
-      add: (c) => el.classes.add(c),
+      add: (...cs) => cs.forEach((c) => el.classes.add(c)),
+      remove: (...cs) => cs.forEach((c) => el.classes.delete(c)),
+      contains: (c) => el.classes.has(c),
       toggle: (c, v) => (v ? el.classes.add(c) : el.classes.delete(c)),
     },
     getBoundingClientRect() {

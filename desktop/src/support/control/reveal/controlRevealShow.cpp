@@ -1,6 +1,37 @@
 #include "controlReveal.hpp"
+#include "modeGhost.hpp"
 
 namespace stencil::gui {
+
+  namespace {
+    // The group's picture leaves in its cloud, or under Sliding / Transition slides out or shrinks inside its
+    // closing slot over the veiled group; the veil it returns (null for a cloud) comes off as the slot shuts.
+    QPointer<QGraphicsOpacityEffect> flyOut(QWidget* w, QWidget* host, const QPixmap& pm, const QRect& at) {
+      if (ctl::flyReveal(w, pm, at, /*gather=*/false, CONTROL_REVEAL_OUT_MS)) return nullptr;
+      if (!playModeGhost(host, pm, at, at, /*in=*/false, Qt::Horizontal, CONTROL_REVEAL_OUT_MS)) return nullptr;
+      return veilBehindDust(w);
+    }
+
+    // …and arrives: out of its cloud, the veil lifting late, or under Sliding / Transition slid in or grown,
+    // veiled until it lands; with neither the veil comes off at once (browser revealControls).
+    void flyIn(QPointer<QWidget> guard, QWidget* host, const QPixmap& pm, const QRect& at,
+               QPointer<QGraphicsOpacityEffect> veil) {
+      const auto unveil = [guard, veil] {
+        if (guard && veil && guard->graphicsEffect() == veil) guard->setGraphicsEffect(nullptr);
+      };
+      if (!ctl::flyReveal(guard, pm, at, /*gather=*/true, CONTROL_REVEAL_IN_MS)) {
+        if (!playModeGhost(host, pm, at, at, /*in=*/true, Qt::Horizontal, CONTROL_REVEAL_IN_MS, unveil)) unveil();
+        return;
+      }
+      auto* fade = new QPropertyAnimation(veil, "opacity", veil);
+      fade->setDuration(support::motionMs(CONTROL_REVEAL_IN_MS));
+      fade->setKeyValueAt(0.0, 0.0);
+      fade->setKeyValueAt(CONTROL_REVEAL_VEIL_STOP, 0.0);
+      fade->setKeyValueAt(1.0, 1.0);
+      QObject::connect(fade, &QPropertyAnimation::finished, guard, unveil);
+      fade->start(QAbstractAnimation::DeleteWhenStopped);
+    }
+  }  // namespace
 
   // The slot slides with the dust, or the neighbour jumps sideways. Safe on null;
   // `dust=false` settles any flight and sets visibility outright.
@@ -22,7 +53,7 @@ namespace stencil::gui {
       const QRect at(w->mapTo(host, QPoint(0, 0)), w->size());
       const int naturalW = w->width();
       const int savedMax = ctl::parkMaxWidth(w);
-      ctl::flyReveal(w, pm, at, /*gather=*/false, CONTROL_REVEAL_OUT_MS);
+      const QPointer<QGraphicsOpacityEffect> modeVeil = flyOut(w, host, pm, at);
       auto* shrink = new QPropertyAnimation(w, MAX_WIDTH_PROPERTY, w);
       shrink->setDuration(support::motionMs(CONTROL_REVEAL_OUT_MS));
       shrink->setStartValue(naturalW);
@@ -30,12 +61,13 @@ namespace stencil::gui {
       // Not InCubic: a strong ease-in barely moves for 200ms then snaps shut.
       shrink->setEasingCurve(QEasingCurve::InOutCubic);
       QPointer<QWidget> guard(w);
-      QObject::connect(shrink, &QPropertyAnimation::finished, w, [guard, savedMax] {
+      QObject::connect(shrink, &QPropertyAnimation::finished, w, [guard, savedMax, modeVeil] {
         if (!guard) return;
+        if (modeVeil && guard->graphicsEffect() == modeVeil) guard->setGraphicsEffect(nullptr);
         guard->setVisible(false);
         ctl::handBackMaxWidth(guard, savedMax);
       });
-      ctl::trackSlide(w, shrink, /*opening=*/false);
+      ctl::trackSlide(w, shrink, /*isOpening=*/false);
       shrink->start(QAbstractAnimation::DeleteWhenStopped);
       return;
     }
@@ -71,27 +103,13 @@ namespace stencil::gui {
       guard->setMaximumWidth(0);
       QGraphicsOpacityEffect* freshVeil = veilBehindDust(guard);
       QPointer<QGraphicsOpacityEffect> freshVeilGuard(freshVeil);
-      // In `slide` the cloud declines and the slot alone is the flight, so the veil comes off
-      // at once — there are no motes for the group to wait behind (browser revealControls).
-      if (!ctl::flyReveal(guard, pm, at, /*gather=*/true, CONTROL_REVEAL_IN_MS)) {
-        guard->setGraphicsEffect(nullptr);
-      } else {
-        auto* fade = new QPropertyAnimation(freshVeilGuard, "opacity", freshVeilGuard);
-        fade->setDuration(support::motionMs(CONTROL_REVEAL_IN_MS));
-        fade->setKeyValueAt(0.0, 0.0);
-        fade->setKeyValueAt(CONTROL_REVEAL_VEIL_STOP, 0.0);
-        fade->setKeyValueAt(1.0, 1.0);
-        QObject::connect(fade, &QPropertyAnimation::finished, guard, [guard] {
-          if (guard) guard->setGraphicsEffect(nullptr);
-        });
-        fade->start(QAbstractAnimation::DeleteWhenStopped);
-      }
+      flyIn(guard, host, pm, at, freshVeilGuard);
       auto* grow = new QPropertyAnimation(guard, MAX_WIDTH_PROPERTY, guard);
       grow->setDuration(support::motionMs(CONTROL_REVEAL_IN_MS));
       grow->setStartValue(0);
       grow->setEndValue(naturalW);
       grow->setEasingCurve(QEasingCurve::OutCubic);
-      ctl::trackSlide(guard, grow, /*opening=*/true);
+      ctl::trackSlide(guard, grow, /*isOpening=*/true);
       QObject::connect(grow, &QPropertyAnimation::finished, guard, [guard, savedMax] {
         if (guard) ctl::handBackMaxWidth(guard, savedMax);
       });

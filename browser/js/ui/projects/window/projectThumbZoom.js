@@ -1,6 +1,7 @@
 import { placeNearCursor, onWindowResize } from '../../../utils.js';
 import { surfaceIn, surfaceOut, settleSurface } from '../../motion/surface/surfaces.js';
-import { rectCenter, TIP_DUST_IN_MS, TIP_DUST_OUT_MS } from '../../motion/control/tips.js';
+import { rectCenter, TIP_DUST_IN_MS, TIP_DUST_OUT_MS, tipFallbackIn, tipCopyAway } from '../../motion/control/tips.js';
+import { menuAway, pointBox } from '../../motion/genie/window.js';
 
 // Magnified hover preview for project-row thumbnails: one reused floating element and the
 // Alt-doubling state every row shares.
@@ -24,7 +25,7 @@ export const createThumbZoom = () => {
   let zoomPoint = null;
   const hideZoom = () => {
     if (zoomEl) {
-      if (zoomEl.style.display !== 'none') surfaceOut(zoomEl, zoomPoint, { ms: ZOOM_DUST_OUT_MS });
+      if (zoomEl.style.display !== 'none') surfaceOut(zoomEl, zoomPoint, { ms: ZOOM_DUST_OUT_MS }) || tipCopyAway(zoomEl) || menuAway(zoomEl, pointBox(zoomPoint));
       else settleSurface(zoomEl);
       zoomEl.style.display = 'none';
       zoomSize = null;
@@ -95,7 +96,7 @@ export const createThumbZoom = () => {
       applyZoomCaps();
       applyZoomScale();
       positionZoom(e);
-      surfaceIn(z, zoomPoint, { ms: ZOOM_DUST_IN_MS });
+      if (!surfaceIn(z, zoomPoint, { ms: ZOOM_DUST_IN_MS })) tipFallbackIn(z, zoomPoint);
     });
     thumbEl.addEventListener('mousemove', positionZoom);
     thumbEl.addEventListener('mouseleave', hideZoom);

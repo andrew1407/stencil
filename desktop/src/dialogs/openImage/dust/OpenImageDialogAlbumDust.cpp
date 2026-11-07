@@ -15,6 +15,9 @@
 
 namespace stencil::gui {
 
+  // Sliding / Transition's clock for an inline control (browser enterLeave.js MODE_ROW_MS).
+  constexpr int ALBUM_FLIGHT_MS = 340;
+
   // The button falls INLINE beside the always-shown checkbox, so it has no height to slide - just
   // the chip cloud. Both directions FOLLOW size.anim, or the cloud is stranded over the stage.
   void OpenImageDialog::cropAlbumDust(bool arriving) {
@@ -34,6 +37,7 @@ namespace stencil::gui {
       cropAlbum->setVisible(false);
       if (!shot.isNull()) {
         DisintegrateOverlay* fx = chipCloud(host, cropAlbum, shot, DisintegrateOverlay::Sweep::FALL);
+        if (!fx) modeFlight(host, cropAlbum, shot, false, ALBUM_FLIGHT_MS);
         if (fx && size.anim) {
           const auto follow = [fx, btn, host] { if (btn && host) fx->move(btn->mapTo(host, QPoint())); };
           connect(size.anim, &QVariantAnimation::valueChanged, fx, follow);
@@ -52,7 +56,11 @@ namespace stencil::gui {
       if (!btn) return;
       if (gen != motion.gen || shot.isNull()) { lift(); return; }
       DisintegrateOverlay* fx = chipCloud(host, btn, shot, DisintegrateOverlay::Sweep::GATHER);
-      if (!fx) { lift(); return; }
+      if (!fx) {
+        lift();
+        modeFlight(host, btn, shot, true, ALBUM_FLIGHT_MS);
+        return;
+      }
       const auto follow = [fx, btn, host] { if (btn && host) fx->move(btn->mapTo(host, QPoint())); };
       if (size.anim) connect(size.anim, &QVariantAnimation::valueChanged, fx, follow);
       QTimer::singleShot(support::motionMs(int(keywordChipClocks().dustMs * FILTER_DUST_VEIL_STOP)), btn, lift);

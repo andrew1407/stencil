@@ -109,7 +109,12 @@ namespace stencil::support {
     return document(rectRuns(*rows, ink));
   }
 
+  // Rasterised once per name, face and scale: the idle card asks for its glyph every paint.
   QImage pixelIconImage(const QString& name, bool dark, int scale) {
+    static QHash<QString, QImage> rasters;
+    const QString key = name + (dark ? "|d@" : "|l@") + QString::number(scale);
+    const auto hit = rasters.constFind(key);
+    if (hit != rasters.constEnd()) return *hit;
     const PixelSet& s = pixelSet();
     const QStringList rows = s.icons.value(name);
     if (rows.isEmpty()) return QImage();
@@ -123,6 +128,7 @@ namespace stencil::support {
         if (!hex.isEmpty()) p.fillRect(x * scale, y * scale, scale, scale, QColor(hex));
       }
     p.end();
+    rasters.insert(key, img);
     return img;
   }
 

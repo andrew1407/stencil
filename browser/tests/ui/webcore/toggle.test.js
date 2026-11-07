@@ -98,7 +98,10 @@ test('a motion choice made while it is on persists, and the skin stays', async (
 test('an empty editor leaves incognito, gets the picture under its name and the word as one step', async (t) => {
   reloadMotionPrefs();
   const storage = { incognito: true, temporary: true };
-  const app = makeApp({ image: null, storage, imageFilter: 'sepia', activeProjectId: null });
+  // The settle runs as far as the word: a crop, the history's floor, then the layout as its first step.
+  const imageModel = { defaultCropRect: () => null, rebuildCroppedImage() {} };
+  const app = makeApp({ image: null, storage, imageFilter: 'sepia', activeProjectId: null,
+                        imageModel, history: { reset() {} } });
   storage.promoteTemporaryToProject = () => { app.promoted.push(['promote']); app.activeProjectId = 'p1'; };
   stubDecode(t, app);
   await toggleWebcore(app);
@@ -124,7 +127,7 @@ test('an empty editor reopens the local project named webcore instead of minting
   ];
   const opened = [];
   const app = makeApp({ image: null, storage: { incognito: false, store: { list } },
-                        projectTransfer: { switchToProject: (id) => { opened.push(id); return true; } } });
+                        projectTransfer: { switchToProject: (id) => { opened.push(id); setTimeout(() => { app.image = { width: 1024, height: 768 }; }); return true; } } });
   await toggleWebcore(app);
   assert.deepEqual(opened, ['loc'], 'the local one, never the server-linked copy');
   assert.equal(app.calls.some(([k]) => k === 'load'), false, 'no new picture, no new project');

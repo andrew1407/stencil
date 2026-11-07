@@ -64,6 +64,7 @@ namespace stencil::gui {
     auto* col = new QVBoxLayout(ring);
     col->setContentsMargins(0, 0, 0, 0);
     col->addWidget(field);
+    ring->setProperty("well", alwaysOn);   // a skin rings a well apart from a field (browser aqua .kw-chips)
     if (alwaysOn) ring->setProperty("ringOn", true);
     else field->installEventFilter(new FieldRingWatch(ring));
     return ring;
@@ -92,6 +93,7 @@ namespace stencil::gui {
     auto* saveBtn = new QPushButton(spec.saveLabel, dlg);
     saveBtn->setObjectName(QStringLiteral("%1Save").arg(spec.name));
     makeModalCta(saveBtn, QStringLiteral("check"));
+    markModalPrimary(saveBtn);
     saveBtn->setAutoDefault(false);
     footer->addWidget(saveBtn);
     QObject::connect(cancelBtn, &QPushButton::clicked, dlg, &QDialog::reject);

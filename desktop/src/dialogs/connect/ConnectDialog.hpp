@@ -11,6 +11,7 @@ class QLabel;
 class QPushButton;
 class QKeyEvent;
 class QLineEdit;
+class QListWidgetItem;
 class QListWidget;
 class QHBoxLayout;
 class QVBoxLayout;
@@ -33,6 +34,8 @@ namespace stencil::gui {
     void done(int r) override;
     // Browser modal.js #connect-sync; the setting is MainWindow's (Settings.syncToServer).
     void setSyncToServer(bool on);
+    // The rows' sheet re-taken from the look now on (a skin's toggle strips its hover rules).
+    void restyleRows();
 
    signals:
     void syncToServerToggled(bool on);
@@ -66,6 +69,7 @@ namespace stencil::gui {
     void reauthenticate(const QString& url);
     // A painted list row has no widget of its own, so its RECT comes apart.
     void scatterRows(const QStringList& urls);
+    void closeSlot(QListWidgetItem* it, int ms);   // an emptied row's slot shrinks to nothing over `ms`
     void doConnect();
     void updateBatchBar();
     QStringList shownUrls() const;

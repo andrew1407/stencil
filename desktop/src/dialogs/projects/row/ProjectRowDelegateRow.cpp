@@ -23,6 +23,34 @@ namespace stencil::gui {
       p->fillRect(QRect(r.left(), r.bottom(), r.width(), 1), rb);
       p->fillRect(QRect(r.right(), r.top(), 1, r.height()), rb);
     }
+    // The "…": webcore's raised button, aqua's glass tile (7px, ink dots), else the accent chip.
+    void paintKebab(QPainter* p, const QRect& chip, bool onKebab, bool skin, const QColor& accent,
+                    const QColor& text) {
+      p->save();
+      p->setRenderHint(QPainter::Antialiasing, true);
+      p->setPen(Qt::NoPen);
+      if (skin) {
+        bevelBox(p, chip, !onKebab);
+        p->setBrush(text);
+      } else if (support::isAqua()) {
+        const support::SkinGlass& g = support::skinGlass();
+        QLinearGradient fill(chip.topLeft(), chip.bottomLeft());
+        fill.setStops(g.glassStops);
+        p->setPen(QPen(g.edge, 1));
+        p->setBrush(fill);
+        p->drawRoundedRect(QRectF(chip).adjusted(0.5, 0.5, -0.5, -0.5), 7, 7);
+        p->setPen(Qt::NoPen);
+        p->setBrush(g.ink);
+      } else {
+        p->setBrush(onKebab ? accent.lighter(115) : accent);
+        p->drawRoundedRect(chip, 8, 8);
+        p->setBrush(Qt::white);
+      }
+      const int cx = chip.center().x();
+      const int cy = chip.center().y();
+      for (int dx = -5; dx <= 5; dx += 5) p->drawEllipse(QPointF(cx + dx, cy + 2), 1.6, 1.6);
+      p->restore();
+    }
   }  // namespace
 
   void ProjectRowDelegate::paintRow(QPainter* p, const QStyleOptionViewItem& opt,
@@ -82,7 +110,8 @@ namespace stencil::gui {
       QString meta = idx.data(META_ROLE).toString();
       const QColor def = o.palette.color(QPalette::Text);
       QColor nameCol = idx.data(Qt::UserRole + 4).value<QColor>();
-      if (!nameCol.isValid() || skin) nameCol = def;
+      // A skin's unset name is its ink (browser --project-name-fg), the plain grey only outside one.
+      if (!nameCol.isValid() || skin || (support::isAqua() && nameCol == UNSET_NAME_GREY)) nameCol = def;
       // Browser .project-name / .project-sub sizes (14 / 12 px), not the app font.
       QFont nameF(o.font);
       nameF.setBold(true);
@@ -163,23 +192,7 @@ namespace stencil::gui {
     }
 
     // Browser "…" more-actions button: reacts to ITS OWN hover only, then a band of glass sweeps across it.
-    const QRect chip = kebabChip(opt.rect);
-    const bool onKebab = idx.row() == kebabRow;
-    p->save();
-    p->setRenderHint(QPainter::Antialiasing, true);
-    p->setPen(Qt::NoPen);
-    if (skin) {
-      bevelBox(p, chip, !onKebab);
-      p->setBrush(o.palette.color(QPalette::Text));
-    } else {
-      p->setBrush(onKebab ? accent.lighter(115) : accent);
-      p->drawRoundedRect(chip, 8, 8);
-      p->setBrush(Qt::white);
-    }
-    const int cx = chip.center().x();
-    const int cy = chip.center().y();
-    for (int dx = -5; dx <= 5; dx += 5) p->drawEllipse(QPointF(cx + dx, cy + 2), 1.6, 1.6);
-    p->restore();
+    paintKebab(p, kebabChip(opt.rect), idx.row() == kebabRow, skin, accent, o.palette.color(QPalette::Text));
   }
 
 }  // namespace stencil::gui

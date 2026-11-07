@@ -46,7 +46,7 @@ class MainWindowGuiTest : public QObject {
       return true;
     };
 
-    QAction* fs = actionByText(&win, "Enter Fullscreen");
+    QAction* fs = actionByText(&win, "Full Screen");
     QVERIFY(fs);
     // Mid-canvas first: off macOS the top band starts at the very edge, where a pointer may rest.
     QCursor::setPos(win.mapToGlobal(QPoint(win.width() / 2, win.height() / 2)));
@@ -109,7 +109,7 @@ class MainWindowGuiTest : public QObject {
     const double chosen = canvas->getScale();
     QCOMPARE(chosen, 0.5);
 
-    QAction* fs = actionByText(&win, "Enter Fullscreen");
+    QAction* fs = actionByText(&win, "Full Screen");
     QVERIFY(fs);
     fs->trigger();
     // Outlast the ramp itself plus the bounded wait for the window manager's resize.
@@ -151,12 +151,10 @@ class MainWindowGuiTest : public QObject {
       return n;
     };
     QVERIFY2(cloudsUp() > 0, "the test's own cloud never started");
-
     win.parts.view.toggleFullscreen();
     QTRY_VERIFY2(cloudsUp() == 0, "a cloud was left flying over the fullscreen canvas");
     QVERIFY2(!win.tools.logoBtn->isVisible(), "fullscreen kept the header row");
     QVERIFY2(!fx->isVisible(), "the logo's mark stayed up with its button gone");
-
     win.parts.view.toggleFullscreen();   // …and back, with the header row and its mark restored
     QTRY_VERIFY_WITH_TIMEOUT(win.tools.logoBtn->isVisible(), 2000);
     QTRY_VERIFY_WITH_TIMEOUT(fx->isVisible(), 2000);
@@ -213,6 +211,19 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(win.parts.dockChrome.panelGrip->isVisible());
   }
 
+  // The canvas meets the window's edges (browser fullscreen.css inset 0): no gutter of its own ground, and
+  // the right band reaches the edge a flung pointer lands on; leaving gives the gutters back.
+  void fullscreenCanvasFillsTheWindow() {
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.acts.fullscreen->trigger();
+    QTRY_COMPARE(win.scroll->mapTo(&win, QPoint(win.scroll->width(), 0)).x(), win.width());
+    QCOMPARE(win.centralLayout->contentsMargins(), QMargins()); QCOMPARE(win.scroll->frameWidth(), 0);
+    win.acts.fullscreen->trigger();
+    QTRY_VERIFY(win.centralLayout->contentsMargins().bottom() > 0);
+  }
 };
 
 QTEST_MAIN(MainWindowGuiTest)

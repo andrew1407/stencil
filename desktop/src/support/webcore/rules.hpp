@@ -2,6 +2,8 @@
 // The webcore skin's table (common/config/webcore.json over the qrc) and the pure rules over
 // it: the picture's cells and the word's lines. Twin of browser/js/ui/webcore/rules.js, value
 // for value.
+#include "../skin/skinTable.hpp"
+
 #include <QColor>
 #include <QHash>
 #include <QPoint>
@@ -50,7 +52,6 @@ namespace stencil::support {
   QString grassShadeAt(int cx, int cy, const CellGrid& grid);
   QString cellColorAt(int cx, int cy, const CellGrid& grid);
 
-  struct CellRun { int x = 0, y = 0, w = 0, h = 0; QString color; };
   // Every cloud block in cells: the ink first, the shade over it.
   QVector<CellRun> cloudBlocks();
   // Same-colour runs along every row of the base picture.
@@ -58,11 +59,8 @@ namespace stencil::support {
   // The finished picture's colour at a pixel.
   QString pixelColorAt(int px, int py);
 
-  struct WordLine {
-    QVector<QPointF> points;
-    QString color, fillColor;
-    double thickness = 2;
-  };
+  // The word's glyph table, which the aqua word is set in too.
+  WordGlyphs webcoreWordGlyphs();
   // STENCIL as closed, filled lines across the sky of a w×h image, one colour each.
   QVector<WordLine> wordLines(int w, int h);
 

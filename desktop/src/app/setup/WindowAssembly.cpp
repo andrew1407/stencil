@@ -2,6 +2,8 @@
 // nothing.
 #include "MainWindow.hpp"
 #include "WindowAssembly.hpp"
+#include "menuRowPolish.hpp"
+#include "numericInput.hpp"
 #include "ArrowPanner.hpp"
 #include "../../support/control/dblReset.hpp"
 #include "CanvasWidget.hpp"
@@ -18,6 +20,8 @@
 #include <QGuiApplication>
 #include <QLabel>
 #include <QMouseEvent>
+#include <QPainter>
+#include <QStyleOption>
 #include <QVBoxLayout>
 #include <QGraphicsOpacityEffect>
 
@@ -34,6 +38,31 @@ namespace stencil::gui {
       QMouseEvent move(QEvent::MouseMove, QPointF(local), QPointF(global), Qt::NoButton, Qt::NoButton,
                        QGuiApplication::keyboardModifiers());
       QCoreApplication::sendEvent(canvas, &move);
+    }
+
+    // The editor's ground, drawn by its own style rule (opaque in every skin) and declared opaque: the
+    // window then skips the two fills it laid under the whole editor on every frame of a dock slide.
+    class OpaqueGround : public QObject {
+     public:
+      using QObject::QObject;
+     protected:
+      bool eventFilter(QObject* o, QEvent* e) override {
+        if (e->type() != QEvent::Paint) return false;
+        auto* widget = static_cast<QWidget*>(o);
+        QPainter p(widget);
+        QStyleOption opt;
+        opt.initFrom(widget);
+        widget->style()->drawPrimitive(QStyle::PE_Widget, &opt, &p, widget);
+        return false;   // QMainWindow paints its separators over it
+      }
+    };
+
+    QMainWindow* groundedEditor(QWidget* parent) {
+      auto* editor = new QMainWindow(parent);
+      editor->setWindowFlags(Qt::Widget);   // the ctor ORs Qt::Window in; as a child it is a plain widget
+      editor->setAttribute(Qt::WA_OpaquePaintEvent);
+      editor->installEventFilter(new OpaqueGround(editor));
+      return editor;
     }
   }  // namespace
 
@@ -76,8 +105,7 @@ namespace stencil::gui {
     dropHintLay->addWidget(w.tools.dropHintText, 1);
     w.centralLayout->addWidget(w.tools.dropHint);
 
-    w.editor = new QMainWindow(&w);
-    w.editor->setWindowFlags(Qt::Widget);   // the ctor ORs Qt::Window in; as a child it is a plain widget
+    w.editor = groundedEditor(&w);
     w.editor->setCentralWidget(central);
     w.setCentralWidget(w.editor);
     // The viewport margin around a zoomed-out image must still take Ctrl+wheel / pinch zoom.
@@ -132,6 +160,8 @@ namespace stencil::gui {
     // HoverMove.
     w.setAttribute(Qt::WA_Hover, true);
     installIconMotion();
+    support::installFlatMenus();   // a menu with no submenu drops the arrow column's padding
+    installSpinTextInsets();
     installControlSwap();
     support::installDblReset();   // a double-click puts a selector or a check back to its default
     support::installDialogReveal();

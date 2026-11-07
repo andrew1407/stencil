@@ -17,6 +17,8 @@ namespace stencil::gui {
    public:
     // isFullScreen() is unreliable on macOS, so the mode tracks its own flag.
     bool active = false;
+    // The kind: the window keeps its frame and size (browser 'window'), else it takes the screen ('screen').
+    bool inWindow = false;
     bool wasToolbars = true;   // toggle states captured on entry, restored on exit
     bool wasPanel = true;
     // Read these, never isVisible(): an animated hide stays visible until the slide ends.

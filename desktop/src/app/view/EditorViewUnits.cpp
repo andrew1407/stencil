@@ -121,8 +121,8 @@ namespace stencil::gui {
     const auto u = w.unitFormat();
     const QString lbl = QString::fromStdString(u.label);
     w.status->setText(
-        // Browser parity (drawingApp.js updateCoordStatus): dot separators.
-        QString("Pixel (%1, %2)   \u00b7   Page (%3, %4) %5   \u00b7   To edge (%6, %7) %5")
+        // Browser parity (panel/unitDisplay.js): dot separators, one space each side as HTML collapses them.
+        QString("Pixel (%1, %2) \u00b7 Page (%3, %4) %5 \u00b7 To edge (%6, %7) %5")
             .arg(qRound(imageX))
             .arg(qRound(imageY))
             .arg(page.x * u.factor, 0, 'f', 2)

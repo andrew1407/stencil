@@ -1,6 +1,6 @@
 import { StencilElement, hostTag, define } from '../base.js';
 import { surfaceIn, surfaceOut, settleSurface } from '../motion/surface/surfaces.js';
-import { TIP_SHOW_DELAY_MS } from '../motion/control/tips.js';
+import { TIP_SHOW_DELAY_MS, tipFallbackIn, tipFallbackOut, tipCopyAway } from '../motion/control/tips.js';
 import { cmToUnit, unitLabel } from '../../utils.js';
 import { decideHover, refreshHover, scheduleReveal } from './tooltipHover.js';
 import { tipsHeld, onTipsHeld } from './tipHold.js';
@@ -18,6 +18,8 @@ export class StencilTooltip extends StencilElement {
   shownKey = null;        // the target CURRENTLY on screen (or about to be, mid-timer)
   lastMarkup = null;      // what innerHTML last received: a move over the same target rebuilds nothing
   coordCells = null;      // the coordinate table's value cells, while its row labels are on screen
+  lastCursor = null;      // the pointer it was last placed at: where it leaves back to
+  isFlying = false;       // its entrance is still in the air: it stays where that aims
 
   static inner() { return ''; } // content is rendered on demand by show()/showLine()
   static template() { return hostTag('stencil-tooltip', 'id="tooltip" class="tooltip"', StencilTooltip.inner()); }
@@ -152,8 +154,11 @@ export class StencilTooltip extends StencilElement {
   static OUT_MS = 170;
   dust(clientX, clientY, enter) {
     const point = { x: clientX, y: clientY };
-    (enter ? surfaceIn : surfaceOut)(this, point,
-      { ms: enter ? StencilTooltip.IN_MS : StencilTooltip.OUT_MS });
+    if ((enter ? surfaceIn : surfaceOut)(this, point, { ms: enter ? StencilTooltip.IN_MS : StencilTooltip.OUT_MS })) return;
+    // The other modes as the control tips play them: slide's genie, transition's grow (and, the box gone
+    // now, a shrinking copy); held where the flight aims until it lands.
+    if (enter) { this.isFlying = true; if (!tipFallbackIn(this, point, () => { this.isFlying = false; })) this.isFlying = false; }
+    else if (!tipCopyAway(this)) tipFallbackOut(this, point);
   }
 
   // Reveal at `clientX/Y`, playing the gather only when it was not already showing.
@@ -166,6 +171,8 @@ export class StencilTooltip extends StencilElement {
   }
 
   position(clientX, clientY) {
+    this.lastCursor = { x: clientX, y: clientY };
+    if (this.isFlying) return;
     const tooltipRect = this.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
@@ -187,10 +194,13 @@ export class StencilTooltip extends StencilElement {
     this.pendingKey = null;
     this.pendingReveal = null;
     this.shownKey = null;
+    this.isFlying = false;
     // The box goes NOW; the cloud it leaves behind owns its own lifetime.
+    // Back into the pointer it came out of (desktop CanvasTooltip lastCursor), else its own centre.
     if (this.style.display === 'block' && !instant) {
       const r = this.getBoundingClientRect?.();
-      if (r) this.dust(r.left + r.width / 2, r.top + r.height / 2, false);
+      const at = this.lastCursor || (r && { x: r.left + r.width / 2, y: r.top + r.height / 2 });
+      if (at) this.dust(at.x, at.y, false);
     } else settleSurface(this);
     this.style.display = 'none';
   }

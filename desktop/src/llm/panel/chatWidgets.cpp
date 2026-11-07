@@ -1,33 +1,44 @@
 #include "chatWidgets.hpp"
 
 #include "../../support/motion/DisintegrateOverlay.hpp"
+#include "../../support/genie/GenieGhost.hpp"
+#include "../../support/genie/ghostLabel.hpp"
+#include "../../support/menu/popupSlide.hpp"
+#include "../../support/motionPrefs.hpp"
+#include "../../support/vsync/FramePulse.hpp"
 
-#include <QPixmap>
+#include <QEasingCurve>
 #include <QGraphicsOpacityEffect>
+#include <QLabel>
+#include <QPixmap>
 #include <QScrollArea>
+
+#include <memory>
 
 namespace stencil::gui {
 
-  // 1.5x brisker than a list row's 900 ms flight, off the ITEM clock: a message is read as it arrives.
-  constexpr int CHAT_ARRIVE_MS = DisintegrateOverlay::ITEM_MS * 2 / 3;
+  namespace {
+    // 1.5x brisker than a list row's 900 ms flight, off the ITEM clock: a message is read as it arrives.
+    constexpr int CHAT_ARRIVE_MS = DisintegrateOverlay::ITEM_MS * 2 / 3;
 
-  QRect scrollViewportInHost(QScrollArea* scroll, QWidget* host) {
-    if (!scroll || !scroll->viewport() || !host) return host ? host->rect() : QRect();
-    return QRect(scroll->viewport()->mapTo(host, QPoint(0, 0)), scroll->viewport()->size());
-  }
+    QRect scrollViewportInHost(QScrollArea* scroll, QWidget* host) {
+      if (!scroll || !scroll->viewport() || !host) return host ? host->rect() : QRect();
+      return QRect(scroll->viewport()->mapTo(host, QPoint(0, 0)), scroll->viewport()->size());
+    }
 
-  // browser control/chatFx.js clipDustToScroller
-  void clipChatDustToScroller(DisintegrateOverlay* dust, QScrollArea* scroll, QWidget* host) {
-    if (dust) dust->setPaintClip(scrollViewportInHost(scroll, host));
-  }
+    // browser control/chatFx.js clipDustToScroller
+    void clipChatDustToScroller(DisintegrateOverlay* dust, QScrollArea* scroll, QWidget* host) {
+      if (dust) dust->setPaintClip(scrollViewportInHost(scroll, host));
+    }
 
-  // Gather point off the side the card sits against, read off the GEOMETRY, not the role. Host coords.
-  QPoint chatArrivalPoint(const QRect& card, const QRect& view) {
-    const double reach = 0.9;
-    const bool right = (view.right() - card.right()) <= (card.left() - view.left());
-    const int cx = card.center().x();
-    return QPoint(cx + int((right ? 1 : -1) * card.width() * reach), card.center().y());
-  }
+    // Gather point off the side the card sits against, read off the GEOMETRY, not the role. Host coords; the reach
+    // past the side is a share of the card's width (common/config/motion.json CHAT_ENTER_REACH).
+    QPoint chatArrivalPoint(const QRect& card, const QRect& view) {
+      const bool isRight = isOnRightSide(view, card);
+      const double reach = support::motionTableShare("CHAT_ENTER_REACH", 0.9);
+      return QPoint(card.center().x() + static_cast<int>((isRight ? 1 : -1) * card.width() * reach), card.center().y());
+    }
+  }  // namespace
 
   bool chatCardFullyInViewport(QWidget* card, QScrollArea* scroll) {
     if (!card || !scroll || !scroll->viewport()) return false;
@@ -46,17 +57,13 @@ namespace stencil::gui {
     QWidget* host = overlay->parentWidget();
     // A SURFACE cloud follows a scroll by retargeting, never by moving the layer.
     auto at = std::make_shared<QPoint>(card->mapTo(host, QPoint(0, 0)));
-    // Parented to the CARD and stopped by the overlay's own death — a raw-pointer singleShot crashed here.
-    auto* timer = new QTimer(card);
-    timer->setInterval(CHAT_GATHER_SETTLE_MS);
-    QObject::connect(timer, &QTimer::timeout, card, [cp, op, scroll, shot, timer, settle, at] {
-      if (!op || !cp) { timer->stop(); timer->deleteLater(); return; }
+    // On the display's own clock (support/vsync), owned by the CARD and over with the overlay's death.
+    support::FramePulse::instance().join(card, [cp, op, scroll, shot, settle, at] {
+      if (!op || !cp) return false;
       if (!chatCardFullyInViewport(cp, scroll) || cp->size() != shot) {
         op->deleteLater();
-        timer->stop();
-        timer->deleteLater();
         settle();
-        return;
+        return false;
       }
       QWidget* host = op->parentWidget();
       const QPoint now = cp->mapTo(host, QPoint(0, 0));
@@ -64,8 +71,53 @@ namespace stencil::gui {
       *at = now;
       clipChatDustToScroller(op, scroll, host);
       op->raise();
+      return true;
     });
-    timer->start();
+  }
+
+  // grab() fills the card's square window background behind its rounded bubble, and those corners showed
+  // on the moving picture: rendered onto clear pixels without it, only the bubble travels.
+  QPixmap chatCardShot(QWidget* card) {
+    const qreal dpr = card->devicePixelRatioF();
+    QPixmap clear(card->size() * dpr);
+    clear.setDevicePixelRatio(dpr);
+    clear.fill(Qt::transparent);
+    auto* veil = qobject_cast<QGraphicsOpacityEffect*>(card->graphicsEffect());   // the entering card's veil
+    if (veil) veil->setEnabled(false);
+    card->render(&clear, QPoint(), QRegion(), QWidget::DrawChildren);
+    if (veil) veil->setEnabled(true);
+    return clear;
+  }
+
+  QRect chatTailHome(const QRect& seen, const QRect& at) {
+    const bool isRight = isOnRightSide(seen, at);
+    return QRect(isRight ? seen.right() - 2 : seen.left() + 1, std::max(seen.top(), at.bottom() - 17), 2, 16);
+  }
+
+  bool pourCardIn(QWidget* card, QScrollArea* scroll, std::function<void()> done) {
+    QWidget* view = scroll ? scroll->viewport() : nullptr;
+    if (!view) return false;
+    const QRect at(card->mapToGlobal(QPoint(0, 0)), card->size());
+    const QRect seen(view->mapToGlobal(QPoint(0, 0)), view->size());
+    return support::genie::fly(view, chatCardShot(card), at, chatTailHome(seen, at), /*isOpening=*/true, /*asWindow=*/false,
+                               std::move(done), support::POPUP_GENIE_MS);
+  }
+
+  // The card's picture slid in from its side (`shouldSlide`) or grown from its tail corner, a child of the card's
+  // parent so the scroller clips it; `done` once it lands.
+  void ghostCardIn(QWidget* card, bool isFromRight, bool shouldSlide, std::function<void()> done) {
+    const QRect box = card->geometry();
+    QLabel* ghost = support::genie::makeGhostLabel(card->parentWidget(), chatCardShot(card));
+    auto place = [box, isFromRight, shouldSlide](QLabel& g, double t) {
+      if (shouldSlide) {
+        const int off = static_cast<int>((1.0 - t) * box.width() * 1.1) * (isFromRight ? 1 : -1);
+        g.setGeometry(box.translated(off, 0));
+        return;
+      }
+      g.setGeometry(support::genie::tailBox(box, 0.2 + 0.8 * t, isFromRight));
+    };
+    support::genie::flyGhostLabel(ghost, support::motionMs(shouldSlide ? chatSideMs() : chatGrowMs()), QEasingCurve::OutCubic,
+                                  std::move(place), std::move(done));
   }
 
   void gatherChatCardIn(QWidget* card, QVBoxLayout* layout, QScrollArea* scroll,
@@ -116,7 +168,20 @@ namespace stencil::gui {
         snap, box, host, chatArrivalPoint(box, scrollViewportInHost(scroll, host)),
         /*gather=*/true, CHAT_ARRIVE_MS, card->palette().color(QPalette::WindowText),
         cols * rows);
-    if (!dust) { settle(); return; }
+    // A mode without particles keeps an entrance inside the transcript (browser chatFx.js): Sliding pours it up
+    // out of the transcript's foot, Transition grows it out of its tail, any other mode slides it up, shown first.
+    if (!dust) {
+      const bool isFromRight = isOnRightSide(scrollViewportInHost(scroll, host), box);
+      QPointer<QWidget> cp(card);
+      if (support::isSlideMotionOk() && pourCardIn(card, scroll, [cp, settle] { if (cp) settle(); })) return;
+      if (support::isSlideMotionOk() || support::isTransitionMotionOk()) {
+        ghostCardIn(card, isFromRight, support::isSlideMotionOk(), [cp, settle] { if (cp) settle(); });
+        return;
+      }
+      settle();
+      if (onFlight && !support::isDustAllowed()) onFlight();
+      return;
+    }
     dust->bindToSurface(card);   // a card's arrival, not a surface flight: it dies with the dock
     // Confined to the transcript: the layer is drawn on the WINDOW (clipDustToScroller).
     clipChatDustToScroller(dust, scroll, host);

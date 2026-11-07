@@ -1,0 +1,85 @@
+      /* ── Fields: white wells with the blue focus halo; the combo a glass popup button ── */
+      QLineEdit, QSpinBox, QDoubleSpinBox, QPlainTextEdit#modalPromptText,
+      QPlainTextEdit#chatMenuInput, QFrame#scriptEditorWrap, QFrame#scriptMenuWrap {
+        background: %AQ_WINDOW%; color: %AQ_INK%; border: 1px solid %AQ_EDGE%; border-top-color: %AQ_TILE_EDGE%;
+        border-radius: 0px; padding: 1px 12px;   /* the value stands in from the well as the browser input's 12px */
+        selection-background-color: %AQ_GEL_HI%; selection-color: #000000;
+      }
+      QLineEdit#searchComboSearch { border-radius: 10px; padding: 1px 10px; }
+      /* A window's search is the browser's capsule at its base 8px padding; the focus ring's extra px
+         comes out of the padding, or the app sheet's focus padding squashes the word. */
+      QLineEdit#modalSearch { border-radius: 15px; padding: 7px 12px; }
+      QLineEdit#modalSearch:focus { padding: 6px 11px; }
+      QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QPlainTextEdit:focus { border: 2px solid %AQ_FOCUS%; }
+      QComboBox {
+        color: %AQ_INK%; border: 1px solid %AQ_EDGE%; border-radius: 6px; padding: 1px 24px 1px 8px;
+        background: %AQ_GLASS_FILL%;
+      }
+      QComboBox::drop-down {
+        subcontrol-origin: padding; subcontrol-position: center right; width: 20px; border: 0;
+        border-left: 1px solid %AQ_GEL_EDGE%;   /* the cap's seam (browser select's inset -20px ring) */
+        border-top-right-radius: 6px; border-bottom-right-radius: 6px;
+        background: %AQ_GEL_FILL%;
+      }
+      QComboBox::down-arrow { image: url(%AQ_ARROWS%); width: 8px; height: 12px; }
+      QComboBox:disabled, QLineEdit:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled { color: %AQ_MUTED%; }
+      /* The box and the radio are painted images (support/aqua/indicators.cpp): the browser's tick
+         leaves its cell at the top-right, which no QSS border can. */
+      QCheckBox::indicator, QRadioButton::indicator { width: 18px; height: 18px; border: none; background: transparent; }
+      QCheckBox::indicator { image: url(%AQ_BOX%); }
+      QCheckBox::indicator:checked { image: url(%AQ_BOX_ON%); }
+      /* A list row's box is the same painted image (browser .project-row input[type=checkbox]). */
+      QAbstractItemView::indicator, QListWidget#projectsList::indicator {
+        width: 18px; height: 18px; border: none; border-radius: 0; background: transparent; image: url(%AQ_BOX%);
+      }
+      QAbstractItemView::indicator:checked, QListWidget#projectsList::indicator:checked { background: transparent; image: url(%AQ_BOX_ON%); }
+      QCheckBox::indicator:checked:disabled { image: url(%AQ_BOX_DEAD_ON%); }
+      QRadioButton::indicator { image: url(%AQ_RADIO%); }
+      QRadioButton::indicator:checked { image: url(%AQ_RADIO_ON%); }
+      QRadioButton::indicator:checked:disabled { image: url(%AQ_RADIO_DEAD_ON%); }
+      QCheckBox, QRadioButton { spacing: 2px; }
+      /* The formula pill holds its state in a hidden box: it stays a pill, its text centred. */
+      QCheckBox#formulaPill::indicator, QCheckBox#formulaPill::indicator:checked {
+        width: 0px; height: 0px; margin: 0px; border: none; image: none; background: transparent;
+      }
+      QCheckBox#formulaPill {
+        color: %AQ_INK%; border: 1px solid %AQ_EDGE%; border-radius: 9px; padding: 3px 14px;
+        background: %AQ_GLASS_FILL%;
+      }
+      QCheckBox#formulaPill:checked {
+        color: %AQ_ON_GEL%; border: 1px solid %AQ_GEL_EDGE%;
+        background: %AQ_GEL_FILL%;
+      }
+      /* A meta field's halo is square like its well, the field inside it edged in gel (browser aqua/fields.css
+         :focus); the keywords well keeps its 8px corner and the accent's ring (browser .kw-chips). */
+      QFrame#metaFieldRing { border-radius: 0px; }
+      QFrame#metaFieldRing[ringOn="true"] { border: 3px solid %AQ_FOCUS_HALO%; }
+      QFrame#metaFieldRing[well="true"] { border-radius: 11px; border: 3px solid %AQ_SELECT_HALO%; }
+      QFrame#metaFieldRing QLineEdit:focus, QFrame#metaFieldRing QPlainTextEdit:focus { border: 1px solid %AQ_GEL_EDGE%; }
+      /* A keyword is a gel capsule, its ✕ a round glass button (browser aqua/fields.css .kw-chip, chrome.css button). */
+      QFrame[kwChip="true"] { border: 1px solid %AQ_GEL_EDGE%; border-radius: 13px; background: %AQ_GEL_FILL%; }
+      QFrame[kwChip="true"] QLabel { color: %AQ_ON_GEL%; background: transparent; }
+      QPushButton[kwChipX="true"] {
+        border: 1px solid %AQ_EDGE%; border-radius: 9px; padding: 0px; min-width: 16px; min-height: 16px;
+        background: %AQ_GLASS_FILL%;
+      }
+      /* The console window: Terminal's own field, ink on the window's white (graphite on dark) in
+         Monaco, its prompt bare on the last row, never the desktop blue or a well (browser aqua/fields.css). */
+      QFrame#consoleBox { background: %AQ_WINDOW%; border: 1px solid %AQ_EDGE%; border-top-color: %AQ_TILE_EDGE%; border-radius: 0; }
+      QPlainTextEdit#consoleOutput, QLineEdit#consolePrompt, QLineEdit#consolePrompt:focus {
+        background: transparent; color: %AQ_INK%; border: 0; padding: 0;
+        selection-background-color: %AQ_GEL_HI%; selection-color: #000000;
+      }
+      QPlainTextEdit#consoleOutput { padding: 6px 8px; }
+      QPlainTextEdit#consoleOutput, QLineEdit#consolePrompt, QLabel#consolePromptMark {
+        font-family: Monaco, Menlo, "DejaVu Sans Mono", monospace; font-size: 12px;
+      }
+      QLineEdit#consolePrompt[word="cmd"], QLineEdit#consolePrompt[word="cmd"]:focus { color: %AQ_SELECT%; }
+      QLabel#consolePromptMark { color: %AQ_INK%; background: transparent; }
+      QFrame#consoleRule { background: %AQ_EDGE%; border: 0; }
+      /* The zoom field is a white well like every input (browser css/aqua/fields.css #zoom-input), not a glass popup. */
+      QComboBox#zoomCombo {
+        background: %AQ_WINDOW%; color: %AQ_INK%; border: 1px solid %AQ_EDGE%; border-top-color: %AQ_TILE_EDGE%;
+        border-radius: 0px; padding: 1px 4px;
+      }
+      QLabel#zoomPctLabel { color: %AQ_MUTED%; }

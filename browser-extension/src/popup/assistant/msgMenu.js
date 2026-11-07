@@ -27,6 +27,7 @@ export const wireMsgMenu = ({ transcriptEl, inputEl, msgMeta, send, state }) => 
   });
   document.body.appendChild(msgMenu.el);
   // Both affordances — right-click and the hover "⋯" — open through here.
+  let openedBy = null;   // the ⋯ that opened the menu; null when a right-click did
   const openMenuAt = (el, x, y) => msgMenu.openFor(msgTargetOf(el), {
     x, y, viewport: { width: window.innerWidth, height: window.innerHeight },
   });
@@ -37,6 +38,7 @@ export const wireMsgMenu = ({ transcriptEl, inputEl, msgMeta, send, state }) => 
     // Only OUR default is suppressed; any selection the right-click landed on
     // stays as it is (the menu's own mousedown is inert — see msgMenu.js).
     e.preventDefault();
+    openedBy = null;
     openMenuAt(el, e.clientX, e.clientY);
   });
   // The hover-revealed "⋯" each bubble carries (addMsg): the SAME menu, anchored
@@ -48,13 +50,16 @@ export const wireMsgMenu = ({ transcriptEl, inputEl, msgMeta, send, state }) => 
     });
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
+      // A second press on the ⋯ that opened it shuts it (browser chatRowMenu.js rowMenuTrigger).
+      if (msgMenu.isOpen() && openedBy === btn) { openedBy = null; msgMenu.close(); return; }
       const r = btn.getBoundingClientRect();
       openMenuAt(el, r.left, r.bottom + 2);
+      openedBy = btn;
     });
     el.appendChild(btn);
   };
   document.addEventListener('pointerdown', (e) => {
-    if (msgMenu.isOpen() && !msgMenu.el.contains(e.target)) msgMenu.close();
+    if (msgMenu.isOpen() && !msgMenu.el.contains(e.target) && !openedBy?.contains(e.target)) msgMenu.close();
   });
   // Escape dismissal lives in the menu itself (msgMenu.js, open-scoped).
   transcriptEl.addEventListener('scroll', () => msgMenu.close());

@@ -7,6 +7,9 @@
       QMainWindow::separator { background: %BG_CONTAINER%; width: %SEP_W%px; height: 1px; }
       /* The chat's gap: the browser's 10px of page between chat and editor (chat/touch.css). */
       QMainWindow#stencilWindow::separator { background: %BG_PAGE%; width: %CHAT_GAP%px; height: %CHAT_GAP%px; }
+      /* A covered chat slide carries the gap in its own extent, so it slides from 0 (DockChrome::setChatGapless). */
+      QMainWindow#stencilWindow[chatGapless="true"]::separator { width: 0px; height: 0px; }
+      QMainWindow[fsEditor="true"], QMainWindow[fsEditor="true"]::separator { background: %BG_CANVAS%; }   /* fullscreen: the canvas ground */
 
       QToolBar {
         background: %BG_CONTROLS%;
@@ -23,8 +26,8 @@
       /* Darker than %MUTED% in light: the plain grey read too faint on white (user report). */
       QLabel#sectionLabel { color: %SECTIONTITLE%; background: transparent; }
       QToolBar#headerToolbar { padding: 1px 6px 1px 11px; }   /* +5px left inset for the logo */
-      /* In fullscreen the row hangs over the canvas, so it takes 5px more to stand on. */
-      QToolBar[fsBar="true"] { padding-bottom: 9px; }
+      /* In fullscreen the row hangs over the canvas: 5px more to stand on, and no hairline under it. */
+      QToolBar[fsBar="true"] { padding-bottom: 9px; border-bottom: none; }
 
       QWidget#imageInfoBar {
         background: %BG_CONTROLS%;
@@ -34,13 +37,10 @@
       /* Browser .canvas-viewport border: marks off the bg-page gutter round a zoomed-out page. */
       QScrollArea#canvasViewport { border: 2px solid %BORDER_CANVAS%; }
       QScrollArea#canvasViewport[remoteEditing="true"] { border: 2px solid #d4a017; }
-      /* Fullscreen: the browser's fullscreen-panel hairline (1px --border-main, 8px corners). */
-      QScrollArea#canvasViewport[fsView="true"] {
-        border: 1px solid %BORDER%; border-radius: 8px;
-      }
-      QScrollArea#canvasViewport[fsView="true"][remoteEditing="true"] {
-        border: 1px solid #d4a017; border-radius: 8px;
-      }
+      /* Fullscreen: no frame. The browser's hairline lies on the screen's own edge and is never seen; here
+         the canvas starts under the menu-bar band, where a hairline and its corners showed. */
+      QScrollArea#canvasViewport[fsView="true"] { border: none; border-radius: 0px; }
+      QScrollArea#canvasViewport[fsView="true"][remoteEditing="true"] { border: 1px solid #d4a017; border-radius: 0; }
 
       /* The View toggles' words (MainWindowToolbarView captioned): body text, not a muted caption. */
       QLabel#toggleCaption { color: %TEXT%; padding: 0; }

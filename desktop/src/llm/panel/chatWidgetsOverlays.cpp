@@ -1,5 +1,7 @@
 #include "chatWidgets.hpp"
+#include "../../support/tip/tipFlight.hpp"
 #include "chatSheets.hpp"
+#include "../../support/skin/SkinLookStrategy.hpp"
 
 namespace stencil::gui {
 
@@ -36,14 +38,21 @@ namespace stencil::gui {
     return false;   // never consume — the row keeps its own behaviour
   }
 
+  // It leaves as a tip does, back into its thumbnail (support/tip/tipFlight.hpp) (user report).
   void HoverPreview::hide() {
-    if (popup) popup->deleteLater();
+    if (popup) {
+      if (popup->isVisible() && thumb && thumb->isVisible()) support::dismissTip(*popup, thumb);
+      popup->deleteLater();
+    }
     popup = nullptr;
     qApp->removeEventFilter(this);
   }
 
   void HoverPreview::show() {
-    hide();
+    const bool reshow = popup != nullptr;   // an Alt re-measure: no exit, no entrance
+    if (popup) popup->deleteLater();
+    popup = nullptr;
+    qApp->removeEventFilter(this);
     if (full.isNull() || !thumb || !thumb->isVisible()) return;
     // Already showing it large? Then there is nothing to magnify.
     if (thumb->width() >= PREVIEW_EDGE * 3 / 4 || thumb->height() >= PREVIEW_EDGE * 3 / 4) return;
@@ -92,17 +101,20 @@ namespace stencil::gui {
     popup->move(qBound(screen.left() + 8, x, qMax(screen.left() + 8, screen.right() - w - 8)),
                  qBound(screen.top() + 8, y, qMax(screen.top() + 8, screen.bottom() - h - 8)));
     popup->show();
+    if (!reshow) support::revealTip(*popup, thumb);   // grown, poured or gathered out of the thumbnail
     qApp->installEventFilter(this);   // removed in hide() — see eventFilter
   }
 
-  TypingDots::TypingDots(QWidget* parent) : QWidget(parent) {
+  TypingDots::TypingDots(QWidget* parent)
+      : QWidget(parent), ticker(this, [this] {
+          if (stepClock.isValid() && stepClock.elapsed() < DOT_STEP_MS) return;
+          stepClock.start();
+          phase = (phase + 1) % STEPS;
+          update();
+        }) {
     setFixedSize(DOT_SPAN * 3 + DOT_GAP * 2, DOT_SPAN + LIFT + 2);
     setAccessibleName(QObject::tr("Assistant is answering"));
-    connect(&timer, &QTimer::timeout, this, [this] {
-      phase = (phase + 1) % STEPS;
-      update();
-    });
-    timer.start(60);
+    ticker.start();
   }
 
   void TypingDots::paintEvent(QPaintEvent*) {
@@ -117,8 +129,7 @@ namespace stencil::gui {
       QColor c = base;
       c.setAlphaF(0.45 + 0.55 * hop);
       p.setBrush(c);
-      p.drawEllipse(QPointF(DOT_SPAN / 2.0 + i * (DOT_SPAN + DOT_GAP),
-                            LIFT + DOT_SPAN / 2.0 - hop * LIFT),
+      p.drawEllipse(QPointF(DOT_SPAN / 2.0 + i * (DOT_SPAN + DOT_GAP), LIFT + DOT_SPAN / 2.0 - hop * LIFT),
                     DOT_SPAN / 2.0, DOT_SPAN / 2.0);
     }
   }
@@ -132,7 +143,7 @@ namespace stencil::gui {
       // Scrolling moves the content under the viewport, so a button placed
       // against the old visible slice is stale the moment the view moves.
       if (auto* bar = scroll->verticalScrollBar())
-        connect(bar, &QScrollBar::valueChanged, this, [this] { if (shown()) place(); });
+        connect(bar, &QScrollBar::valueChanged, this, [this] { if (isShown()) place(); });
       scroll->viewport()->installEventFilter(this);
     }
   }
@@ -157,13 +168,13 @@ namespace stencil::gui {
           break;
         case QEvent::Move:
         case QEvent::Resize:
-          if (shown()) place();
+          if (isShown()) place();
           break;
         default:
           break;
       }
     } else if (scroll && obj == scroll->viewport() && event->type() == QEvent::Resize) {
-      if (shown()) place();
+      if (isShown()) place();
     } else if (obj == more) {
       // Any show/hide/move — including the ones the menu and the grace-hide
       // timer cause — re-tells the surface where the button is.
@@ -178,7 +189,7 @@ namespace stencil::gui {
           break;
       }
       // Hover lifts it 1px under an accent glow; leaving drops it back.
-      if (event->type() == QEvent::Enter && !more->property("lifted").toBool()) {
+      if (event->type() == QEvent::Enter && support::skinTraits().hasHoverLift && !more->property("lifted").toBool()) {
         more->setProperty("lifted", true);
         more->move(more->x(), more->y() - 1);
         if (auto* fx = more->graphicsEffect()) fx->setEnabled(true);

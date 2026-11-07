@@ -2,6 +2,7 @@
 #include "idleCardMotion.hpp"
 #include "../../support/motion/ShimmerOverlay.hpp"
 #include "../../support/motionPrefs.hpp"
+#include "../../support/skin/SkinLookStrategy.hpp"
 
 #include <QEasingCurve>
 #include <QVariantAnimation>
@@ -28,6 +29,14 @@ namespace stencil::gui {
     enterAnim->start();
   }
 
+  void IdleCard::dropHover() {
+    if (hoverAnim) hoverAnim->stop();
+    if (hover) host->unsetCursor();
+    hover = false;
+    hoverT = 0.0;
+    host->setProperty("idleHoverT", hoverT);
+  }
+
   // Hover the idle card the way the browser does (.idle-create-btn transitions colour,
   // lift and shadow over 0.2s) rather than snapping between two states.
   void IdleCard::setHover(bool on) {
@@ -36,12 +45,17 @@ namespace stencil::gui {
     // The hand belongs to the button, so it appears exactly where the click works.
     if (on) host->setCursor(Qt::PointingHandCursor);
     else host->unsetCursor();
+    if (!support::skinTraits().hasIdleCardMotion) return;   // a card that answers only the press: no blend, lift, settle or sweep
     if (!hoverAnim) {
       hoverAnim = new QVariantAnimation(host);
       hoverAnim->setDuration(200);
       hoverAnim->setEasingCurve(QEasingCurve::OutCubic);
       QObject::connect(hoverAnim, &QVariantAnimation::valueChanged, host,
-              [this](const QVariant& v) { hoverT = v.toDouble(); host->update(); });
+              [this](const QVariant& v) {
+                hoverT = v.toDouble();
+                host->setProperty("idleHoverT", hoverT);
+                host->update();
+              });
     }
     hoverAnim->stop();
     // Start from wherever the previous run got to, so a quick in-out doesn't jump.

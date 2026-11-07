@@ -58,6 +58,7 @@ int main(int argc, char** argv) {
   pin("DEBOUNCE", "previewHoverMs", t.previewHoverMs, f.previewHoverMs);
   pin("POPOVER", "doubleClickMs", t.doubleClickMs, f.doubleClickMs);
   pin("POPOVER", "doubleTapMs", t.doubleTapMs, f.doubleTapMs);
+  pin("POPOVER", "longPressMs", t.longPressMs, f.longPressMs);
   pin("POPOVER", "pressSlopPx", t.pressSlopPx, f.pressSlopPx);
   pin("POPOVER", "lingerCloseMs", t.lingerCloseMs, f.lingerCloseMs);
 

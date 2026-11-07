@@ -5,7 +5,7 @@
 // shows it. `[data-no-tooltip]` opts out a control that owns its own hover popup.
 
 import { renderTip, parseTip } from './content.js';
-import { surfaceIn, surfaceOut, settleSurface, rectCenter, motionMs,
+import { surfaceIn, surfaceOut, settleSurface, rectCenter, motionMs, tipFallbackIn, tipFallbackOut,
          TIP_DUST_IN_MS, TIP_DUST_OUT_MS, TIP_SHOW_DELAY_MS } from '../motion.js';
 import { comboMatchesEvent, eventCombo, parseCombo } from '../control/comboMatch.js';
 import { tipsHeld, onTipsHeld } from './tipHold.js';
@@ -23,6 +23,7 @@ const TIP_OUT_MS = TIP_DUST_OUT_MS;
 // While the motes gather the box may not move: the cloud was measured where the tip was placed,
 // so a tip tracking the cursor mid-flight would leave its own sand behind.
 let placeHeldUntil = 0;
+let revealRun = 0;          // which reveal a pending landing belongs to
 // The keycap nudge waits for the motes to land — a shake played mid-assembly is a move nobody
 // sees — and is held so a tip dismissed mid-flight never shakes caps that are already gone.
 let shakeTimer = null;
@@ -43,6 +44,12 @@ let curEl = null;           // element whose tooltip is currently shown/pending
 let curCombos = [];         // the shortcut(s) the live tooltip is showing, in render order
 let showTimer = null;
 let lastEvent = null;       // last pointer event, for positioning
+// A sweep across a bar skips the wake delay (desktop AppTooltip twin): the gap between two controls
+// is crossed within the grace, and a tip that has just gone is followed at once. ms.
+export const LEAVE_GRACE_MS = 140;
+const WARM_MS = 500;
+let leaveTimer = null;
+let warmUntil = 0;
 
 // Restart-safe one-shot class: pressing the same shortcut twice must shake twice, and
 // re-adding a class the element already carries replays nothing.
@@ -88,24 +95,31 @@ const place = (e) => {
 const hide = ({ instant = false } = {}) => {
   clearTimeout(showTimer);
   clearTimeout(shakeTimer);
-  showTimer = shakeTimer = null;
+  clearTimeout(leaveTimer);
+  showTimer = shakeTimer = leaveTimer = null;
+  warmUntil = 0;
   curCombos = [];
   const owner = curEl;
   curEl = null;
   if (!tip) return;
   // The class goes NOW either way: the cloud owns its own lifetime, never the end state.
-  if (tip.classList.contains('visible') && !instant) surfaceOut(tip, dustPoint(owner), { ms: TIP_OUT_MS });
+  if (tip.classList.contains('visible') && !instant) {
+    // Back into its control, never toward the pointer that already moved on.
+    const home = rectCenter(owner) || dustPoint(owner);
+    if (!surfaceOut(tip, home, { ms: TIP_OUT_MS })) tipFallbackOut(tip, home);
+  }
   else settleSurface(tip);
   placeHeldUntil = 0;
+  revealRun += 1;
   tip.classList.remove('visible');
 };
 
 const reveal = (el) => {
-  if (tipsHeld()) return;
+  if (tipsHeld()) return false;
   const txt = textFor(el);
-  if (!txt) return;
+  if (!txt) return false;
   const html = renderTip(txt);
-  if (!html) return;
+  if (!html) return false;
   const t = ensureTip();
   t.innerHTML = html;         // renderTip escapes every value it interpolates
   // renderTip's parse, in .tip-combo span order, so a keystroke matches the cap it drew.
@@ -115,10 +129,15 @@ const reveal = (el) => {
   place(lastEvent);
   // Placed first, so the motes stream at the box the tip will actually occupy.
   const dusted = surfaceIn(t, dustPoint(el), { ms: TIP_IN_MS });
-  if (dusted) placeHeldUntil = now() + motionMs(TIP_IN_MS);
   clearTimeout(shakeTimer);
-  if (dusted) shakeTimer = setTimeout(() => { shakeTimer = null; shakeKeys(t); }, motionMs(TIP_IN_MS));
-  else shakeKeys(t);
+  // Held where its flight aims until it is seen, then the keycaps nudge: a nudge or a move under the
+  // flight is lost, or jumps the tip as it lands. A tip gone meanwhile (its run moved on) does neither.
+  const run = ++revealRun;
+  const landed = () => { if (run !== revealRun) return; shakeTimer = null; placeHeldUntil = 0; shakeKeys(t); };
+  placeHeldUntil = Infinity;
+  if (dusted) shakeTimer = setTimeout(landed, motionMs(TIP_IN_MS));
+  else if (!tipFallbackIn(t, dustPoint(el), landed)) landed();
+  return true;
 };
 
 // Every keycap nudges once as the tip lands, so the eye goes to the shortcut. flashClass is
@@ -159,10 +178,14 @@ export const initTooltips = () => {
     const el = e.target.closest ? e.target.closest('[data-tip], [data-title]') : null;
     // Still inside the active target (moved onto its child icon) -> keep showing, UNLESS that child
     // carries its own text: a status dot inside a row label describes ITSELF (desktop parity).
-    if (curEl && curEl.contains(e.target) && (!el || el === curEl)) return;
+    if (curEl && curEl.contains(e.target) && (!el || el === curEl)) { clearTimeout(leaveTimer); leaveTimer = null; return; }
     if (!el || el === curEl) return;
+    // Mid-sweep (one up, or one just gone) the next control's tip comes at once, but as its own:
+    // the old one leaves into its control and the new one enters from this one.
+    const sweeping = (!!tip && tip.classList.contains('visible')) || now() < warmUntil;   // before hide() clears it
     hide();
     curEl = el;
+    if (sweeping) { if (!reveal(el)) hide({ instant: true }); return; }
     showTimer = setTimeout(() => reveal(el), SHOW_DELAY_MS);
   });
   document.addEventListener('pointermove', (e) => {
@@ -172,8 +195,11 @@ export const initTooltips = () => {
     if (tip && tip.classList.contains('visible')) place(e);
   });
   document.addEventListener('pointerout', (e) => {
-    if (!curEl) return;
-    if (!curEl.contains(e.relatedTarget)) hide();
+    if (!curEl || curEl.contains(e.relatedTarget)) return;
+    if (!tip || !tip.classList.contains('visible')) { hide(); return; }
+    clearTimeout(leaveTimer);
+    // Only a pointer that LEFT warms the next tip: a click, key or scroll dismissed it on purpose.
+    leaveTimer = setTimeout(() => { leaveTimer = null; hide(); warmUntil = now() + WARM_MS; }, LEAVE_GRACE_MS);
   });
   // Never let a tooltip get stuck: drop it on any scroll / click / key / blur.
   document.addEventListener('scroll', hide, true);

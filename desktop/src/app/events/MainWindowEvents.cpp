@@ -6,6 +6,7 @@
 
 #include <QApplication>
 #include <QKeyEvent>
+#include <QWindowStateChangeEvent>
 #include <QTimer>
 #include <QAction>
 #include <QToolButton>
@@ -50,6 +51,8 @@ namespace stencil::gui {
   bool MainWindow::eventFilter(QObject* obj, QEvent* event) {
     parts.events.filterPointerChrome(obj, event);
     parts.events.filterDockChrome(obj, event);
+    if (obj == this && event->type() == QEvent::WindowStateChange)
+      parts.view.followSystemFullscreen(static_cast<QWindowStateChangeEvent*>(event)->oldState(), windowState());
     if (const auto r = parts.events.filterKeyClaims(obj, event)) return *r;
     if ((event->type() == QEvent::MouseButtonPress || event->type() == QEvent::KeyPress) && !pop.active)
       blurFieldOn(this, obj, event);
@@ -59,6 +62,13 @@ namespace stencil::gui {
     if (const auto r = parts.events.filterCanvasViewport(obj, event)) return *r;
     if (const auto r = parts.events.filterProjectNameBar(obj, event)) return *r;
     return QMainWindow::eventFilter(obj, event);
+  }
+
+  // A wrapping row re-measures inside this resize, but its toolbar only follows on a posted LayoutRequest,
+  // flushed here so no frame paints the rows at the old width's height (user report).
+  void MainWindow::resizeEvent(QResizeEvent* event) {
+    QMainWindow::resizeEvent(event);
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::LayoutRequest);
   }
 
   // Arrow pan (drawingApp.js ~497): 7 px, 22 with Shift; Alt/Ctrl/Meta+arrows are reserved.

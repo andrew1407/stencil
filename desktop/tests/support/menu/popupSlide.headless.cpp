@@ -42,6 +42,12 @@ int main(int argc, char** argv) {
         "an origin past the corner pins that corner");
   check(!slideStartRect(QRect(), caret).isValid(), "an unsized popup gets no first frame");
 
+  // A tooltip's Transition (support/tip/tipFlight.hpp) grows out of a speck at its control, a scale it is handed.
+  const QRect tipBox(400, 300, 120, 40);
+  const QRect tipStart = slideStartRect(tipBox, QPoint(430, 280), 0.05, 4);
+  check(tipStart.width() == 6 && tipStart.height() == 2, "a tip's first frame is a speck: the tip at 5%");
+  check(tipStart.top() == tipBox.top() - 4, "…hung 4px above its top edge, under the control it grows from");
+
   // The runner stays off where the gui tests run, like the dust.
   setMotionMode(MotionMode::SLIDE);
   const bool offscreen = QGuiApplication::platformName() == QLatin1String("offscreen");

@@ -3,7 +3,9 @@
 // css/webcore/notices.css .notify-toast): its face and ink, the sheet that boxes it, and the
 // title strip the skin lays over its top edge.
 #include "logoStageRules.hpp"
+#include "skin/SkinLookStrategy.hpp"
 #include "skinPrefs.hpp"
+#include "theme.hpp"
 
 #include <QColor>
 #include <QEvent>
@@ -16,6 +18,7 @@ namespace stencil::gui {
 
   struct ToastDress {
     QColor bg, ink, titleA, titleB;
+    QColor border;        // the alert sheet's frame; invalid but under aqua
     bool skinned = false;
   };
 
@@ -29,12 +32,24 @@ namespace stencil::gui {
     d.ink = special ? QColor(stage.toastInk) : d.skinned ? bevel.ink : QColor(Qt::white);
     d.titleA = bevel.title;
     d.titleB = bevel.titleB;
+    // The alert sheet's face, ink and frame (browser css/aqua/notices.css); a show's notice keeps its gold.
+    if (const auto pal = special ? std::nullopt : support::skinLook().palette(support::skinDark()); pal && support::skinTraits().hasAlertSheet) {
+      d.bg = pal->bgContainer;
+      d.ink = pal->textMain;
+      d.border = pal->borderMain;
+    }
     return d;
   }
 
   // Browser .notify-toast padding (10/12; skinned 23/12/8/8, the 23 the title strip's room) less
   // the 2px QSS border; a show's notice gives a pixel back to its taller mark, so pills match.
   inline QString toastSheet(const ToastDress& d, bool special) {
+    if (d.border.isValid()) {   // the alert sheet hangs off the top edge: square above, rounded below
+      return QString("QLabel#toast { background: %1; color: %2; padding: 6px 10px; border: 1px solid %3; "
+                     "border-top-left-radius: 0; border-top-right-radius: 0; "
+                     "border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; }")
+          .arg(d.bg.name(), d.ink.name(), d.border.name());
+    }
     if (!d.skinned)
       return QString("QLabel#toast { background: %1; color: %2; padding: %3px 8px; border-radius: 6px; }")
           .arg(d.bg.name(), d.ink.name())

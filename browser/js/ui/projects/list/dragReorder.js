@@ -1,5 +1,5 @@
 import { notify, shortName } from '../../../utils.js';
-import { leaveThenRemove } from '../../motion/enterLeave.js';
+import { rowLeave } from './rowMotion.js';
 import { rowLeaveDust, ITEM_DUST_MS } from '../../motion/surface/tiles.js';
 import { clearedToast } from '../../../core/project/transferController.js';
 import { setTranslucentDragImage } from '../../canvas/dragGhost.js';
@@ -100,7 +100,7 @@ export function createDragReorder(deps) {
         if (!(await app.confirm(note, { title: 'Remove project', danger: true, confirmLabel: 'Yes', confirmIcon: 'trash', cancelLabel: 'No' }))) { render(); return; }
         const settle = beginRemoval();
         const revive = retireKey(localKey(id));
-        await leaveThenRemove(rowById(id), () => {}, rowLeaveDust(1, 0, ITEM_DUST_MS));
+        await rowLeave(rowById(id), rowLeaveDust(1, 0, ITEM_DUST_MS));
         app.projectTransfer.removeProject(id);
         await settle();
         revive();
@@ -118,7 +118,7 @@ export function createDragReorder(deps) {
       try {
         const settle = beginRemoval();
         const revive = retireKey(remoteKey(meta));
-        await leaveThenRemove(rowById(meta.id), () => {}, rowLeaveDust(1, 0, ITEM_DUST_MS));
+        await rowLeave(rowById(meta.id), rowLeaveDust(1, 0, ITEM_DUST_MS));
         await conn.deleteProject(meta.id); invalidateRemotes(); await settle();
         revive();
         notify(clearedToast(1), 'ok');

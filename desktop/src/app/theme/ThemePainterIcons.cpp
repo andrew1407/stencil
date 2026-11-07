@@ -5,6 +5,7 @@
 #include "iconMotion.hpp"
 #include "iconSet.hpp"
 #include "skinPrefs.hpp"
+#include "../../support/skin/SkinLookStrategy.hpp"
 #include "theme.hpp"
 #include "../../support/control/swap/controlSwap.hpp"
 
@@ -96,8 +97,8 @@ namespace stencil::gui {
       if (!a) continue;
       const auto tick = [this, a] {
         if (ActionIconMotionRunner* r = icm::runnerOfAction(a)) delete r;
-        a->setIcon(support::isWebcore() ? QIcon()
-                                        : menuCheckBox(a->isChecked(), w.painted.iconColor, TOOL_ICON));
+        a->setIcon(support::skinTraits().hasMenuCheckIcons ? menuCheckBox(a->isChecked(), w.painted.iconColor, TOOL_ICON)
+                                                           : QIcon());
       };
       tick();
       if (!a->property("tickSync").toBool()) {
@@ -111,6 +112,7 @@ namespace stencil::gui {
     // Each toggle's hover moves the way the click will (iconMotion.json maximize / minimize;
     // browser: fullscreen/layer.js).
     set(w.acts.fullscreen, w.fs.active ? "minimize" : "maximize");
+    set(w.acts.fullscreenWindow, w.fs.active && w.fs.inWindow ? "minimize" : "monitor");
     set(w.acts.tooltip, "message");
     set(w.acts.allowFormulas, "function");
     for (QAction* u : {w.units.unitCm, w.units.unitMm, w.units.unitIn}) set(u, "ruler");
@@ -164,7 +166,7 @@ namespace stencil::gui {
 
     // Toolbuttons without a QAction. The ✓/✗ take the same accent-filled chip as the ✎/🎨 they
     // replace; a QIcon is the only way in.
-    const QColor affordanceInk = themePalette(dark, w.settings.accentColor).onAccent;
+    const QColor affordanceInk = support::skinTraits().hasGlassToggles ? iconColor : themePalette(dark, w.settings.accentColor).onAccent;
     const auto affordanceIcon = [&](const char* glyph) {
       // A plain themedIcon, not a composed pixmap: the icon-motion filter finds a glyph via
       // QIcon::cacheKey.

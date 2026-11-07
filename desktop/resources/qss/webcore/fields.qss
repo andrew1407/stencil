@@ -34,6 +34,7 @@
       /* The browser's zoom is a bare field whose presets open on focus: no arrow button. */
       QComboBox#zoomCombo::drop-down { width: 0; margin: 0; border: 0; }
       QComboBox#zoomCombo::down-arrow { image: none; width: 0; }
+      QLabel#zoomPctLabel { color: %WC_MUTED%; }
       /* No steppers: the browser's number fields are plain text boxes that take arrow keys and
          expressions (control/numericInput.js), and the skin shows them as such. */
       QAbstractSpinBox::up-button, QAbstractSpinBox::down-button { width: 0; margin: 0; border: 0; background: transparent; }

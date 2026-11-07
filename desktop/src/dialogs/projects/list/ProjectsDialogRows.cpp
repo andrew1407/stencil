@@ -42,7 +42,7 @@ namespace stencil::gui {
     // Absent for pathless (in-memory) sources — a uniform placeholder tile keeps the row height.
     const auto thumb = thumbs.constFind(QString::fromStdString(pr.meta.id));
     if (thumb != thumbs.constEnd() && !thumb->isNull()) {
-      it->setIcon(QIcon(squareThumb(*thumb, 112)));
+      it->setIcon(QIcon(squareThumb(*thumb, 112, palette().color(QPalette::Dark))));
       it->setData(Qt::UserRole + 2, *thumb);
     } else {
       it->setIcon(QIcon(placeholderIcon(false)));
@@ -107,7 +107,7 @@ namespace stencil::gui {
     if (pm.isNull()) {
       it->setIcon(QIcon(placeholderIcon(true)));
     } else {
-      it->setIcon(QIcon(squareThumb(pm, 112)));
+      it->setIcon(QIcon(squareThumb(pm, 112, palette().color(QPalette::Dark))));
       it->setData(Qt::UserRole + 2, pm);
     }
   }

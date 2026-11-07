@@ -60,7 +60,9 @@ test('the tooltip keeps its mask grain as the fallback under the real motes', ()
   assert.match(THEME, /#app-tooltip\.dust-driven \{[\s\S]*?mask-image: none;/);
   const tip = readFileSync(new URL('../../../src/lib/tip/controlTooltip.js', import.meta.url), 'utf8');
   assert.match(tip, /surfaceIn\(t, dustPoint\(el\), \{ ms: TIP_IN_MS \}\)/);
-  assert.match(tip, /surfaceOut\(tip, dustPoint\(owner\), \{ ms: TIP_OUT_MS \}\)/);
+  // The exit goes back into its control's centre, never the pointer that moved on.
+  assert.match(tip, /const home = rectCenter\(owner\) \|\| dustPoint\(owner\);/);
+  assert.match(tip, /surfaceOut\(tip, home, \{ ms: TIP_OUT_MS \}\)/);
 });
 
 test('the injected in-page modal carries the same grain inline (it can link nothing)', () => {

@@ -17,7 +17,7 @@
       QPushButton#modalClosePill:focus { outline: none; }
       QDialog QPushButton#modalClosePill { padding: 0; min-height: 12px; max-height: 12px; min-width: 14px; max-width: 14px; }
       QFrame#modalDivider { background: %WC_SHADOW%; border-bottom: 1px solid %WC_HILIGHT%; min-height: 2px; max-height: 2px; }
-      QLabel#modalSection { color: %WC_INK%; letter-spacing: 0; font-weight: bold; }
+      QLabel#modalSection { color: %WC_INK%; letter-spacing: 0px; font-weight: bold; }
       QLabel#cropDims, QLabel#scriptDiag, QLabel#scriptMenuDiag,
       QLabel#expCalWeekday, QLabel#expLegend, QLabel#hotkeyDefault { color: %WC_INK%; }
       /* Secondary words take the browser's --text-muted (webcore: --wc-muted), as there. */
@@ -39,9 +39,16 @@
       QToolButton#expCalDay[expDay="today"] { border-color: #008000; }
       QFrame#expSwatchToday { border: 2px solid #008000; border-radius: 0; }
       QFrame#expSwatchExpiry { border: 2px solid %WC_DARK%; border-radius: 0; background: %WC_LIGHT%; }
-      QFrame[kwChip="true"] { border: 1px solid %WC_SHADOW%; border-radius: 0; background: %WC_WINDOW%; }
-      QPushButton[kwChipX="true"] { border: 0; background: transparent; }
-      QPushButton[kwChipX="true"]:hover { background: %WC_LIGHT%; }
+      /* A keyword is a raised 22px tag (browser webcore/windows.css .kw-chip); its ✕ a flat glyph that
+         rises under the pointer, never a boxed button inside the tag. */
+      QFrame[kwChip="true"] {
+        border: 2px solid transparent; border-image: url(%WC_RAISED%) 2 2 2 2 stretch; border-radius: 0;
+        background: %WC_FACE%; min-height: 18px; max-height: 18px;
+      }
+      QPushButton[kwChipX="true"] { border: 0; border-image: none; background: transparent; }
+      QPushButton[kwChipX="true"]:hover {
+        border: 1px solid transparent; border-image: url(%WC_RAISED%) 2 2 2 2 stretch; background: transparent;
+      }
       QPushButton#biPresetWhite, QPushButton#biPresetBlack { border-radius: 0; }
       QWidget#scriptMenuPanel QPushButton, QWidget#chatMenuPanel QPushButton#chatSuggestChip { border-radius: 0; }
       QWidget#searchComboSearchRow { border-bottom: 1px solid %WC_SHADOW%; }

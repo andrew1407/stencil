@@ -85,10 +85,10 @@ namespace stencil::gui {
     const support::SkinBevel b = support::skinBevel();
     QFont f = tabFont();
     f.setPixelSize(12);
-    f.setBold(true);
-    p.setFont(f);
     for (int i = 0; i < count(); ++i) {
       const bool on = i == currentIndex();
+      f.setBold(on);   // only the picked tab is bold (browser css/webcore .oi-tab.is-active)
+      p.setFont(f);
       const QRect r = tabRect(i).adjusted(0, on ? 0 : 2, -2, 0);
       p.fillRect(r, on ? b.light : b.face);
       p.fillRect(QRect(r.left(), r.top(), r.width(), 2), b.hilight);
@@ -108,6 +108,7 @@ namespace stencil::gui {
   void UnderlineTabBar::paintEvent(QPaintEvent*) {
     QPainter p(this);
     if (support::isWebcore()) return paintSkinTabs(p);
+    if (support::isAqua()) return paintAquaTabs(p);
     p.setRenderHint(QPainter::Antialiasing, true);
     const QColor muted = palette().color(QPalette::Mid);
     const QColor accent = palette().color(QPalette::Highlight);

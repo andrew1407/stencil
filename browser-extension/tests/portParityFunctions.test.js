@@ -34,7 +34,12 @@ const FUNCTIONS = [
   ['typedWords', '../../browser/js/ui/bindings/keys/typedWords.js', '../src/options/secrets/typedWords.js',
     ['LONGEST', 'matchTypedWord', 'typedLetter']],
   ['typingTarget', '../../browser/js/utils/dom.js', '../src/options/secrets/typedWords.js', ['isTypingTarget']],
-  ['stageAccents', '../../browser/js/core/settings/accents.js', '../src/lib/logo/accents.js', ['normalizeHex']],
+  ['stageAccents', '../../browser/js/core/settings/accents.js', '../src/lib/accent/ink.js', ['normalizeHex',
+    'srgbToLinear', 'relativeLuminance', 'ON_ACCENT_LIGHT', 'ON_ACCENT_DARK', 'needsDarkGlyph', 'onAccentInk']],
+  // The aqua gel an accent paints, its mark and its icons; the DOM halves stay each side's.
+  ['aquaRules', '../../browser/js/ui/aqua/rules.js', '../src/lib/aqua/rules.js', ['channels', 'mixHex', 'gelTokens']],
+  ['aquaLogo', '../../browser/js/ui/aqua/logo.js', '../src/lib/aqua/rules.js', ['GEL', 'aquaLogoArt', 'aquaFavicon']],
+  ['aquaIcons', '../../browser/js/ui/aqua/icons.js', '../src/lib/aqua/rules.js', ['aquaIconArt']],
   // A selector's list waits out the double-click window: the dblclick reset's other half.
   ['dblReset', '../../browser/js/ui/control/dblReset.js', '../src/lib/control/dblReset.js', ['deferSelectOpens']],
   // The stage's lock and lifecycle; only the bare-window test and the mark's selector are the page's own.
@@ -42,7 +47,8 @@ const FUNCTIONS = [
     'STAGE_CLASS', 'OPEN_CLASS', 'logoStageOpen', 'SWALLOWED', 'closeLogoStage', 'openLogoStage', 'currentLogoStage']],
   // Unpinned on purpose: pixelIconSvg (an opts bag), stageLook (an observer, not the bus), gearStatusRows
   // (labels passed in), enhanceSelect itself (own face, row match, hover delay), swapGeometry bezierY (function form).
-  ['webcoreIcons', '../../browser/js/ui/webcore/icons.js', '../src/lib/webcore/icons.js', ['NAME_RE', 'pixelRects', 'themeInk']],
+  ['webcoreIcons', '../../browser/js/ui/webcore/icons.js', '../src/lib/webcore/icons.js', ['pixelRects', 'themeInk']],
+  ['glyphNames', '../../browser/js/ui/skin/glyphs.js', '../src/lib/skin/page.js', ['NAME_RE']],
   ['urlRules', '../../browser/js/net/urlRules.js', '../src/lib/connection/model.js', ['isLoopbackHost', 'normalizeUrl', 'parseInviteUrl']],
   ['nameEditor', '../../browser/js/utils/nameEditor.js', '../src/lib/displayName.js', ['NAME_DISPLAY_CHARS', 'shortName']],
   ['chatTurn', '../../browser/js/llm/chat/turn.js', '../src/llm/chatController.js', ['HISTORY_LIMIT', 'MAX_ATTACHMENTS', 'splitDataUrl', 'replayMessages']],

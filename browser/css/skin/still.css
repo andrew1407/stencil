@@ -1,0 +1,27 @@
+/* What every session skin shares (css/webcore/, css/aqua/): a still interface — no keycap shake, row
+   nudge or hover lift, a fold chevron's angle kept as state — the selected row in the skin's own select
+   ink (each skin points --accent, --on-accent and --text-main at its table), and the scrollbar reset. */
+/* scrollbar-width/-color back to auto: set, they make Chrome ignore every ::-webkit-scrollbar rule a skin draws. */
+:root[data-skin] * { scrollbar-width: auto; scrollbar-color: auto; }
+:root[data-skin] :is(.tip-key, .tip-key.key-shake, .ctx-item, .accent-dd-opt, .project-row, .project-thumb img,
+.info-item, .hotkey-cell, .hotkey-default, .idle-create-btn, .idle-create-icon, .lines-row, .connect-row, .chat-suggest,
+.deselect-btn, .coordinates-table tbody tr, button, select, .btn-icon, .btn-icon-text) {
+    transform: none !important;
+}
+/* A fold chevron's angle is STATE, not motion: without this both toggles point the same way open or shut. */
+:root[data-skin] .controls-wrapper:has(#controls-body.hidden) #toggle-controls .ic,
+:root[data-skin] .coordinates-panel.coord-collapsed #toggle-coord-panel .ic { transform: rotate(180deg) !important; }
+:root[data-skin] .swap-ghost { display: none; }
+/* The interface-animation glyphs never play, whatever the mode: their held end frame read as a jump. */
+:root[data-skin] .mm-icon * { animation: none !important; }
+/* A selected row carries the on-select ink all the way down; a field or button in it keeps its face. */
+:root[data-skin] :is(.coordinates-table tbody tr.row-focused, .lines-row-selected,
+.project-row.project-selected, .connect-row.connect-selected) { background: var(--accent) !important; }
+:root[data-skin] :is(.coordinates-table tbody tr.row-focused, .lines-row-selected,
+.project-row.project-selected, .connect-row.connect-selected) :is(td, th, span, small, b, strong, div) {
+    color: var(--on-accent);
+}
+:root[data-skin] :is(.coordinates-table tbody tr.row-focused, .lines-row-selected,
+.project-row.project-selected, .connect-row.connect-selected) :is(input, select, button, .btn-icon) {
+    color: var(--text-main);
+}

@@ -7,6 +7,7 @@
 #include "lineName.hpp"
 #include "../../support/control/lineLimits.hpp"
 #include "../../support/control/numericInput.hpp"
+#include "../../support/skin/SkinLookStrategy.hpp"
 #include "../../support/motionPrefs.hpp"
 #include "../../support/theme/themeTokens.hpp"
 #include <QAbstractButton>
@@ -42,7 +43,7 @@ namespace stencil::gui {
    protected:
     void paintEvent(QPaintEvent*) override {
       QPainter p(this);
-      const bool square = support::isWebcore();   // the skin rounds nothing (browser webcore/chrome.css)
+      const bool square = support::skinTraits().hasSquareCorners;
       p.setRenderHint(QPainter::Antialiasing, !square);
       const bool dark = palette().color(QPalette::Window).lightness() < 128;
       p.setPen(QPen(rim.isValid() ? rim : themeToken("--border-main", dark), 1));

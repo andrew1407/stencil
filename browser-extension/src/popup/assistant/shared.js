@@ -1,14 +1,17 @@
 // ── Shared assistant helpers ────────────────────────────────────────────────
 // The transcript's arrive/leave gestures and the two small entry adapters, used by
 // assistant.js and the modules beside it.
-import { chatIn, leaveThenRemove, CHAT_LEAVE_MS, scatterGridFor } from '../../lib/motion.js';
+import { chatIn, chatPourAway, leaveThenRemove, CHAT_LEAVE_MS, scatterGridFor } from '../../lib/motion.js';
 import { rasterizeToPngDataUrl } from '../../lib/image/rasterize.js';
 import { splitDataUrl, MAX_IMAGE_EDGE } from '../../llm/chatController.js';
 
 // `count` is how many entries leave at once: one removal gets the full fine mesh, a whole-
 // transcript clear coarsens so the flying tiles stay inside lib/motion.js's budget.
-export const chatLeave = (el, done, count = 1, index = 0) =>
-  leaveThenRemove(el, done, { ms: CHAT_LEAVE_MS, ...scatterGridFor(count, index) });
+// Sliding pours each one back into its tail home first; the row stays in place, unseen, until it goes.
+export const chatLeave = (el, done, count = 1, index = 0) => {
+  if (chatPourAway(el)) el.style.opacity = '0';
+  return leaveThenRemove(el, done, { ms: CHAT_LEAVE_MS, ...scatterGridFor(count, index) });
+};
 // Called AFTER scrollDown(): chatIn veils the entry at once and photographs it two frames
 // later, once that scroll has landed. `host` is the ancestor the bubble rules are scoped to.
 export const chatEnter = (el, host) => { chatIn(el, 1, 0, { host }); return el; };

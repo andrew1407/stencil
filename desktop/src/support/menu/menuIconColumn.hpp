@@ -13,6 +13,7 @@
 namespace stencil::gui {
 
   inline void fitMenuWidth(QMenu& menu) {
+    if (support::isAqua()) menu.ensurePolished();   // measured in the skin's own face, not the default
     int label = 0;
     for (QAction* a : menu.actions())
       label = std::max(label, menu.fontMetrics().horizontalAdvance(a->text()));
@@ -21,7 +22,7 @@ namespace stencil::gui {
   }
 
   inline void compactIconMenu(QMenu& menu) {
-    menu.setStyleSheet(compactMenuQss());   // shared with MenuHotkeyChips' compact mode
+    menu.setStyleSheet(compactMenuQss(support::isAqua()));   // shared with MenuHotkeyChips' compact mode
     fitMenuWidth(menu);
   }
 

@@ -339,7 +339,8 @@
         "gap": "8px",
         "width": "338px",
         "height": "583px",
-        "flex-direction": "column"
+        "flex-direction": "column",
+        "overflow": "hidden auto"
       }
     },
     {

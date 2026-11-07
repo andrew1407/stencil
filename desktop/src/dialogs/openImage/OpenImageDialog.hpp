@@ -126,6 +126,7 @@ namespace stencil::gui {
     int shrinkPreviewToFit(int over);   // …smaller by `over` px, so the body needn't scroll
     HeightEase size;     // the window-height ease and what it measures
     void animateHeightTo(int h);        // ease the window there instead of jumping
+    void settleHeightFlight();          // undo what a height flight stood down
     void setHeightNow(int h);           // …and the popover's frame moves with it
     RowMotion motion;    // one clock per row that forms and falls
     void dropDerived();                 // the fetch, pixels, video read and frame row
@@ -144,6 +145,7 @@ namespace stencil::gui {
     void cropSizeCustomDust(bool arriving);   // the Custom W×H group's own materialize
     void scatterPreviewDust();          // the picture blows away, making room
     void cancelPreviewDust();           // …and every cloud stops, veils lifted
+    QWidget* previewOrigin() const;     // the control a picture pours out of: Choose File, or Preview
     void setFrame(int n);         // sync slider + spin box to a frame, then debounce a seek
     void applyFrameBounds();      // bound slider/spin box to the video's frame count
     void setupScrubPlayer(const QUrl& url);  // persistent player loaded once for scrubbing

@@ -41,6 +41,8 @@ namespace stencil::gui {
   inline const QColor GOLD_EDGE("#d4a017");
   inline const QColor BRONZE_EDGE("#c1783c");
   inline const QColor GREY_ORIGIN("#9aa4b2");
+  // A project with no colour of its own (browser projectColorButton.js UNSET_NAME_COLOR).
+  inline const QColor UNSET_NAME_GREY("#80868f");
 
   // UserRole+7: the removal scatter is playing; the delegate paints NOTHING (the overlay animates a snapshot).
   inline constexpr int DOOMED_ROLE = Qt::UserRole + 7;
@@ -92,6 +94,6 @@ namespace stencil::gui {
   QRect kebabChip(const QRect& rowRect);
 
   // Browser `object-fit: cover` parity, so rows are equal height regardless of aspect.
-  QPixmap squareThumb(const QPixmap& src, int size);
+  QPixmap squareThumb(const QPixmap& src, int size, const QColor& edge = QColor());
 
 }  // namespace stencil::gui

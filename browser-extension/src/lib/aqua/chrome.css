@@ -1,0 +1,217 @@
+/* The aqua skin's chrome: the blue desk, the type, every button a glass capsule and a primary
+   or pressed one blue gel, fields as soft wells. Browser twin: css/aqua/chrome.css. */
+:root[data-skin="aqua"],
+:root[data-skin="aqua"] body {
+  background: var(--aq-desktop);
+  color: var(--aq-ink);
+}
+:root[data-skin="aqua"]:has(body > header),
+:root[data-skin="aqua"] body:has(> header) { background: var(--aq-pinstripe); }
+:root[data-skin="aqua"] *,
+:root[data-skin="aqua"] *::before,
+:root[data-skin="aqua"] *::after { font-family: var(--aq-font) !important; }
+:root[data-skin="aqua"] :is(code, pre, .chat-composer textarea) { font-family: 'Monaco', 'Menlo', monospace !important; }
+:root[data-skin="aqua"] ::selection { background: var(--aq-gel-hi); color: #000000; }
+:root[data-skin="aqua"] :focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--aq-focus) 70%, transparent); }
+:root[data-skin="aqua"] a { color: var(--aq-link); }
+:root[data-skin="aqua"] svg[data-aq].ic { filter: drop-shadow(0 1px 0.5px rgba(0, 0, 0, 0.25)); }
+/* The art turns its own parts by the attribute's own centre: the line-art's centred origin would move them. */
+:root[data-skin="aqua"] .ic * { transform-origin: 0 0; }
+
+:root[data-skin="aqua"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn,
+.pin-clear, .confirm-btn, .chat-send, .chat-retry, .chat-config-cta, .chat-suggest,
+.chat-ask-submit, .chat-jump-btn, .chat-clear, .msg-menu-btn, .x-dismiss, .chk) {
+  background: var(--aq-glass);
+  color: var(--aq-ink);
+  border: 0 !important;
+  border-radius: 999px;
+  box-shadow: var(--aq-glass-ring);
+  text-shadow: 0 1px rgba(255, 255, 255, 0.6);
+}
+:root[data-skin="aqua"] :is(.icon-btn, .mini, .zbtn, .more-btn, .pin-btn, .x-dismiss) {
+  border-radius: 7px;
+  box-shadow: var(--aq-tile-ring);
+}
+:root[data-skin="aqua"] :is(button.primary, .btn.primary, .dialog-actions button.primary, .chat-send),
+:root[data-skin="aqua"] :is(button, .icon-btn, .mini, .btn, .zbtn, .confirm-btn, .chk):active:not(:disabled),
+:root[data-skin="aqua"] :is(.more-btn.active, .pin-btn.active, .seg button.active, .chk:has(> input:checked)) {
+  background: var(--aq-gel);
+  color: var(--aq-on-gel);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);   /* lifts the white word off the gel */
+  box-shadow: var(--aq-gel-ring);
+}
+/* A word button is the era's tall lozenge (browser css/aqua/chrome.css). */
+:root[data-skin="aqua"] :is(.btn, button.primary, .dialog-actions button, .confirm-btn, .chat-send) {
+  min-height: 26px;
+  padding: 3px 18px;
+  border-radius: 999px;
+}
+:root[data-skin="aqua"] :is(button.primary, .btn.primary, .dialog-actions button.primary):not(:disabled) { animation: aquaThrob 1.6s ease-in-out infinite; }
+@keyframes aquaThrob {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(1.18) saturate(1.1); }
+}
+:root[data-skin="aqua"] :is(.pin-btn.danger, .pin-clear, .confirm-btn.danger) { color: var(--aq-red); }
+/* On the dark glass red ink went dim: the word is read in ink there and the glyph alone stays red. */
+:root[data-skin="aqua"][data-theme="dark"] :is(.pin-btn.danger, .pin-clear):is(*, :hover):not(:disabled) { color: var(--aq-ink); }
+:root[data-skin="aqua"][data-theme="dark"] :is(.pin-btn.danger, .pin-clear):not(:disabled) svg { color: var(--aq-red); }
+/* A confirm's answer is a word on glass like No beside it; red ink there read as an error. */
+:root[data-skin="aqua"] .confirm-btn.danger:not(:active):not(:disabled):is(*, :hover) { color: var(--aq-ink); }
+:root[data-skin="aqua"] .confirm-actions { gap: 6px; }
+:root[data-skin="aqua"] .confirm-actions button { padding: 3px 11px; }
+:root[data-skin="aqua"][data-theme="dark"] :is(.btn, .btn-icon-text):not(.primary):not(:active):not(:hover) { box-shadow: var(--aq-tile-ring); }
+/* A filter pill reads in the glass's own ink, never the accent (lib/theme/controls.css). */
+:root[data-skin="aqua"] .chk { font-weight: normal; }
+:root[data-skin="aqua"] .chk:not(:has(> input:checked)) { color: var(--aq-ink); }
+:root[data-skin="aqua"] :is(button, select, input, textarea):disabled,
+:root[data-skin="aqua"] :is([aria-disabled="true"], .is-disabled) {
+  /* Not glass but a flat, sunken well in its face, so the shape says it first (browser css/aqua/chrome.css);
+     !important: a control's own capsule rule can outweigh a bare :disabled. */
+  background: color-mix(in srgb, var(--aq-face) 88%, var(--aq-ink)) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--aq-edge) 70%, transparent),
+              inset 0 1px 2px rgba(0, 0, 0, 0.22) !important;
+  color: color-mix(in srgb, var(--aq-ink) 60%, var(--aq-glass-bottom));
+  text-shadow: none;
+  opacity: 1;
+  animation: none;
+  cursor: not-allowed;
+}
+/* The glossy art has its colour baked in, so a dead control's glyph is greyed with its word. */
+:root[data-skin="aqua"] :is(button, select, a, [role="button"]):disabled :is(.ic, img),
+:root[data-skin="aqua"] :is([aria-disabled="true"], .is-disabled) :is(.ic, img) {
+  filter: grayscale(0.85) opacity(0.45) !important;
+}
+
+:root[data-skin="aqua"] input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+:root[data-skin="aqua"] :is(select, textarea, .search, .num, .page-select, .dialog-select,
+.accent-dd-search, .pin-kw-input) {
+  background: var(--aq-window);
+  color: var(--aq-ink);
+  border: 1px solid var(--aq-edge);
+  border-top-color: color-mix(in srgb, var(--aq-edge) 70%, #000000);
+  border-radius: 0;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.22);
+}
+:root[data-skin="aqua"] :is(.search, .accent-dd-search) { border-radius: 999px; }
+/* The composer row holds the buttons too: only its field is a well, rounded as it grows past one line. */
+:root[data-skin="aqua"] .chat-composer textarea { border-radius: 14px; }
+:root[data-skin="aqua"] :is(select, .page-select, .dialog-select, .accent-dd-trigger) {
+  appearance: none;
+  background: var(--aq-arrows) right 6px center / 8px 12px no-repeat,
+              var(--aq-gel) right / 20px 100% no-repeat, var(--aq-glass);
+  border: 0;
+  border-radius: 6px;
+  box-shadow: var(--aq-popup-ring);
+  padding-right: 26px;
+}
+:root[data-skin="aqua"] :is(input:not([type="checkbox"]):not([type="radio"]), textarea):focus {
+  outline: none;
+  border-color: var(--aq-gel-edge);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18), 0 0 0 3px color-mix(in srgb, var(--aq-focus) 60%, transparent);
+}
+:root[data-skin="aqua"] :is(select, .page-select, .dialog-select, .accent-dd-trigger):focus {
+  box-shadow: var(--aq-popup-ring), 0 0 0 3px color-mix(in srgb, var(--aq-focus) 60%, transparent);
+}
+:root[data-skin="aqua"] input[type="range"] { accent-color: var(--aq-gel-bottom); }
+:root[data-skin="aqua"] input[type="color"] { border-radius: 6px; box-shadow: var(--aq-glass-ring); background: var(--aq-glass); border: 0; }
+:root[data-skin="aqua"][data-theme="dark"] * { text-shadow: none !important; }
+/* The gel cap carries the arrows: a selector's own chevron would be a second one beside it. */
+:root[data-skin="aqua"] .accent-dd-trigger .accent-dd-caret { display: none; }
+
+/* Nothing sweeps, glows, lifts, turns or shakes under the pointer: the era's controls answered only
+   the press (browser css/aqua/chrome.css). A hovered control restates its rest look. */
+:root[data-skin="aqua"] :is(.icon-btn, .mini, .btn-icon-text, .thumb, .chk, .accent-dd-opt, .shimmer)::after { content: none; animation: none; }
+:root[data-skin="aqua"] :is(.icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn,
+.pin-clear, .confirm-btn, .chat-send, .msg-menu-btn, .chk):hover:not(:disabled) {
+  background: var(--aq-glass);
+  color: var(--aq-ink);
+  box-shadow: var(--aq-glass-ring);
+}
+:root[data-skin="aqua"] :is(.icon-btn, .mini, .zbtn, .more-btn, .pin-btn, .x-dismiss):hover:not(:disabled) { box-shadow: var(--aq-tile-ring); }
+:root[data-skin="aqua"] :is(.pin-btn.danger, .pin-clear, .confirm-btn.danger):hover:not(:disabled) { color: var(--aq-red); }
+:root[data-skin="aqua"] :is(button.primary, .btn.primary, .dialog-actions button.primary, .chat-send,
+.more-btn.active, .pin-btn.active, .seg button.active, .chk:has(> input:checked),
+:is(button, .icon-btn, .mini, .btn, .zbtn, .confirm-btn, .chk):active):hover:not(:disabled) {
+  background: var(--aq-gel);
+  color: var(--aq-on-gel);
+  box-shadow: var(--aq-gel-ring);
+}
+/* The chat's own controls are #sec-assistant rules (popup/chat/*.css): the capsule at that weight. */
+:root[data-skin="aqua"] #sec-assistant :is(.chat-clear, .chat-retry, .chat-suggest, .chat-jump-btn, .x-dismiss):is(*, :hover) {
+  background: var(--aq-glass);
+  color: var(--aq-ink);
+  border-color: transparent;
+  box-shadow: var(--aq-glass-ring);
+}
+:root[data-skin="aqua"] #sec-assistant .x-dismiss:is(*, :hover) { box-shadow: var(--aq-tile-ring); }
+:root[data-skin="aqua"] #sec-assistant :is(.chat-clear, .chat-retry, .chat-suggest, .chat-jump-btn, .x-dismiss):active:not(:disabled) {
+  background: var(--aq-gel);
+  color: var(--aq-on-gel);
+  box-shadow: var(--aq-gel-ring);
+}
+:root[data-skin="aqua"] input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]):hover:not(:disabled):not(:focus),
+:root[data-skin="aqua"] textarea:hover:not(:disabled):not(:focus) {
+  border-color: var(--aq-edge) !important;
+  border-top-color: color-mix(in srgb, var(--aq-edge) 70%, #000000) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.22) !important;
+}
+:root[data-skin="aqua"] :is(select, .accent-dd-trigger):hover:not(:disabled):not(:focus) {
+  border-color: transparent !important;
+  box-shadow: var(--aq-popup-ring) !important;
+}
+:root[data-skin="aqua"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .msg-menu-btn,
+.accent-dd-opt, .thumb, .handle, .tip-key) { transform: none !important; }
+:root[data-skin="aqua"] .tip-key.key-shake { animation: none !important; }
+/* The svg alone is stilled: a `transform` on its parts would undo the art's own rotate attributes. */
+:root[data-skin="aqua"] .ic { transform: none !important; }
+:root[data-skin="aqua"] :is(.ic, .ic *) { --ic-on: 0 !important; animation-name: none !important; transition: none !important; }
+:root[data-skin="aqua"] .mm-icon * { animation: none !important; }   /* the interface-animation glyphs never play */
+
+/* Check boxes and radios as the browser draws them (css/aqua/fields.css): a glass cell that fills
+   with gel, the tick leaving it at the top-right. A .chk pill's own box stays hidden. */
+:root[data-skin="aqua"] :is(input[type="checkbox"], input[type="radio"]):not(.chk > input) {
+  appearance: none;
+  width: 14px !important;   /* options.html sets width:auto inline */
+  height: 14px;
+  min-width: 14px;
+  min-height: 14px;
+  margin: 0 4px 0 0;
+  padding: 0;
+  background: var(--aq-glass);
+  border: 0;
+  border-radius: 2px;
+  box-shadow: var(--aq-glass-ring);
+  position: relative;
+  overflow: visible;
+  vertical-align: middle;
+  flex: none;
+}
+:root[data-skin="aqua"] input[type="radio"]:not(.chk > input) { border-radius: 50%; }
+:root[data-skin="aqua"] :is(input[type="checkbox"], input[type="radio"]):not(.chk > input):checked {
+  background: var(--aq-gel);
+  box-shadow: var(--aq-gel-ring);
+}
+:root[data-skin="aqua"] input[type="checkbox"]:not(.chk > input):checked::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: -3px;
+  width: 5px;
+  height: 11px;
+  border: solid var(--aq-tick);
+  border-width: 0 3px 3px 0;
+  transform: rotate(40deg) skewX(-6deg);
+}
+:root[data-skin="aqua"] input[type="radio"]:not(.chk > input):checked::after {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  background: var(--aq-tick);
+}
+/* A segmented row is one capsule with shared seams (browser css/aqua/menus.css .coord-tabs). */
+:root[data-skin="aqua"] .seg { gap: 0; }
+:root[data-skin="aqua"] .seg button { border-radius: 0; }
+:root[data-skin="aqua"] .seg button:first-child { border-radius: 999px 0 0 999px; }
+:root[data-skin="aqua"] .seg button:last-child { border-radius: 0 999px 999px 0; }
+:root[data-skin="aqua"] .seg button + button { margin-left: -1px; }

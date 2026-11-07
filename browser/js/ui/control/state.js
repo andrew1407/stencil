@@ -13,6 +13,7 @@ import { updateProjectTitle } from '../projects/window/projectTitle.js';
 import { renderLinesList } from '../panel/lines/list.js';
 
 const IDLE_ARRIVE_CLASS = 'idle-arriving';
+const IDLE_ARRIVE_ANIMATION = 'idleCardArrive';   // css/animations/overlay/hovers.css
 const followers = new Set();
 
 // `fn(names)` runs after every sweep or flush with the areas that ran, so a surface mirroring the
@@ -67,8 +68,20 @@ const canvasGates = (app) => {
       idleCreate.classList.remove(IDLE_ARRIVE_CLASS);
       void idleCreate.offsetWidth;   // restart the keyframe on a second removal
       idleCreate.classList.add(IDLE_ARRIVE_CLASS);
+      dropArrivalOnEnd(idleCreate);
     }
   }
+};
+
+// The arrival plays once: animationend drops the class, so a re-render never replays it; a run cancelled
+// by hiding keeps it, and the next show re-arms it anyway.
+const arrivalWired = new WeakSet();
+const dropArrivalOnEnd = (wrap) => {
+  if (arrivalWired.has(wrap)) return;
+  arrivalWired.add(wrap);
+  wrap.addEventListener('animationend', (e) => {
+    if (e.animationName === IDLE_ARRIVE_ANIMATION) wrap.classList.remove(IDLE_ARRIVE_CLASS);
+  });
 };
 
 // Start/Stop stays clickable while drawing — that is how you stop. Syncing the mode toggle
@@ -158,6 +171,14 @@ const runAreas = (app, areas) => {
 };
 
 export function updateButtons(app) { runAreas(app, AREAS); }
+
+// The card stays down while `work` brings a picture in (a skin's scene), so the frames before
+// it lands never show it; released either way. Desktop: one repaint, nothing to hold.
+export const whileIdleHeld = async (work, doc = document) => {
+  const wrap = doc.getElementById?.('idle-create-wrap');
+  wrap?.classList?.add('idle-held');
+  try { return await work(); } finally { wrap?.classList?.remove('idle-held'); }
+};
 
 // Each area marks itself dirty on its channels; a FLUSH runs the dirty ones once, in sweep order.
 export const wireControlState = (app) => {

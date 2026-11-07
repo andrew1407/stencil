@@ -1,0 +1,217 @@
+/* The aqua skin's chrome: the blue desk, the pinstripe and brushed-metal faces, the type, and
+   every control as a glass capsule; a primary or pressed one turns to blue gel. */
+:root[data-skin="aqua"],
+:root[data-skin="aqua"] body {
+    background: var(--aq-desktop);
+    color: var(--aq-ink);
+}
+:root[data-skin="aqua"] *,
+:root[data-skin="aqua"] *::before,
+:root[data-skin="aqua"] *::after {
+    font-family: var(--aq-font) !important;
+}
+/* The console is a terminal: monospace throughout, its prompt too. */
+:root[data-skin="aqua"] :is(.script-input, .script-highlight, code, pre, .console-modal .console-body *) {
+    font-family: 'Monaco', 'Menlo', 'Consolas', monospace !important;
+}
+:root[data-skin="aqua"] ::selection { background: var(--aq-gel-hi); color: #000000; }
+:root[data-skin="aqua"] :focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--aq-focus) 70%, transparent); }
+:root[data-skin="aqua"] a { color: var(--aq-link); }
+
+/* ── Surfaces: pinstripe windows, a brushed-metal toolbar ── */
+:root[data-skin="aqua"] .container,
+:root[data-skin="aqua"] .coordinates-panel,
+:root[data-skin="aqua"] #selection-panel,
+:root[data-skin="aqua"] .selection-panel-inner {
+    background: var(--aq-pinstripe);
+    border-color: var(--aq-edge);
+}
+:root[data-skin="aqua"] .container { box-shadow: var(--aq-window-ring); border-radius: 8px; }
+:root[data-skin="aqua"] .controls,
+:root[data-skin="aqua"] .controls-wrapper,
+:root[data-skin="aqua"] .info {
+    background: var(--aq-metal);
+    border-color: var(--aq-edge);
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.55);
+}
+:root[data-skin="aqua"] .ctrl-section + .ctrl-section::before,
+:root[data-skin="aqua"] .info-divider,
+:root[data-skin="aqua"] .sel-sep {
+    background: var(--aq-edge);
+    box-shadow: 1px 0 rgba(255, 255, 255, 0.6);
+}
+:root[data-skin="aqua"] :is(.ctrl-section-label, .selection-label, label) { color: var(--aq-ink); }
+/* A group's caption is small bold type, as the era's panes set them: no capitals, no tracking. */
+:root[data-skin="aqua"] .ctrl-section-label { text-transform: none; letter-spacing: 0; font-size: 11px; }
+/* The glossy art wants a little room: a toolbar glyph is drawn at 20px, not the line-art's 16. */
+:root[data-skin="aqua"] :is(.btn-icon, .btn-icon-text, .zoom-controls button, #theme-toggle, #zoom-fit, #settings-btn,
+#visuals-btn, #info-btn, #chat-btn, #voice-chat-btn, #fullscreen-toggle, #incognito-toggle) > svg.ic[width="16"] { width: 20px; height: 20px; }
+:root[data-skin="aqua"] .ic { filter: drop-shadow(0 1px 0.5px rgba(0, 0, 0, 0.25)) !important; }
+/* The art turns its own parts by the attribute's own centre: the line-art's centred origin would move them. */
+:root[data-skin="aqua"] :is(.ic, .draw-mode-icon) * { transform-origin: 0 0; }
+:root[data-skin="aqua"] .app-logo { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35)) saturate(1.15); }
+
+/* ── Buttons: glass capsules ── */
+:root[data-skin="aqua"] :is(button, .btn-icon, .btn-icon-text, .zoom-controls button, .name-edit-btn,
+.idle-create-btn, .pill-toggle),
+:root[data-skin="aqua"] :is(#toggle-controls, #toggle-coord-panel, #theme-toggle, #draw-toggle, #zoom-fit,
+#settings-btn, #visuals-btn, #info-btn, #chat-btn, #voice-chat-btn, #fullscreen-toggle, #incognito-toggle) {
+    background: var(--aq-glass);
+    color: var(--aq-ink);
+    border: 0 !important;
+    border-radius: 999px;
+    box-shadow: var(--aq-glass-ring);
+    text-shadow: 0 1px rgba(255, 255, 255, 0.6);
+    transform: none;
+    filter: none;
+    opacity: 1;
+}
+:root[data-skin="aqua"] :is(.btn-icon-text, .pill-toggle) { padding: 4px 14px; gap: 6px; }
+:root[data-skin="aqua"] :is(.btn-icon, .zoom-controls button, .name-edit-btn,
+#theme-toggle, #draw-toggle, #zoom-fit, #settings-btn, #visuals-btn, #info-btn, #chat-btn,
+#voice-chat-btn, #fullscreen-toggle, #incognito-toggle, #toggle-controls, #toggle-coord-panel) { border-radius: 7px; }
+/* The era's controls answered the press, never the pointer: a hovered one keeps its rest face. */
+:root[data-skin="aqua"] :is(button, .btn-icon-text, .pill-toggle, .idle-create-btn,
+.coord-tab, .oi-tab):hover:not(:disabled):not(:active):not(.active):not(.on):not(.primary):not([type="submit"]):not(.coord-tab-active):not(.is-active) {
+    background: var(--aq-glass);
+    color: var(--aq-ink);
+    box-shadow: var(--aq-glass-ring);
+    transform: none;
+    animation: none !important;   /* the base sheen's selector carries three ids */
+}
+:root[data-skin="aqua"] :is(.btn-icon, .zoom-controls button, .name-edit-btn, #theme-toggle, #zoom-fit, #settings-btn,
+#visuals-btn, #info-btn, #chat-btn, #voice-chat-btn, #fullscreen-toggle, #incognito-toggle):hover:not(:disabled):not(:active):not(.active) {
+    background: var(--aq-glass);
+    color: var(--aq-ink);
+    box-shadow: var(--aq-tile-ring);
+    transform: none;
+    animation: none !important;
+}
+/* An icon button is a framed tile, as the era's toolbars drew one: an inked ring, a lit top edge. */
+:root[data-skin="aqua"] :is(.btn-icon, .zoom-controls button, .name-edit-btn, #theme-toggle, #zoom-fit,
+#settings-btn, #visuals-btn, #info-btn, #chat-btn, #voice-chat-btn, #fullscreen-toggle, #incognito-toggle) { box-shadow: var(--aq-tile-ring); }
+:root[data-skin="aqua"][data-theme="dark"] :is(.btn-icon-text, .pill-toggle) { box-shadow: var(--aq-tile-ring); }
+/* The default button: blue gel with the slow throb the era's sheets had. */
+:root[data-skin="aqua"] :is(button.primary, button[type="submit"]),
+:root[data-skin="aqua"] :is(button, .btn-icon, .btn-icon-text):active:not(:disabled),
+:root[data-skin="aqua"] :is(button.active, #draw-toggle.active, #chat-btn.active, #incognito-toggle.active,
+#fullscreen-toggle.active, #voice-chat-btn.active, .pill-toggle.on, .chat-dock-btn-active, .oi-tab.is-active,
+.coord-tab-active) {
+    background: var(--aq-gel);
+    color: var(--aq-on-gel);
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);   /* lifts the white word off the gel */
+    box-shadow: var(--aq-gel-ring);
+}
+/* A word button is the era's tall lozenge: full pill, room either side of the word. */
+:root[data-skin="aqua"] :is(.btn-icon-text, button.primary, button[type="submit"], .settings-footer button) {
+    min-height: 26px;
+    padding: 3px 18px;
+    border-radius: 999px;
+}
+:root[data-skin="aqua"] :is(button.primary, button[type="submit"]):not(:disabled) { animation: aquaThrob 1.6s ease-in-out infinite; }
+@keyframes aquaThrob {
+    0%, 100% { filter: brightness(1); }
+    50%      { filter: brightness(1.18) saturate(1.1); }
+}
+:root[data-skin="aqua"] :is(button.primary, button[type="submit"]):hover:not(:disabled) {
+    background: var(--aq-gel);
+    color: var(--aq-on-gel);
+    animation: aquaThrob 1.6s ease-in-out infinite !important;   /* the throb, never the base sheen */
+}
+:root[data-skin="aqua"] :is(button.danger, button.danger:hover:not(:disabled)) { color: var(--aq-red); }
+/* On the dark glass red ink went dim: the word is read in ink there and the glyph alone stays red. */
+:root[data-skin="aqua"][data-theme="dark"] :is(button.danger, button.danger:hover:not(:disabled)) { color: var(--aq-ink); }
+:root[data-skin="aqua"][data-theme="dark"] button.danger:not(:disabled) svg { color: var(--aq-red); }
+/* A confirm's answer is a word on glass like Cancel beside it; red ink there read as an error. */
+:root[data-skin="aqua"] #confirm-modal-confirm.danger:not(:active):not(:disabled) { color: var(--aq-ink); }
+/* The base sheen over toolbar buttons names three ids, so it outranks every capsule above: here it
+   is the capsule's own glass, or its gel when the button is on, pressed or the default. */
+:root[data-skin="aqua"] .controls button:not(#toggle-controls):not(#incognito-toggle):not(#fullscreen-toggle):not(#blank-color-btn):not(:disabled) {
+    background-image: var(--aq-glass);
+    background-size: 100% 100%;
+    background-position: 0 0;
+}
+:root[data-skin="aqua"] .controls button:not(#toggle-controls):not(#incognito-toggle):not(#fullscreen-toggle):not(#blank-color-btn):not(:disabled):is(.active, .primary, [type="submit"], :active) {
+    background-image: var(--aq-gel);
+}
+:root[data-skin="aqua"] :is(button, select, input, textarea):disabled,
+:root[data-skin="aqua"] :is([aria-disabled="true"], .is-disabled) {
+    /* A dead control is no longer glass: a flat, sunken well in the face it sits on, so its shape says it
+       before its glyph does. !important: the tile list's ids outweigh a bare :disabled. */
+    background: color-mix(in srgb, var(--aq-face) 88%, var(--aq-ink)) !important;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--aq-edge) 70%, transparent),
+                inset 0 1px 2px rgba(0, 0, 0, 0.22) !important;
+    color: color-mix(in srgb, var(--aq-ink) 60%, var(--aq-glass-bottom));
+    text-shadow: none;
+    opacity: 1;
+    animation: none;
+    cursor: not-allowed;
+}
+/* The glossy art has its colour baked in, so a dead control's glyph is greyed with its word (webcore/icons.css). */
+:root[data-skin="aqua"] :is(button, select, a, [role="button"]):disabled :is(.ic, .draw-mode-icon, img),
+:root[data-skin="aqua"] :is([aria-disabled="true"], .is-disabled) :is(.ic, .draw-mode-icon, img) {
+    filter: grayscale(0.85) opacity(0.45) !important;
+}
+
+/* A popup button: glass with the blue gel arrow cap on its right, a rounded rect like <select> (desktop
+   QComboBox), never the capsule (!important: the button rule's :is() carries ids). */
+:root[data-skin="aqua"] .accent-dd-trigger {
+    background: var(--aq-glass);
+    color: var(--aq-ink);
+    border: 0;
+    border-radius: 6px !important;
+    box-shadow: var(--aq-glass-ring);
+    padding: 2px 26px 2px 8px;
+    position: relative;
+}
+:root[data-skin="aqua"] .accent-dd-caret {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: transparent;
+    background: var(--aq-arrows) center / 8px 12px no-repeat, var(--aq-gel);
+    border-radius: 0 6px 6px 0;
+    box-shadow: inset 1px 0 var(--aq-gel-edge);
+}
+/* Graphite has no light from below: the etched white under the type would read as a blur. */
+:root[data-skin="aqua"][data-theme="dark"] * { text-shadow: none !important; }
+
+/* The mark under the pointer magnifies like a Dock icon, with no glow and no rays (desktop
+   LogoHoverFx's still branch). The bar is inset on the metal so the mark, magnified or not, never meets its edge. */
+:root[data-skin="aqua"] .controls-topbar { padding: 8px 10px 0; margin-bottom: 14px; }
+:root[data-skin="aqua"] .app-logo-wrap::before { content: none; }
+:root[data-skin="aqua"] .app-logo { transition: transform 0.22s cubic-bezier(0.3, 0.7, 0.4, 1.3), filter 0.22s ease; }
+:root[data-skin="aqua"] .app-logo-wrap.logo-hover .app-logo {
+    animation: none !important;
+    transform: scale(1.15);
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35)) saturate(1.15);
+}
+
+/* Nothing sweeps, glows, lifts, turns or shakes under the pointer: no glass shimmer, no hover
+   ring on a field, no wiggling glyph, no keycap shake (webcore stills the same set). */
+:root[data-skin="aqua"] :is(button, .btn-icon, .btn-icon-text, .coord-tab, .pill-toggle, .idle-create-btn,
+.accent-dd-trigger, .name-edit-btn, .project-row, .connect-row, .accent-dd-opt, .project-menu-item, .ctx-item,
+.vs-color, .oi-color, .shimmer)::after { content: none; animation: none; }
+:root[data-skin="aqua"] :is(input, select, textarea, .coordinates-table tbody tr):hover { animation: none !important; }
+:root[data-skin="aqua"] .coordinates-table tbody tr:hover { background-image: none; }
+:root[data-skin="aqua"] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+textarea):hover:not(:disabled):not(:focus) {
+    border-color: var(--aq-edge) !important;
+    border-top-color: color-mix(in srgb, var(--aq-edge) 70%, #000000) !important;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.22) !important;
+    background-image: none;
+}
+:root[data-skin="aqua"] :is(select, .accent-dd-trigger):hover:not(:disabled):not(:focus) {
+    border-color: transparent !important;
+    box-shadow: var(--aq-glass-ring) !important;
+}
+:root[data-skin="aqua"] select:hover:not(:disabled):not(:focus) { box-shadow: var(--aq-popup-ring) !important; }
+:root[data-skin="aqua"] :is(.ic, .draw-mode-icon) { transform: none !important; animation: none !important; transition: none !important; }
+:root[data-skin="aqua"] :is(.ic, .draw-mode-icon) * { animation: none !important; transition: none !important; }
+:root[data-skin="aqua"] :is(.tip-key, .tip-key.key-shake, .ctx-item, .accent-dd-opt, .project-row, .lines-row,
+.connect-row, .info-item, .hotkey-cell, .coordinates-table tbody tr) { animation-name: none !important; }

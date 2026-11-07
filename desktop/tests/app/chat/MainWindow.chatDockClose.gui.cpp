@@ -21,10 +21,11 @@ class MainWindowGuiTest : public QObject {
     auto* dock = win.chatDock;
     QVERIFY(dock);
     QToolButton* closeBtn = dock->findChild<QToolButton*>();
-    // The X is the last ghost in the title bar; find it by its tooltip.
+    // The X, by its accessible name; it says what it does (user report), and its tip goes with the press.
     closeBtn = nullptr;
     for (QToolButton* b : dock->findChildren<QToolButton*>())
-      if (b->toolTip() == QLatin1String("Close assistant")) closeBtn = b;
+      if (b->accessibleName() == QLatin1String("Close assistant")) closeBtn = b;
+    QVERIFY2(closeBtn && closeBtn->toolTip().contains(QLatin1String("Close the assistant chat")), "the X names what it closes");
     QVERIFY2(closeBtn, "no X in the chat title bar");
     win.chatDock->appendUser(QStringLiteral("kept across the close"));
 

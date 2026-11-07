@@ -6,6 +6,8 @@
 #include "displayName.hpp"
 #include "Notifications.hpp"
 #include "ProjectsDialog.hpp"
+#include "CanvasWidget.hpp"
+#include "../../../support/control/reveal/modeGhost.hpp"
 #include "RemoteSession.hpp"
 #include "../../../support/motion/DisintegrateOverlay.hpp"
 
@@ -13,7 +15,12 @@ namespace stencil::gui {
 
   namespace {
     // How long a rebuild waits for the removal wipe (ProjectsDialog::retireRow's own gate).
-    int rebuildAfterWipeMs() { return support::isDustAllowed() ? support::motionMs(DisintegrateOverlay::DUST_MS) : 0; }
+    // …or for the rows' own slide or shrink under Sliding / Transition (browser: settle after the leave).
+    int rebuildAfterWipeMs() {
+      if (support::isDustAllowed()) return support::motionMs(DisintegrateOverlay::DUST_MS);
+      if (modeGhostMotion()) return support::motionMs(MODE_ROW_MS) + MODE_ROW_SETTLE_MS;
+      return 0;
+    }
   }  // namespace
 
   void ProjectFlows::wireProjectsRequests(ProjectsDialog& dlg,
@@ -103,6 +110,22 @@ namespace stencil::gui {
       const QString shown = support::shortName(QString::fromStdString(pr->meta.name));
       w.notify->success(expiresAt == 0 ? QString("\"%1\" is kept forever").arg(shown)
                                                : QString("\"%1\" expiration updated").arg(shown));
+    });
+  }
+
+  // Blank image raises its dialog over this window, grown out of the button (browser projects-blank-image).
+  void ProjectFlows::wireProjectsBlank(ProjectsDialog& dlg, const std::function<bool()>& unsavedSession) {
+    QObject::connect(&dlg, &ProjectsDialog::blankRequested, w.window, [this, &dlg, unsavedSession](const QRect& from) {
+      QPointer<ProjectsDialog> live(&dlg);
+      w.pop.dialogAnchor.clear();
+      w.pop.dialogAnchorRect = from;
+      const quint64 before = w.canvas->pictureGeneration();
+      w.newBlankImage();
+      w.pop.dialogAnchorRect = QRect();
+      if (!live) return;
+      // Created: both windows go (browser parity); cancelled, the list is back as it was.
+      if (w.canvas->pictureGeneration() != before) { live->reject(); return; }
+      live->setProjects(host.projectList, unsavedSession(), host.incognito);
     });
   }
 

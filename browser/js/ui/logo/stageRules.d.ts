@@ -1,6 +1,6 @@
 // The logo stage's table and the pure rules over it (config/logoStage.json).
 export type StageEffect = 'neon' | 'sun' | 'fire' | 'water' | 'dust' | 'shrink' | 'grow'
-  | 'follow' | 'escape' | 'pink' | 'fly' | 'webcore';
+  | 'follow' | 'escape' | 'pink' | 'fly' | 'webcore' | 'aqua';
 export type StageStyle = 'dust' | 'water' | 'fire';
 
 export interface StageShow {
@@ -8,6 +8,7 @@ export interface StageShow {
   accents?: string[];
   motion?: string;
   customHex?: string;
+  theme?: 'light' | 'dark';
 }
 export interface StageConfig {
   holdMs: number;
@@ -45,7 +46,12 @@ export declare const TOAST_TEXT: string;
 
 export declare const effectOf: (name: string) => StageEffect | null;
 /** The show a hold opens for this accent, custom hex and motion mode; null = nothing. */
-export declare const resolveShow: (accentKey: string, customHex: string | null, motionMode: string) => string | null;
+export declare const resolveShow: (accentKey: string, customHex: string | null, motionMode: string,
+  theme?: 'light' | 'dark' | null) => string | null;
+/** The effects that stamp a session skin rather than open a stage. */
+export declare const SKINS: ReadonlySet<StageEffect>;
+/** True when `name` is a skin show (webcore, aqua). */
+export declare const isSkin: (name: string) => boolean;
 /** The cloud a show wears: its own for a styled show, the current one for a roaming show. */
 export declare const showStyle: (name: string, currentStyle?: StageStyle | null) => StageStyle | null;
 /** Where a ray at `angle` from the centre meets the mark's own rounded-square outline. */

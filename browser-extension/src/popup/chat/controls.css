@@ -43,14 +43,21 @@
 #sec-assistant .chat-more-wrap > .chat-clear { position: relative; }
 /* Composer overflow: only Send stays inline, the rest sit behind the … button. */
 #sec-assistant .chat-more-wrap { position: relative; display: inline-flex; flex: 0 0 auto; }
-#sec-assistant .chat-more-menu {
+/* Also its leaving copy (lib/motion/leaveCopy.js), which shrinks on <body>, outside #sec-assistant. */
+:is(#sec-assistant .chat-more-menu, .leave-copy.chat-more-menu) {
   position: absolute; bottom: calc(100% + 6px); right: 0; z-index: 6;
   display: flex; flex-direction: column; gap: 2px; min-width: 150px; padding: 4px;
   background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, .38);
 }
 #sec-assistant .chat-more-menu[hidden] { display: none; }
-#sec-assistant .chat-more-item {
+/* Transition grows it out of the … button below its right corner (browser genie/window.js menuOpen); it appeared
+   at once (user report). */
+:root[data-motion="transition"] #sec-assistant .chat-more-menu:not([hidden]) {
+  animation: stMenuFromAnchor 0.26s cubic-bezier(0.22, 0.61, 0.36, 1) both; transform-origin: right bottom;
+}
+@media (prefers-reduced-motion: reduce) { :root[data-motion="transition"] #sec-assistant .chat-more-menu:not([hidden]) { animation: none; } }
+:is(#sec-assistant .chat-more-item, .leave-copy .chat-more-item) {
   display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: none;
   border-radius: 6px; background: none; color: var(--text); font: inherit;
   font-size: 12px; text-align: left; cursor: pointer;

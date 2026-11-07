@@ -6,12 +6,25 @@
 #include "../../support/control/reveal/controlReveal.hpp"   // section buttons come and go as sand
 #include "../../support/modal/imageAnchor.hpp"
 #include "../../support/tip/altPeek.hpp"
+#include "../../support/skinPrefs.hpp"
 
 #include <QLabel>
 
 // MainWindow's toolbar assembly: the named tool sections.
 
 namespace stencil::gui {
+
+  // Colour comes from the theme sheet (QLabel#sectionLabel) so it re-themes on a swap. 9.5px as
+  // points (QSS px is whole); QSS has no letter-spacing, so the font carries the 0.8px.
+  void styleSectionCaption(QLabel* label) {
+    const QString title = label->property("sectionTitle").toString();
+    const bool aqua = support::isAqua();
+    label->setText(aqua ? title : title.toUpper());
+    label->setStyleSheet(support::sectionLabelSheet((aqua ? 11 : 9.5) * 72.0 / label->logicalDpiY()));
+    QFont caps = label->font();
+    caps.setLetterSpacing(QFont::AbsoluteSpacing, aqua ? 0 : 0.8);
+    label->setFont(caps);
+  }
 
   QWidget* ToolbarBuilder::makeToolSection(const QString& title, const QList<QAction*>& actions,
                                        const QList<QWidget*>& extras,
@@ -23,14 +36,10 @@ namespace stencil::gui {
     col->setContentsMargins(4, 4, 4, 4);
     // The browser's .ctrl-section-label: 4px padding + 4px margin under the text (css/layout/controlRows.css).
     col->setSpacing(8);
-    auto* label = new QLabel(title.toUpper(), section);
+    auto* label = new QLabel(section);
     label->setObjectName("sectionLabel");
-    // Colour comes from the theme sheet (QLabel#sectionLabel) so it re-themes on a swap.
-    // 9.5px as points (QSS px is whole); QSS has no letter-spacing, so the font carries the 0.8px.
-    label->setStyleSheet(support::sectionLabelSheet(9.5 * 72.0 / label->logicalDpiY()));
-    QFont caps = label->font();
-    caps.setLetterSpacing(QFont::AbsoluteSpacing, 0.8);
-    label->setFont(caps);
+    label->setProperty("sectionTitle", title);
+    styleSectionCaption(label);
     label->setAlignment(Qt::AlignLeft);   // left-aligned header, matching the browser sections
     // Fixed, or the QVBoxLayout hands spare height to the caption and pushes the controls down.
     label->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);

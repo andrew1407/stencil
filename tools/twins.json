@@ -37,6 +37,21 @@
       "test": "browser-extension/tests/dataParity.test.js"
     },
     {
+      "from": "common/config/svgArt.json",
+      "to": "browser-extension/src/lib/aqua/svgArt.json",
+      "test": "browser-extension/tests/dataParity.test.js"
+    },
+    {
+      "from": "common/config/aqua.json",
+      "to": "browser-extension/src/lib/aqua/aqua.json",
+      "test": "browser-extension/tests/dataParity.test.js"
+    },
+    {
+      "from": "common/config/iconsAqua.json",
+      "to": "browser-extension/src/lib/aqua/iconsAqua.json",
+      "test": "browser-extension/tests/dataParity.test.js"
+    },
+    {
       "from": "common/icons/favicon.svg",
       "to": "vscode-extension/icons/stencil.svg",
       "test": "browser/tests/config/svgArt.test.js"
@@ -550,9 +565,43 @@
     {
       "name": "stageAccents",
       "from": "browser/js/core/settings/accents.js",
-      "to": "browser-extension/src/lib/logo/accents.js",
+      "to": "browser-extension/src/lib/accent/ink.js",
       "names": [
-        "normalizeHex"
+        "normalizeHex",
+        "srgbToLinear",
+        "relativeLuminance",
+        "ON_ACCENT_LIGHT",
+        "ON_ACCENT_DARK",
+        "needsDarkGlyph",
+        "onAccentInk"
+      ]
+    },
+    {
+      "name": "aquaRules",
+      "from": "browser/js/ui/aqua/rules.js",
+      "to": "browser-extension/src/lib/aqua/rules.js",
+      "names": [
+        "channels",
+        "mixHex",
+        "gelTokens"
+      ]
+    },
+    {
+      "name": "aquaLogo",
+      "from": "browser/js/ui/aqua/logo.js",
+      "to": "browser-extension/src/lib/aqua/rules.js",
+      "names": [
+        "GEL",
+        "aquaLogoArt",
+        "aquaFavicon"
+      ]
+    },
+    {
+      "name": "aquaIcons",
+      "from": "browser/js/ui/aqua/icons.js",
+      "to": "browser-extension/src/lib/aqua/rules.js",
+      "names": [
+        "aquaIconArt"
       ]
     },
     {
@@ -582,9 +631,16 @@
       "from": "browser/js/ui/webcore/icons.js",
       "to": "browser-extension/src/lib/webcore/icons.js",
       "names": [
-        "NAME_RE",
         "pixelRects",
         "themeInk"
+      ]
+    },
+    {
+      "name": "glyphNames",
+      "from": "browser/js/ui/skin/glyphs.js",
+      "to": "browser-extension/src/lib/skin/page.js",
+      "names": [
+        "NAME_RE"
       ]
     },
     {

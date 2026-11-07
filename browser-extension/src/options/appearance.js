@@ -67,6 +67,17 @@ if (accent) {
   wireDragPick(trigger, menu, { open, close });
   sync();
 
+  // The accent ON SCREEN, not only the stored one: the aqua skin wears Blue for the session without
+  // storing it (user report; browser shownAccent.js).
+  const root = document.documentElement;
+  new MutationObserver(() => {
+    const custom = root.style.getPropertyValue('--accent').trim();
+    const key = root.getAttribute('data-accent');
+    if (custom && custom === customHex) return;
+    if (!custom && (!key || (key === value && !customHex))) return;
+    if (custom) customHex = custom; else { customHex = null; value = key; }
+    sync();
+  }).observe(root, { attributes: true, attributeFilter: ['data-accent', 'style'] });
   // The logo's own gestures move the accent too: a preset shows that preset, a custom hex "Custom".
   window.addEventListener('stencil:accent-changed', (e) => {
     const v = typeof e.detail === 'string' ? e.detail : null;

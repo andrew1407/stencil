@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { SHOW_NAMES, effectOf } from '../../../src/lib/logo/stageRules.js';
-import { PAGE_SHOWS, OFF_TOAST, heldShow, activateShow, showActive } from '../../../src/options/secrets/trigger.js';
+import { PAGE_SHOWS, OFF_TOAST, AQUA_OFF_TOAST, heldShow, activateShow, showActive } from '../../../src/options/secrets/trigger.js';
 import { matchTypedWord, typedLetter, isTypingTarget } from '../../../src/options/secrets/typedWords.js';
 import { SECRET_EGG } from '../../../src/options/secrets/toast.js';
 import { createEasterEggs } from '../../../src/options/secrets/easterEggs.js';
@@ -15,6 +15,7 @@ const BROWSER = '../../../../common/config/';
 test('the notice\'s egg and the webcore off line are the browser\'s own', () => {
   assert.equal(SECRET_EGG, json(`${BROWSER}svgArt.json`).secretEgg);
   assert.equal(OFF_TOAST, json(`${BROWSER}webcore.json`).strings.off);
+  assert.equal(AQUA_OFF_TOAST, json(`${BROWSER}aqua.json`).strings.off);
 });
 
 test('every browser show runs here but pink, which paints an image', () => {

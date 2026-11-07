@@ -9,6 +9,7 @@
 #include "comboAltPeek.hpp"   // a selector list the popover opened is still the popover
 #include "hoverResync.hpp"
 #include "modalReveal.hpp"
+#include "imageAnchor.hpp"   // toolbarAway
 
 #include <QEasingCurve>
 #include <QGuiApplication>
@@ -58,7 +59,8 @@ namespace stencil::gui {
     if (!screenOf) screenOf = screen();
     const QRect seen = support::visiblePart(QRect(mapToGlobal(QPoint(0, 0)), size()),
                                             screenOf ? screenOf->availableGeometry() : QRect());
-    const QSize cap(420, qMin(560, int(seen.height() * 0.78)));
+    // Never wider than the part of the window on screen, less its margins (support::popoverRect clamps the place).
+    const QSize cap(qMin(420, qMax(200, seen.width() - 16)), qMin(560, int(seen.height() * 0.78)));
     dlg.setMinimumSize(0, 0);
     dlg.setMaximumSize(cap);
     const bool shell = dlg.findChild<QWidget*>(QStringLiteral("modalShell")) != nullptr;
@@ -136,6 +138,14 @@ namespace stencil::gui {
     // A nested loop, not exec(): the caller still blocks and reads a DialogCode, but there is no modal window at all.
     QPointer<QDialog> alive(&dlg);
     QPointer<QWidget> overlayAlive(overlay);
+    // Home is read at the close: the icon's row may have folded away since (fullscreen's strip hiding),
+    // and the popover then rises through the top edge over it, never to the icon's stale spot.
+    QPointer<QWidget> anchorAlive(anchor);
+    const auto homeBox = [this, anchorAlive, fromBox] {
+      if (!anchorAlive) return fromBox;
+      const QRect now(anchorAlive->mapTo(this, QPoint(0, 0)), anchorAlive->size());
+      return toolbarAway(anchorAlive) ? QRect(fromBox.center().x() - 4, 0, 8, 2) : now;   // its x as it opened
+    };
     QEventLoop loop;
     const PopoverHost::LoopScope loopScope(pop, loop);
     bool ended = false, closing = false;
@@ -153,7 +163,7 @@ namespace stencil::gui {
         frozen->show();
       }
       if (!shot.isNull() && gui::DisintegrateOverlay::overSurface(
-                                shot, overlayAlive->geometry(), this, fromBox.center(),
+                                shot, overlayAlive->geometry(), this, homeBox().center(),
                                 /*gather=*/false, POPOVER_CLOSE_MS,
                                 overlayAlive->palette().color(QPalette::WindowText),
                                 support::DIALOG_DUST_MAX_CELLS)) {
@@ -161,7 +171,7 @@ namespace stencil::gui {
         return end();
       }
       // The flight's ghost belongs to the window and can land after this frame has returned.
-      popoverExit(this, overlayAlive, shot, fromBox, POPOVER_CLOSE_MS,
+      popoverExit(this, overlayAlive, shot, homeBox(), POPOVER_CLOSE_MS,
                   [loopAlive = QPointer<QEventLoop>(&loop), end] { if (loopAlive) end(); });
     });
     connect(&dlg, &QObject::destroyed, &loop, end);

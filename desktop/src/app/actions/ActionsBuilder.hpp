@@ -18,6 +18,7 @@ namespace stencil::gui {
     void buildActions();
     void createCoreActions();
     void createDataActions();
+    void createFullscreenWindowAction();
     void wireActionHandlers();
     void mapHotkeyActions();
     void setActionTooltips();

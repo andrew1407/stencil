@@ -21,9 +21,16 @@ namespace stencil::gui {
   void ActionsBuilder::buildActions() {
     createCoreActions();
     createDataActions();
+    createFullscreenWindowAction();
     wireActionHandlers();
     mapHotkeyActions();
     setActionTooltips();
+  }
+
+  // The second fullscreen kind: the window keeps its frame (EditorView::toggleFullscreenKind).
+  void ActionsBuilder::createFullscreenWindowAction() {
+    w.acts.fullscreenWindow = newAction("Fullscreen in Window", w.keys.value("fullscreenWindow", "Alt+Shift+F"));
+    QObject::connect(w.acts.fullscreenWindow, &QAction::triggered, &w, [this] { w.parts.view.toggleFullscreenKind(true); });
   }
 
   void ActionsBuilder::createCoreActions() {
@@ -44,7 +51,7 @@ namespace stencil::gui {
     w.setActionTip(w.acts.rotateLeft, "Rotate the image left (counter-clockwise)");
     w.acts.rotateRight = newAction("Rotate Right", w.keys.value("rotateImageRight", "Alt+Shift+R"));
     w.setActionTip(w.acts.rotateRight, "Rotate the image right (clockwise)");
-    w.acts.flipImage = newAction("Flip Horizontally", w.keys.value("flipImageHorizontal", "Alt+Shift+F"));
+    w.acts.flipImage = newAction("Flip Horizontally", w.keys.value("flipImageHorizontal", "Alt+Shift+H"));
     w.setActionTip(w.acts.flipImage, "Flip the image horizontally (mirror left-right)");
     w.acts.cycleFilter = newAction("Cycle Image Filter", w.keys.value("cycleFilter", "Alt+B"));
     w.setActionTip(w.acts.cycleFilter,
@@ -82,7 +89,7 @@ namespace stencil::gui {
     w.acts.theme = newAction("Dark Theme", w.keys.value("toggleTheme", "Ctrl+D"));
     w.acts.panel = newAction("Selection Panel", w.keys.value("togglePointsList", "Alt+X"));
     w.acts.toolbars = newAction("Toolbars", w.keys.value("toggleControls", "Alt+C"));  // show/hide the top toolbars
-    w.acts.fullscreen = newAction("Enter Fullscreen", w.keys.value("fullscreen", "Alt+F"));
+    w.acts.fullscreen = newAction("Full Screen", w.keys.value("fullscreen", "Alt+F"));
     w.acts.settings = newAction("Visuals && Settings…", w.keys.value("openVisuals", "Alt+V"));
     w.setActionTip(w.acts.settings, "Default visuals & highlight styles");   // the browser #visuals-btn title
     w.acts.projects = newAction("Projects…", w.keys.value("openProjects", "Ctrl+Shift+P"));

@@ -1,0 +1,75 @@
+      /* ── Windows: pinstripe shells under a brushed-metal header ── */
+      QDialog { background: %AQ_FACE%; background-image: url(%AQ_PINSTRIPE%); color: %AQ_INK%; }
+      QWidget#modalShell, QWidget#searchComboPopup {
+        background: %AQ_FACE%; background-image: url(%AQ_PINSTRIPE%); border: 1px solid %AQ_EDGE%; border-radius: 8px;
+      }
+      QWidget#searchComboPopup { border-radius: 0; border-bottom-left-radius: 5px; border-bottom-right-radius: 5px; }
+      QWidget#modalHeader {
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 %AQ_METAL_TOP%, stop:1 %AQ_METAL_BOTTOM%);
+        border-bottom: 1px solid %AQ_EDGE%; border-top-left-radius: 8px; border-top-right-radius: 8px;
+      }
+      QLabel#modalTitle { color: %AQ_INK%; font-weight: normal; font-size: 13px; }
+      QLabel#confirmMessage { font-size: 16px; }
+      /* The close pill is the one useful light: a red dot, no glyph on it. */
+      QDialog QPushButton#modalClosePill, QPushButton#modalClosePill {
+        min-width: 13px; max-width: 13px; min-height: 13px; max-height: 13px; padding: 0;
+        border: 1px solid #00000060; border-radius: 7px; color: transparent;
+        background: %AQ_CLOSE_LIGHT%;
+      }
+      /* The confirm's answers are both glass with ink words, as the browser's plain buttons are. */
+      QDialog#stencilConfirmModal QPushButton#dangerButton:!pressed {
+        color: %AQ_INK%; border: 1px solid %AQ_TILE_EDGE%;
+        background: %AQ_GLASS_FILL%;
+      }
+      QFrame#modalDivider { background: %AQ_EDGE%; min-height: 1px; max-height: 1px; }
+      QLabel#modalSection { color: %AQ_INK%; letter-spacing: 0px; font-weight: bold; }
+      QLabel#modalFooterHint, QLabel#llmStatus, QLabel#llmKeyStatus, QLabel#modalEmpty { color: %AQ_MUTED%; }
+      /* The rows in the field's own 13px, never the app list's page-sized 16px (browser css/aqua/menus.css). */
+      QListView#searchComboList, QLabel#searchComboNoMatch { font-size: %AQ_FONT_PX%px; }
+      QListView#searchComboList::item { color: %AQ_INK%; padding: 3px 12px; border-radius: 0; }
+      /* The current value's ✓ sits in this margin (support/aqua/AquaCheckDelegate.hpp); a swatch list has none. */
+      QListView#searchComboList[aquaCheck="true"]::item { padding-left: 24px; }
+      QListView#searchComboList::item:hover, QListView#searchComboList::item:selected {
+        color: %AQ_ON_SELECT%; background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 %AQ_GEL_TOP%, stop:1 %AQ_SELECT%);
+      }
+      /* The expiry calendar as the era's mini month (browser css/aqua/windows.css): a metal head, each
+         week a rounded grey band, the chosen day blue gel, today bold. */
+      QFrame#expCalendar { background: %AQ_WINDOW%; border: 1px solid %AQ_EDGE%; border-radius: 6px; }
+      QLabel#expCalTitle, QLabel#expCalWeekday { color: %AQ_INK%; font-weight: bold; }
+      QToolButton#expCalDay, QWidget#expCalEmpty {
+        background: %AQ_BAND%; color: %AQ_INK%; border: 0; border-radius: 0; padding: 2px 0; margin: 2px 0;
+      }
+      QToolButton#expCalDay[rowEdge="first"], QWidget#expCalEmpty[rowEdge="first"] {
+        border-top-left-radius: 11px; border-bottom-left-radius: 11px;
+      }
+      QToolButton#expCalDay[rowEdge="last"], QWidget#expCalEmpty[rowEdge="last"] {
+        border-top-right-radius: 11px; border-bottom-right-radius: 11px;
+      }
+      QToolButton#expCalDay:disabled { color: %AQ_MUTED%; background: %AQ_BAND%; border: 0; }
+      QToolButton#expCalDay[expDay="today"] { font-weight: bold; background: %AQ_BAND_TODAY%; }
+      QToolButton#expCalDay[expDay="expiry"] {
+        color: %AQ_ON_GEL%;
+        background: %AQ_GEL_FILL%;
+      }
+      /* Table heads are glass with dark ink (browser css/aqua/menus.css .coordinates-table thead th). */
+      QHeaderView::section, QTableWidget#pointsTable QHeaderView::section, QTableWidget#linesList QHeaderView::section {
+        color: %AQ_INK%; border: 0; border-right: 1px solid %AQ_EDGE%; border-bottom: 1px solid %AQ_EDGE%;
+        background: %AQ_GLASS_FILL%;
+      }
+      /* Points | Lines is one segmented capsule, one shared seam, the open one blue gel (browser .coord-tab). */
+      QTabBar#selectionTabBar::tab {
+        color: %AQ_INK%; border: 1px solid %AQ_EDGE%; border-radius: 0px; padding: 2px 12px; margin: 2px 0px;
+        background: %AQ_GLASS_FILL%;
+      }
+      QTabBar#selectionTabBar::tab:first { border-top-left-radius: 10px; border-bottom-left-radius: 10px; }
+      QTabBar#selectionTabBar::tab:last { border-top-right-radius: 10px; border-bottom-right-radius: 10px; }
+      /* The seam is the right-hand tab's edge, as the browser's -1px overlap leaves it: blue when that tab is open. */
+      QTabBar#selectionTabBar::tab:first, QTabBar#selectionTabBar::tab:middle { border-right: none; }
+      QTabBar#selectionTabBar::tab:only-one { border-radius: 10px; border-right: 1px solid %AQ_EDGE%; }
+      QTabBar#selectionTabBar::tab:selected {
+        color: %AQ_ON_GEL%; border-color: %AQ_GEL_EDGE%;
+        background: %AQ_GEL_FILL%;
+      }
+      /* The assistant's title is the window title's regular weight (browser css/aqua .chat-title-text). */
+      QLabel#chatHeaderTitle { font-weight: normal; }
+      QPushButton#chatSuggestChip { padding: 3px 12px; }   /* browser .chat-suggest: 12px sides, not a word button's 18 */

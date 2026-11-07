@@ -135,9 +135,9 @@ void pinWindowStates(const QString& png) {
   }
 
   // Fullscreen: the toolbars retract and the canvas takes the window.
-  QAction* fullscreen = nullptr;
+  QAction* fullscreen = nullptr;   // the screen kind, not Fullscreen in Window
   for (QAction* a : win.findChildren<QAction*>())
-    if (a->text().contains(QLatin1String("Fullscreen"))) fullscreen = a;
+    if (a->text() == QLatin1String("Full Screen")) fullscreen = a;
   check(fullscreen != nullptr, "the window has a Fullscreen action");
   if (fullscreen) {
     fullscreen->trigger();

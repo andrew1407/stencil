@@ -136,6 +136,8 @@ namespace stencil::gui {
     void playImageArrival();
     // First-show window-opacity ramp (browser appReveal). Runs once; later shows are instant.
     void showEvent(QShowEvent* event) override;
+    // Settles the rows a resize re-wrapped before the frame is painted (macOS snapshots it leaving fullscreen).
+    void resizeEvent(QResizeEvent* event) override;
     // Closing is immediate on every path — no confirmation modal, a deliberate decision.
     void closeEvent(QCloseEvent* event) override;
 

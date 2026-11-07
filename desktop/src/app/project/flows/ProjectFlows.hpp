@@ -52,6 +52,7 @@ namespace stencil::gui {
     void wireProjectsDrag(ProjectsDialog& dlg, const std::function<bool()>& unsavedSession);
     // Its stay-open requests: the dialog confirms in place, the window acts and repaints it.
     void wireProjectsRequests(ProjectsDialog& dlg, const std::function<bool()>& unsavedSession);
+    void wireProjectsBlank(ProjectsDialog& dlg, const std::function<bool()>& unsavedSession);
     void resetToBlankEditor();
     // `version` is the one a link named: once the open lands, a newer one on the server reloads.
     void openServerProject(const QString& serverUrl, const QString& id, bool silent = false,

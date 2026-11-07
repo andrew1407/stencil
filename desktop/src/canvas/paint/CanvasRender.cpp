@@ -1,5 +1,6 @@
 #include "CanvasWidget.hpp"
 #include "../../support/motionPrefs.hpp"   // support::motionReduced()
+#include "../../support/genie/canvasSlide.hpp"
 
 // Adopting an in-memory picture, and leaving the canvas empty for the idle card.
 
@@ -33,6 +34,7 @@ namespace stencil::gui {
     update();
     emit changed();
     emit selectionChanged();
+    support::playCanvasArrival(this);
   }
 
   // Rotation is set before the crop is applied (the crop rect lives in rotated-original space);
@@ -51,6 +53,7 @@ namespace stencil::gui {
     update();
     emit changed();
     emit selectionChanged();
+    support::playCanvasArrival(this);
   }
 
   QRect CanvasWidget::idleCardGlobalRect() const {
@@ -67,8 +70,11 @@ namespace stencil::gui {
   }
 
   void CanvasWidget::clearImage() {
+    if (!image.isNull()) support::playCanvasLeave(this);   // photographed before the picture goes
     // Arrives when a picture LEAVES, never on an already-empty editor (browser `idle-arriving`).
     if (!image.isNull() && !support::motionReduced()) idle.startArrival();
+    // Only a pointer that moves onto the card now lights it (user report).
+    if (!image.isNull()) idle.dropHover();
     resetStrokeFx();
     ++pictureGen;
     blankPage = false;
@@ -90,9 +96,10 @@ namespace stencil::gui {
     resetSteps();
     // Release the image-locked fixed size AND actually shrink back: the host scroll area is not
     // widgetResizable, so relaxing the constraints alone keeps the old image's size.
-    setMinimumSize(320, 240);
+    setMinimumSize(1, 1);
     setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
-    resize(minimumSize());
+    // The empty size, kept inside a short view (OverlayScrollArea::fitLooseWidget).
+    resize(parentWidget() ? baseSize().boundedTo(parentWidget()->size()) : baseSize());
     updateGeometry();
     update();
     emit changed();

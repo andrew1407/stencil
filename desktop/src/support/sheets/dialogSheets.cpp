@@ -1,4 +1,5 @@
 #include "dialogSheets.hpp"
+#include "../aqua/still.hpp"
 
 // The dialogs' sheet text; the widgets wearing each live under src/dialogs/.
 
@@ -13,9 +14,10 @@ namespace stencil::support {
 
   QString paletteMidTextSheet() { return QString("color: palette(mid);"); }
 
-  // browser .project-thumb-zoom: --input-bg under a frame in the theme's accent.
+  // browser .project-thumb-zoom: the picture edge to edge in one --border-main hairline. Square: the
+  // glance is its own window, and a rounded frame left its corners black outside the curve.
   QString projectsHoverPreviewSheet(const QColor& bg, const QColor& edge) {
-    return QStringLiteral("QLabel{background:%1;border:2px solid %2;border-radius:8px;padding:4px;}")
+    return QStringLiteral("QLabel{background:%1;border:1px solid %2;border-radius:0;padding:0;}")
         .arg(bg.name(), edge.name());
   }
 
@@ -42,7 +44,7 @@ namespace stencil::support {
   // Browser .connect-row, value for value (css/components/). The transient states come AFTER the
   // admin gold so they still win the border (its ring folded into a 2px border — box-shadow has no Qt spelling).
   QString connRowSheet(const ConnRowColors& c) {
-    return QString(
+    return stillUnderAqua(QString(
                // The app-wide sheet pads every QListWidget::item by 4px with its own fill; the slot is nothing, the card everything.
                "QListWidget#connList{border:none;background:transparent;}"
                "QListWidget::item{padding:0;background:transparent;border:none;}"
@@ -74,7 +76,7 @@ namespace stencil::support {
         .arg(c.border.name(), c.input.name(), c.gold.name(), c.amber.name(),
              c.amberWash.name(), c.accent.name(), c.info.name(),
              c.accentHover.name(), c.accentPressed.name())
-        .arg(c.danger.name(), c.dangerHover.name(), c.amberHover.name());
+        .arg(c.danger.name(), c.dangerHover.name(), c.amberHover.name()));
   }
 
 }  // namespace stencil::support

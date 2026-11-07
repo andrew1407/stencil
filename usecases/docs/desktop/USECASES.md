@@ -119,7 +119,7 @@ The filter list in the **Edit** section holds **B&W**, **Sepia**, **Invert**, **
 
 **File ▸ Crop Image…** (`Ctrl+Shift+X`) opens a crop box locked to the page's shape: **Album** /
 **Portrait** flips it, **Apply Crop** keeps it. The dialog always fits on the screen, and resizing
-it re-fits the picture. **File ▸ Flip Horizontally** (`Alt+Shift+F`) mirrors the picture left to
+it re-fits the picture. **File ▸ Flip Horizontally** (`Alt+Shift+H`) mirrors the picture left to
 right, and **Rotate Left** (`Alt+R`) and **Rotate Right** (`Alt+Shift+R`) turn it by quarter
 turns. The lines and the crop follow both, the zoom and the spot you were looking at stay put,
 and **Edit ▸ Undo** (`Ctrl+Z`) and **Redo** (`Ctrl+Shift+Z`) cover all of it.
@@ -222,9 +222,12 @@ changes.
 
 ## Work in fullscreen
 
-**View ▸ Enter Fullscreen** (`Alt+F`) hides the toolbar so the picture fills the screen; it
-slides back in when the pointer touches the top edge, and leaves again when the pointer moves
-away.
+**View ▸ Full Screen** (`Alt+F`, or a click on the fullscreen button) takes the whole screen and
+hides the toolbar so the picture fills it; it slides back in when the pointer touches the top
+edge, and leaves again when the pointer moves away. **View ▸ Fullscreen in Window**
+(`Alt+Shift+F`, or a double-click on the button) does the same inside the window as it is.
+Right-click the button, or hold it down, for a menu of both; the canvas menu's **Fullscreen ›**
+offers the same pair.
 
 ![the toolbar sliding in at the top edge in fullscreen, and leaving again](img/fullscreen-strip.gif)
 

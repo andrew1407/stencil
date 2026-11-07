@@ -1,0 +1,52 @@
+      /* ── Menus: pinstripe panels, the gel bar under the pointer ── */
+      QMenuBar {
+        color: %AQ_INK%; border-bottom: 1px solid %AQ_EDGE%;
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 %AQ_GLASS_TOP%, stop:1 %AQ_GLASS_BOTTOM%);
+      }
+      QMenuBar::item:selected, QMenuBar::item:pressed { background: %AQ_SELECT%; color: %AQ_ON_SELECT%; }
+      /* One panel, square on top and rounded below (browser css/aqua/menus.css); a row is flat type
+         on the stripes, full width, never a capsule. */
+      QMenu {
+        background: %AQ_FACE%; background-image: url(%AQ_PINSTRIPE%); color: %AQ_INK%;
+        border: 1px solid %AQ_EDGE%; border-radius: 0; border-bottom-left-radius: 5px;
+        border-bottom-right-radius: 5px; padding: 4px 0;
+      }
+      /* height = the 13px type's line: the base style's own row minimum otherwise stands 5px taller
+         than the browser's 22px .ctx-item. */
+      QMenu::item { padding: 3px %MENU_PAD_R%px 3px 18px; margin: 0; border: 0; border-radius: 0; height: 16px; }
+      QMenu[flatMenu="true"]::item { padding-right: 18px; }
+      QMenu#projectColorMenu::item { padding: 3px 18px 3px 6px; }
+      QMenu::item:selected, QMenu[accentRows="true"]::item:selected {
+        color: %AQ_ON_SELECT%; background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 %AQ_GEL_TOP%, stop:1 %AQ_SELECT%);
+      }
+      /* A combo's current value is the ✓ in its margin, in the row's own ink: never a tint. */
+      QComboBox QAbstractItemView {
+        background: %AQ_FACE%; color: %AQ_INK%; border: 1px solid %AQ_EDGE%; border-radius: 0;
+        border-bottom-left-radius: 5px; border-bottom-right-radius: 5px; selection-background-color: %AQ_SELECT%; selection-color: %AQ_ON_SELECT%;
+      }
+      QComboBox QAbstractItemView::item { color: %AQ_INK%; background: transparent; border: 0; border-radius: 0; padding: 3px 12px; }
+      QComboBox QAbstractItemView[aquaCheck="true"]::item { padding-left: 24px; }
+      QComboBox QAbstractItemView::item:selected, QComboBox QAbstractItemView::item:hover {
+        color: %AQ_ON_SELECT%; background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 %AQ_GEL_TOP%, stop:1 %AQ_SELECT%);
+      }
+      /* The logo's preset list is a menu: flat rows, the lit one (pointer's, else current) the gel bar. */
+      QDialog#accentPopover {
+        background: %AQ_FACE%; background-image: url(%AQ_PINSTRIPE%); border: 1px solid %AQ_EDGE%; border-radius: 0;
+        border-bottom-left-radius: 5px; border-bottom-right-radius: 5px;
+      }
+      QDialog#accentPopover QPushButton, QDialog#accentPopover QPushButton:pressed {
+        color: %AQ_INK%; background: transparent; border: 0; border-radius: 0; text-align: left; padding: 3px 18px 3px 6px;
+        min-height: 0;
+      }
+      QDialog#accentPopover QPushButton[lit="true"] {
+        color: %AQ_ON_SELECT%; background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 %AQ_GEL_TOP%, stop:1 %AQ_SELECT%);
+      }
+      QDialog#accentPopover QPushButton:focus { outline: none; }
+      QMenu::item:disabled { color: %AQ_MUTED%; }
+      QMenu::separator { background: %AQ_EDGE%; height: 1px; margin: 4px 0; }
+      QStatusBar { background: %AQ_FACE%; color: %AQ_INK%; border-top: 1px solid %AQ_EDGE%; }
+      QLabel { color: %AQ_INK%; }
+      QToolTip, QFrame#stencilAppTooltip {
+        background: %AQ_TIP_BG%; color: %AQ_TIP_INK%; border: 1px solid %AQ_EDGE%; border-radius: 0; padding: 2px 4px;
+      }
+      QLabel#stencilAppTooltipBody { color: %AQ_TIP_INK%; }

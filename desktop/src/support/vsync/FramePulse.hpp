@@ -35,6 +35,14 @@ namespace stencil::support {
     }
 
     int size() const { return int(subs.size()); }
+    // While `holder` lives, a beat in two steps nothing: a window whose paint outruns the frame moves at a
+    // steady half rate, not an uneven full one (app/chrome/windowMotion.hpp holds it).
+    void holdHalfRate(QObject* holder) { halfHolders.push_back(QPointer<QObject>(holder)); }
+    bool isHalfRate() {
+      halfHolders.erase(std::remove_if(halfHolders.begin(), halfHolders.end(), [](const QPointer<QObject>& h) { return !h; }),
+                        halfHolders.end());
+      return !halfHolders.empty();
+    }
     // True when the display's refresh beats the clock (cocoa's CVDisplayLink), not a timer.
     bool isSynced() const { return beatWindow != nullptr; }
 
@@ -110,7 +118,8 @@ namespace stencil::support {
     void beat(bool fromLink) {
       if (subs.empty()) { watchdog.stop(); return; }
       const int frame = frameMs();
-      if (!fromLink || since.elapsed() * 2 >= frame) {
+      const bool skipped = isHalfRate() && (++parity & 1);   // every other beat while held to half rate
+      if ((!fromLink || since.elapsed() * 2 >= frame) && !skipped) {
         since.restart();
         const std::vector<SubPtr> now = subs;   // a step may join another mid-beat
         for (const SubPtr& s : now)
@@ -129,6 +138,8 @@ namespace stencil::support {
     QTimer watchdog;
     QElapsedTimer since;
     std::vector<SubPtr> subs;
+    std::vector<QPointer<QObject>> halfHolders;
+    unsigned parity = 0;
   };
 
   // A QTimer's start/stop/isActive over the pulse: `tick` runs once per beat while active.

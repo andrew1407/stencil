@@ -109,7 +109,7 @@ namespace stencil::gui {
       // An item that cannot act right now HIDES rather than greys out (browser parity).
       connect(menu, &QMenu::aboutToShow, this, [this, menu] {
         syncMoreMenuItems();
-        fitMenuWidth(*menu);
+        compactIconMenu(*menu);   // a skin swapped since the build re-pads it
       });
       compactIconMenu(*menu);
       // Built once and parented to the menu: it is created once, popped many times (menuRowPolish.hpp).

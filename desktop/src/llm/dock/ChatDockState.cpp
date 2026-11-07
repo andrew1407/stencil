@@ -91,7 +91,10 @@ namespace stencil::gui {
       if (const QString name = b->property(RESULT_ICON_PROPERTY).toString(); !name.isEmpty())
         b->setIcon(themedIcon(name, onAccent, RESULT_ICON));
     restyleChatMoreMenu(moreRows, pal.textMain);
-    chrome.closeBtn->setIcon(themedIcon("x", pal.textMain, 14));
+    restyleChatCardMores(this, chipCache, borderCache, accentCache, mutedCache);
+    // Aqua's close is a red light with no glyph on it.
+    chrome.closeBtn->setIcon(support::isAqua() ? QIcon() : themedIcon("x", pal.textMain, 14));
+    arrangeChatTitleBar(chrome, support::isAqua());
     // A layout does not see a QSS border: qss/webcore/chat.qss's raised chatBody sides stay uncovered.
     if (QWidget* body = widget(); body && body->layout())
       body->layout()->setContentsMargins(support::isWebcore() ? QMargins(2, 0, 2, 2) : QMargins());
@@ -107,7 +110,8 @@ namespace stencil::gui {
       if (cmp.dropCueText)
         cmp.dropCueText->setStyleSheet(support::chatDropCueTextSheet(pal.accent));
     }
-    chrome.headerTitle->setStyleSheet(support::chatHeaderTitleSheet(pal.textMain));
+    // Webcore's title ink is the strip's (qss/webcore/chat.qss %WC_TITLE_INK%), which a local sheet would beat.
+    chrome.headerTitle->setStyleSheet(support::isWebcore() ? QString() : support::chatHeaderTitleSheet(pal.textMain));
     if (log.jumpTop && log.jumpBottom) {
       const QString jumpQss = support::chatJumpButtonSheet(pal);
       log.jumpTop->setIcon(themedIcon("chevron-up", pal.textMuted, 14));

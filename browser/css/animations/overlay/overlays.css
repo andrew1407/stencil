@@ -81,6 +81,9 @@
     animation: popIn 0.13s ease both;
     transform-origin: top left;
 }
+/* Transition: a flyout grows out of its row's arrow as the menu grows out of the click (nav.js stamps the
+   origin), on the menu's clock; no fill, as above, or a nested flyout lands off-screen. */
+:root[data-motion="transition"] .ctx-sub.ctx-sub-visible { animation: menuPop 0.26s cubic-bezier(0.22, 0.61, 0.36, 1); }
 /* 14+14 → 17+11: the total width holds, or the widest nowrap row jitters the shrink-to-fit menu wider. */
 .ctx-item { transition: background 0.12s, padding-left 0.12s, padding-right 0.12s; }
 .ctx-item:hover, .ctx-item.ctx-kb { padding-left: 17px; padding-right: 11px; }
@@ -117,17 +120,45 @@
 }
 /* The logo's copy shrinks back into the logo; toolbar.js hides it on animationend (fallback timer). */
 .logo-accent-menu.dd-closing { animation: menuToAnchor 0.18s ease both; }
+/* Transition's tip (motion/control/tips.js): it grows out of nothing at the control it describes to its full size,
+   seen growing (opaque by a fifth of the run), and shrinks back into nothing there (user report). */
+@keyframes tipGrowIn {
+    from { opacity: 0; transform: translateY(-4px) scale(0.05); }
+    20%  { opacity: 1; }
+    to   { opacity: 1; transform: none; }
+}
+@keyframes tipShrinkOut {
+    from { opacity: 1; transform: none; }
+    60%  { opacity: 0.85; }
+    to   { opacity: 0; transform: translateY(-4px) scale(0.05); }
+}
+.tip-grow-in { animation: tipGrowIn 0.22s cubic-bezier(0.22, 0.61, 0.36, 1) both; transform-origin: center top; }
+.tip-shrink-out { animation: tipShrinkOut 0.18s cubic-bezier(0.4, 0, 0.6, 1) both; transform-origin: center top; }
+/* A tip the dust once drove keeps .dust-driven, whose animation:none !important (animations/dust.css) outranks the grow. */
+.dust-driven.tip-grow-in { animation: tipGrowIn 0.22s cubic-bezier(0.22, 0.61, 0.36, 1) both !important; }
+.dust-driven.tip-shrink-out { animation: tipShrinkOut 0.18s cubic-bezier(0.4, 0, 0.6, 1) both !important; }
+/* The canvas readout sits below and right of the pointer: it grows from its top-left corner. Its own
+   tooltipIn stays off in Transition, or it replayed the moment the grow's name came off (a second fade). */
+.tooltip:is(.tip-grow-in, .tip-shrink-out) { transform-origin: top left; }
+:root[data-motion="transition"] .tooltip:not(.tip-grow-in, .tip-shrink-out) { animation: none; }
+/* Transition's entrance for a menu with none of its own (motion/genie/window.js menuOpen): it grows out of the
+   point it opened from, the origin set inline. */
+.menu-grow-in { animation: menuFromAnchor 0.26s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
 /* Transition's exit for a list hidden at once: its stand-in copy shrinks back (motion/surface/leaveCopy.js). */
 .leave-copy.dd-leaving { animation: menuToAnchor 0.18s ease both !important; }
 @media (prefers-reduced-motion: reduce) {
     .accent-dd-menu:not([hidden]), .zoom-menu.dd-portal:not([hidden]),
     .logo-accent-menu.dd-closing { animation: none; }
+    .tip-grow-in, .tip-shrink-out, .dust-driven:is(.tip-grow-in, .tip-shrink-out) { animation: none !important; }
+    .menu-grow-in { animation: none; }
 }
 .accent-dd-opt { transition: background 0.15s ease, transform 0.12s ease; }
 /* `.dd-hover` latches hover (accentPicker.js): a preview's flood drops real :hover. */
 .accent-dd-opt:hover, .accent-dd-opt.dd-hover { transform: translateX(2px); }
 
-/* Chat panel: slides in from its dock edge, float pops; close cannot transition display:none. */
+/* Chat panel: slides in from its dock edge, float pops; close cannot transition display:none. A mode picked while it is
+   open swaps its entrance's name, which replays it: it is settled instead (chat/panel/openState.js). */
+stencil-chat-panel.chat-open.chat-motion-settled:not(.chat-closing) { animation: none !important; }
 @keyframes chatSlideLeft   { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
 @keyframes chatSlideRight  { from { opacity: 0; transform: translateX(28px); }  to { opacity: 1; transform: none; } }
 @keyframes chatSlideTop    { from { opacity: 0; transform: translateY(-28px); } to { opacity: 1; transform: none; } }
@@ -149,6 +180,22 @@ stencil-chat-panel.chat-open.chat-closing.chat-dock-right  { animation: chatSlid
 stencil-chat-panel.chat-open.chat-closing.chat-dock-top    { animation: chatSlideOutTop 0.39s ease both; }
 stencil-chat-panel.chat-open.chat-closing.chat-dock-bottom { animation: chatSlideOutBottom 0.39s ease both; }
 stencil-chat-panel.chat-open.chat-closing.chat-dock-float  { animation: modalToIcon 0.51s ease both; }
+/* Transition (desktop DockChromeShow's extent slide): the docked panel is revealed from its window edge, its
+   inner edge riding the page's padding on one clock and curve (components/chat/touch.css), never ahead of it. */
+@keyframes chatRevealLeft   { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
+@keyframes chatRevealRight  { from { clip-path: inset(0 0 0 100%); } to { clip-path: inset(0); } }
+@keyframes chatRevealTop    { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0); } }
+@keyframes chatRevealBottom { from { clip-path: inset(100% 0 0 0); } to { clip-path: inset(0); } }
+@media (min-width: 681px) {
+    :root[data-motion="transition"] stencil-chat-panel.chat-open.chat-dock-left   { animation: chatRevealLeft 0.51s cubic-bezier(0.33, 1, 0.68, 1) both; }
+    :root[data-motion="transition"] stencil-chat-panel.chat-open.chat-dock-right  { animation: chatRevealRight 0.51s cubic-bezier(0.33, 1, 0.68, 1) both; }
+    :root[data-motion="transition"] stencil-chat-panel.chat-open.chat-dock-top    { animation: chatRevealTop 0.51s cubic-bezier(0.33, 1, 0.68, 1) both; }
+    :root[data-motion="transition"] stencil-chat-panel.chat-open.chat-dock-bottom { animation: chatRevealBottom 0.51s cubic-bezier(0.33, 1, 0.68, 1) both; }
+    :root[data-motion="transition"] stencil-chat-panel.chat-open.chat-closing.chat-dock-left   { animation: chatRevealLeft 0.39s cubic-bezier(0.45, 0, 0.55, 1) reverse both; }
+    :root[data-motion="transition"] stencil-chat-panel.chat-open.chat-closing.chat-dock-right  { animation: chatRevealRight 0.39s cubic-bezier(0.45, 0, 0.55, 1) reverse both; }
+    :root[data-motion="transition"] stencil-chat-panel.chat-open.chat-closing.chat-dock-top    { animation: chatRevealTop 0.39s cubic-bezier(0.45, 0, 0.55, 1) reverse both; }
+    :root[data-motion="transition"] stencil-chat-panel.chat-open.chat-closing.chat-dock-bottom { animation: chatRevealBottom 0.39s cubic-bezier(0.45, 0, 0.55, 1) reverse both; }
+}
 /* Phones show the panel as a CENTRED MODAL (components/chat/touch.css): modal motion, whatever the dock. */
 @media (max-width: 680px) {
     stencil-chat-panel.chat-open.chat-dock-left,

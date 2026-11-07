@@ -1,6 +1,7 @@
 #include "iconSet.hpp"
 
 #include "LruCache.hpp"
+#include "skin/SkinLookStrategy.hpp"
 #include "skinPrefs.hpp"
 #include <algorithm>
 #include <QGuiApplication>
@@ -49,11 +50,8 @@ namespace stencil::gui {
 
     // A skin's art comes first: a complete document, colour baked in, or empty to fall through.
     QString activeMarkup(const QString& name) {
-      if (const support::IconFn skin = support::skinIcon()) {
-        const QString doc = skin(name);
-        if (!doc.isEmpty()) return doc;
-      }
-      return iconTable().value(name);
+      const QString doc = support::skinLook().iconSvg(name);
+      return doc.isEmpty() ? iconTable().value(name) : doc;
     }
 
     // QSvgRenderer can't resolve the browser's `currentColor`; a whole document passes as it is.
@@ -75,12 +73,8 @@ namespace stencil::gui {
   }  // namespace
 
   bool hasIcon(const QString& name) { return iconTable().contains(name); }
-
   QString iconMarkup(const QString& name) { return activeMarkup(name); }
-
-  QString iconSvgDocument(const QString& inner, const QColor& color) {
-    return svgDoc(inner, color.name());
-  }
+  QString iconSvgDocument(const QString& inner, const QColor& color) { return svgDoc(inner, color.name()); }
 
   bool iconRequestForKey(qint64 cacheKey, IconRequest* out) {
     const IconRequest* req = requestIndex().find(cacheKey);
@@ -142,7 +136,17 @@ namespace stencil::gui {
     QPixmap art = pm;
     art.setDevicePixelRatio(1.0);
     const int devPx = qMax(1, qRound(dpr));
-    if (baked) {
+    if (baked && support::skinTraits().isDisabledIconGreyed) {   // greyed 85% and faded, as the browser's grayscale(0.85) opacity(0.45)
+      QImage grey = art.toImage().convertToFormat(QImage::Format_ARGB32);
+      for (int y = 0; y < grey.height(); ++y)
+        for (QRgb *c = reinterpret_cast<QRgb*>(grey.scanLine(y)), *end = c + grey.width(); c < end; ++c) {
+          const auto to = [l = qGray(*c)](int v) { return v + (l - v) * 85 / 100; };
+          *c = qRgba(to(qRed(*c)), to(qGreen(*c)), to(qBlue(*c)), qAlpha(*c));
+        }
+      QPainter dp(&off);
+      dp.setOpacity(0.45);
+      dp.drawImage(QPoint(0, 0), grey);
+    } else if (baked) {
       // A baked colour cannot be re-inked, so a dead glyph takes Win95's relief: a white cast
       // under a grey silhouette. A faded blit of it read as a smudge.
       QPainter dp(&off);

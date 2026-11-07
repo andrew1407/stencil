@@ -7,6 +7,9 @@
 // .selection-panel-inner wraps). An item wider than the row takes the row's width.
 namespace stencil::gui {
 
+  // A dynamic property: true while an animation owns the widget's geometry; the row still counts its slot.
+  inline constexpr const char* FLOW_HELD = "flowHeld";
+
   class FlowLayout : public QLayout {
    public:
     explicit FlowLayout(QWidget* parent, int margin = 0, int hSpacing = 8, int vSpacing = 6)
@@ -81,7 +84,9 @@ namespace stencil::gui {
             const bool stretch =
                 w && (w->sizePolicy().verticalPolicy() & QSizePolicy::ExpandFlag) != 0;
             const int h = stretch ? lineHeight : sz.height();
-            rowItems[i]->setGeometry(QRect(rowX[i], y + (lineHeight - h) / 2, sz.width(), h));
+            // A widget a motion is flying to its slot keeps its place: a relayout mid-glide painted it landed for a frame.
+            if (!(w && w->property(FLOW_HELD).toBool()))
+              rowItems[i]->setGeometry(QRect(rowX[i], y + (lineHeight - h) / 2, sz.width(), h));
           }
         }
         y += lineHeight;

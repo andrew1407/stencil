@@ -47,6 +47,9 @@
       QTabBar::tab:hover { color: %WC_INK%; }
       QTabBar#selectionTabBar { font-weight: bold; }
       QTabBar#selectionTabBar::tab { font-size: 12px; height: 16px; }
+      /* The app sheet's muted word and accent underline name the bar by id; both tabs are ink (browser .coord-tab). */
+      QTabBar#selectionTabBar::tab, QTabBar#selectionTabBar::tab:hover { color: %WC_INK%; }
+      QTabBar#selectionTabBar::tab:selected { color: %WC_INK%; border-bottom: 0; }
       /* The Windows style already sinks the unpicked tabs, so the picked one stands taller. */
       QTabBar::tab:selected { color: %WC_INK%; background: %WC_LIGHT%; border-bottom: 0; }
       /* Browser chrome.css .coord-tab:hover: the bevel stays, the ring sits inside it; the

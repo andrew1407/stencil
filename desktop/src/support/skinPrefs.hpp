@@ -1,25 +1,27 @@
 #pragma once
 // The session skin every restyle asks (browser <html data-skin>): which one is on, the theme it
-// forces, and the two hooks a skin hangs its palette and its icons on. Header-only like
-// motionPrefs.hpp; nothing here reaches disk.
+// forces, and the colours its sheet pushes for the hand-painted chrome. The look itself is the
+// strategy skin/SkinLookStrategy.hpp installs. Header-only like motionPrefs.hpp; nothing here reaches disk.
+#include <QBrush>
 #include <QColor>
-#include <QImage>
-#include <QString>
 #include <optional>
-
-namespace stencil::gui { struct Palette; }
 
 namespace stencil::support {
 
-  enum class Skin { DEFAULT, WEBCORE };
+  enum class Skin { DEFAULT, WEBCORE, AQUA };
 
-  // The skin's raised box (browser css/webcore/tokens.css --wc-raised): its face and ink, the
-  // title strip's two stops (--wc-title runs a to b across it), the outer band pair, then the
-  // pair one pixel in. Pushed with the palette; a painter that wants the box reads it here.
+  // The skin's raised box (browser css/webcore/tokens.css --wc-raised): face and ink, the title strip's two
+  // stops (--wc-title runs a to b), the outer band pair, then the pair one pixel in; pushed with the palette.
   struct SkinBevel { QColor face, ink, title, titleB, hilight, dark, light, shadow; };
-  using PaletteFn = stencil::gui::Palette (*)(bool dark);
-  using IconFn = QString (*)(const QString& name);
-  using PixelFn = QImage (*)(const QString& name, bool dark, int scale);
+  // A drop target's ring and halo where the skin draws its own (browser css/aqua/canvas.css: the
+  // gel's edge and its focus glow); invalid under a skin that leaves it to the accent.
+  struct SkinDropGlow { QColor ring, halo; };
+  // The skin's glass capsule and its pressed gel (browser css/aqua/tokens.css --aq-glass, --aq-gel and
+  // their rings), with each fill's stops ready for a painter; invalid under a skin without one.
+  struct SkinGlass {
+    QColor top, bottom, edge, ink, gelHi, gelTop, gelBottom, gelEdge, onGel;
+    QGradientStops glassStops, gelStops;
+  };
 
   namespace detail {
     inline Skin& skinState() { static Skin s = Skin::DEFAULT; return s; }
@@ -28,13 +30,13 @@ namespace stencil::support {
     inline bool& skinDarkState() { static bool d = false; return d; }
     inline SkinBevel& skinBevelState() { static SkinBevel b; return b; }
     inline QColor& skinAccentState() { static QColor c; return c; }
-    inline PaletteFn& paletteHookState() { static PaletteFn fn = nullptr; return fn; }
-    inline IconFn& iconHookState() { static IconFn fn = nullptr; return fn; }
-    inline PixelFn& pixelHookState() { static PixelFn fn = nullptr; return fn; }
+    inline SkinDropGlow& dropGlowState() { static SkinDropGlow g; return g; }
+    inline SkinGlass& glassState() { static SkinGlass g; return g; }
   }  // namespace detail
 
   inline Skin skin() { return detail::skinState(); }
   inline bool isWebcore() { return skin() == Skin::WEBCORE; }
+  inline bool isAqua() { return skin() == Skin::AQUA; }
   // Bumped on every change, so a cache keyed on it forgets the other skin's art.
   inline int skinGeneration() { return detail::skinGenerationState(); }
   inline void setSkin(Skin s) {
@@ -63,13 +65,10 @@ namespace stencil::support {
   inline QColor skinAccent() { return detail::skinAccentState(); }
   inline void setSkinAccent(const QColor& c) { detail::skinAccentState() = c; }
 
-  inline PaletteFn skinPalette() { return detail::paletteHookState(); }
-  inline void setSkinPalette(PaletteFn fn) { detail::paletteHookState() = fn; }
-  // A complete <svg> document for a name, or empty to fall through to the line-art.
-  inline IconFn skinIcon() { return detail::iconHookState(); }
-  inline void setSkinIcon(IconFn fn) { detail::iconHookState() = fn; }
-  // The same glyph as a raster, `scale` device pixels a cell, for a painter that cannot load SVG.
-  inline PixelFn skinPixelIcon() { return detail::pixelHookState(); }
-  inline void setSkinPixelIcon(PixelFn fn) { detail::pixelHookState() = fn; }
+  inline SkinDropGlow skinDropGlow() { return detail::dropGlowState(); }
+  inline void setSkinDropGlow(const SkinDropGlow& g) { detail::dropGlowState() = g; }
+
+  inline const SkinGlass& skinGlass() { return detail::glassState(); }
+  inline void setSkinGlass(const SkinGlass& g) { detail::glassState() = g; }
 
 }  // namespace stencil::support

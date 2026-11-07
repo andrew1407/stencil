@@ -1,4 +1,4 @@
-#include "../../support/skinPrefs.hpp"
+#include "../../support/skin/SkinLookStrategy.hpp"
 #include "LlmSettingsForm.hpp"
 #include "../../support/easeWindowHeight.hpp"
 #include "LlmClient.hpp"
@@ -121,9 +121,9 @@ namespace stencil::gui {
   // Paint the status row: the dot carries the state colour, the text stays the
   // muted .chat-server-status type (browser #chat-server-status-row).
   void LlmSettingsForm::setStatus(const char* color, const QString& text) {
-    // Under the skin the lamp is square (browser webcore/chat.css .conn-status).
+    // Under webcore the lamp is square (browser webcore/chat.css .conn-status).
     statusDot->setText(QStringLiteral("<span style=\"color:%1;\">%2</span>")
-                            .arg(QLatin1String(color), support::isWebcore() ? QStringLiteral("■") : QStringLiteral("●")));
+                            .arg(QLatin1String(color), QString(QChar(support::skinTraits().bullet))));
     status->setText(text);
   }
 

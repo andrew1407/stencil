@@ -1,0 +1,134 @@
+/* The aqua skin's fields: white wells with a soft inner shadow and the blue focus halo, gel
+   check boxes and radio buttons, and the select as a popup button. */
+:root[data-skin="aqua"] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+textarea, .script-editor-wrap, #zoom-input, .coord-px-input, .modal-search, .kw-add input,
+#chat-input, #ctx-assist-input, .chat-input-wrap) {
+    background: var(--aq-window);
+    color: var(--aq-ink);
+    border: 1px solid var(--aq-edge);
+    border-top-color: color-mix(in srgb, var(--aq-edge) 70%, #000000);
+    border-radius: 0;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.22);
+}
+/* The search capsule (desktop qss/aqua: 10px). The wells' :is() carries #chat-input's id weight; the
+   never-matching #_ gives this one the same, and its later place wins. */
+:root[data-skin="aqua"] :is(.modal-search, #_) { border-radius: 999px; padding-left: 10px; }
+/* The composer's wrap is the one well (a bare field inside, or two outlines stood offset), a rounded box
+   as it grows past one line. By id: #chat-input in the wells' list lifts that rule to id weight. */
+:root[data-skin="aqua"] #chat-input-wrap { border-radius: 14px; padding-left: 4px; }
+:root[data-skin="aqua"] #chat-input-wrap :is(textarea, textarea:focus) {
+    background: transparent; border: 0; border-radius: 0; box-shadow: none;
+}
+:root[data-skin="aqua"] #chat-input-wrap:focus-within {
+    border-color: var(--aq-gel-edge);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18), 0 0 0 3px color-mix(in srgb, var(--aq-focus) 60%, transparent);
+}
+:root[data-skin="aqua"] :is(input:not([type="checkbox"]):not([type="radio"]), textarea):focus,
+:root[data-skin="aqua"] .script-editor-wrap:focus-within {
+    outline: none;
+    border-color: var(--aq-gel-edge);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18), 0 0 0 3px color-mix(in srgb, var(--aq-focus) 60%, transparent);
+}
+/* Out of the wells' list: its :not() chain outweighed a bare select and flattened it to a well. */
+:root[data-skin="aqua"] select {
+    appearance: none;
+    background: var(--aq-arrows) right 6px center / 8px 12px no-repeat,
+                var(--aq-gel) right / 20px 100% no-repeat, var(--aq-glass);
+    color: var(--aq-ink);
+    border: 0;
+    border-radius: 6px;
+    box-shadow: var(--aq-popup-ring);
+    padding-right: 26px;
+}
+:root[data-skin="aqua"] select:focus {
+    box-shadow: var(--aq-popup-ring), 0 0 0 3px color-mix(in srgb, var(--aq-focus) 60%, transparent);
+}
+
+/* Check boxes and radios: a glass cell that fills with gel when on. */
+:root[data-skin="aqua"] :is(input[type="checkbox"], input[type="radio"]) {
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    margin: 0 4px 0 0;
+    background: var(--aq-glass);
+    border: 0;
+    border-radius: 2px;
+    overflow: visible;
+    box-shadow: var(--aq-glass-ring);
+    position: relative;
+    vertical-align: middle;
+}
+:root[data-skin="aqua"] input[type="radio"] { border-radius: 50%; }
+/* A pill's own checkbox only holds its state: it stays hidden and takes no room. */
+:root[data-skin="aqua"] .pill-toggle > input[type="checkbox"] {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    box-shadow: none;
+}
+:root[data-skin="aqua"] :is(input[type="checkbox"], input[type="radio"]):checked {
+    background: var(--aq-gel);
+    box-shadow: var(--aq-gel-ring);
+}
+:root[data-skin="aqua"] input[type="checkbox"]:checked::after {
+    content: "";
+    position: absolute;
+    left: 5px;
+    top: -3px;   /* the tick's long stroke leaves the box at its top-right corner */
+    width: 5px;
+    height: 11px;
+    border: solid var(--aq-tick);
+    border-width: 0 3px 3px 0;
+    transform: rotate(40deg) skewX(-6deg);
+}
+:root[data-skin="aqua"] input[type="radio"]:checked::after {
+    content: "";
+    position: absolute;
+    inset: 5px;
+    border-radius: 50%;
+    background: var(--aq-tick);
+}
+:root[data-skin="aqua"] input[type="range"] { accent-color: var(--aq-gel-bottom); }
+:root[data-skin="aqua"] input[type="color"] { border-radius: 6px; box-shadow: var(--aq-glass-ring); background: var(--aq-glass); border: 0; }
+:root[data-skin="aqua"] :is(#project-name-input, #project-name-input:read-only, #project-name-input:disabled) {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    color: var(--aq-ink);
+    font-weight: 700;
+    text-shadow: 0 1px rgba(255, 255, 255, 0.6);
+}
+:root[data-skin="aqua"] #project-name-input:not(:read-only) { background: var(--aq-window); border-color: var(--aq-edge); }
+:root[data-skin="aqua"] .kw-chip,
+:root[data-skin="aqua"] .chat-attach-chip {
+    background: var(--aq-gel);
+    color: var(--aq-on-gel);
+    border: 0;
+    border-radius: 999px;
+    box-shadow: var(--aq-gel-ring);
+}
+
+/* The console window: Terminal's own field, ink on the window's white (graphite on dark) in Monaco, its
+   prompt bare on the last row (desktop aqua/fields.qss). By id: the wells' :not() chain outweighs a class. */
+:root[data-skin="aqua"] #console-overlay .console-body {
+    background: var(--aq-window);
+    border: 1px solid var(--aq-edge);
+    border-radius: 0;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.22);
+}
+:root[data-skin="aqua"] #console-overlay :is(.console-out, .console-prompt, .console-input) {
+    font-size: 12px;
+    line-height: 1.45;
+}
+:root[data-skin="aqua"] #console-overlay :is(.console-out, .console-prompt) { color: var(--aq-ink); }
+:root[data-skin="aqua"] #console-overlay .console-prompt-row :is(.console-input, .console-input:focus, .console-input:hover) {
+    color: var(--aq-ink);
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    padding: 0;
+}
+:root[data-skin="aqua"] #console-overlay .console-prompt-row .console-input[data-word="cmd"] { color: var(--accent); }
+:root[data-skin="aqua"] #console-overlay .console-prompt-row .console-input[data-word="secret"] { color: var(--console-gold); }
+:root[data-skin="aqua"] #console-overlay .console-prompt-row { border-top-color: var(--aq-edge); }

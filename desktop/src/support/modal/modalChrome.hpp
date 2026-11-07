@@ -97,6 +97,9 @@ namespace stencil::gui {
   // The GO face: Run in the script editors, green rather than the accent every other CTA wears.
   void makeModalGo(QPushButton* btn, const QString& iconName = QString());
 
+  // Browser `button.primary`: the window's one affirmative verb, which a skin sets apart (aqua's gel).
+  void markModalPrimary(QPushButton* btn);
+
   // GLOBAL, optional flight endpoints (support/modal/modalReveal.hpp). Browser twin: confirmModal.js `closeAnchor`.
   struct FlightAnchors {
     QRect openRect;    // invalid = the press that raised the dialog

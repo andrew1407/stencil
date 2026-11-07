@@ -14,7 +14,8 @@ namespace stencil::gui {
 
   // Field names mirror the CSS vars.
   struct Palette {
-    QColor bgPage;       // --bg-page          (canvas / window backdrop)
+    QColor bgPage;       // --bg-page          (window backdrop)
+    QColor bgCanvas;     // the canvas viewport's ground: bgPage, unless a skin gives the canvas its own
     QColor bgContainer;  // --bg-container
     QColor bgControls;   // --bg-controls      (toolbar / menus)
     QColor bgSelPanel;   // --bg-sel-panel     (selection dock)
@@ -62,6 +63,8 @@ namespace stencil::gui {
 
   // Named themePalette, not palette, to avoid shadowing QWidget::palette().
   Palette themePalette(bool dark, const QString& accentKey = DEFAULT_ACCENT_KEY);
+  // theme.css's own tokens whatever skin is worn: the CLI stage is a terminal, never skinned.
+  Palette unskinnedPalette(bool dark, const QString& accentKey = DEFAULT_ACCENT_KEY);
 
   // --bg-info: not in Palette, but the connections rows build their own sheet.
   QColor infoBackground(bool dark);
@@ -83,8 +86,10 @@ namespace stencil::gui {
   inline constexpr int NAME_CHIP_GLYPH = 15;
 
   // The app-wide QMenu paddings are sized for the menu bar and read as dead space in flat icon menus.
-  inline QString compactMenuQss() {
-    return QStringLiteral("QMenu::item{padding:6px 10px 6px 6px;}QMenu::icon{padding-left:4px;}");
+  // Aqua's rows are the era's tighter type: 3px over and under, the gel bar running past the word.
+  inline QString compactMenuQss(bool aqua = false) {
+    return aqua ? QStringLiteral("QMenu::item{padding:3px 18px 3px 6px;}QMenu::icon{padding-left:4px;}")
+                : QStringLiteral("QMenu::item{padding:6px 10px 6px 6px;}QMenu::icon{padding-left:4px;}");
   }
 
   QString buildStylesheet(bool dark, const QString& accentKey = DEFAULT_ACCENT_KEY);

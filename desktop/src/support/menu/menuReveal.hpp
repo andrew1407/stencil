@@ -1,5 +1,8 @@
 #pragma once
 #include <QPoint>
+#include <QRect>
+
+#include <functional>
 
 class QAction;
 class QMenu;
@@ -36,10 +39,18 @@ namespace stencil::support {
   void revealSubmenu(QMenu& sub, QMenu& parent, QAction& parentAction,
                      int ms = MENU_POPUP_DUST_MS);
 
+  // GLOBAL centre of `action`'s ▸ on `parent` (browser contextMenu/nav.js subPoint); null off-row.
+  QPoint submenuArrowPoint(const QMenu& parent, QAction* action);
+
   // No-op for a native (OS-drawn) bar — nothing Qt-rendered to grab.
   void revealMenuBarMenu(QMenu& menu, QMenuBar& bar);
 
   // For a menu hanging off a CONTROL: survives repeated shows, so wire it once after building.
+  // A press on `anchor` while the menu is up only closes it (closeOnTriggerPress).
   void revealMenuFrom(QMenu& menu, QWidget* anchor);
+
+  // A press inside `globalZone` (GLOBAL, read per press) closes the menu without reaching what is
+  // under it, so the trigger's own click does not open it again (browser projectRowMenu.js openAnchor).
+  void closeOnTriggerPress(QMenu& menu, std::function<QRect()> globalZone);
 
 }  // namespace stencil::support

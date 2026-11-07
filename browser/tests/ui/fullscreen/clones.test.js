@@ -70,3 +70,24 @@ test('every fullscreen entry re-binds the strip: the live controls keep one mirr
   } finally { globalThis.document = saved; }
   for (const el of live.els) assert.equal(el.on.change.size, 1, `${el.id}: one mirror, not one per entry`);
 });
+
+// A url(#id) paints from the FIRST match in the document: the strip's copy keeps no id its toolbar
+// also has, or the hidden one of the two (the toolbar in fullscreen, the strip after it) paints both.
+test('the strip copy renames each icon\'s own svg ids and repoints their references', async () => {
+  const { ownSvgIds } = await import('../../../js/ui/fullscreen/clones.js');
+  const node = (id, attrs = {}) => {
+    const el = { id, attributes: Object.entries(attrs).map(([name, value]) => ({ name, value })) };
+    el.setAttribute = (name, value) => { el.attributes.find((a) => a.name === name).value = value; };
+    return el;
+  };
+  const grad = node('metal-aq1', { id: 'metal-aq1' });
+  const shape = node('', { fill: 'url(#metal-aq1)', stroke: 'url(#elsewhere)' });
+  const use = node('', { href: '#metal-aq1' });
+  const kids = [grad, shape, use];
+  const svg = { querySelectorAll: (sel) => (sel === '[id]' ? [grad] : kids) };
+  ownSvgIds({ querySelectorAll: () => [svg] });
+  assert.equal(grad.id, 'fs-metal-aq1');
+  assert.equal(shape.attributes[0].value, 'url(#fs-metal-aq1)');
+  assert.equal(shape.attributes[1].value, 'url(#elsewhere)', 'a reference to no own id is left alone');
+  assert.equal(use.attributes[0].value, '#fs-metal-aq1');
+});

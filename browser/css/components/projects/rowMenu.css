@@ -55,9 +55,10 @@
 .chat-row-menu-btn-right { right: -27px; }
 @media (hover: hover) {
     .chat-row-menu-btn { display: inline-flex; }
-    /* A translucent ghost; only the one under the cursor goes opaque (the row in the selector outweighs the first). */
-    .chat-msg:hover .chat-row-menu-btn { opacity: .7; }
-    .chat-msg:hover .chat-row-menu-btn:hover { opacity: 1; }
+    /* Hover-only in every skin: :root:root (0,4,0) outranks the skins' blanket button opacity:1 (user report). */
+    :root:root .chat-msg .chat-row-menu-btn { opacity: 0; }
+    :root:root .chat-msg:hover .chat-row-menu-btn { opacity: .7; }
+    :root:root .chat-msg:hover .chat-row-menu-btn:hover { opacity: 1; }
     /* Beats button:hover's accent fill: the chrome stays, with a glow and a 1px lift. */
     .chat-row-menu-btn:hover {
         background: var(--bg-container); color: var(--text-muted);

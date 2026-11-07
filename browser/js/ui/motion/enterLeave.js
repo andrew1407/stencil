@@ -1,4 +1,4 @@
-import { dustEnabled, motionMs, motionReduced } from './motionPrefs.js';
+import { dustEnabled, motionMode, motionMs, motionReduced } from './motionPrefs.js';
 import { disintegrate, scrollerOf } from './disintegrate.js';
 import { flipFrom } from './flip.js';
 import { speckPainter } from './surface/painters.js';
@@ -36,10 +36,17 @@ export const CHIP_LEAVE_MS = TUNE.CHIP_LEAVE_MS;
 
 export const LEAVING_CLASS = 'leaving';
 
-
 // `done` ALWAYS runs, even with no element or under reduced motion.
+// Sliding and Transition have no cloud to read: a row's own slide or shrink is the whole flight, on a clock
+// long enough to be seen (css/animations/reveal/reveal.css rowSlideLeave / rowShrinkLeave, 0.34s).
+export const MODE_ROW_MS = 340;
+export const shouldRowFly = () => motionMode() === 'slide' || motionMode() === 'transition';   // rows fly whole, not as motes
+export const rowClock = (ms) => (shouldRowFly() ? Math.max(ms, MODE_ROW_MS) : ms);
+
+// `hold`: the slot stays open, in every mode, for the row arriving into it next (renderList.js inPlace).
+export const LEAVE_HOLD_CLASS = 'leave-hold';
 export function leaveThenRemove(el, done = () => {}, { ms = LEAVE_MS, cols, rows, dustMs = 0,
-                                                      drift = 1, px = 0 } = {}) {
+                                                      drift = 1, px = 0, hold = false } = {}) {
   const finish = () => { try { done(); } catch { /* the caller owns its own errors */ } };
   const reduced = motionReduced();
   if (!el?.classList || reduced || typeof setTimeout === 'undefined') { finish(); return Promise.resolve(); }
@@ -53,8 +60,9 @@ export function leaveThenRemove(el, done = () => {}, { ms = LEAVE_MS, cols, rows
   if (cols !== 0) disintegrate(el, { ...(cols ? { cols } : {}), ...(rows ? { rows } : {}),
                                     ...(dustMs ? { ms: dustMs } : {}), ...(px ? { px } : {}),
                                     ...(drift === 1 ? {} : { drift }), clip: true });
+  if (hold) el.classList.add(LEAVE_HOLD_CLASS);
   el.classList.add(LEAVING_CLASS);
-  return new Promise((resolve) => setTimeout(() => { finish(); resolve(); }, motionMs(ms)));
+  return new Promise((resolve) => setTimeout(() => { finish(); resolve(); }, motionMs(rowClock(ms))));
 }
 
 // The particles fall past the short collapse, so a caller swapping in a placeholder waits for the

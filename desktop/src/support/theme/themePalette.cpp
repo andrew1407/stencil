@@ -1,7 +1,7 @@
 #include "theme.hpp"
 #include "themeTokens.hpp"
 #include "defaultVisuals.hpp"
-#include "../skinPrefs.hpp"
+#include "../skin/SkinLookStrategy.hpp"
 #ifdef Q_OS_LINUX
 #endif
 
@@ -12,10 +12,15 @@ namespace stencil::gui {
   QColor infoBackground(bool dark) { return themeToken("--bg-info", dark); }
 
   Palette themePalette(bool dark, const QString& accentKey) {
-    // A skin hands the hand-painted chrome its own palette (support/skinPrefs.hpp).
-    if (const support::PaletteFn hook = support::skinPalette()) return hook(dark);
+    // A skin hands the hand-painted chrome its own palette (support/skin/SkinLookStrategy.hpp).
+    if (const auto skinned = support::skinLook().palette(dark)) return *skinned;
+    return unskinnedPalette(dark, accentKey);
+  }
+
+  Palette unskinnedPalette(bool dark, const QString& accentKey) {
     Palette p;
     p.bgPage = themeToken("--bg-page", dark);
+    p.bgCanvas = p.bgPage;
     p.bgContainer = themeToken("--bg-container", dark);
     p.bgControls = themeToken("--bg-controls", dark);
     p.bgSelPanel = themeToken("--bg-sel-panel", dark);

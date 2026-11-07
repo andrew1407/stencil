@@ -1,8 +1,8 @@
 // Rebuilding the projects list, and holding it steady while rows fly out. The plan it paints is
 // plan.js; what a wipe must outlive is here, so an out-of-band refresh cannot cut in.
-import { wipeDurationMs, filterDelta, ROW_ARRIVE_MS, ROW_ARRIVE_DELAY_MS } from '../../motion/enterLeave.js';
+import { wipeDurationMs, filterDelta, rowClock, shouldRowFly, LEAVE_MS, ROW_ARRIVE_MS, ROW_ARRIVE_DELAY_MS } from '../../motion/enterLeave.js';
 import { rowDustGrid } from '../../motion/surface/tiles.js';
-import { materialize } from '../../motion/control/chatFx.js';
+import { rowArrive } from './rowMotion.js';
 import { releaseHeldHeight } from '../../motion/easeBoxHeight.js';
 import { motionMs } from '../../motion/motionPrefs.js';
 import { showsRemoteSkeletons } from '../../../core/remote/listing.js';
@@ -78,12 +78,15 @@ export function createRenderList(ctx) {
   // refreshes (canRefreshList) wait out wipeDurationMs (desktop twin: ProjectsDialog::retireRow).
   let removalsInFlight = 0;
   let letGo = () => {};
-  const beginRemoval = () => {
+  // `inPlace`: the row that leaves is replaced where it stood (the pinned temporary row taking the active
+  // project's slot), so neither the leave nor the arrival moves the rows below.
+  const beginRemoval = ({ inPlace = false } = {}) => {
     removalsInFlight++;
     const held = list.getBoundingClientRect().height;
     letGo();
     if (held) list.style.minHeight = `${held}px`;
     const before = [...shownKeys];
+    const hadEmpty = !!list.querySelector('.info-empty');
     return async () => {
       // The ash thins first, so the row and its arrival land together rather than the row
       // showing plain and being veiled again; a mode that flies nothing has no ash (wipe 0).
@@ -95,10 +98,15 @@ export function createRenderList(ctx) {
       const { entering } = filterDelta(before, shownKeys);
       entering.forEach((key, i) => {
         const el = rowByFilterKey(key);
-        if (el) materialize(el, { ...rowDustGrid(entering.length, i), dustMs: ROW_ARRIVE_MS });
+        if (el) rowArrive(el, { ...rowDustGrid(entering.length, i), dustMs: ROW_ARRIVE_MS, inPlace });
       });
-      // The hold outlives the arrival, or a refresh re-renders the row out from under its motes.
-      await new Promise((r) => setTimeout(r, motionMs(Math.max(0, wipe - arrive))));
+      // The list emptied: Sliding and Transition bring its notice in from the left as they would a row.
+      const empty = list.querySelector('.info-empty');
+      if (empty && !hadEmpty && shouldRowFly()) rowArrive(empty, { cols: 0 });
+      // The hold outlives the arrival, or a refresh re-renders the row out from under its motes — or, with no
+      // motes, out of its own slide or grow (enterLeave.js rowClock).
+      const landing = wipe ? wipe - arrive : (entering.length ? rowClock(LEAVE_MS) : 0);
+      await new Promise((r) => setTimeout(r, motionMs(Math.max(0, landing))));
       removalsInFlight = Math.max(0, removalsInFlight - 1);
       letGo = releaseHeldHeight(list, held);
       // A listing that landed inside the hold had its re-render refused (canRefreshList).

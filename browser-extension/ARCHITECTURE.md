@@ -153,11 +153,19 @@ classDiagram
   `withSessionKey`, never over plain http off loopback); `parseOpPlan` against the listing; the
   executors run each `PlanAction` through injected capabilities. A context-only round
   (`continuationOnly`) earns one more.
-- **The webcore skin.** `StencilSkin` stores the skin and stamps `<html data-skin="webcore">`
-  pre-paint; while it is on, motion is held at None and restored when it goes off.
-  `installWebcore` swaps the glyphs to the pinned `iconsWebcore.json` copy.
+- **The session skins.** `StencilSkin` stores one skin at a time and stamps `<html data-skin>`
+  pre-paint, holding motion at the skin's own mode (`webcore` None, `aqua` Sliding) and giving the
+  user's back when it goes. `installSkins` (`lib/skin/install.js`) is the one watch over the stamp,
+  the face and the accent: it wears the skin stamped, sheds the one that left and dresses what is
+  added meanwhile, each skin a `SessionSkin` of painters (`lib/webcore/skin.js` swaps the glyphs to
+  the pinned `iconsWebcore.json` copy; `lib/aqua/skin.js` dresses the page in the Blue preset for
+  the session — on the DOM, never the store, the page's own accent back after unless the user
+  picked one meanwhile — repaints its gel in the accent on screen over the pinned `aqua.json` tint
+  and swaps the glyphs, the mark and the favicon to the pinned `iconsAqua.json` and `svgArt.json`
+  art). The header mark's hold (`lib/skin/hold.js`) flips whichever skin the accent on screen, the
+  stored motion and the theme resolve to, through `lib/skin/switch.js`.
 - **The logo shows.** On the options page every trigger reaches `activateShow`
-  (`secrets/trigger.js`), which toggles the webcore skin or opens `lib/logo/stage.js`'s canvas,
+  (`secrets/trigger.js`), which toggles a skin or opens `lib/logo/stage.js`'s canvas,
   resolved from the pinned `logoStage.json` copy.
 - **A server connection.** `addServer(rawUrl, token)` (`lib/connection/connections.js`)
   opens and proves a session, then persists a `StoredConnection`. `refreshSharedPins` pages each

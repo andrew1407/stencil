@@ -104,12 +104,12 @@ namespace stencil::gui {
                        w.parts.view.scrollTo(qRound(z.scrollLeft), qRound(z.scrollTop));
                      });
     QObject::connect(w.zoom, &QComboBox::currentTextChanged, &w, [this](const QString& t) {
-      // syncCombo=false: don't re-write the field being read.
-      QString s = t;
-      s.remove('%');
+      // syncCombo=false: don't re-write the field being read; a picked "50%" row settles as "50".
+      const QString s = QString(t).remove('%').trimmed();
       bool ok = false;
-      const double pct = s.trimmed().toDouble(&ok);
+      const double pct = s.toDouble(&ok);
       if (ok) w.setZoom(pct / 100.0, false);
+      if (ok && s != t) { const QSignalBlocker block(w.zoom); w.zoom->setEditText(s); }
     });
     // Index-based: the editable search field mutates the text per keystroke.
     QObject::connect(w.units.pageSize, QOverload<int>::of(&QComboBox::currentIndexChanged), &w,

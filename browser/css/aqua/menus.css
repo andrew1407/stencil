@@ -1,0 +1,89 @@
+/* The aqua skin's menus: translucent pinstripe panels with rounded lower corners, the blue gel
+   bar under the pointer, and the selected table, line, project and connection rows. */
+:root[data-skin="aqua"] :is(#ctx-menu, .ctx-sub, .accent-dd-menu, .zoom-menu, .project-menu,
+.chat-row-menu, .chat-more-menu) {
+    background: repeating-linear-gradient(180deg,
+        color-mix(in srgb, var(--aq-stripe) 94%, transparent) 0 2px,
+        color-mix(in srgb, var(--aq-face) 94%, transparent) 2px 4px);
+    color: var(--aq-ink);
+    border: 0;
+    border-radius: 0 0 5px 5px;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18), 0 6px 18px rgba(0, 0, 0, 0.32);
+    padding: 4px 0;
+}
+/* A row is flat type on the stripes, never a glass button: several rows are <button class="btn-icon-text">
+   and the capsule rules outrank a bare class, hence the menu-scoped !important. */
+:root[data-skin="aqua"] :is(#ctx-menu, .ctx-sub, .accent-dd-menu, .zoom-menu, .project-menu, .chat-row-menu, .chat-more-menu)
+:is(.ctx-item, .accent-dd-opt, .zoom-menu-item, .project-menu-item, .chat-row-menu-item, .chat-more-item, .ctx-checkbox-item, .ctx-radio-item) {
+    background: transparent !important;
+    color: var(--aq-ink) !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    min-height: 0;
+    margin: 0;
+    white-space: nowrap;   /* a menu widens to its longest row, never wraps one */
+}
+:root[data-skin="aqua"] :is(.project-menu, .chat-row-menu, .chat-more-menu) { gap: 0; }
+/* The era's tight rows (desktop compactMenuQss(aqua): 3px over and under), and an 11px glass cap that
+   clears the row above (desktop MenuHotkeys AQUA_MENU_CAP_SCALE). */
+:root[data-skin="aqua"] :is(#ctx-menu, .ctx-sub) :is(.ctx-item, .ctx-checkbox-item, .ctx-radio-item) { padding: 3px 18px 3px 10px; }
+:root[data-skin="aqua"] .ctx-hotkey :is(.tip-key, .tip-plus) { font-size: 11px; }
+:root[data-skin="aqua"] .ctx-hotkey .tip-key { padding: 2px 5px; }
+:root[data-skin="aqua"] :is(.project-menu, .chat-row-menu, .chat-more-menu)
+:is(.project-menu-item, .chat-row-menu-item, .chat-more-item) { padding: 3px 18px 3px 12px; width: 100%; justify-content: flex-start; }
+:root[data-skin="aqua"] :is(#ctx-menu, .ctx-sub, .accent-dd-menu, .zoom-menu, .project-menu, .chat-row-menu, .chat-more-menu)
+:is(.ctx-item:hover, .ctx-item.ctx-open-sub, .ctx-item.ctx-kb, .accent-dd-opt:hover, .accent-dd-opt.dd-hover,
+.zoom-menu-item:hover, .project-menu-item:hover, .project-menu-item.is-open, .project-menu-item.is-drag-hover, .chat-row-menu-item:hover,
+.chat-more-item:hover:not(:disabled), .ctx-checkbox-item:hover, .ctx-radio-item:hover) {
+    background: linear-gradient(180deg, var(--aq-gel-top), var(--aq-select)) !important;
+    color: var(--aq-on-select) !important;
+}
+/* A child, never a descendant: a submenu nests inside its row and keeps its own ink. */
+:root[data-skin="aqua"] :is(.ctx-item, .accent-dd-opt, .project-menu-item, .chat-row-menu-item):is(:hover, .ctx-open-sub, .ctx-kb, .dd-hover, .is-drag-hover, .is-open)
+> :is(.ctx-label, .ctx-arrow, .ctx-check, .ctx-icon, .accent-dd-name, span) { color: var(--aq-on-select); }
+:root[data-skin="aqua"] :is(.ctx-item:hover, .ctx-item.ctx-open-sub, .ctx-item.ctx-kb) > .ctx-hotkey .tip-plus { color: var(--aq-on-select); }
+/* The current value is the era's ✓ in the row's left margin, in the row's own ink: never a tint. */
+:root[data-skin="aqua"] :is(.accent-dd-opt[aria-selected="true"], .zoom-menu-item.active) { background: transparent; }
+/* A portaled list sits on <body> and took its 16px: rows wear the field's 13px and the era's 3px (desktop qss/aqua/windows.qss). */
+:root[data-skin="aqua"] .accent-dd-menu :is(.accent-dd-opt, .accent-dd-no-match) { font-size: 13px; padding-top: 3px; padding-bottom: 3px; }
+:root[data-skin="aqua"] .accent-dd-menu:not(:has(.accent-swatch, .ctx-icon)) .accent-dd-opt { position: relative; padding-left: 24px; }
+/* An action list (its rows lead with a glyph) has no current value, so no ✓ margin: the glyph opens the row. */
+:root[data-skin="aqua"] .accent-dd-menu:has(.ctx-icon) .accent-dd-opt { padding-left: 12px; }
+:root[data-skin="aqua"] .accent-dd-menu:not(:has(.accent-swatch)) .accent-dd-opt[aria-selected="true"]::before,
+:root[data-skin="aqua"] .zoom-menu-item.active::before {
+    content: "\2713";
+    position: absolute;
+    left: 7px;
+    font-weight: 700;
+}
+:root[data-skin="aqua"] .zoom-menu-item { position: relative; padding-left: 24px; }
+/* A list never scrolls sideways: the skin's classic bars would show a strip for a sub-pixel of overflow. */
+:root[data-skin="aqua"] :is(#ctx-menu, .ctx-sub, .accent-dd-menu, .zoom-menu, .project-menu, .chat-row-menu,
+.chat-more-menu) { overflow-x: hidden; }
+:root[data-skin="aqua"] .ctx-sep { background: color-mix(in srgb, var(--aq-edge) 70%, transparent); height: 1px; margin: 4px 0; }
+
+/* A list row never answers the pointer (only a menu row does): a canvas-linked row is the pale
+   gel, and only a SELECTED row is the solid selection colour. */
+:root[data-skin="aqua"] .coordinates-table tbody tr.row-highlighted:not(.row-focused) { background: color-mix(in srgb, var(--aq-gel-hi) 70%, transparent) !important; }
+:root[data-skin="aqua"] :is(.coordinates-table tbody tr, .lines-row):hover:not(.row-focused):not(.lines-row-selected):not(.row-highlighted) {
+    background-color: var(--bg-coord-table) !important;
+}
+:root[data-skin="aqua"] :is(.coordinates-table tbody tr, .lines-row):nth-child(even):hover:not(.row-focused):not(.lines-row-selected):not(.row-highlighted) {
+    background-color: var(--bg-coord-even) !important;
+}
+:root[data-skin="aqua"] :is(.project-row:hover:not(.project-selected), .connect-row:hover:not(.connect-selected)) { background: var(--aq-window); }
+:root[data-skin="aqua"] .coordinates-table thead th {
+    background: var(--aq-glass);
+    color: var(--aq-ink);
+    border-color: var(--aq-edge);
+}
+:root[data-skin="aqua"] .oi-tab { border-radius: 999px; }
+/* Points | Lines is one segmented capsule, as the era joined a tab row: no gap, one shared seam. */
+:root[data-skin="aqua"] .coord-tabs { gap: 0; }
+:root[data-skin="aqua"] .coord-tab { border-radius: 0; }
+:root[data-skin="aqua"] .coord-tab:first-child { border-radius: 999px 0 0 999px; }
+:root[data-skin="aqua"] .coord-tab:last-child { border-radius: 0 999px 999px 0; }
+:root[data-skin="aqua"] .coord-tab + .coord-tab { margin-left: -1px; }
+

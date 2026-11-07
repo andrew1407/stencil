@@ -60,6 +60,11 @@
     "default": "Alt+F"
   },
   {
+    "id": "fullscreenWindow",
+    "label": "Toggle Fullscreen in Window",
+    "default": "Alt+Shift+F"
+  },
+  {
     "id": "zoomIn",
     "label": "Zoom In",
     "default": "Alt+ArrowUp"
@@ -92,7 +97,7 @@
   {
     "id": "flipImageHorizontal",
     "label": "Flip Image Horizontally",
-    "default": "Alt+Shift+F"
+    "default": "Alt+Shift+H"
   },
   {
     "id": "flipLineHorizontal",

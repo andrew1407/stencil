@@ -8,6 +8,9 @@
       QMainWindow, QWidget#centralBackdrop { background: %WC_FACE%; }
       QMainWindow::separator { background: %WC_FACE%; width: %SEP_W%px; height: 1px; }
       QMainWindow#stencilWindow::separator { width: %CHAT_GAP%px; height: %CHAT_GAP%px; }
+      /* A covered chat slide carries the gap in its own extent, so it slides from 0 (DockChrome::setChatGapless). */
+      QMainWindow#stencilWindow[chatGapless="true"]::separator { width: 0px; height: 0px; }
+      QMainWindow[fsEditor="true"], QMainWindow[fsEditor="true"]::separator { background: %WC_DESKTOP%; }
       QToolBar { background: %WC_FACE%; border: 0; border-bottom: 1px solid %WC_SHADOW%; }
       QToolBar::separator { background: %WC_SHADOW%; border-radius: 0; border-right: 1px solid %WC_HILIGHT%; }
       QFrame#toolWrapSep { background: %WC_SHADOW%; border-radius: 0; }
@@ -16,10 +19,12 @@
       QWidget#imageInfoBar { background: %WC_FACE%; border-bottom: 1px solid %WC_SHADOW%; }
       /* The bevel's border-image leaves the viewport unfilled, so the frame carries the desktop
          teal itself (browser .canvas-viewport background: --wc-desktop). */
-      QScrollArea#canvasViewport, QScrollArea#canvasViewport[fsView="true"] {
+      QScrollArea#canvasViewport {
         border: 2px solid transparent; border-image: url(%WC_SUNKEN%) 2 2 2 2 stretch; border-radius: 0;
         background: %WC_DESKTOP%;
       }
+      /* Fullscreen drops the bevel with every frame (app/shell.qss [fsView]). */
+      QScrollArea#canvasViewport[fsView="true"] { border: none; border-image: none; border-radius: 0px; background: %WC_DESKTOP%; }
       QLabel#coordStatus { background: %WC_FACE%; border: 1px solid %WC_SHADOW%; border-radius: 0; color: %WC_INK%; }
       QWidget#dropHintBar { background: %WC_FACE%; border: 1px solid %WC_SHADOW%; border-radius: 0; }
       QLabel#dropHintLabel { color: %WC_INK%; }
@@ -82,5 +87,5 @@
         border: 2px solid transparent; border-image: url(%WC_RAISED%) 2 2 2 2 stretch;
       }
       QToolBarExtension::menu-indicator, QToolButton#qt_toolbar_ext_button::menu-indicator { image: none; width: 0; }
-      QLabel#panelSectionHeader { color: %WC_INK%; letter-spacing: 0; }
+      QLabel#panelSectionHeader { color: %WC_INK%; letter-spacing: 0px; }
 

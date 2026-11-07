@@ -1,12 +1,17 @@
 // ── Leaving ─────────────────────────────────────────────────────────────────
 // A row collapses and fades before the caller removes it in the callback. Mirrors the browser twin.
-import { motionReduced, dustEnabled, prefersReducedMotion } from '../prefs/motionPrefs.js';
+import { motionReduced, dustEnabled, prefersReducedMotion, motionMode } from '../prefs/motionPrefs.js';
 import { disintegrate } from './disintegrate.js';
 import { DISINTEGRATE_MS } from './tiles.js';
 export const LEAVE_MS = 220;
 // Chat entries leave more slowly than a list row (browser twin).
 export const CHAT_LEAVE_MS = 260;
 export const LEAVING_CLASS = 'leaving';
+// Sliding and Transition's row slide or shrink is the whole flight, on a clock long enough to be seen
+// (lib/animations/reveal.css stRowSlideLeave / stRowShrinkLeave; browser enterLeave.js MODE_ROW_MS).
+export const MODE_ROW_MS = 340;
+const ROW_FLIGHT_MODES = new Set(['slide', 'transition']);
+export const rowClock = (ms) => (ROW_FLIGHT_MODES.has(motionMode()) ? Math.max(ms, MODE_ROW_MS) : ms);
 
 // `done` always runs: the removal never depends on the animation.
 export function leaveThenRemove(el, done = () => {}, { ms = LEAVE_MS, cols, rows } = {}) {
@@ -21,13 +26,13 @@ export function leaveThenRemove(el, done = () => {}, { ms = LEAVE_MS, cols, rows
   // cols === 0 is scatterGridFor's "fade only".
   if (cols !== 0) disintegrate(el, { ...(cols ? { cols } : {}), ...(rows ? { rows } : {}) });
   el.classList.add(LEAVING_CLASS);
-  return new Promise((resolve) => setTimeout(() => { finish(); resolve(); }, ms));
+  return new Promise((resolve) => setTimeout(() => { finish(); resolve(); }, rowClock(ms)));
 }
 
 // Particles fall for DISINTEGRATE_MS after the short collapse (browser motion.js twin).
 export const wipeDurationMs = () => {
   if (motionReduced()) return 0;
-  return dustEnabled() ? Math.max(LEAVE_MS, DISINTEGRATE_MS) : LEAVE_MS;
+  return dustEnabled() ? Math.max(LEAVE_MS, DISINTEGRATE_MS) : rowClock(LEAVE_MS);
 };
 
 // begin() opens a hold per playing leave/materialize and returns a settle fn, awaited after the

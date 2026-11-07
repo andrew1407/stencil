@@ -50,7 +50,7 @@ feed a ui area subscribes to (`core/app/changes.js`) and the app's view seam (`V
 | Path | Holds | Rule |
 |---|---|---|
 | `index.html` | the single `<script type="module">` entry and the CSS link order | the link order **is** the cascade; the CSP meta is identical to the `nginx.conf` header |
-| `css/` | `theme.css`, then `layout/`, `components/`, `animations/`, and last `webcore/`, the session skin | one file per section; tokens come from `common/config/themeTokens.json` and `common/config/webcore.json` |
+| `css/` | `theme.css`, then `layout/`, `components/`, `animations/`, then `skin/` (what every session skin shares) and last `webcore/` and `aqua/`, the skins | one file per section; tokens come from `common/config/themeTokens.json`, `common/config/webcore.json` and `common/config/aqua.json` |
 | `js/config/` | the operator's `openInConfig` and its example | operator config, fetched beside its module; never shared, never committed |
 | `../common/` | the shared tables (`config/`), corpora (`fixtures/`), the logo (`icons/`) | served next to `browser/`; imported by relative path, never a root URL, so a subpath deploy works |
 | `js/utils.js` + `js/utils/` | DOM, geometry, color, hotkey helpers | one import point; pure |
@@ -274,8 +274,12 @@ classDiagram
   (`token`, `llm-api-key`) is honoured from the fragment only. The console's `/open <link>` applies
   the same query without touching the URL.
 - **A logo show.** Every trigger reaches `activateShow` (`ui/logo/stageTrigger.js`), which runs
-  the stage (`ui/logo/stage.js`) resolved from `config/logoStage.json`; the webcore show toggles
-  the session overrides (`ui/webcore/toggle.js`).
+  the stage (`ui/logo/stage.js`) resolved from `config/logoStage.json`; a skin show toggles its
+  session skin, one at a time, turning the other off first. A skin is a `SkinSpec` of painters
+  (`ui/webcore/toggle.js`, `ui/aqua/toggle.js`) that `ui/skin/session.js` runs: the stamp, the
+  motion held, the accent and theme watches, the favicon art and the scene (`ui/skin/scene.js`)
+  are the session's, the art alone the skin's. A row may name a `theme` as well as a motion mode:
+  the aqua hold needs the light face.
 - **A console command.** The Data section's console icon (`EVENTS.consoleToggle`) opens the
   console window (`ui/console/modal.js`) beside whatever is up; a typed line goes to the
   `ConsoleInterpreter`, whose handler calls the facade, and the lines it answers type in through
@@ -312,8 +316,10 @@ classDiagram
   value they are painted from holds; an export or result repaints through
   `core/draw/restingPaint.js`.
 - **Session override.** `setMotionOverride` (`ui/motion/motionPrefs.js`), `setIconSkin`
-  (`ui/icons.js`), `setFaviconArt` (`core/settings/accents.js`), set by `ui/webcore/toggle.js` —
-  read by everything, written to no store.
+  (`ui/icons.js`), `setFaviconArt` (`core/settings/accents.js`), set by a skin's session
+  (`ui/skin/session.js`) — read by everything, written to no store. The aqua skin paints its gel
+  tokens from the chosen accent (`gelTokens` over `config/aqua.json` `tint`) and repaints them on
+  every accent or theme change.
 - **Gate.** `cliModeGate` (`console/shell/gate.js`), asked by every facade member that would open a
   window, move the chat, go fullscreen or change a look or motion setting (`GATED_SETTINGS`) — one
   refusal, one message, while CLI mode is on; an edit, the theme, a project switch and a connection

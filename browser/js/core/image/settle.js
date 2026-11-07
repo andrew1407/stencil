@@ -81,10 +81,7 @@ export const settleLoadedImage = async (app, file, opts, plan) => {
 // Pre-load edits from the load-by-URL modal: opts.page, opts.album, opts.noCrop.
   if (opts.page) {
     const n = normalizePageSize(opts.page);
-    if (n) {
-      app.pageSize = n;
-      setVal('page-size', n);
-    }
+    if (n) { app.pageSize = n; setVal('page-size', n); }
   }
 // Before the crop: defaultCropRect uses the aspect.
   if ((opts.remoteId || opts.adoptLayout) && remoteLayout) app.remoteSync.adoptServerPageFormat(remoteLayout);
@@ -146,11 +143,15 @@ export const settleLoadedImage = async (app, file, opts, plan) => {
 
   app.currentLine = null;
   app.history.reset(editorMemento(app));
+// A layout laid over the fresh picture as its first undo step, before the first paint and the arrival.
+  if (opts.firstStep) app.export.installLayout(opts.firstStep, { mode: 'combine', history: true });
 // A blank load passes it; an ordinary load clears it; a replace-in-place recolour keeps it.
   if (opts.blankColor != null) app.blankColor = opts.blankColor;
   else if (!replaceInPlace) app.blankColor = '';
 // A replace-in-place keeps the project's existing file origin.
   if (!replaceInPlace) app.fromFile = !!opts.fromFile;
+// Before the fit and the arrival: the image's controls re-wrap the toolbar, and the view they leave is what both measure.
+  app.updateButtons();
 // A blank recolor keeps the SAME dimensions, so refitting would only throw away the zoom/pan.
   if (!opts.keepZoom) app.zoomPan.fitToWindow();
   app.updateInfo();
@@ -161,7 +162,6 @@ export const settleLoadedImage = async (app, file, opts, plan) => {
 // Synchronously: a frame's delay would flash the finished image before hiding it.
     playCanvasArrival(app.canvas, { from: opts.from, layers: app.renderer.layers() });
   }
-  app.updateButtons();
   app.updateCoordStatus();
   app.storage.save();
 

@@ -170,3 +170,50 @@ test('panelDust declines a panel without a box and never throws', (t) => {
   assert.equal(panelDust(createStubElement('div'), 'top', false), false);
   assert.equal(panelDust(createStubElement('div'), 'right', true), false);
 });
+
+test('a poured hide keeps the panel until its picture lands, with no dust timer of its own', (t) => {
+  const doc = installDom({ autoCreateById: true });
+  doc.getElementById('fs-selection-panel').style.display = 'none';
+  t.after(() => doc.restore());
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let landed = null;
+  const dust = (panel, dock, hiding, inMs, onLanded) => { if (hiding) landed = onLanded; return 'poured'; };
+  const fsPointsPanel = doc.getElementById('fs-points-panel');
+  const panels = createFsPanels({ fsControlsPanel: doc.getElementById('fs-controls-panel'), fsPointsPanel, showPoints: () => {}, dust });
+  panels.showPointsPanel();
+  panels.hidePointsPanel();
+  t.mock.timers.tick(GRACE_MS + FOLD_DUST_OUT_MS * 3);
+  assert.ok(shown(fsPointsPanel), 'still there while the picture flies');
+  landed();
+  assert.ok(!shown(fsPointsPanel), 'gone as it lands');
+});
+
+// A dust flight leaves `.dust-driven` on, which stills the transform: Transition (and motion off) slide again.
+test('a panel the dust declines gets its own CSS slide back, revealed or leaving', (t) => {
+  const doc = installDom({ autoCreateById: true });
+  t.after(() => doc.restore());
+  for (const hiding of [false, true]) {
+    const el = createStubElement('div');
+    el.classList.add('dust-driven', 'fs-panel-visible');
+    assert.equal(panelDust(el, 'right', hiding), false);
+    assert.ok(!el.classList.contains('dust-driven'), `hiding=${hiding}: the slide is live again`);
+    assert.ok(el.classList.contains('fs-panel-visible'), `hiding=${hiding}: the caller still owns the reveal class`);
+  }
+});
+
+// A close bound for a control in the strip reads this (modal/imageAnchor.js toolbarAway) and rises to the top edge.
+test('the strip is marked leaving for its whole exit and unmarked by a return', (t) => {
+  const { panels, fsControlsPanel } = setup(t);
+  const leaving = () => fsControlsPanel.classList.contains('fs-panel-leaving');
+  panels.showControlsPanel();
+  panels.hideControlsPanel();
+  t.mock.timers.tick(GRACE_MS);
+  assert.ok(leaving() && shown(fsControlsPanel), 'leaving from the first beat of the exit, still on screen');
+  t.mock.timers.tick(FOLD_DUST_OUT_MS);
+  assert.ok(!leaving() && !shown(fsControlsPanel), 'gone, and the mark with it');
+  panels.showControlsPanel();
+  panels.hideControlsPanel();
+  t.mock.timers.tick(GRACE_MS + 10);
+  panels.pauseControlsHide();
+  assert.ok(!leaving(), 'a cursor back on it brings it home');
+});

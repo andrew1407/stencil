@@ -4,14 +4,36 @@
 // Each strip's mirror listeners on the live controls, dropped before its next copy is bound.
 const unbinds = new WeakMap();
 
-export const populateFsControls = (fsControlsPanel) => {
-  const existing = fsControlsPanel.querySelector('.controls');
-  if (existing) existing.remove();
+// An icon's own paint servers renamed in the copy: url(#id) answers to the FIRST match in the document,
+// so a shared id let the hidden toolbar (in fullscreen) or the hidden strip (after it) paint the other's fills.
+export const ownSvgIds = (root, prefix = 'fs-') => {
+  const all = (el, sel) => [...(el?.querySelectorAll?.(sel) ?? [])];
+  for (const svg of all(root, 'svg')) {
+    const ids = new Set(all(svg, '[id]').map((el) => el.id));
+    if (!ids.size) continue;
+    const ref = (v) => v.replace(/url\(#([^)]+)\)/g, (m, id) => (ids.has(id) ? `url(#${prefix}${id})` : m))
+      .replace(/^#(.+)$/, (m, id) => (ids.has(id) ? `#${prefix}${id}` : m));
+    for (const el of all(svg, '*')) {
+      if (ids.has(el.id)) el.id = prefix + el.id;
+      for (const a of [...el.attributes]) if (a.value.includes('#')) el.setAttribute(a.name, ref(a.value));
+    }
+  }
+};
+
+// The copy shares the live controls' ids and sits before them: left in place after fullscreen, every
+// getElementById gate would land on it and the real toolbar would never update again.
+export const clearFsControls = (fsControlsPanel) => {
+  fsControlsPanel?.querySelector?.('.controls')?.remove();
   unbinds.get(fsControlsPanel)?.();
   unbinds.delete(fsControlsPanel);
+};
+
+export const populateFsControls = (fsControlsPanel) => {
+  clearFsControls(fsControlsPanel);
   const src = document.querySelector('#controls-body .controls');
   if (src) {
     const clone = src.cloneNode(true);
+    ownSvgIds(clone);
     fsControlsPanel.appendChild(clone);
     unbinds.set(fsControlsPanel, bindClonedControls(fsControlsPanel, src));
   }
@@ -56,8 +78,9 @@ export const populateFsPoints = (fsPointsPanel) => {
   if (src) {
     const clone = src.cloneNode(true);
     clone.id = 'fs-coord-panel-clone';
+    ownSvgIds(clone, 'fs-clone-');
     clone.querySelectorAll('[id]').forEach(el => {
-      el.id = 'fs-clone-' + el.id;
+      if (!el.id.startsWith('fs-clone-')) el.id = 'fs-clone-' + el.id;
     });
     clone.classList.remove('coord-collapsed', 'coord-folding', 'coord-veiled', 'surface-leaving', 'surface-forming');
     clone.style.minWidth = '0';

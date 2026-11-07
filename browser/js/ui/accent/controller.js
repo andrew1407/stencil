@@ -76,9 +76,10 @@ export class AccentController {
     document.documentElement.toggleAttribute('data-accent-light', needsDarkGlyph(hex));
   }
 
-  setAccent(key, originEl = null) {
-    const next = this.applyAccent(key, originEl);
-    this.app.tabs.broadcastAccent(next);
+  // `persist: false` paints a session accent (a skin's own): no store write, no other tab told.
+  setAccent(key, originEl = null, { persist = true } = {}) {
+    const next = this.applyAccent(key, originEl, { persist });
+    if (persist) this.app.tabs.broadcastAccent(next);
     this.announce(next);
   }
 
@@ -87,8 +88,8 @@ export class AccentController {
     publish(EVENTS.accentChanged, value);
   }
 
-// Paint + persist the accent in this tab; returns the resolved key.
-  applyAccent(key, originEl = null) {
+// Paint (and, unless told otherwise, persist) the accent in this tab; returns the resolved key.
+  applyAccent(key, originEl = null, { persist = true } = {}) {
     const next = isAccent(key) ? key : DEFAULT_ACCENT;
     const el = document.documentElement;
     // A hover preview already painting this colour is committed in place, not flooded again.
@@ -97,7 +98,7 @@ export class AccentController {
     const paint = () => {
       el.style.removeProperty('--accent'); // drop any custom (temp) override
       el.setAttribute('data-accent', next);
-      try { localStorage.setItem(ACCENT_STORAGE_KEY, next); } catch { /* storage blocked — accent still applies this session, just won't persist */ }
+      if (persist) try { localStorage.setItem(ACCENT_STORAGE_KEY, next); } catch { /* storage blocked — accent still applies this session, just won't persist */ }
       applyAccentFavicon(next);
       this.applyGlyphContrast(accentHex(next));
     };

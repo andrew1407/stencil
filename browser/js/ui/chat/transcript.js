@@ -2,7 +2,7 @@
 // textContent, never innerHTML.
 import { motionMs } from '../motion/motionPrefs.js';
 import { observeReveal } from '../motion/reveal.js';
-import { LEAVING_CLASS, wipeDurationMs } from '../motion/enterLeave.js';
+import { CHAT_LEAVE_MS, LEAVING_CLASS, rowClock, wipeDurationMs } from '../motion/enterLeave.js';
 import { chatIn } from '../motion/control/chatFx.js';
 import { applyShrinkWrap, bindShrinkWrapResize, rowTextNode, setRowClass } from './row/chatRowDom.js';
 import { chatAskCard, chatAttachmentStrip, chatConfigureButton, chatReconnectButton, chatResultCard } from './row/chatCards.js';
@@ -167,7 +167,8 @@ const restoreEmptyState = (transcript, log, wiped) => {
   if (!leaving) { paint(); return; }
   if (transcript._emptyWaiting) return;
   transcript._emptyWaiting = true;
-  setTimeout(paint, motionMs(wipeDurationMs()));
+  // Without particles the rows still melt for CHAT_LEAVE_MS: the chips wait for them, never land among them.
+  setTimeout(paint, motionMs(Math.max(wipeDurationMs(), rowClock(CHAT_LEAVE_MS))));
 };
 
 // On the transcript itself: the .chat-empty block is replaced whenever the conversation empties.

@@ -1,14 +1,16 @@
 #pragma once
+// The docks around the editor and how they move: the chat dock's placement, slide, float and compact popover,
+// the points panel's slide and its grip, the selected-line bar's dust, and the resize edges and toast inset
+// that follow them. Browser twin: ui/chat/panel/ and ui/panel/ (the coordinate panel's fold).
 #include <QPointer>
 #include <QRect>
 #include <QSize>
 #include <functional>
 
 class QGraphicsOpacityEffect;
+class QToolBar;
 class QVariantAnimation;
 class QWidget;
-
-class QToolBar;
 
 namespace stencil::gui {
 
@@ -16,9 +18,6 @@ namespace stencil::gui {
   class DisintegrateOverlay;
   class DockEdgeOverlay;
 
-  // The docks around the editor and how they move: the chat dock's placement, slide, float and
-  // compact popover, the points panel's slide and its grip, the selected-line bar's dust, and
-  // the resize edges and toast inset that follow them.
   class DockChrome {
    public:
     explicit DockChrome(MainWindow& w) : w(w) {}
@@ -33,15 +32,16 @@ namespace stencil::gui {
     void positionPanelGrip();
     void positionChatEdge();
     // Browser mainContent.js surface flight; panelVeil hides the panel so the motes ARE it.
-    QPointer<gui::DisintegrateOverlay> panelSurfaceFlight(bool gather, int ms, int full);
+    QPointer<gui::DisintegrateOverlay> panelSurfaceFlight(bool shouldGather, int ms, int full);
     void releasePanelVeil();
     // Browser selectionPanel.js surfaceIn/Out.
     void dustSelectedLineBarIn();
     void dustSelectedLineBarOut();
-    QPoint selectedLineBarDustPoint(const QRect& barPicture, bool closing);
-    void setChatShown(bool show, bool animate);
+    QPoint selectedLineBarDustPoint(const QRect& barPicture, bool isClosing);
+    void setChatShown(bool shouldShow, bool shouldAnimate);
+    void flyFloatingChat(bool shouldShow);
     void dockChatTo(Qt::DockWidgetArea area);
-    QPointer<gui::DisintegrateOverlay> chatSurfaceFlight(Qt::DockWidgetArea area, bool gather, int ms,
+    QPointer<gui::DisintegrateOverlay> chatSurfaceFlight(Qt::DockWidgetArea area, bool shouldGather, int ms,
                                                          const std::function<void(int)>& pin, int full);
     // `revealFrom` (GLOBAL): where the float grows out of in place of the chat icon (a drop's cursor).
     void toggleChatFloat(const QRect& revealFrom = QRect());
@@ -49,14 +49,21 @@ namespace stencil::gui {
     QRect compactChatRect(QWidget* anchor) const;
     void dropChatVeil();
     void stopChatAnim();
-    // Sliding (DockChromePour.cpp): the docked chat, the side panel and the toolbar rows pour their picture
-    // out of their toggle and back while their space slides on the same `ms`; false = not Sliding, dust instead.
-    bool pourDockedChat(bool show, int ms, const std::function<void(int)>& pin, int full);
-    bool pourPanel(bool show, int full, int ms);
-    bool pourBars(const QList<QToolBar*>& bars, bool show, int ms);
+    // Sliding: the docked chat, the side panel and the toolbar rows pour their picture out of their toggle and
+    // back while their space slides on the same `ms`; false = not Sliding. `shut`: the chat's closed extent.
+    bool pourDockedChat(bool shouldShow, int ms, const std::function<void(int)>& pin, int full, int shut);
+    // Transition: the chat's open picture held to its edge while its space slides; false = not Transition.
+    bool revealDockedChat(bool shouldShow, const std::function<void(int)>& pin, int full);
+    void pourChatMove(Qt::DockWidgetArea area, const std::function<void()>& place);
+    // A cover for `surface` in the window's own background: what a pouring chat's space shows.
+    QWidget* groundCover(QWidget* surface);
+    bool pourPanel(bool shouldShow, int full, int ms);
+    bool pourBars(const QList<QToolBar*>& bars, bool shouldShow, int ms);
     void releaseBarsVeils();
+    void freezeChatBody(bool isHorizontal);
+    void thawChatBody();
     void settleFoldLayout();
-    void setChatCompactPopover(bool on);
+    void setChatCompactPopover(bool isOn);
     // Browser FLOAT_DEFAULT, ported to this window's top-left; clamped to its own screen.
     QRect defaultChatFloatRect() const;
     // The edge bands a chat drag drops on, up until `stillDragging` turns false.
@@ -79,15 +86,22 @@ namespace stencil::gui {
     QPointer<QGraphicsOpacityEffect> panelVeil;
     QPointer<QWidget> chatCover, panelCover;   // Sliding's covers (DockChromePour.cpp), dropped with the veils
     QList<QPointer<QWidget>> barsCovers;
+    QPointer<QWidget> chatFrozenBody;   // the chat's body held at its photographed extent under chatCover
     // Always through setChatCompactPopover: the dock must hear it too, or it stays undraggable.
     bool chatCompactPopover = false;
     bool chatClosing = false;
+    bool chatGapless = false;   // setChatGapless: the window's separator at 0, the gap inside the chat's extent
     int chatPourRun = 0;   // the pour in the air; a later toggle retires it before it lands
     Qt::DockWidgetArea chatCompactPrevArea = Qt::LeftDockWidgetArea;
     QRect chatFloatRect;
     QRect chatRevealFrom;   // GLOBAL: set only while a drop opens the float, which grows out of it
 
-    std::function<void(int)> chatExtentPin(bool horiz);
+    std::function<void(int)> chatExtentPin(bool isHorizontal);
+    // The chat's whole space on `area`, its dock and the page gap beside it, as one length (px).
+    std::function<void(int)> chatSpacePin(Qt::DockWidgetArea area);
+    void setChatGapless(bool isOn);
+
+    void settleChatHover();
 
    private:
     MainWindow& w;

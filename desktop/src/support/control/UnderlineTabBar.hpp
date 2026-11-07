@@ -47,6 +47,7 @@ namespace stencil::gui {
     QFont tabFont() const;
 
     void paintSkinTabs(QPainter& p);
+    void paintAquaTabs(QPainter& p);
 
     static QColor mix(const QColor& a, const QColor& b, double u);
 

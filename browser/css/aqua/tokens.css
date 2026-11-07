@@ -1,0 +1,143 @@
+/* The aqua skin's tokens: the gel-and-pinstripe palette as --aq-* (the source common/config/aqua.json
+   `tokens` is pinned against, tests/config/aqua.test.js), the composite fills built from it,
+   and the app's own tokens re-pointed at it. The desktop reads the same table as aquaPalette. */
+:root[data-skin="aqua"] {
+    --aq-face:         #ececec;
+    --aq-stripe:       #f6f6f6;
+    --aq-window:       #ffffff;
+    --aq-edge:         #8e8e8e;
+    --aq-metal-top:    #e2e2e2;
+    --aq-metal-bottom: #b4b4b4;
+    --aq-glass-top:    #fefefe;
+    --aq-glass-bottom: #d4d4d4;
+    --aq-gel-hi:       #cfddfb;
+    --aq-gel-top:      #719af2;
+    --aq-gel-bottom:   #2563eb;
+    --aq-gel-edge:     #1943a0;
+    --aq-select:       #2563eb;
+    --aq-on-select:    #ffffff;
+    --aq-on-gel:       #ffffff;
+    --aq-ink:          #000000;
+    --aq-muted:        #6d6d6d;
+    --aq-desktop:      #2c63bf;
+    --aq-canvas:       #b8bcc3;   /* the graphite desk under a picture: never the accent, which a picture may share */
+    --aq-red:          #ec4b3c;
+    --aq-yellow:       #f6b62c;
+    --aq-green:        #49b83a;
+    --aq-tip-bg:       #ffffc7;
+    --aq-tip-ink:      #000000;
+    --aq-link:         #1e51c1;
+    --aq-focus:        #7ca1f3;
+    /* Two-pixel pinstripes; the capsules carry a hard waterline at half height and glow back up
+       from the foot, the gel's lower lobe to its highlight (the era's lit-from-within look). */
+    --aq-pinstripe: repeating-linear-gradient(180deg, var(--aq-stripe) 0 2px, var(--aq-face) 2px 4px);
+    --aq-metal:     linear-gradient(180deg, var(--aq-metal-top), var(--aq-metal-bottom));
+    --aq-glass:     linear-gradient(180deg, color-mix(in srgb, var(--aq-glass-top) 70%, #ffffff) 0%,
+                    var(--aq-glass-top) 49%, var(--aq-glass-bottom) 51%,
+                    color-mix(in srgb, var(--aq-glass-top) 60%, var(--aq-glass-bottom)) 75%, var(--aq-glass-top) 100%);
+    --aq-gel:       linear-gradient(180deg, var(--aq-gel-hi) 0%,
+                    color-mix(in srgb, var(--aq-gel-top) 70%, var(--aq-gel-hi)) 25%, var(--aq-gel-top) 49%,
+                    var(--aq-gel-bottom) 51%, var(--aq-gel-top) 82%, var(--aq-gel-hi) 100%);
+    --aq-tick:      #111111;   /* the check and the radio's dot, dark on the gel as the era drew them */
+    --aq-glass-ring:  inset 0 0 0 1px var(--aq-edge), 0 1px 2px rgba(0, 0, 0, 0.22);
+    --aq-gel-ring:    inset 0 0 0 1px var(--aq-gel-edge), 0 1px 2px rgba(0, 0, 0, 0.3);
+    /* A popup button: the glass ring plus the 1px seam at its 20px gel cap's left edge. */
+    --aq-popup-ring:  inset -20px 0 0 -19px var(--aq-gel-edge), var(--aq-glass-ring);
+    --aq-window-ring: 0 0 0 1px rgba(0, 0, 0, 0.28), 0 12px 32px rgba(0, 0, 0, 0.42);
+    /* A toolbar tile: an inked ring, a lit top edge, a soft drop. */
+    --aq-tile-ring:   inset 0 0 0 1px color-mix(in srgb, var(--aq-ink) 45%, transparent),
+                      inset 0 2px 0 -1px rgba(255, 255, 255, 0.75), 0 1px 2px rgba(0, 0, 0, 0.3);
+    /* The popup's up/down pair, dark on the gel cap (the era's ↕). */
+    --aq-arrows:    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 12'%3E%3Cpath d='M4 0L8 4.5H0Z M4 12L0 7.5H8Z' fill='%23111111'/%3E%3C/svg%3E");
+    --aq-font:      "Lucida Grande", "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+    --accent:         var(--aq-select);
+    --accent-2:       var(--aq-gel-bottom);
+    --on-accent:      var(--aq-on-select);
+    --dust-ink:       var(--aq-ink);
+    --dust-accent:    var(--aq-focus);
+    --bg-page:        var(--aq-desktop);
+    --bg-container:   var(--aq-face);
+    --bg-controls:    var(--aq-face);
+    --bg-info:        var(--aq-face);
+    --bg-coord-panel: var(--aq-face);
+    --bg-coord-table: var(--aq-window);
+    --bg-coord-even:  var(--aq-stripe);
+    --bg-coord-hover: var(--aq-gel-hi);
+    --bg-coord-th:    var(--aq-face);
+    --bg-tooltip:     var(--aq-tip-bg);
+    --bg-tt-th:       var(--aq-face);
+    --bg-tt-td:       var(--aq-tip-bg);
+    --bg-sel-panel:   var(--aq-face);
+    --bg-drop-hint:   var(--aq-face);
+    --bg-keywords:    var(--aq-window);
+    --border-main:    var(--aq-edge);
+    --border-canvas:  var(--aq-edge);
+    --border-coord:   var(--aq-edge);
+    --border-tooltip: var(--aq-edge);
+    --border-sel:     var(--aq-edge);
+    --bg-sel-btn:     var(--aq-glass-top);
+    --bg-sel-btn-hov: var(--aq-gel-hi);
+    --text-sel-btn:   var(--aq-ink);
+    --border-hint:    var(--aq-edge);
+    --text-main:      var(--aq-ink);
+    --text-label:     var(--aq-ink);
+    --text-muted:     var(--aq-muted);
+    --section-title:  var(--aq-ink);
+    --ui-outline:     var(--aq-edge);
+    --text-info:      var(--aq-ink);
+    --text-coord-h3:  var(--aq-ink);
+    --text-sel-label: var(--aq-ink);
+    --text-shortcut:  var(--aq-muted);
+    --text-key:       var(--aq-link);
+    --text-empty:     var(--aq-muted);
+    --project-name-fg:     var(--aq-ink);
+    --project-name-shadow: none;
+    --text-tooltip:   var(--aq-tip-ink);
+    --text-tt-header: var(--aq-tip-ink);
+    --input-bg:       var(--aq-window);
+    --input-text:     var(--aq-ink);
+    --danger:         var(--aq-red);
+    --success:        var(--aq-green);
+    --warning:        var(--aq-yellow);
+    --disabled-bg:    var(--aq-face);
+    --disabled-text:  var(--aq-muted);
+    --sb-track:       var(--aq-stripe);
+    --sb-thumb:       var(--aq-gel-top);
+    --sb-thumb-hover:  var(--aq-gel-bottom);
+    --sb-thumb-active: var(--aq-gel-bottom);
+    --resizer-grip:   var(--aq-edge);
+}
+
+/* Graphite: the face the skin wears when the theme is switched inside it, or a word opens it on dark. */
+:root[data-skin="aqua"][data-theme="dark"] {
+    --aq-face:         #2d3036;
+    --aq-stripe:       #33363c;
+    --aq-window:       #1e2024;
+    --aq-edge:         #6e747e;
+    --aq-metal-top:    #555a63;
+    --aq-metal-bottom: #2a2d33;
+    --aq-glass-top:    #6c727c;
+    --aq-glass-bottom: #40454d;
+    --aq-gel-hi:       #9db9f6;
+    --aq-gel-top:      #467aee;
+    --aq-gel-bottom:   #1d4db7;
+    --aq-gel-edge:     #112d6a;
+    --aq-select:       #1e4fbc;
+    --aq-on-select:    #ffffff;
+    --aq-on-gel:       #ffffff;
+    --aq-ink:          #e8e8e8;
+    --aq-muted:        #9aa0a8;
+    --aq-desktop:      #142c5c;
+    --aq-canvas:       #16181b;
+    --aq-red:          #d8463a;
+    --aq-yellow:       #d9a227;
+    --aq-green:        #3f9e33;
+    --aq-tip-bg:       #3a3a24;
+    --aq-tip-ink:      #fffbd0;
+    --aq-link:         #87a9f4;
+    --aq-focus:        #719af2;
+    --aq-tile-ring:    inset 0 0 0 1px color-mix(in srgb, var(--aq-ink) 40%, transparent),
+                       inset 0 2px 0 -1px rgba(255, 255, 255, 0.25), 0 1px 2px rgba(0, 0, 0, 0.6);
+    --aq-tick:         #f4f4f4;   /* light, so the tick's overhang still reads on graphite */
+}

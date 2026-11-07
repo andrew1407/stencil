@@ -1,9 +1,13 @@
 #pragma once
-
-// Shared chat helper widgets, used by both chat surfaces (dock + context-menu panel).
+// The chat helper widgets both chat surfaces share (the dock and the context-menu panel): the bubble tail, the
+// card photograph, its pour and ghost entrances and their clocks. Browser twin: ui/motion/control/chatFx.js and
+// the chat row modules under ui/chat/.
+#include "../../support/tune/motionTable.hpp"
+#include "../../support/vsync/FramePulse.hpp"
 
 #include <QApplication>
 #include <QCursor>
+#include <QElapsedTimer>
 #include <QFrame>
 #include <QGraphicsEffect>
 #include <QGuiApplication>
@@ -45,19 +49,19 @@ namespace stencil::gui {
    public:
     explicit ChatBubbleTail(QWidget* parent);
     void setColors(const QColor& fill, const QColor& border);
-    void setSide(bool right);
-    bool isRight() const { return right; }
+    void setSide(bool isOnRight);
+    bool isRight() const { return isOnRight; }
 
    protected:
     void paintEvent(QPaintEvent* event) override;
 
    private:
     QColor fill, border;
-    bool right = true;
+    bool isOnRight = true;
   };
 
   // Parented to the card's OWN parent (outside its clip), linked both ways with the card.
-  void placeChatBubbleTail(QFrame* card, const QColor& fill, const QColor& border, bool right);
+  void placeChatBubbleTail(QFrame* card, const QColor& fill, const QColor& border, bool isOnRight);
   // Reposition only; called after applyChatBubbleWidths moves the cards.
   void repositionChatBubbleTails(QWidget* transcript);
 
@@ -79,6 +83,21 @@ namespace stencil::gui {
 
   // The dust layer is unclipped by the scroller, so a card past an edge would fly motes outside.
   bool chatCardFullyInViewport(QWidget* card, QScrollArea* scroll);
+
+  // A card's entrance without particles, ms (common/config/motion.json CHAT_SIDE_MS / CHAT_SLIDE_MS): slid in from
+  // its side, or grown from its tail corner.
+  inline int chatSideMs() { return support::motionTableMs("CHAT_SIDE_MS", 420); }
+  inline int chatGrowMs() { return support::motionTableMs("CHAT_SLIDE_MS", 320); }
+  // The card's bubble alone on clear pixels, with its entrance veil lifted for the photograph.
+  QPixmap chatCardShot(QWidget* card);
+  // Whether `card` sits against the right side of `seen` rather than the left: its tail's and its motes' side.
+  inline bool isOnRightSide(const QRect& seen, const QRect& card) { return (seen.right() - card.right()) <= (card.left() - seen.left()); }
+  // Where Sliding pours a card from and back into (GLOBAL): a strip on the edge of `seen` (the transcript's view)
+  // on the card's side, level with its tail (browser chatFx.js chatTailHome).
+  QRect chatTailHome(const QRect& seen, const QRect& at);
+  // Sliding's entrance: poured out of its tail home, clipped to the transcript; false when it cannot fly.
+  bool pourCardIn(QWidget* card, QScrollArea* scroll, std::function<void()> done);
+  void ghostCardIn(QWidget* card, bool isFromRight, bool shouldSlide, std::function<void()> done);
 
   // `settle` is the one exit every bail-out takes, so a card is never stranded invisible.
   void gatherChatCardIn(QWidget* card, QVBoxLayout* layout, QScrollArea* scroll,
@@ -127,7 +146,9 @@ namespace stencil::gui {
     static constexpr int DOT_GAP = 3;
     static constexpr int LIFT = 3;
     static constexpr int STEPS = 20;
-    QTimer timer;
+    static constexpr int DOT_STEP_MS = 60;   // one phase every 60 ms on the frame clock, the browser's typing cadence
+    support::FrameTicker ticker;
+    QElapsedTimer stepClock;
     int phase = 0;
   };
 
@@ -143,7 +164,7 @@ namespace stencil::gui {
     bool eventFilter(QObject* obj, QEvent* event) override;
 
    private:
-    bool shown() const { return more && more->isVisible(); }
+    bool isShown() const { return more && more->isVisible(); }
     void scheduleHide();
 
     QPointer<QFrame> card;

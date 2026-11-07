@@ -15,10 +15,28 @@
 .accent-dd-menu:not([hidden]) { animation: stMenuFromAnchor 0.26s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
 /* Declared after the entrance so it wins while .dd-closing is up. */
 .accent-dd-menu.dd-closing { animation: stMenuToAnchor 0.18s ease both; }
+/* Transition's tip (motion/tips.js): it grows out of nothing at its control to its full size and shrinks back
+   into nothing there (browser overlays.css tipGrowIn / tipShrinkOut). */
+@keyframes stTipGrowIn {
+  from { opacity: 0; transform: translateY(-4px) scale(0.05); }
+  20%  { opacity: 1; }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes stTipShrinkOut {
+  from { opacity: 1; transform: none; }
+  60%  { opacity: 0.85; }
+  to   { opacity: 0; transform: translateY(-4px) scale(0.05); }
+}
+.tip-grow-in { animation: stTipGrowIn 0.22s cubic-bezier(0.22, 0.61, 0.36, 1) both; transform-origin: center top; }
+.tip-shrink-out { animation: stTipShrinkOut 0.18s cubic-bezier(0.4, 0, 0.6, 1) both; transform-origin: center top; }
+/* A tip the dust once drove keeps .dust-driven, whose animation:none !important (below) cancelled the grow. */
+.dust-driven.tip-grow-in { animation: stTipGrowIn 0.22s cubic-bezier(0.22, 0.61, 0.36, 1) both !important; }
+.dust-driven.tip-shrink-out { animation: stTipShrinkOut 0.18s cubic-bezier(0.4, 0, 0.6, 1) both !important; }
 /* Transition's exit for a list hidden at once: its stand-in copy shrinks back (motion/leaveCopy.js). */
 .leave-copy.dd-leaving { animation: stMenuToAnchor 0.18s ease both !important; }
 @media (prefers-reduced-motion: reduce) {
   .accent-dd-menu:not([hidden]), .accent-dd-menu.dd-closing { animation: none; }
+  .tip-grow-in, .tip-shrink-out, .dust-driven:is(.tip-grow-in, .tip-shrink-out) { animation: none !important; }
 }
 
 /* ── Sliding's CSS fallback flight (lib/motion/surfaces.js genieIn / genieOut; GENIE_IN_MS / GENIE_OUT_MS) ── */

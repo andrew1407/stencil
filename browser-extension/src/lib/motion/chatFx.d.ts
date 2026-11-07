@@ -9,7 +9,14 @@ export declare function dustFitsScroller(el: HTMLElement, scroller?: Element | n
 
 export declare const CHAT_SLIDE_CLASS: string;
 export declare const CHAT_SLIDE_MS: number;
+export declare const CHAT_GROW_CLASS: string;
+export declare const CHAT_SIDE_CLASS: string;
+export declare const CHAT_SIDE_MS: number;
 /** Flies a chat entry in as dust (or the CSS slide entrance when particles are off). */
 export declare function chatIn(
   el: HTMLElement, count?: number, index?: number, opts?: { host?: Element | null },
 ): Promise<void>;
+/** A strip on the transcript's edge on the entry's own side, level with its tail; null when unmeasured. */
+export declare function chatTailHome(el: Element, r?: DOMRect, view?: DOMRect): { left: number; top: number; width: number; height: number } | null;
+/** Sliding's clear: the entry's picture pours back into its tail home; false outside Sliding. */
+export declare function chatPourAway(el: Element): boolean;

@@ -1,6 +1,10 @@
-import { dustEnabled, motionMs, motionReduced } from '../motionPrefs.js';
+// A chat entry's motion without or beside its cloud: materialize (the slot opening while the motes gather),
+// the cloud's tracking over a scrolling transcript, Sliding's pour out of the tail home and Transition's grow.
+// Desktop twin: llm/panel/chatWidgets.cpp and llm/dock/card/chatCardMotion.cpp.
+import { dustEnabled, motionMode, motionMs, motionReduced } from '../motionPrefs.js';
+import { genieIn, settleGenie, MENU_GENIE_MS } from '../genie/window.js';
 import { disintegrate } from '../disintegrate.js';
-import { FILTER_DUST_DRIFT, FILTER_DUST_MS, LEAVE_MS, flashLanding, wipeDurationMs } from '../enterLeave.js';
+import { FILTER_DUST_DRIFT, FILTER_DUST_MS, LEAVE_MS, flashLanding, rowClock, wipeDurationMs } from '../enterLeave.js';
 import { speckPainter } from '../surface/painters.js';
 import { dockAwayPoint } from '../surface/motion.js';
 import { surfaceDust } from '../surface/surfaces.js';
@@ -11,33 +15,36 @@ import { TUNE } from '../tune.js';
 export const MATERIALIZE_CLASS = 'materializing';
 export const MATERIALIZE_VEIL_CLASS = 'materialize-veil';
 const MATERIALIZE_LIFT_CLASS = 'materialize-lift';   // the veil on its way up
+// `inPlace`: the row takes over a slot a held leave kept open, so its box never opens (any mode).
+const MATERIALIZE_IN_PLACE_CLASS = 'materialize-in-place';
 export function materialize(el, { ms = LEAVE_MS, cols, rows, dustMs = FILTER_DUST_MS,
-                                  drift = FILTER_DUST_DRIFT, px = 0 } = {}) {
-  const reduced = motionReduced();
-  if (!el?.classList || reduced || typeof setTimeout === 'undefined') return Promise.resolve();
+                                  drift = FILTER_DUST_DRIFT, px = 0, inPlace = false } = {}) {
+  const isReduced = motionReduced();
+  if (!el?.classList || isReduced || typeof setTimeout === 'undefined') return Promise.resolve();
   if (el.getBoundingClientRect) {
     const r = el.getBoundingClientRect();
     if (r.height) el.style.setProperty('--enter-h', `${r.height}px`);
   }
-// filterDust's recipe; cols === 0 is the budget's "fade only".
-  const dusted = cols !== 0 && disintegrate(el, {
+  // filterDust's recipe; cols === 0 is the budget's "fade only".
+  const isDusted = cols !== 0 && disintegrate(el, {
     ...(cols ? { cols } : {}), ...(rows ? { rows } : {}), ...(px ? { px } : {}),
     gather: true, ms: dustMs, drift, toBody: true, hostClass: 'dust-forming',
     paintTile: speckPainter(el),
   });
   el.classList.add(MATERIALIZE_CLASS);
-  if (dusted) {
-// The veil lifts as the motes land: held until the first are home, full by the last.
+  if (inPlace) el.classList.add(MATERIALIZE_IN_PLACE_CLASS);
+  if (isDusted) {
+    // The veil lifts as the motes land: held until the first are home, full by the last.
     el.classList.add(MATERIALIZE_VEIL_CLASS);
     const lift = Math.round(dustMs * TILE_GATHER_SHARE);
     el.style?.setProperty?.('--veil-fade', `${Math.max(1, dustMs - lift)}ms`);
     setTimeout(() => el.classList.add(MATERIALIZE_LIFT_CLASS), motionMs(lift));
   }
   return new Promise((resolve) => setTimeout(() => {
-    el.classList.remove(MATERIALIZE_CLASS, MATERIALIZE_VEIL_CLASS, MATERIALIZE_LIFT_CLASS);
+    el.classList.remove(MATERIALIZE_CLASS, MATERIALIZE_VEIL_CLASS, MATERIALIZE_LIFT_CLASS, MATERIALIZE_IN_PLACE_CLASS);
     el.style?.removeProperty?.('--veil-fade');
     resolve();
-  }, motionMs(dusted ? wipeDurationMs(dustMs) : ms)));
+  }, motionMs(isDusted ? wipeDurationMs(dustMs) : rowClock(ms))));
 }
 
 // A fixed fraction of the row's flight, so shortening DISINTEGRATE_MS shortens this with it.
@@ -87,67 +94,96 @@ const clipDustToScroller = (el, scroller = el?.parentElement, r = null, s = null
 const trackDust = (el, ms, onDrop = () => {}) => {
   if (typeof requestAnimationFrame !== 'function') return () => {};
   let raf = 0;
-  let live = true;
+  let isLive = true;
   const started = Date.now();
   const span = motionMs(ms);
   const shot = el.getBoundingClientRect?.();   // the box the cloud was photographed at
   const step = () => {
-    if (!live) return;
+    if (!isLive) return;
     if (Date.now() - started >= span) return;
-// Both rects read once per tick; interleaved reads and writes forced a layout per frame.
+    // Both rects read once per tick; interleaved reads and writes forced a layout per frame.
     const r = el.getBoundingClientRect?.();
     const s = el.parentElement?.getBoundingClientRect?.();
-    const resized = !r || !shot
+    const wasResized = !r || !shot
       || Math.abs(r.width - shot.width) > 1 || Math.abs(r.height - shot.height) > 1;
-// The drop must hand the entry over in the same frame, or the veiled message stays
-// invisible until the end-of-flight timer.
-    if (!dustFitsScroller(el, el.parentElement, r, s) || resized) {
-      cancelDust(el); live = false; onDrop(); return;
+    // The drop must hand the entry over in the same frame, or the veiled message stays
+    // invisible until the end-of-flight timer.
+    if (!dustFitsScroller(el, el.parentElement, r, s) || wasResized) {
+      cancelDust(el); isLive = false; onDrop(); return;
     }
     retargetDust(el, r);
     clipDustToScroller(el, el.parentElement, r, s);
     raf = requestAnimationFrame(step);
   };
   raf = requestAnimationFrame(step);
-  return () => { live = false; if (raf) cancelAnimationFrame(raf); };
+  return () => { isLive = false; if (raf) cancelAnimationFrame(raf); };
 };
 
 export const CHAT_SLIDE_CLASS = 'chat-slide-in';
 export const CHAT_SLIDE_MS = TUNE.CHAT_SLIDE_MS;
+// Transition's entrance: the bubble grows out of its tail corner (animations/motionModes.css chatGrowIn);
+// Sliding's is the pour below, its side slide (chatSideIn) the fallback where no picture can be taken.
+export const CHAT_GROW_CLASS = 'chat-grow-in';
+export const CHAT_SIDE_CLASS = 'chat-side-in';
+export const CHAT_SIDE_MS = TUNE.CHAT_SIDE_MS;   // the side slide's clock, the desktop's chatSideMs()
+// Where Sliding pours an entry from and back into: a strip on the transcript's edge on the entry's own side
+// (the particles' chatArrivalPoint side), level with its tail at the bubble's foot.
+export const chatTailHome = (el, r = el?.getBoundingClientRect?.(), view = el?.parentElement?.getBoundingClientRect?.()) => {
+  if (!r || !view || !(r.width > 0)) return null;
+  const isRight = (view.right - r.right) <= (r.left - view.left);
+  return { left: isRight ? view.right - 3 : view.left + 1, top: Math.max(view.top, r.bottom - 18), width: 2, height: 16 };
+};
+// Sliding pours the entry out of its tail home, clipped to the transcript and measured after the bottom pin;
+// the pour's hold is dropped as it lands, so the row's own leave can play.
+const pourIn = (el) => {
+  el.classList.add(CHAT_ENTERING_CLASS);
+  afterLayout(() => {
+    el.classList.remove(CHAT_ENTERING_CLASS);
+    const view = el.parentElement?.getBoundingClientRect?.();
+    const from = chatTailHome(el, el.getBoundingClientRect?.(), view);
+    if (!from || !genieIn(el, from, { ms: MENU_GENIE_MS, clip: view, landed: () => settleGenie(el) }))
+      flashLanding(el, CHAT_SIDE_CLASS, CHAT_SIDE_MS);
+  });
+};
+// The entry without a cloud, by mode: Sliding pours the row in, Transition grows it, any other slides it.
+const ENTER_WITHOUT_DUST = Object.freeze({
+  slide: (el) => pourIn(el),
+  transition: (el) => flashLanding(el, CHAT_GROW_CLASS, CHAT_SLIDE_MS),
+});
+const enterWithoutDust = (el) => (ENTER_WITHOUT_DUST[motionMode()] ?? ((row) => flashLanding(row, CHAT_SLIDE_CLASS, CHAT_SLIDE_MS)))(el);
 // The chat panel's own dust flight out of and back into its toolbar icon (ms); a close keeps
 // the panel up for the whole flight out.
 export const CHAT_SURFACE_IN_MS = TUNE.CHAT_SURFACE_IN_MS;
 export const CHAT_SURFACE_OUT_MS = TUNE.CHAT_SURFACE_OUT_MS;
 export function chatIn(el, count = 1, index = 0) {
   if (!el?.classList || motionReduced() || typeof setTimeout === 'undefined') return Promise.resolve();
-// No particles: the cloud WAS the entrance, so the entry rises in instead (.chat-slide-in).
-  if (!dustEnabled()) { flashLanding(el, CHAT_SLIDE_CLASS, CHAT_SLIDE_MS); return Promise.resolve(); }
+  if (!dustEnabled()) { enterWithoutDust(el); return Promise.resolve(); }
   const { cols } = scatterGridFor(count, index);   // the burst's budget; the grid is surfaceDust's
-// Veiled from the first frame, so the entry is never seen ahead of its own motes.
+  // Veiled from the first frame, so the entry is never seen ahead of its own motes.
   el.classList.add(CHAT_ENTERING_CLASS);
   const unveil = () => el.classList.remove(CHAT_ENTERING_CLASS);
   return new Promise((resolve) => {
-// Fonts first: a webfont landing after the photograph re-wraps the entry and the cloud
-// is the wrong size. Loaded fonts resolve in the same tick.
+    // Fonts first: a webfont landing after the photograph re-wraps the entry and the cloud
+    // is the wrong size. Loaded fonts resolve in the same tick.
     const ready = globalThis.document?.fonts?.ready;
     const go = () => afterLayout(() => {
-// cols === 0 is the budget's "fade only"; the cloud is the toast's — specks, not clones.
-      const flying = cols !== 0 && dustFitsScroller(el)
+      // cols === 0 is the budget's "fade only"; the cloud is the toast's — specks, not clones.
+      const isFlying = cols !== 0 && dustFitsScroller(el)
         && surfaceDust(el, chatArrivalPoint(el), { ms: CHAT_ENTER_MS, gather: true });
-      if (!flying) { unveil(); resolve(); return; }
+      if (!isFlying) { unveil(); resolve(); return; }
       clipDustToScroller(el);   // before the first frame paints, not after it
-      let handedOver = false;
+      let wasHandedOver = false;
       const handOver = () => {
-        if (handedOver) return;   // the cut happens once, whichever path gets there first
-        handedOver = true;
+        if (wasHandedOver) return;   // the cut happens once, whichever path gets there first
+        wasHandedOver = true;
         unveil();
         cancelDust(el);
         resolve();
       };
       const stop = trackDust(el, CHAT_ENTER_MS, handOver);
       setTimeout(() => {
-// The entry takes the motes' place in the same frame the cloud goes; left to its grace
-// period the layer is an exact second copy over the real entry.
+        // The entry takes the motes' place in the same frame the cloud goes; left to its grace
+        // period the layer is an exact second copy over the real entry.
         stop();
         handOver();
       }, motionMs(CHAT_ENTER_MS));

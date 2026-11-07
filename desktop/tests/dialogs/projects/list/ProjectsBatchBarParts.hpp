@@ -82,5 +82,6 @@ int batchDirectionMatrix();
 int pinnedRows(const std::vector<Project>& locals);
 int batchBarVisibility(const std::vector<Project>& locals, ConnectionManager& mgr);
 int batchRemoveAndCheckboxPress(const std::vector<Project>& locals);
+int removedTopRowKeepsItsSlot(const std::vector<Project>& locals);
 int filterTransitions(const std::vector<Project>& locals);
 int wheelScroll();

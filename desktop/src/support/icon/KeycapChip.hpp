@@ -3,7 +3,7 @@
 // KeycapChip shakes on hover (browser .hotkey-cell:hover .tip-key); ComboCell captures
 // a keypress on click, Esc cancels. Q_OBJECT-free (callbacks, not signals), no MOC.
 #include "AppTooltip.hpp"   // TipBody — the cap-hunting, shakeable label
-#include "../skinPrefs.hpp"
+#include "../skin/SkinLookStrategy.hpp"
 #include "modalReveal.hpp"  // support::motionReduced()
 
 #include <QEvent>
@@ -38,7 +38,7 @@ namespace stencil::gui {
    protected:
     void enterEvent(QEnterEvent* e) override {
       TipBody::enterEvent(e);
-      if (support::motionReduced() || support::isWebcore() || capCount() == 0) return;
+      if (support::motionReduced() || !support::skinTraits().hasKeycapShake || capCount() == 0) return;
       shake->stop();
       settle();
       shake->setDuration(support::motionMs(AppTooltip::SHAKE_MS));

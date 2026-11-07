@@ -72,6 +72,7 @@ namespace stencil::gui {
     dlg.setTemporary(unsavedSession(), host.incognito);
     wireProjectsDrag(dlg, unsavedSession);   // the zones, and Close for the open project
     wireProjectsRequests(dlg, unsavedSession);
+    wireProjectsBlank(dlg, unsavedSession);
     if (w.execMaybePopover(dlg) != QDialog::Accepted) return;
 
     typedef ProjectsDialog::Action Action;
@@ -152,8 +153,6 @@ namespace stencil::gui {
         return;
       }
       createProject(dlg.getNewName());
-    } else if (dlg.getAction() == Action::NEW_BLANK) {
-      w.newBlankImage();
     }
   }
 }  // namespace stencil::gui

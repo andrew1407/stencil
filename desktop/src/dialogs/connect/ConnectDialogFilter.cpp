@@ -109,6 +109,10 @@ namespace stencil::gui {
 
   // The projects list's card look (theme.cpp QListWidget::item) plus admin gold and expired amber
   // (browser .connect-expired). Set once; it cascades.
+  void ConnectDialog::restyleRows() {
+    if (list) list->setStyleSheet(rowStyleSheet());
+  }
+
   QString ConnectDialog::rowStyleSheet() const {
     const QColor accent = palette().color(QPalette::Highlight);
     const bool dark = palette().color(QPalette::Window).lightness() < 128;

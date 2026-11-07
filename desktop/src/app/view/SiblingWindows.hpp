@@ -1,4 +1,5 @@
 #pragma once
+#include <QList>
 #include <vector>
 
 class QString;
@@ -15,6 +16,7 @@ namespace stencil::gui {
     static void noteOpened(MainWindow* w);
     static void noteClosed(MainWindow* w);
     static int openCount();
+    static QList<MainWindow*> windows();
     // Closes every window, held ones included (QApplication::closeAllWindows stops at the first
     // refusal); with the quit rule on, the last accepted close ends the app.
     static void closeAll();

@@ -23,7 +23,20 @@ namespace stencil::support {
       if (k == "pink") return StageEffect::PINK;
       if (k == "fly") return StageEffect::FLY;
       if (k == "webcore") return StageEffect::WEBCORE;
+      if (k == "aqua") return StageEffect::AQUA;
       return StageEffect::NEON;
+    }
+
+    // One `shows` row: the effect, the accents that open it on a hold, and the motion, hex and theme it also needs.
+    StageShow readShow(const QString& name, const QJsonObject& o) {
+      StageShow s;
+      s.name = name;
+      s.effect = effectFromKey(o.value("effect").toString());
+      for (const QJsonValue& a : o.value("accents").toArray()) s.accents << a.toString();
+      s.motion = o.value("motion").toString();
+      s.customHex = o.value("customHex").toString();
+      s.theme = o.value("theme").toString();
+      return s;
     }
 
     void readPair(const QJsonObject& o, const char* key, double (&out)[2]) {
@@ -43,16 +56,7 @@ namespace stencil::support {
       c.toastInk = root.value("toastInk").toString();
       c.toastGlow = root.value("toastGlow").toString();
       const QJsonObject shows = root.value("shows").toObject();
-      for (auto it = shows.begin(); it != shows.end(); ++it) {
-        const QJsonObject o = it.value().toObject();
-        StageShow s;
-        s.name = it.key();
-        s.effect = effectFromKey(o.value("effect").toString());
-        for (const QJsonValue& a : o.value("accents").toArray()) s.accents << a.toString();
-        s.motion = o.value("motion").toString();
-        s.customHex = o.value("customHex").toString();
-        c.shows.push_back(s);
-      }
+      for (auto it = shows.begin(); it != shows.end(); ++it) c.shows.push_back(readShow(it.key(), it.value().toObject()));
       const QJsonObject st = root.value("stage").toObject();
       c.logoShare = st.value("logoShare").toDouble(c.logoShare);
       c.bounceBigShare = st.value("bounceBigShare").toDouble(c.bounceBigShare);

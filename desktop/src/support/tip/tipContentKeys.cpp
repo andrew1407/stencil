@@ -6,6 +6,7 @@
 #include "../LruCache.hpp"
 #include <QBuffer>
 #include <QFontMetricsF>
+#include <QLinearGradient>
 #include <QGuiApplication>
 #include <QHash>
 #include <QImage>
@@ -76,6 +77,19 @@ namespace stencil::gui {
       }
     }
 
+    // The aqua skin's glass capsule (browser css/aqua/tokens.css --aq-glass and --aq-glass-ring): the
+    // skin's glass stops, one edge pixel and a 1px drop.
+    void paintGlass(QPainter& p, const QRectF& r, const support::SkinGlass& g) {
+      p.setPen(Qt::NoPen);
+      p.setBrush(QColor(0, 0, 0, 56));
+      p.drawRoundedRect(r.translated(0, 1), 4, 4);
+      QLinearGradient face(r.topLeft(), r.bottomLeft());
+      face.setStops(g.glassStops);
+      p.setBrush(face);
+      p.setPen(QPen(g.edge, 1));
+      p.drawRoundedRect(r.adjusted(0.5, 0.5, -0.5, -1.5), 4, 4);
+    }
+
     // PAINTED as an <img> data URI: Qt rich text gives a span only a background.
     // `joiner` = the "+" between caps: no face, muted, same picture so it centres.
     QString capHtml(const QString& label, const Palette& pal, bool joiner = false,
@@ -110,9 +124,13 @@ namespace stencil::gui {
         p.setRenderHint(QPainter::TextAntialiasing);
         p.scale(dpr, dpr);
         const QRectF r(gapX, 0, w, h);
+        const support::SkinGlass& glass = support::skinGlass();
+        const bool glassy = support::isAqua() && glass.top.isValid() && glass.edge.isValid();
         if (!joiner && support::isWebcore()) {
           p.setRenderHint(QPainter::Antialiasing, false);
           paintBevel(p, r, pal);
+        } else if (!joiner && glassy) {
+          paintGlass(p, r, glass);
         } else if (!joiner) {
           p.setPen(Qt::NoPen);
           p.setBrush(pal.borderMain);
@@ -128,7 +146,9 @@ namespace stencil::gui {
         }
         p.setFont(f);
         // The skin's cap carries the page ink; its own key colour is the link blue.
-        p.setPen(joiner ? pal.textMuted : (support::isWebcore() ? pal.textMain : pal.textKey));
+        QColor capInk = support::isWebcore() ? pal.textMain : pal.textKey;
+        if (glassy) capInk = orElse(glass.ink, pal.textMain);
+        p.setPen(joiner ? pal.textMuted : capInk);
         p.drawText(r.adjusted(0, 0, 0, joiner ? 0 : -1), Qt::AlignCenter, label);
       }
       QByteArray png;

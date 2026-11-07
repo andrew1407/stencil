@@ -2,6 +2,7 @@
 #include <QListWidgetItem>
 
 #include "ProjectRowDelegate.hpp"
+#include "projectsRowChrome.hpp"
 #include "menuIconColumn.hpp"
 #include "iconSet.hpp"
 #include "DescriptionDialog.hpp"
@@ -17,6 +18,8 @@
 #include "../../../support/motionPrefs.hpp"
 
 #include <QAction>
+#include <QListWidget>
+#include <QGuiApplication>
 #include <QMenu>
 #include <QPalette>
 
@@ -25,6 +28,18 @@
 // The per-row ⋯ menu, run in place or handed over open to a held drag (list/ProjectDragMenu).
 
 namespace stencil::gui {
+
+  namespace {
+    void revealRowMenu(QMenu& menu, QListWidget& list, QListWidgetItem* it, const QPoint& globalPos, const QPoint* heldFrom) {
+      support::revealMenu(menu, heldFrom ? *heldFrom : globalPos, support::CONTEXT_MENU_DUST_MS);   // the canvas menu's 1.5x clock
+      if (heldFrom) return;
+      const QRect zone = kebabZone(list.visualItemRect(it));
+      const QRect kebab(list.viewport()->mapToGlobal(zone.topLeft()), zone.size());
+      // Only a menu the ⋯ opened is shut by it; one a right-click opened lets the ⋯ open its own.
+      if (kebab.contains(globalPos) && (QGuiApplication::mouseButtons() & Qt::LeftButton))
+        support::closeOnTriggerPress(menu, [kebab] { return kebab; });
+    }
+  }  // namespace
 
   QMenu* ProjectsDialog::showRowMenu(QListWidgetItem* it, const QPoint& globalPos, const QPoint* heldFrom) {
     if (!it || it->data(Qt::UserRole).isNull()) return nullptr;
@@ -185,7 +200,7 @@ namespace stencil::gui {
     // After compactIconMenu — it replaces the menu's stylesheet, and this appends to it.
     support::markDangerRow(menu, removeAct, dangerColor);
     support::markAccentRows(menu, onAccentInk(palette().color(QPalette::Highlight)), removeAct);
-    support::revealMenu(menu, heldFrom ? *heldFrom : globalPos, support::CONTEXT_MENU_DUST_MS);   // the canvas menu's 1.5x clock
+    revealRowMenu(menu, *list, it, globalPos, heldFrom);
     if (heldFrom) {
       // A drag holds the pointer, so no nested loop: open it, and carry the chip to the item run.
       menu.setProperty(HELD_MENU_KEBAB_PROP, kebabGlobal);

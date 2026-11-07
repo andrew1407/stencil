@@ -1,0 +1,15 @@
+      /* ── Scrollbars: the blue gel lozenge in a soft track ── */
+      QScrollBar:vertical { background: %AQ_WINDOW%; width: 15px; margin: 0; border-left: 1px solid %AQ_EDGE%; }
+      QScrollBar:horizontal { background: %AQ_WINDOW%; height: 15px; margin: 0; border-top: 1px solid %AQ_EDGE%; }
+      QScrollBar::handle:vertical {
+        min-height: 24px; margin: 2px; border: 1px solid %AQ_GEL_EDGE%; border-radius: 5px;
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 %AQ_GEL_BOTTOM%, stop:0.45 %AQ_GEL_TOP%,
+                    stop:0.6 %AQ_GEL_HI%, stop:1 %AQ_GEL_TOP%);
+      }
+      QScrollBar::handle:horizontal {
+        min-width: 24px; margin: 2px; border: 1px solid %AQ_GEL_EDGE%; border-radius: 5px;
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 %AQ_GEL_HI%, stop:0.45 %AQ_GEL_TOP%,
+                    stop:0.55 %AQ_GEL_BOTTOM%, stop:1 %AQ_GEL_TOP%);
+      }
+      QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; border: 0; }
+      QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }

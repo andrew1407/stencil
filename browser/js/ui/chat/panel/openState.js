@@ -4,6 +4,7 @@ import { PHONE_MEDIA } from '../../../utils.js';
 import { wireModalOpenGestures } from '../../tip/popover.js';
 import { subscribe, EVENTS } from '../../../eventBus/appBus.js';
 import { modalShells } from '../../modal/registry.js';
+import { edgeAbove, toolbarAway } from '../../modal/imageAnchor.js';
 import { motionMs, motionReduced } from '../../motion/motionPrefs.js';
 import { sweepDust } from '../../motion/surface/tiles.js';
 import { dockAwayPoint } from '../../motion/surface/motion.js';
@@ -90,11 +91,11 @@ export function wireOpenState(deps) {
     const f = chatDock.rect();
     applyGenieVars(host, { left: f.x, top: f.y, width: f.w, height: f.h }, onScreen ? a : null);
   };
-// The panel forms from motes out of where it comes from: a float out of the toolbar
-// icon, a docked panel from far past its edge. Measured live.
+// The panel forms from motes out of where it comes from (a float: its icon, or past a toolbar that is away; docked: past its edge).
+  const entranceAnchor = () => { const b = anchorBtn(); return toolbarAway(b) ? edgeAbove(b) : entranceFrom ?? b; };
   const dustPoint = () => {
     if (host.classList.contains('chat-dock-float')) {
-      const p = rectCenter(entranceFrom ?? anchorBtn());
+      const p = rectCenter(entranceAnchor());
       if (p) return p;
     }
     const r = host.getBoundingClientRect();
@@ -104,7 +105,7 @@ export function wireOpenState(deps) {
     if (motionReduced()) { settleSurface(host); return false; }
     return (enter ? surfaceIn : surfaceOut)(host, dustPoint(), { ms: enter ? CHAT_SURFACE_IN_MS : CLOSE_MS });
   };
-  const genieHome = () => homeRect(entranceFrom ?? anchorBtn()?.getBoundingClientRect?.(), dustPoint());
+  const genieHome = () => { const at = entranceAnchor(); return homeRect(at?.getBoundingClientRect?.() ?? at, dustPoint()); };
   let closeTimer = null;
 // A sequel to run once the close animation finishes (float → compact); any later setOpen supersedes it.
   let afterClose = null;

@@ -33,6 +33,11 @@ export interface StencilMotion {
 
 export interface StencilSkin {
   storageKey: string;
+  /** True while the webcore skin is on. */
   get(): boolean;
   set(on: boolean): boolean;
+  /** The skin stamped now: 'webcore', 'aqua' or ''. */
+  name(): string;
+  /** The aqua skin's switch; turning one skin on turns the other off. */
+  aqua: { get(): boolean; set(on: boolean): boolean };
 }

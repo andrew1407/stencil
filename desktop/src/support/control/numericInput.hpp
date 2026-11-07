@@ -34,4 +34,8 @@ namespace stencil::gui {
     double valueFromText(const QString& text) const override;
   };
 
+  /// Every spin box's value stands in from its well by the skin's padding (browser input: aqua 12px,
+  /// webcore 6px): QSS padding never reaches a spin box's own line edit. Idempotent, app-wide.
+  void installSpinTextInsets();
+
 }  // namespace stencil::gui

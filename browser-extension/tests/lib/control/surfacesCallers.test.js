@@ -14,8 +14,10 @@ test('every icon-anchored surface dusts from — and back into — its own contr
     // …and when the dust declines, Sliding pours each out of the same place and Transition shrinks it back.
     ['../../../src/lib/control/actionMenu.js', 'if (!surfaceIn(menuEl, openOrigin)) menuIn(menuEl, pointBox(openOrigin));',
                                   'if (!menuEl.hidden && !menuAway(menuEl, pointBox(openOrigin))) surfaceOut(menuEl, openOrigin);'],
-    ['../../../src/lib/control/actionMenu.js', 'if (!surfaceIn(fly, centerOf(head))) menuIn(fly, head);',
-                                  'if (!menuAway(fly, head)) surfaceOut(fly, centerOf(head));'],
+    // A flyout aims at its row's ▸ caret, the row's centre only when the caret is missing.
+    ['../../../src/lib/control/actionMenu.js', 'if (!surfaceIn(fly, arrowPoint(head))) menuIn(fly, pointBox(arrowPoint(head)));',
+                                  'if (!menuAway(fly, pointBox(arrowPoint(head)))) surfaceOut(fly, arrowPoint(head));'],
+    ['../../../src/lib/control/actionMenu.js', "const arrowPoint = (head) => centerOf(head.querySelector('.caret')) || centerOf(head);", 'arrowPoint'],
     // customSelect hands both halves to showMenu/hideMenu, which aim at the trigger too.
     // The way back aims at the trigger's box the list was placed against: a pick may re-lay it first.
     ['../../../src/lib/control/dropdownMenu.js', 'surfaceIn(menu, menuDustPoint(trigger), { ms: MENU_IN_MS, anchor: trigger',

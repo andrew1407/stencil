@@ -4,6 +4,9 @@
 # The crop integration (CanvasWidget + cropGeometry); kept out of the Qt-free stencil_tests.
 stencil_headless_test(stencil_crop_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/SurfaceCover.cpp
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/dialogs/crop/cropCanvas.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
     ${STENCIL_THEME_SOURCES} resources/app.qrc
@@ -18,6 +21,8 @@ stencil_headless_test(stencil_popover_headless
 # browser's motion.test.js holds its half.
 stencil_headless_test(stencil_themeswapease_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp
     ${STENCIL_THEMESWAP_SOURCES}
     tests/support/theme/themeSwapEase.headless.cpp tests/support/theme/themeSwapEaseDust.headless.cpp
   LIBS Qt6::Widgets)
@@ -49,6 +54,9 @@ stencil_headless_test(stencil_imageturn_headless
 # A partial canvas repaint (exposed-rect culling, premultiplied blits) against a full one.
 stencil_headless_test(stencil_partialpaint_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/SurfaceCover.cpp
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/canvas/paint/partialPaint.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
     ${STENCIL_THEME_SOURCES} resources/app.qrc
@@ -57,6 +65,9 @@ stencil_headless_test(stencil_partialpaint_headless
 # The logo drag's clean view (CanvasScene::setCleanPreview): the live paint alone, never a render.
 stencil_headless_test(stencil_cleanpreview_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/SurfaceCover.cpp
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/canvas/paint/cleanPreview.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
     ${STENCIL_THEME_SOURCES} resources/app.qrc
@@ -65,6 +76,9 @@ stencil_headless_test(stencil_cleanpreview_headless
 # A large picture's filter rebuilt on the pool (canvas/paint/CanvasFilter.cpp); a small one inline.
 stencil_headless_test(stencil_asyncfilter_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/SurfaceCover.cpp
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/canvas/paint/asyncFilter.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
     ${STENCIL_THEME_SOURCES} resources/app.qrc
@@ -73,6 +87,9 @@ stencil_headless_test(stencil_asyncfilter_headless
 # The dash table in px at every line width (canvas/draw/strokeDash.hpp over constants.json).
 stencil_headless_test(stencil_strokedash_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/SurfaceCover.cpp
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/canvas/draw/strokeDash.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
     ${STENCIL_THEME_SOURCES} resources/app.qrc
@@ -81,6 +98,9 @@ stencil_headless_test(stencil_strokedash_headless
 # The hit radii, hold-to-draw and wheel-commit tunings (canvas/input/pointerTuning.hpp over constants.json).
 stencil_headless_test(stencil_pointertuning_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/SurfaceCover.cpp
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/canvas/input/pointerTuning.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
     ${STENCIL_THEME_SOURCES} resources/app.qrc
@@ -89,6 +109,9 @@ stencil_headless_test(stencil_pointertuning_headless
 # Every pointer gesture's move and release, through the canvas/input/gestureRoutes table.
 stencil_headless_test(stencil_gestureroutes_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/SurfaceCover.cpp
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/canvas/input/gestureRoutes.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
     ${STENCIL_THEME_SOURCES} resources/app.qrc
@@ -98,6 +121,9 @@ stencil_headless_test(stencil_gestureroutes_headless
 # over constants.json).
 stencil_headless_test(stencil_markmetrics_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/SurfaceCover.cpp
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/canvas/scene/markMetrics.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
     ${STENCIL_THEME_SOURCES} resources/app.qrc
@@ -106,6 +132,9 @@ stencil_headless_test(stencil_markmetrics_headless
 # A scene's render copy on a pool thread, the co-edit result's render (CanvasScene::renderCopy).
 stencil_headless_test(stencil_scenerendercopy_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/SurfaceCover.cpp
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/canvas/scene/sceneRenderCopy.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
     ${STENCIL_THEME_SOURCES} resources/app.qrc
@@ -114,6 +143,8 @@ stencil_headless_test(stencil_scenerendercopy_headless
 # The theme wipe's clocks and geometry (support/dust/ThemeSwapOverlay over motion.json's SWAP_* keys).
 stencil_headless_test(stencil_themeswapclocks_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp
     ${STENCIL_THEMESWAP_SOURCES}
     tests/support/theme/themeSwapClocks.headless.cpp resources/app.qrc
   LIBS Qt6::Widgets)
@@ -131,11 +162,15 @@ stencil_headless_test(stencil_quarterturn_headless
 # The chat dock's slide clocks (app/chrome/chatSlideClocks.hpp over motion.json's CHAT_SURFACE_* keys).
 stencil_headless_test(stencil_chatslideclocks_headless
   SOURCES tests/app/chrome/chatSlideClocks.headless.cpp resources/app.qrc
+    src/support/tune/motionTable.cpp
   LIBS Qt6::Core)
 
 # Closing a shape and backing out of one (core lineChain), plus the Alt+Ctrl pull-out gesture.
 stencil_headless_test(stencil_chainedit_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/SurfaceCover.cpp
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/canvas/draw/chainEdit.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
     ${STENCIL_THEME_SOURCES} resources/app.qrc
@@ -144,6 +179,9 @@ stencil_headless_test(stencil_chainedit_headless
 # Breaking the drawing chain: ⌘/Ctrl+click and a double-click open an unconnected stroke.
 stencil_headless_test(stencil_chainbreak_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/SurfaceCover.cpp
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/canvas/draw/chainBreak.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
     ${STENCIL_THEME_SOURCES} resources/app.qrc
@@ -153,6 +191,9 @@ stencil_headless_test(stencil_chainbreak_headless
 # and a committed filter pick is one step.
 stencil_headless_test(stencil_canvashistory_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/SurfaceCover.cpp
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/canvas/canvasHistory.headless.cpp tests/canvas/canvasHistoryFilter.headless.cpp
     ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
@@ -172,6 +213,9 @@ stencil_headless_test(stencil_markhits_headless
 # Hidden points and lines out of reach of every pointer path, on a live offscreen canvas.
 stencil_headless_test(stencil_hiddenmarks_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/SurfaceCover.cpp
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/canvas/input/hiddenMarks.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
     ${STENCIL_THEME_SOURCES} resources/app.qrc
@@ -180,6 +224,9 @@ stencil_headless_test(stencil_hiddenmarks_headless
 # Stroke growth (canvas/draw/strokeGrowth.hpp): where a just-added vertex is at a given instant.
 stencil_headless_test(stencil_strokegrowth_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/SurfaceCover.cpp
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/canvas/draw/strokeGrowth.headless.cpp tests/canvas/draw/strokeGrowthCanvas.headless.cpp
     ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp

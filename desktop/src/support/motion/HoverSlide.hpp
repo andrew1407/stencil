@@ -3,6 +3,7 @@
 // Qt style sheets animate nothing, so the row's own geometry moves; a re-layout
 // underneath is taken as its new resting place, not fought. Q_OBJECT-free, no MOC.
 #include "motionPrefs.hpp"   // support::motionReduced()
+#include "../skin/SkinLookStrategy.hpp"
 
 #include <QEasingCurve>
 #include <QEvent>
@@ -29,7 +30,7 @@ namespace stencil::gui {
     bool eventFilter(QObject* o, QEvent* e) override {
       if (o == target) {
         switch (e->type()) {
-          case QEvent::Enter: slideTo(1.0); break;
+          case QEvent::Enter: slideTo(support::skinTraits().hasRowHoverStep ? 1.0 : 0.0); break;
           case QEvent::Leave: slideTo(0.0); break;
           // A layout move (theme re-polish, resize) is the new resting x, not a slide of ours.
           case QEvent::Move: if (!moving) reanchor(); break;

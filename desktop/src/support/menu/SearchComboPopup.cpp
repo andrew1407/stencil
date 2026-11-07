@@ -3,6 +3,7 @@
 #include "menuReveal.hpp"       // support::revealPopup / dismissPopup — the shared surface dust
 #include "RowHoverSlide.hpp"    // the hovered row eases 2px right (browser .accent-dd-opt:hover)
 #include "ShimmerOverlay.hpp"
+#include "../aqua/AquaCheckDelegate.hpp"
 
 #include "uiTimings.hpp"
 #include <QApplication>
@@ -47,9 +48,19 @@ namespace stencil::gui {
   // Each open starts like the browser's: empty query, current item highlighted, focus in the search.
   void SearchComboBox::setListDelegate(QAbstractItemDelegate* delegate) {
     this->delegate = delegate;
-    if (!list) return;
-    list->setItemDelegate(delegate);
-    installRowHoverSlide(list);   // …re-wrapped around the new painter, never stacked
+    if (list) installListDelegate();
+  }
+
+  // The aqua ✓ wraps the row painter and the slide wraps both, re-wrapped on each call, never stacked.
+  void SearchComboBox::installListDelegate() {
+    const bool checked = !property(support::SWATCH_ROWS_PROPERTY).toBool();
+    list->setProperty(support::AQUA_CHECK_PROPERTY, checked);
+    QObject* old = list->findChild<QObject*>(QString::fromLatin1(support::AQUA_CHECK_DELEGATE_NAME),
+                                             Qt::FindDirectChildrenOnly);
+    if (checked) list->setItemDelegate(new support::AquaCheckDelegate(this, delegate, list));
+    else if (delegate) list->setItemDelegate(delegate);
+    installRowHoverSlide(list);
+    if (old) { old->setObjectName(QString()); old->deleteLater(); }
   }
 
   QListView* SearchComboBox::popupList() {

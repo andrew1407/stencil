@@ -4,7 +4,8 @@
 :root[data-skin="webcore"] #app-tooltip,
 :root[data-skin="webcore"] .tooltip,
 :root[data-skin="webcore"] .chat-status-tip,
-:root[data-skin="webcore"] .ctx-preview-tip {
+:root[data-skin="webcore"] .ctx-preview-tip,
+:root[data-skin="webcore"] .hints-popup {
     background: var(--wc-tip-bg);
     color: var(--wc-tip-ink);
     border: 1px solid var(--wc-dark);

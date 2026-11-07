@@ -4,6 +4,7 @@
 // browser's twin is a plain `:hover` (css/animations/icon/hover.css): the play starts once
 // when the pointer arrives, never restarts while it stays, and is cancelled when it goes.
 #include "MenuHotkeys.hpp"
+#include "menuRowPolish.hpp"
 #include "iconMotion.hpp"
 #include "iconSet.hpp"
 
@@ -155,6 +156,17 @@ int main(int argc, char** argv) {
             "…and settles every keycap back to its resting place");
     bare.close();
   }
+
+  // A menu without a submenu row is flat (no arrow column to pad for), and follows its rows both ways.
+  stencil::support::installFlatMenus();
+  QMenu flat;
+  flat.addAction(QStringLiteral("Image only"));
+  flat.addAction(QStringLiteral("Whole project"));
+  check(flat.property(stencil::support::FLAT_MENU_PROPERTY).toBool(), "rows without a submenu: flat");
+  QMenu* more = flat.addMenu(QStringLiteral("More"));
+  check(!flat.property(stencil::support::FLAT_MENU_PROPERTY).toBool(), "a submenu row brings the arrow column back");
+  flat.removeAction(more->menuAction());
+  check(flat.property(stencil::support::FLAT_MENU_PROPERTY).toBool(), "and it goes again with that row");
 
   std::printf("\n%s (%d failure%s)\n", failures ? "FAILURE" : "SUCCESS", failures,
               failures == 1 ? "" : "s");

@@ -25,7 +25,7 @@ namespace stencil::gui {
     // A different target: hide only if one is actually ON SCREEN, else just drop the timer.
     if (!hoverShownKey.isEmpty()) {
       hoverShownKey.clear();
-      w.overlays.tooltip->hide();
+      w.overlays.tooltip->dismiss();
     } else if (hoverTooltipTimer) {
       hoverTooltipTimer->stop();
     }
@@ -53,7 +53,7 @@ namespace stencil::gui {
     hoverPendingKey.clear();
     hoverPendingReveal = nullptr;
     hoverShownKey.clear();
-    w.overlays.tooltip->hide();
+    w.overlays.tooltip->dismiss();
   }
 
   // Port of tooltip.js applyHover: Alt → hide; Ctrl → cursor coords; else nearest point; else hovered line; else hide.

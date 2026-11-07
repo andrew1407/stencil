@@ -24,8 +24,29 @@
 #include <QAbstractButton>
 #include <QAbstractItemView>
 #include <QLineEdit>
+#include <QPainter>
 
 namespace stencil::gui {
+
+  namespace {
+    // Browser #coord-status (text-overflow: ellipsis): the readout shortens with its column and never
+    // widens it. The hints claim no width; the text paints elided into the box.
+    class CoordStatusLabel : public QLabel {
+     public:
+      using QLabel::QLabel;
+      QSize sizeHint() const override { return {0, QLabel::sizeHint().height()}; }
+      QSize minimumSizeHint() const override { return {0, QLabel::minimumSizeHint().height()}; }
+
+     protected:
+      void paintEvent(QPaintEvent* e) override {
+        QFrame::paintEvent(e);
+        QPainter p(this);
+        const QRect r = contentsRect().marginsRemoved(QMargins(margin(), margin(), margin(), margin()));
+        p.setPen(palette().color(foregroundRole()));
+        p.drawText(r, static_cast<int>(alignment()), fontMetrics().elidedText(text(), Qt::ElideRight, r.width()));
+      }
+    };
+  }  // namespace
 
   void WindowAssembly::installPanelShimmers() {
     for (QAbstractButton* b : w.chatDock->findChildren<QAbstractButton*>())
@@ -66,7 +87,7 @@ namespace stencil::gui {
 
     // browser #coord-status sits between .canvas-viewport and .drop-hint; empty off-canvas, hidden
     // in fullscreen.
-    w.status = new QLabel(QString(), w.editor->centralWidget());   // cursor readout only — blank until one hovers the canvas
+    w.status = new CoordStatusLabel(QString(), w.editor->centralWidget());   // cursor readout only — blank until one hovers the canvas
     w.status->setObjectName("coordStatus");
     w.status->setAttribute(Qt::WA_StyledBackground, true);
     w.status->setStyleSheet(support::coordStatusSheet());
@@ -90,12 +111,13 @@ namespace stencil::gui {
     w.zoom->addItems({"10%", "25%", "50%", "75%", "100%", "125%", "150%", "200%", "300%", "400%", "500%", "800%", "1600%", "3200%"});
     setTipBase(w.zoom, "Zoom %");   // browser #zoom-input: greyed with nothing to zoom
     setTipReason(w.zoom, "Load an image to zoom");
-    w.zoom->setMaximumWidth(88);   // "3200%" plus the arrow; the rest was slack
+    w.zoom->setFixedWidth(62);   // browser #zoom-input: 62px, no arrow, the number centred and bold
     // NoInsert so reflecting a programmatic zoom never appends list items (browser zoom/pan.js
     // setZoom).
     w.zoom->setEditable(true);
     w.zoom->setInsertPolicy(QComboBox::NoInsert);
-    w.zoom->setCurrentText("100%");
+    w.zoom->setCurrentText("100");
+    w.zoom->lineEdit()->setAlignment(Qt::AlignCenter);
     // Open the presets on focus so one control offers typing and picking; guarded by focus reason
     // or it reopens from the just-closed popup and loops.
     w.zoom->lineEdit()->installEventFilter(&w);

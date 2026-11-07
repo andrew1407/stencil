@@ -23,8 +23,8 @@ test('every out-of-band trigger routes through the shared gate, held while a wip
   assert.match(src, /let removalsInFlight = 0;/, 'the hold is a counter (batch + single overlap)');
   assert.match(src, /removalsInFlight\+\+;\n\s+const held = list\.getBoundingClientRect\(\)\.height;/,
     'beginRemoval takes the hold with the height');
-  assert.match(src, /await new Promise\(\(r\) => setTimeout\(r, motionMs\(Math\.max\(0, wipe - arrive\)\)\)\);\n\s+removalsInFlight = Math\.max\(0, removalsInFlight - 1\);/,
-    'the hold outlives the wipe: released sooner, an out-of-band render replaced the arriving row mid-flight');
+  assert.match(src, /const landing = wipe \? wipe - arrive : \(entering\.length \? rowClock\(LEAVE_MS\) : 0\);\n\s+await new Promise\(\(r\) => setTimeout\(r, motionMs\(Math\.max\(0, landing\)\)\)\);\n\s+removalsInFlight = Math\.max\(0, removalsInFlight - 1\);/,
+    'the hold outlives the wipe, or a mode\'s own arrival: released sooner, an out-of-band render replaced the arriving row mid-flight');
   // The four live triggers + the remote-listing settle ask mayRefresh (modal-open/dragActive/
   // removalsInFlight) rather than rendering outright; the fetch's arms share one gated `done`.
   const gated = (src.match(/if \(mayRefresh\(\)\) render\(\);/g) || []).length;
@@ -83,8 +83,10 @@ test('a single-row removal retires its key with the row', () => {
 // throw (motion.js ROW_DUST_*) — on the projects list's own card clock (user report).
 test('project rows scatter on the shared list-row grain and throw', () => {
   const src = projectsModalSource();
-  const removals = (src.match(/leaveThenRemove\(/g) || []).length;
+  // Every site leaves through rowLeave (list/rowMotion.js), the one road to leaveThenRemove.
+  const removals = (src.match(/\browLeave\((?!el, opts)/g) || []).length;
   assert.ok(removals >= 6, `every removal site (${removals})`);
+  assert.match(src, /export function rowLeave\(el, opts = \{\}\) \{[\s\S]*?return leaveThenRemove\(el,/);
   // …and each one takes the shared recipe on this list's card clock, nothing hand-rolled.
   assert.equal((src.match(/rowLeaveDust\([^)]*ITEM_DUST_MS\)/g) || []).length, removals);
 });

@@ -29,7 +29,7 @@ test('the user turn records its original text + attachments for resend', () => {
 });
 
 test('the menu dismisses on outside press and transcript scroll; Escape is its own', () => {
-  assert.match(assistant, /msgMenu\.isOpen\(\) && !msgMenu\.el\.contains\(e\.target\)\) msgMenu\.close\(\)/);
+  assert.match(assistant, /msgMenu\.isOpen\(\) && !msgMenu\.el\.contains\(e\.target\) && !openedBy\?\.contains\(e\.target\)\) msgMenu\.close\(\)/);
   // Escape moved INTO msgMenu.js (open-scoped); no lingering document listener here.
   assert.doesNotMatch(assistant, /'Escape'\) msgMenu\.close\(\)/);
   assert.match(assistant, /transcriptEl\.addEventListener\('scroll', \(\) => msgMenu\.close\(\)\)/);

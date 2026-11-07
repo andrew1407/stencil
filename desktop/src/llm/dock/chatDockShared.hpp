@@ -5,6 +5,7 @@
 
 #include <QSize>
 #include <QColor>
+#include <QIcon>
 #include <QImage>
 #include <QList>
 #include <QPair>
@@ -55,6 +56,8 @@ namespace stencil::gui::chatdock {
   void fadeOutAndDelete(QWidget* w);
 
   QToolButton* makeGhostButton(QWidget* parent, const QString& tooltip);
+  // `icon` at `px`, every channel scaled by `gain`: Aqua's graphite art read as a smudge on its dark face.
+  QIcon liftedIcon(const QIcon& icon, int px, double gain);
 
   // Qt matches selectors at polish time, not on every paint.
   void repolish(QWidget* w);

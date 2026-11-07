@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
     check(cfg.holdMs == 3000, "the hold is three seconds");
     check(cfg.glowNeonBeatMs * 2 == cfg.beatMs * 3, "the neon breathes 1.5x slower than the beat");
     check(!cfg.toast.isEmpty(), "the notice carries its text");
-    check(cfg.shows.size() == 12, "every show is read");
+    check(cfg.shows.size() == 13, "every show is read");
     // Every accent preset opens a show — the browser asserts the same. Two rows may share a
     // colour when their `motion` modes tell them apart (grey: dust while it flies, else webcore).
     QFile f(":/config/accents.json");
@@ -54,28 +54,33 @@ int main(int argc, char** argv) {
 
   std::printf("resolution:\n");
   {
-    check(resolveShow("violet", MotionMode::SLIDE) == "neonOn", "violet: neon, whatever moves");
-    check(resolveShow("orange", MotionMode::NONE) == "makeSomeSunshine", "orange: sun");
-    check(resolveShow("crimson", MotionMode::FIRE) == "firework", "crimson + fire: fire");
-    check(resolveShow("crimson", MotionMode::PARTICLES).isEmpty(), "crimson under dust: nothing");
-    check(resolveShow("sky", MotionMode::WATER) == "waterShow", "sky + water: water");
-    check(resolveShow("bluegray", MotionMode::PARTICLES) == "dustySpot", "bluegray + dust: dust");
-    check(resolveShow("grey", MotionMode::PARTICLES) == "dustySpot", "grey + dust: dust");
-    check(resolveShow("grey", MotionMode::NONE) == "webcore", "grey with the interface still: the skin");
-    check(resolveShow("grey", MotionMode::SLIDE).isEmpty(), "grey under slide: nothing");
-    check(resolveShow("grass", MotionMode::NONE) == "makeItSmall", "grass: shrink");
-    check(resolveShow("brown", MotionMode::NONE) == "punchToBloat", "brown: grow");
-    check(resolveShow("pink", MotionMode::NONE) == "pinkVibe", "pink: the edit");
-    check(resolveShow("#ffffff", MotionMode::PARTICLES) == "chaseMe", "white follows");
-    check(resolveShow("#000000", MotionMode::PARTICLES) == "runaway", "black escapes");
-    check(resolveShow("#123456", MotionMode::PARTICLES) == "randomWalk", "any other custom flies");
-    check(resolveShow("nosuch", MotionMode::PARTICLES).isEmpty(), "an unknown accent opens nothing");
+    check(resolveShow("violet", MotionMode::SLIDE, false) == "neonOn", "violet: neon, whatever moves");
+    check(resolveShow("orange", MotionMode::NONE, false) == "makeSomeSunshine", "orange: sun");
+    check(resolveShow("crimson", MotionMode::FIRE, false) == "firework", "crimson + fire: fire");
+    check(resolveShow("crimson", MotionMode::PARTICLES, false).isEmpty(), "crimson under dust: nothing");
+    check(resolveShow("sky", MotionMode::WATER, false) == "waterShow", "sky + water: water");
+    check(resolveShow("bluegray", MotionMode::PARTICLES, false) == "dustySpot", "bluegray + dust: dust");
+    check(resolveShow("grey", MotionMode::PARTICLES, false) == "dustySpot", "grey + dust: dust");
+    check(resolveShow("grey", MotionMode::NONE, false) == "webcore", "grey with the interface still: the skin");
+    check(resolveShow("grey", MotionMode::SLIDE, false).isEmpty(), "grey under slide: nothing");
+    check(resolveShow("grass", MotionMode::NONE, false) == "makeItSmall", "grass: shrink");
+    check(resolveShow("brown", MotionMode::NONE, false) == "punchToBloat", "brown: grow");
+    check(resolveShow("pink", MotionMode::NONE, false) == "pinkVibe", "pink: the edit");
+    check(resolveShow("#ffffff", MotionMode::PARTICLES, false) == "chaseMe", "white follows");
+    check(resolveShow("#000000", MotionMode::PARTICLES, false) == "runaway", "black escapes");
+    check(resolveShow("#123456", MotionMode::PARTICLES, false) == "randomWalk", "any other custom flies");
+    check(resolveShow("nosuch", MotionMode::PARTICLES, false).isEmpty(), "an unknown accent opens nothing");
+    check(resolveShow("blue", MotionMode::SLIDE, false) == "someFruitCompany", "blue sliding on light: the aqua skin");
+    check(resolveShow("blue", MotionMode::SLIDE, true).isEmpty(), "the aqua row needs the light face");
+    check(resolveShow("blue", MotionMode::WATER, false) == "waterShow", "blue in water: still the water show");
+    check(showByName("someFruitCompany")->effect == StageEffect::AQUA && !showHasCloud("someFruitCompany", nullptr),
+          "the aqua skin opens no stage");
     check(showByName("neonOn") && !showByName("nope"), "a show is found by name, and only a real one");
     check(typedWords().contains("neonno") == false && typedWords().contains("neonon"),
           "the typed words are the names, lower-cased");
     check(typedWords().contains("webcore") && showByName("webcore")->effect == StageEffect::WEBCORE,
           "the skin's word is one of them, with its own effect");
-    check(resolveShow("violet", MotionMode::NONE) != "webcore" && !showHasCloud("webcore", nullptr),
+    check(resolveShow("violet", MotionMode::NONE, false) != "webcore" && !showHasCloud("webcore", nullptr),
           "…that only grey reaches and that wears no cloud");
   }
 

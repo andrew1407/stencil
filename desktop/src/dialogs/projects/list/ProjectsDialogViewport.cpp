@@ -74,9 +74,8 @@ namespace stencil::gui {
           overIcon = dec.isValid() && dec.adjusted(-2, -2, 2, 2).contains(vpos);
         }
         // Browser rows.css: a project row is cursor:pointer, its thumbnail zoom-in.
-        const RowCursor want = overIcon ? RowCursor::Zoom
-                               : (it && !it->data(Qt::UserRole).isNull()) ? RowCursor::Pointer
-                                                                          : RowCursor::None;
+        const bool onRow = it && (!it->data(Qt::UserRole).isNull() || it->data(TEMP_ROLE).toBool());
+        const RowCursor want = overIcon ? RowCursor::Zoom : (onRow ? RowCursor::Pointer : RowCursor::None);
         if (want != hover.rowCursor) {
           if (want == RowCursor::Zoom) list->viewport()->setCursor(zoomInCursor());
           else if (want == RowCursor::Pointer) list->viewport()->setCursor(Qt::PointingHandCursor);
@@ -102,7 +101,7 @@ namespace stencil::gui {
             }
             // Per appearance: the accent or theme may have changed since the last glance.
             hover.hoverPreview->setStyleSheet(support::projectsHoverPreviewSheet(
-                palette().color(QPalette::Base), palette().color(QPalette::Highlight)));
+                palette().color(QPalette::Base), palette().color(QPalette::Dark)));
             // Alt HELD magnifies (browser parity); the SOURCE rides along so the Alt toggle can re-scale without a move.
             const int edge =
                 (QGuiApplication::queryKeyboardModifiers() & Qt::AltModifier)

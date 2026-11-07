@@ -4,6 +4,7 @@ import { spinIconOnce } from '../icons.js';
 import { isVideoFile, isVideoUrl } from '../../core/export/videoFrame.js';
 import { createCropOverlay, freshCropState, hasCropRect } from './crop.js';
 import { modalBoxEase } from '../motion/easeBoxHeight.js';
+import { shellFor } from '../modal/registry.js';
 import { openImageModalInner } from './markup.js';
 import { createPreviewDust } from './previewDust.js';
 import { createFrameScrub } from './frameScrub.js';
@@ -19,6 +20,12 @@ import { createBlankImage } from '../../core/image/blankImage.js';
 // sources/ and speak up on the bubbling `source-change` / `preview-request` / `create-blank`;
 // this window owns the preview, the crop and the footer. The DOM is built once and reused, so
 // onOpen MUST reset every field.
+// A blank made from Projects' Blank image closes the list it was raised over too (desktop wireProjectsBlank).
+const closeProjectsUnder = () => {
+  const projects = shellFor('projects-modal-overlay');
+  if (projects?.isOpen()) projects.close();
+};
+
 export class StencilOpenImageModal extends StencilElement {
   static inner() { return openImageModalInner(); }
   static template() { return hostTag('stencil-open-image-modal', 'id="open-image-modal-overlay" class="app-modal-overlay"', StencilOpenImageModal.inner()); }
@@ -78,6 +85,7 @@ export class StencilOpenImageModal extends StencilElement {
     const dust = createPreviewDust({
       img: () => preview.img(), video: () => preview.video(),
       isVideo: () => preview.isVideoTab(), sourceKey: () => preview.sourceKey(),
+      origin: () => this.$(preview.tab() === 'url' ? 'open-image-url-preview' : 'open-image-choose'),
     });
     const frame = createFrameScrub({
       frameEl, scrubEl, video: () => preview.video(),
@@ -133,7 +141,7 @@ export class StencilOpenImageModal extends StencilElement {
         replaceBtn.disabled = true;
         // Incognito content isn't created on a server.
         fillTargetSelect(targetEl, targetRow, app.connections, !incog.checked);
-        tabs.select('file');
+        tabs.select(openTab);   // before the window is measured and photographed for its flight
         boxEase.start();
       },
       onClose: () => { preview.closeUp(); boxEase.stop(); },
@@ -150,8 +158,9 @@ export class StencilOpenImageModal extends StencilElement {
       frameSeconds: () => frame.frameSeconds(),
     });
 
-    // `from` = the control that asked, so the dialog grows out of that, not the toolbar icon.
-    const openBlank = (from) => { open(from); tabs.select('blank'); };
+    let openTab = 'file';   // a fresh open's tab (Blank asks for its own); `from` = the control the dialog grows out of
+    let overProjects = false;   // raised over Projects by its Blank image (closeProjectsUnder)
+    const openBlank = (from, opts) => { overProjects = !!opts?.stacked; openTab = 'blank'; try { open(from, null, opts); } finally { openTab = 'file'; } };
 
     this.$('open-image-cancel').addEventListener('click', () => close());
     // The open-ANOTHER icon answers the same gestures too (#load-image-btn hides once an image exists).
@@ -160,11 +169,8 @@ export class StencilOpenImageModal extends StencilElement {
     const blankBtn = document.getElementById('create-blank-btn');
     blankBtn?.addEventListener('click', () => openBlank(blankBtn));
     const projectsBlank = document.getElementById('projects-blank-image');
-    projectsBlank?.addEventListener('click', () => {
-      // Close the projects modal via its own close, so its handlers run.
-      document.getElementById('projects-close')?.click();
-      openBlank(projectsBlank);
-    });
+    // Stacked over Projects, grown out of this button: Cancel returns to the list, Create closes both.
+    projectsBlank?.addEventListener('click', () => openBlank(projectsBlank, { stacked: true }));
 
     // ── What the tabs say ──────────────────────────────────────────────
     this.addEventListener('tab-change', (e) => preview.setTab(e.detail.tab));
@@ -190,6 +196,7 @@ export class StencilOpenImageModal extends StencilElement {
         { title: 'Replace image', confirmIcon: 'swap', ...openImageConfirmAnchors() }))) return;
       createBlankImage(app, { color, width, height, address: target() || undefined })
         .then(() => closeIntoOpen())
+        .then(() => { if (overProjects) closeProjectsUnder(); overProjects = false; })
         .then(() => notify(`Blank ${width}×${height} image created`, 'ok'))
         .catch((err) => notify(err && err.message ? err.message : 'Could not create the image', 'fail'));
     });

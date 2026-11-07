@@ -2,8 +2,8 @@
 // its item — right, or left when the window has no room — on hover, click or ArrowRight, back
 // on ArrowLeft / Escape. It lives on <body> like its parent, so the parent asks it `contains`.
 import { icon } from '../../icons.js';
+import { popupIn, popupOut } from '../../motion/control/popup.js';
 import { SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../../motion/surface/motion.js';
-import { surfaceIn, surfaceOut } from '../../motion/surface/surfaces.js';
 import { rectCenter } from '../../motion/control/tips.js';
 
 const GAP = 4;
@@ -18,12 +18,19 @@ export const menuItemButton = (it) => {
   return b;
 };
 
+// The submenu grows out of, and goes back into, its item's ▸ arrow (the item's centre without one).
+const arrowPoint = (trigger) => {
+  const a = trigger.querySelector?.('.project-menu-arrow');
+  return a ? rectCenter(a) : rectCenter(trigger);
+};
+
 // `pick(child, rect)` runs a nested item; the parent closes everything first.
 export const createRowSubmenu = (trigger, items, pick) => {
   let sub = null;
   const hide = () => {
     if (!sub) return;
-    surfaceOut(sub, rectCenter(trigger), { ms: SURFACE_MENU_OUT_MS });
+    const at = arrowPoint(trigger);
+    popupOut(sub, at, SURFACE_MENU_OUT_MS);
     sub.remove();
     sub = null;
     trigger.classList.remove('is-open');
@@ -55,7 +62,8 @@ export const createRowSubmenu = (trigger, items, pick) => {
     document.body.appendChild(sub);
     place();
     trigger.classList.add('is-open');
-    surfaceIn(sub, rectCenter(trigger), { ms: SURFACE_MENU_IN_MS });
+    const at = arrowPoint(trigger);
+    popupIn(sub, at, SURFACE_MENU_IN_MS);
   };
   // A click only opens: the pointer that hovered the list out must not click it shut again.
   trigger.addEventListener('click', (e) => { e.stopPropagation(); show(); });

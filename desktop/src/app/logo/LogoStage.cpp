@@ -44,7 +44,8 @@ namespace stencil::gui {
   }
 
   QString LogoStage::heldShow() const {
-    return support::resolveShow(hooks.accentKey ? hooks.accentKey() : QString(), support::storedMotionMode());
+    return support::resolveShow(hooks.accentKey ? hooks.accentKey() : QString(), support::storedMotionMode(),
+                                hooks.dark && hooks.dark());
   }
 
   void LogoStage::start(const QString& name) {

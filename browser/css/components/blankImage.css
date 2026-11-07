@@ -31,11 +31,13 @@
 /* Closing the blank modal restores focus here, and the UA ring then reads as a stray
    selection around the card; hover/active already say where the pointer is. */
 .idle-create-btn:focus, .idle-create-btn:focus-visible { outline: none; }
+/* Held while a skin's scene brings its picture in (control/state.js whileIdleHeld). */
+.idle-create.idle-held { visibility: hidden; }
 .idle-create-icon { font-size: 32px; line-height: 1; }
-/* Shown only where the card (144×93 at rest) fits whole with 16px clear on every side, never squeezed or
-   clipped (desktop IdleCard.cpp IDLE_CARD_CLEAR_PX). Scoped to its wrap so it outranks the card's own rule. */
+/* Shown only where the card (144×93 at rest) fits whole with 16px clear on every side (desktop IdleCard.cpp
+   IDLE_CARD_CLEAR_PX); scoped to its wrap to outrank the card's own rule. Hidden, not display:none: the node must survive a toolbar swap. */
 @container (max-width: 176px) or (max-height: 125px) {
-    .idle-create .idle-create-btn { display: none; }
+    .idle-create .idle-create-btn { visibility: hidden; }
 }/* White/black preset chips in the blank-image modal */
 .bi-presets { display: flex; gap: 8px; }
 .bi-preset {

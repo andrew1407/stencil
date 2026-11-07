@@ -9,6 +9,9 @@ stencil_headless_test(stencil_deferredwrite_headless
 # Hold-to-draw + selection-delete headless check (CanvasWidget public API).
 stencil_headless_test(stencil_holddraw_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/SurfaceCover.cpp
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/canvas/holdDrawCanvas.headless.cpp tests/canvas/holdDrawSelection.headless.cpp ${STENCIL_CANVAS_SOURCES}
     src/canvas/overlay/IdleCard.cpp ${STENCIL_THEME_SOURCES} resources/app.qrc
@@ -17,6 +20,9 @@ stencil_headless_test(stencil_holddraw_headless
 # A real PNG from common/samples/ through the load -> crop -> core image-filter path.
 stencil_headless_test(stencil_image_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/SurfaceCover.cpp
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/canvas/imageFixture.headless.cpp tests/canvas/imageFixtureInk.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
     src/canvas/overlay/IncognitoOverlay.cpp src/support/icon/iconSet.cpp src/support/control/numericInput.cpp
@@ -64,6 +70,9 @@ stencil_headless_test(stencil_projectfile_headless
 # reachable (STENCIL_TEST_SERVER, default http://localhost:8090).
 stencil_headless_test(stencil_projecttransfer_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/SurfaceCover.cpp
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/app/project/projectTransfer.headless.cpp src/app/project/ProjectTransferController.cpp src/app/project/ProjectTransferImport.cpp
     src/app/meta/SharedState.cpp

@@ -50,8 +50,8 @@ reach into them include them. The document state lives in `CanvasScene` (`core::
 | `src/llm/` | `dock/` and `panel/` (chat surfaces), `client/` (`LlmClient`, `QtLlmTransport`, `SessionKey`), `plan/` (registry, typed plan mapping, executor) | plans validate in `core/opplan` before execution; `plan/` only maps core's result to typed actions; the executor calls the toolbar's appliers |
 | `src/io/` | `fileStore` (settings, projects, autosave, `.stencil`), `mediaLoader`, `mediaTypes` (suffix and header sniffers) | QtCore-only serialization; `MediaLoader` decodes on the pool and answers only from the event loop |
 | `src/net/` | `serverClient` (REST + `ConnectionManager`), `LiveFeed` (the read-only events subscription), `connectionStore`, `fetchGuard`, `blockedRanges`, `httpStatus` | `fetchGuard` is the one SSRF guard, a port of `cli/src/net.zig`, judging every address by `net/blockedRanges.json`; tokens never go in `QSettings` |
-| `src/support/` | a folder per shared concern (`theme/`, `webcore/`, `sheets/` for the per-widget style sheets, `process/` for a child's environment), the session switches `motionPrefs.hpp` / `skinPrefs.hpp`, `rowWork.hpp` (the pool helpers), the platform helpers | QSS text lives here only, a caller passing `setStyleSheet` what a `support::…Sheet` returns; a platform helper is one declaration with a body per OS |
-| `resources/` | `app.qrc`: per-feature `.qss` under `qss/app/`, the `qss/webcore/` overlay, the shared config JSON as aliases | shared tables are aliased from `common/config/`, never copied; sheet pieces load in the one order `stylesheetPieces` (`support/theme/themeStylesheet.cpp`) lists |
+| `src/support/` | a folder per shared concern (`theme/`, `skin/` for what every session skin shares, `webcore/`, `aqua/`, `sheets/` for the per-widget style sheets, `process/` for a child's environment), the session switches `motionPrefs.hpp` / `skinPrefs.hpp`, `rowWork.hpp` (the pool helpers), the platform helpers | QSS text lives here only, a caller passing `setStyleSheet` what a `support::…Sheet` returns; a platform helper is one declaration with a body per OS |
+| `resources/` | `app.qrc`: per-feature `.qss` under `qss/app/`, the `qss/webcore/` and `qss/aqua/` overlays, the shared config JSON as aliases | shared tables are aliased from `common/config/`, never copied; sheet pieces load in the one order `stylesheetPieces` (`support/theme/themeStylesheet.cpp`) lists |
 | `packaging/` | plist template, `.desktop`, mime xml, `mkicon.cpp` | nothing binary committed; every icon is rasterised from `common/icons/favicon.svg` |
 | `cmake/` | `StencilSources` and `StencilTests` (indexes over per-area parts), `StencilPackaging`, `StencilDeploy` | source lists live here, not in `CMakeLists.txt` (the entry point too, `STENCIL_APP_MAIN`); a source or suite joins its area's part |
 | `tests/` | headless suites per concern, `MainWindow.<area>.gui.cpp` and the layer lint | every suite reports its own failures |
@@ -255,8 +255,18 @@ classDiagram
 - **A logo show.** Holding the header mark, or typing a show's name, reaches `LogoStage`
   (`app/logo/`), a full-window child; `logoStage.json` is the table a show resolves from. Shows
   are exclusive, and while up the stage filters `qApp` with Escape the way out. The pink show runs
-  through `ChatPlanTarget`, one step on the user's history. The webcore show toggles the session
-  skin through `ThemePainter::toggleWebcore` (`support/webcore/look`), storing nothing.
+  through `ChatPlanTarget`, one step on the user's history. A skin show toggles its session
+  skin through `ThemePainter::toggleSkin` (`app/theme/ThemePainterSkins.cpp`), one flow over a
+  `SkinShow` of what the skin differs in: the motion it holds (webcore still, aqua sliding), its
+  look, its project and its word. A look is a `support::SkinLookStrategy` strategy
+  (`support/skin/SkinLookStrategy.hpp`; `support/webcore/look.cpp`, `support/aqua/look.cpp` install one at
+  a time, the default answering for the theme's own): the palette, the base tokens it repaints, its
+  icons, its sheet and its `SkinTraits` — the yes-or-no table a hover slide, a keycap shake, a
+  squared corner or a shouted caption reads instead of asking which skin is on. The aqua gel, its
+  header mark and its drop glow are the chosen accent through `support::gelTokens`
+  (`common/config/aqua.json` `tint`). Aqua wears the Blue preset for the session, the user's own
+  accent set aside (`support::setAsideAccent`) and the one `SharedState::saveSettings` writes until
+  they pick another; `support/aqua/still.hpp` takes the hover selectors out of its sheets.
 - **The console.** The Data section's first button, **Data ▸ Console…** and its chord open
   `ConsoleWindow` through `ConsoleHost::openConsole`: a `Qt::Tool` window on the modal shell,
   non-modal, revealed from its icon (`veilForReveal` before it maps, `revealWindow`,
@@ -314,8 +324,8 @@ classDiagram
   the action owns the panel, so its state outlives the per-right-click menu rebuild.
 - **Shared editor widget.** `ScriptEditorWidget` in `ScriptDialog` and `ScriptMenuPanel` — hosts
   differ only in the `Style` they pass and the buttons around it.
-- **Session override.** `support/motionPrefs.hpp`, `support/skinPrefs.hpp`, the hooks
-  `support/webcore/look.cpp` installs — asked by every restyle and animation, written to no file.
+- **Session override.** `support/motionPrefs.hpp`, `support/skinPrefs.hpp`, the `SkinLookStrategy`
+  `support/webcore/look.cpp` and `support/aqua/look.cpp` install — asked by every restyle and animation, written to no file.
 - **Golden pin / fixture walker.** `uiPins`, `opPlanOracle`; the `*Fixtures` walkers — pins guard
   pixels, QSS and typed plan results; walkers prove the shared corpora here.
 - **Double-click reset.** `DblResetFilter` (`support/control/dblReset.hpp`), opted into by

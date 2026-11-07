@@ -1,5 +1,11 @@
 #include "numericInput.hpp"
 
+#include "../skin/SkinLookStrategy.hpp"
+
+#include <QAbstractSpinBox>
+#include <QApplication>
+#include <QEvent>
+#include <QLineEdit>
 #include <QRegularExpression>
 #include <cmath>
 
@@ -149,6 +155,29 @@ namespace stencil::gui {
     bool ok = false;
     const double v = evalNumericExpression(text, value(), &ok);
     return ok ? v : value();
+  }
+
+  namespace {
+    // Re-applied on the first polish and on every restyle a skin or theme swap sends. Less the well's border.
+    class SpinTextInsets : public QObject {
+     public:
+      explicit SpinTextInsets(QObject* parent) : QObject(parent) { setObjectName(QStringLiteral("stencilSpinInsets")); }
+     protected:
+      bool eventFilter(QObject* o, QEvent* e) override {
+        if (e->type() != QEvent::Polish && e->type() != QEvent::StyleChange) return false;
+        auto* spin = qobject_cast<QAbstractSpinBox*>(o);
+        if (!spin) return false;
+        if (auto* edit = spin->findChild<QLineEdit*>(QStringLiteral("qt_spinbox_lineedit")))
+          edit->setTextMargins(support::skinTraits().fieldTextMarginPx, 0, 0, 0);
+        return false;
+      }
+    };
+  }  // namespace
+
+  void installSpinTextInsets() {
+    QCoreApplication* app = QCoreApplication::instance();
+    if (app && !app->findChild<QObject*>(QStringLiteral("stencilSpinInsets"), Qt::FindDirectChildrenOnly))
+      app->installEventFilter(new SpinTextInsets(app));
   }
 
 }  // namespace stencil::gui

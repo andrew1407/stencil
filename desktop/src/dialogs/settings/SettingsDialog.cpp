@@ -1,6 +1,7 @@
 #include "../../support/control/dblReset.hpp"
 #include "colorDrag.hpp"
 #include "../../support/menu/SearchCombo.hpp"
+#include "../../support/aqua/AquaCheckDelegate.hpp"
 #include "SettingsDialog.hpp"
 #include "defaultVisuals.hpp"
 #include "colorSwatch.hpp"
@@ -141,6 +142,7 @@ namespace stencil::gui {
     addSection(r, tr("App appearance"));
 
     accent = addCombo(r, "Accent color used for highlights across the app");
+    accent->setProperty(support::SWATCH_ROWS_PROPERTY, true);
     // Brand-accent presets (theme.hpp) - violet first/default, the same choices as the browser and
     // extension dropdowns. Each item carries a rounded colour swatch icon.
     const auto swatch = [](const QColor& c) {

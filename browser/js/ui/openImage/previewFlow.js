@@ -86,7 +86,7 @@ export function createPreviewFlow(ctx) {
   const loadPreviewMedia = (replacing = false) => {
     // Swapping the SOURCE blows the old picture away first, so the two never cross-fade (desktop
     // twin: scatterPreviewDust). A tab switch swaps nothing, so it never plays.
-    if (replacing && ready()) {
+    if (replacing && ready() && pairs.st().loading !== sourceKey()) {   // the same source again swaps nothing
       dust.scatter(pairs.cropMedia(), pairs.mediaPixels());
       // The OLD crop rect belongs to the OLD pixels, so it is cleared instantly — no flight of
       // its own — the moment the picture goes.

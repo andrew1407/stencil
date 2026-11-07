@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "../../support/genie/canvasSlide.hpp"
 #include <QScrollArea>
 #include "fileBytes.hpp"
 #include "CanvasWidget.hpp"
@@ -140,6 +141,12 @@ namespace stencil::gui {
     if (!canvas) return;
     // Reduced motion: the opacity effect has to go too, or the canvas sits blank for the whole flight.
     if (support::motionReduced()) { canvas->setGraphicsEffect(nullptr); return; }
+    // Sliding pours the picture up out of the view's foot and Transition wipes it in (support/genie/canvasSlide).
+    if (support::isSlideMotionOk() || support::isTransitionMotionOk()) {
+      canvas->setGraphicsEffect(nullptr);
+      support::playCanvasArrival(canvas);
+      return;
+    }
 
     const bool dust = canvas->hasImage() && scroll && scroll->viewport()
         && !canvas->visibleRegion().boundingRect().isEmpty()

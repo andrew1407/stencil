@@ -1,43 +1,57 @@
 #include "MainWindow.hpp"
+#include "../../support/theme/faceSwap.hpp"
+#include "../chrome/BoxGlide.hpp"
 #include "EditorView.hpp"
 #include "toolbarMetrics.hpp"
 #include "iconSet.hpp"
 #include "SelectionPanel.hpp"
 #include "../../support/control/reveal/controlReveal.hpp"
 #include "CanvasWidget.hpp"
-#include "zoomPan.hpp"
 #include "../../support/uiTimings.hpp"
 #include "theme.hpp"
+#include "imageAnchor.hpp"   // TOOLBAR_FOLDING_PROPERTY
 #include "iconDrag.hpp"
 
 #include <QApplication>
+#include <QRegularExpression>
 #include <QScrollArea>
 #include <QLabel>
 #include <QMenuBar>
 #include <QPointer>
 #include <QToolBar>
 
-// Fullscreen: the toggle, the edge-hover reveal of the bars it hid, driven by the pointer's moves,
-// and the zoom hand-off across the switch.
-
+// Fullscreen, in its two kinds (the screen, or the window it is in): the toggle and the edge-hover reveal
+// of the bars it hid, driven by the pointer's moves. The zoom hand-off is EditorViewFullscreenZoom.cpp.
 namespace stencil::gui {
 
   void EditorView::toggleFullscreen() {
+    if (!w.fs.active) w.fs.inWindow = false;
+    flipFullscreen();
+  }
+
+  void EditorView::flipFullscreen() {
     // Whatever is in the air goes first: the switch hides every toolbar, and a cloud would be left over the bare canvas.
     stopDustClouds(&w);
+    // In the window the view's box glides to its new room; the screen kind has the system's own flight.
+    const bool glide = w.fs.inWindow && w.scroll && w.isVisible();
+    const QRect glideFrom = glide ? QRect(w.scroll->mapTo(&w, QPoint(0, 0)), w.scroll->size()) : QRect();
     if (w.fs.active) {
-      // Exit
       w.fs.active = false;
       syncFullscreenGlyph();
       markFullscreenBars(false);
       w.fs.bars.clear();
       // A leftover slide / fixed height would fight the restore below.
       if (barsAnim) { barsAnim->stop(); barsAnim->deleteLater(); barsAnim = nullptr; }
-      for (QToolBar* b : w.findChildren<QToolBar*>()) { b->setMinimumHeight(0); b->setMaximumHeight(QWIDGETSIZE_MAX); }
+      w.parts.dockChrome.releaseBarsVeils();   // a pour cut short leaves its ground-coloured covers over the rows
+      for (QToolBar* b : w.findChildren<QToolBar*>()) {
+        b->setMinimumHeight(0);
+        b->setMaximumHeight(QWIDGETSIZE_MAX);
+        b->setProperty(TOOLBAR_FOLDING_PROPERTY, false);
+      }
       w.fs.barsShown = false;
       w.fs.panelShown = false;
+      fitCanvasToWindow(false);
       beginFullscreenZoom();
-      w.showNormal();
       if (w.menuBar()) w.menuBar()->setVisible(true);
       if (w.status) w.status->setVisible(true);     // restore the coord readout
       if (w.tools.dropHint) w.tools.dropHint->setVisible(true);  // …and the drag & drop hint (browser: .drop-hint)
@@ -52,6 +66,10 @@ namespace stencil::gui {
       if (w.acts.panel) { QSignalBlocker b(w.acts.panel); w.acts.panel->setChecked(w.fs.wasPanel); }
       w.setPanelShown(w.fs.wasPanel, false);
       w.positionOverlayArrows();
+      // Last: macOS paints the window synchronously inside showNormal() for its exit snapshot, and keeps that frame (user report).
+      const bool wasInWindow = w.fs.inWindow;
+      w.fs.inWindow = false;
+      if (!wasInWindow) w.showNormal();
     } else {
       // Enter: hide the top menu and the points panel; a cursor poll re-reveals each from its edge (browser parity).
       w.fs.wasToolbars = w.acts.toolbars ? w.acts.toolbars->isChecked() : true;
@@ -71,8 +89,9 @@ namespace stencil::gui {
       w.fs.active = true;
       syncFullscreenGlyph();
       markFullscreenBars(true);
+      fitCanvasToWindow(true);
       beginFullscreenZoom();
-      w.showFullScreen();
+      if (!w.fs.inWindow) w.showFullScreen();
       w.setFocus(Qt::OtherFocusReason);   // help key events reach us for the Escape-exits path
       // The TOOL rows only — the header row stays away for the whole session, as the browser's fullscreen does.
       w.fs.bars.clear();
@@ -83,6 +102,37 @@ namespace stencil::gui {
     }
     // Guarded so it never re-enters through a toggled slot.
     if (w.acts.fullscreen) { QSignalBlocker b(w.acts.fullscreen); w.acts.fullscreen->setChecked(w.fs.active); }
+    syncFullscreenTip();
+    if (!glide) return;
+    w.parts.dockChrome.settleFoldLayout();   // photographed as it now stands
+    BoxGlide::play(&w, w.scroll, glideFrom, [this] { return w.fs.zoomAnim != nullptr; });
+  }
+
+  void EditorView::toggleFullscreenKind(bool inWindow) {
+    if (!w.fs.active || w.fs.inWindow == inWindow) {
+      if (!w.fs.active) w.fs.inWindow = inWindow;
+      flipFullscreen();
+      return;
+    }
+    // A switch: the rows stay hidden, only the window's own state moves, and the zoom rides across it.
+    w.fs.inWindow = inWindow;
+    beginFullscreenZoom();
+    if (inWindow) w.showNormal(); else w.showFullScreen();
+    syncFullscreenTip();
+  }
+
+  // Left in the mode's state by a system exit, a normal window kept its rows hidden. Only a real crossing counts:
+  // our own switch already moved fs.active, so it reads as no change.
+  void EditorView::followSystemFullscreen(Qt::WindowStates was, Qt::WindowStates now) {
+    const bool on = (now & Qt::WindowFullScreen) != 0;
+    if (((was & Qt::WindowFullScreen) != 0) == on || on == (w.fs.active && !w.fs.inWindow)) return;
+    // The system took the screen from the in-window kind: adopt it rather than leave.
+    if (on && w.fs.active) {
+      w.fs.inWindow = false;
+      syncFullscreenTip();
+      return;
+    }
+    QTimer::singleShot(0, &w, [this] { toggleFullscreen(); });
   }
 
   // Edge-hover reveal with hysteresis: a wide "keep" zone once shown stops flicker.
@@ -138,67 +188,35 @@ namespace stencil::gui {
     w.acts.fullscreen->setIcon(themedIcon(name, ink, TOOL_ICON));
   }
 
+  // Fullscreen's canvas fills the window edge to edge, as the browser's (fullscreen.css inset: 0): the window's
+  // gutters showed its own ground round it, and a pointer flung into the right one missed the panel's band.
+  void EditorView::fitCanvasToWindow(bool fill) {
+    if (!w.centralLayout) return;
+    w.centralLayout->setContentsMargins(0, 0, fill ? 0 : CENTRAL_SIDE_MARGIN, fill ? 0 : 14);
+    if (QLayoutItem* row = w.centralLayout->count() ? w.centralLayout->itemAt(0) : nullptr)
+      if (QLayout* l = row->layout()) l->setContentsMargins(fill ? 0 : 6, 0, 0, 0);
+    if (w.selPanel) w.selPanel->setContentsMargins(0, 0, fill ? 0 : w.panelSlide.EDGE_GAP, 0);   // the list meets the edge
+    if (!fill) w.parts.dockChrome.updatePanelReopenButton();   // the right inset follows the chevron again
+  }
+
   // Qt matches property selectors at polish time, so the flag needs a re-polish.
   void EditorView::markFullscreenBars(bool on) {
     if (w.selPanel) w.selPanel->setCollapseChevronVisible(!on);
-    for (QToolBar* b : w.findChildren<QToolBar*>()) {
-      if (b == w.tools.headerToolbar) continue;
-      b->setProperty("fsBar", on);
-      b->style()->unpolish(b);
-      b->style()->polish(b);
-    }
-    // …and the canvas frame with them: in fullscreen it wears the browser's fullscreen-panel
-    // hairline (qss/app/shell.qss [fsView]).
-    if (w.scroll) {
-      w.scroll->setProperty("fsView", on);
-      w.scroll->style()->unpolish(w.scroll);
-      w.scroll->style()->polish(w.scroll);
-    }
-  }
-
-  // The canvas starts at the size it APPEARED to be against the old viewport and rides to its true size; the zoom is preserved (browser parity).
-  void EditorView::beginFullscreenZoom() {
-    if (w.fs.zoomAnim) { w.fs.zoomAnim->stop(); w.fs.zoomAnim->deleteLater(); w.fs.zoomAnim = nullptr; }
-    if (!w.canvas || !w.canvas->hasImage() || !w.scroll || !w.scroll->viewport()) {
-      w.fs.zoomFromViewport = QSize();
-      return;
-    }
-    w.fs.zoomFromViewport = w.scroll->viewport()->size();
-    w.fs.zoomWaits = 0;
-    QTimer::singleShot(0, &w, [this] { startFullscreenZoom(); });
-  }
-
-  void EditorView::startFullscreenZoom() {
-    if (!w.fs.zoomFromViewport.isValid() || w.fs.zoomFromViewport.isEmpty()) return;
-    if (!w.canvas || !w.canvas->hasImage() || !w.scroll || !w.scroll->viewport()) return;
-    const QSize now = w.scroll->viewport()->size();
-    if (now.isEmpty()) return;
-    // showFullScreen()/showNormal() resize asynchronously on some platforms — wait for the new geometry, bounded.
-    if (now == w.fs.zoomFromViewport) {
-      if (++w.fs.zoomWaits > FullscreenController::ZOOM_WAIT_LIMIT) return;
-      QTimer::singleShot(16, &w, [this] { startFullscreenZoom(); });
-      return;
-    }
-    const auto ratio = FullscreenController::handoffRatio(w.fs.zoomFromViewport, now);
-    w.fs.zoomFromViewport = QSize();   // consumed
-    if (!ratio) return;
-    const double target = w.canvas->getScale();
-    const double start = core::clampScale(target * *ratio);
-    if (std::abs(start - target) < 1e-4) return;
-
-    auto* anim = new QVariantAnimation(&w);
-    w.fs.zoomAnim = anim;
-    anim->setDuration(support::motionMs(support::flipMotion().ms));
-    anim->setEasingCurve(support::flipMotion().easing);
-    anim->setStartValue(start);
-    anim->setEndValue(target);
-    QObject::connect(anim, &QVariantAnimation::valueChanged, &w,
-                     [this](const QVariant& v) { if (w.canvas) w.canvas->setScale(v.toDouble()); });
-    QObject::connect(anim, &QVariantAnimation::finished, &w, [this, target] {
-      w.fs.zoomAnim = nullptr;
-      w.setZoom(target);   // land exactly on the user's zoom and resync the combo
-    });
-    anim->start(QAbstractAnimation::DeleteWhenStopped);
+    // The host, and the panel's own named surfaces under it, which match through its flag.
+    const auto mark = [on](QWidget* host, const char* name) {
+      if (!host) return;
+      host->setProperty(name, on);
+      QList<QWidget*> restyle{host};
+      for (QWidget* x : host->findChildren<QWidget*>(QRegularExpression(QStringLiteral("^selPanel")))) restyle << x;
+      for (QWidget* x : restyle) gui::repolish(x);
+    };
+    for (QToolBar* b : w.findChildren<QToolBar*>()) if (b != w.tools.headerToolbar) mark(b, "fsBar");
+    // The canvas loses its frame (qss/app/shell.qss [fsView]); the separator beside the panel takes the canvas's
+    // ground [fsEditor]; the panel fills its height as the browser's #fs-points-panel does [fsPanel].
+    mark(w.scroll, "fsView");
+    if (w.scroll) gui::repolish(w.scroll, /*styleChange=*/true);   // QFrame re-reads its cached frame width
+    mark(w.editor, "fsEditor");
+    mark(w.selPanel, "fsPanel");
   }
 
 }  // namespace stencil::gui

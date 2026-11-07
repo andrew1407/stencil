@@ -1,0 +1,64 @@
+
+      /* The aqua overlay: appended after the app sheet while the skin is on (support/aqua/
+         sheet.cpp), so a rule here wins its twin above at equal weight. %AQ_*% are the
+         browser's --aq-* tokens (common/config/aqua.json); the gel and glass are the browser's
+         gradients, the pinstripe a tiled 1x4 image. */
+      * { font-family: %AQ_FONT%; font-size: %AQ_FONT_PX%px; }
+      QMainWindow { background: %AQ_FACE%; background-image: url(%AQ_PINSTRIPE%); }
+      QMainWindow::separator { background: %AQ_FACE%; }
+      /* Fullscreen is the canvas ground, its panel seam included (browser: no desk blue in fullscreen). */
+      QMainWindow[fsEditor="true"], QMainWindow[fsEditor="true"]::separator { background: %AQ_CANVAS%; }
+      QToolBar, QWidget#imageInfoBar {
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 %AQ_METAL_TOP%, stop:1 %AQ_METAL_BOTTOM%);
+        border: 0; border-bottom: 1px solid %AQ_EDGE%;
+      }
+      QToolBar::separator { background: %AQ_EDGE%; width: 1px; }
+      /* A field's word is muted, its section's heading ink (browser .ctrl-section-row label, .ctrl-section-label). */
+      QToolBar QLabel { color: %AQ_MUTED%; }
+      QLabel#sectionLabel { color: %AQ_INK%; }
+      QScrollArea#canvasViewport, QScrollArea#canvasViewport[fsView="true"] {
+        background: %AQ_CANVAS%; border: 1px solid %AQ_EDGE%; border-radius: 4px;   /* browser aqua/canvas.css: never the desk blue */
+      }
+      QScrollArea#canvasViewport[fsView="true"] { border: none; border-radius: 0px; }   /* app/shell.qss [fsView] */
+      QLabel#coordStatus, QWidget#dropHintBar, QWidget#selectedLineCard {
+        background: %AQ_FACE%; border: 1px solid %AQ_EDGE%; border-radius: 8px; color: %AQ_INK%;
+      }
+
+      /* ── Buttons: icon buttons are framed glass tiles, word buttons tall glass lozenges; pressed,
+         checked and primary turn to blue gel with dark ink (browser css/aqua/chrome.css). ── */
+      QToolButton, QToolButton[toolFill="accent"], QToolButton[toolFill="danger"], QToolButton[nameAffordance="true"],
+      QToolButton[chatAccent="true"], QToolButton[drawToggle="idle"], QToolButton[toolGhostBox="true"] {
+        color: %AQ_INK%; font-weight: normal; border: 1px solid %AQ_TILE_EDGE%; border-radius: 7px; padding: 5px 7px;
+        background: %AQ_GLASS_FILL%;
+      }
+      QToolButton#controlsPill, QToolButton#drawFaceBtn { border-radius: 13px; padding: 4px 14px; }
+      QPushButton, QPushButton[accentCta="true"], QPushButton#dangerButton, QPushButton[dangerCta="true"],
+      QPushButton[modalDangerGhost="true"], QPushButton#chatSuggestChip {
+        color: %AQ_INK%; font-weight: normal; border: 1px solid %AQ_TILE_EDGE%; border-radius: 13px;
+        padding: 3px 18px; min-height: 18px;
+        background: %AQ_GLASS_FILL%;
+      }
+      /* The era's controls answered the press, never the pointer: no hover rule here, and the app
+         sheet's are taken out under the skin (support/aqua/still.hpp). */
+      QToolButton:pressed, QToolButton:checked, QToolButton[drawToggle="on"],
+      QToolButton[toolGhostBox="true"]:checked, QToolButton[toolFill="accent"]:pressed, QPushButton:pressed,
+      QPushButton[primaryCta="true"], QPushButton[successCta="true"] {
+        color: %AQ_ON_GEL%; border: 1px solid %AQ_GEL_EDGE%;
+        background: %AQ_GEL_FILL%;
+      }
+      /* Only browser `button.primary` is gel; the accent fill every other CTA wears in the plain theme is glass here. */
+      QPushButton[primaryCta="true"], QPushButton[successCta="true"] { border-radius: 13px; padding: 3px 18px; }
+      QPushButton#dangerButton, QPushButton[dangerCta="true"] { color: %AQ_DANGER_INK%; }
+      /* A dead control is a flat well, never glass or gel, its word the ink at 60% (browser css/aqua/chrome.css). */
+      QToolButton:disabled, QToolButton[toolFill="accent"]:disabled, QToolButton[toolFill="danger"]:disabled,
+      QPushButton:disabled, QPushButton[accentCta="true"]:disabled, QPushButton[primaryCta="true"]:disabled,
+      QPushButton[successCta="true"]:disabled,
+      QPushButton[dangerCta="true"]:disabled, QPushButton#dangerButton:disabled {
+        color: %AQ_DISABLED%; border: 1px solid %AQ_EDGE%;
+        background: %AQ_DEAD_FILL%;
+      }
+      /* A row's delete is a small glass tile (browser css/aqua/chrome.css .del-pt-btn: 20x14, 7px). */
+      QPushButton#pointDelBtn {
+        padding: 0; min-height: 12px; max-height: 12px; min-width: 18px; max-width: 18px; icon-size: 12px;
+        border: 1px solid %AQ_TILE_EDGE%; border-radius: 7px; background: %AQ_GLASS_FILL%;
+      }

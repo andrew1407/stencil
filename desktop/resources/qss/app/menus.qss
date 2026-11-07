@@ -4,6 +4,7 @@
       QMenuBar::item:pressed { background: %ACCENT%; color: %ON_ACCENT%; }
       QMenu { background: %BG_CONTAINER%; color: %TEXT%; border: 1px solid %BORDER%; border-radius: 8px; padding: 5px; }
       QMenu::item { padding: 6px %MENU_PAD_R%px 6px 24px; border-radius: 6px; margin: 1px 2px; }
+      QMenu[flatMenu="true"]::item { padding-right: 10px; }   /* no submenu row: no arrow column (menuRowPolish.hpp) */
       QMenu::item:selected { background: %BG_COORD_HOVER%; color: %TEXT%; }
       /* Row menus hover in the accent (browser .project-menu-item, .chat-row-menu-item). */
       QMenu[accentRows="true"]::item:selected { background: %ACCENT%; color: %ON_ACCENT%; }

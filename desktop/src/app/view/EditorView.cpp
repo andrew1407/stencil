@@ -9,6 +9,7 @@
 #include "OverlayScrollArea.hpp"
 #include "../../support/control/WrapRow.hpp"
 #include "controlReveal.hpp"
+#include "imageAnchor.hpp"   // TOOLBAR_FOLDING_PROPERTY
 
 #include <QLabel>
 #include <QToolBar>
@@ -82,6 +83,7 @@ namespace stencil::gui {
   void EditorView::animateBarsHeight(const QList<QToolBar*>& bars, bool show) {
     if (bars.isEmpty()) return;
     if (barsAnim) { barsAnim->stop(); barsAnim->deleteLater(); barsAnim = nullptr; }
+    for (QToolBar* b : bars) b->setProperty(TOOLBAR_FOLDING_PROPERTY, !show);
     auto release = [bars] {
       for (QToolBar* b : bars) { b->setMinimumHeight(0); b->setMaximumHeight(QWIDGETSIZE_MAX); }
     };
@@ -98,8 +100,8 @@ namespace stencil::gui {
     int full = 0;
     for (QToolBar* b : bars) full = std::max(full, b->sizeHint().height());
     if (full <= 0) full = 40;
-    const int from = show ? 0 : (bars.first()->height() > 0 ? bars.first()->height() : full);
-    const int to = show ? full : 0;
+    int from = show ? 0 : (bars.first()->height() > 0 ? bars.first()->height() : full);
+    int to = show ? full : 0;
     // A show has to photograph the rows at full height before flattening them, so the pin below
     // runs after the flight.
     QPointer<gui::DisintegrateOverlay> dustFx;
@@ -113,7 +115,9 @@ namespace stencil::gui {
     const bool poured = w.parts.dockChrome.pourBars(bars, show, pourMs);
     const int slideMs = poured ? pourMs : show ? fold.slideInMs : fold.slideOutMs;
     if (!poured) dustFx = barsSurfaceFlight(bars, /*gather=*/show, show ? fold.dustInMs : fold.dustOutMs);
-    if (show) for (QToolBar* b : bars) b->setFixedHeight(0);
+    // Fullscreen (MainWindow::setPanelShown): poured rows open at once under the ground's cover, not frame by frame.
+    if (w.fs.active && poured) from = to = show ? full : from;
+    else if (show) for (QToolBar* b : bars) b->setFixedHeight(0);
     const support::genie::SpaceClock space = support::genie::spaceClock(show || !poured, slideMs);
     barsAnim = startExtentSlide(
         &w, from, to, space.ms,

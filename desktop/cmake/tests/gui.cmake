@@ -67,6 +67,12 @@ stencil_headless_test(stencil_popupslide_headless
   LIBS stencil_gui_objs Qt6::Test
   INCLUDE_TESTS)
 
+# A menu's trigger rules (support/menu/menuReveal.hpp): the ⋯'s own press only closes it; a flyout leaves its ▸.
+stencil_headless_test(stencil_menutrigger_headless
+  SOURCES tests/support/menu/menuTrigger.headless.cpp
+  LIBS stencil_gui_objs Qt6::Test
+  INCLUDE_TESTS)
+
 # Dragging a toolbar control (support/drag/iconDrag): slop, drop, cancel and Escape on a live button.
 stencil_headless_test(stencil_icondrag_headless
   SOURCES tests/support/drag/iconDrag.headless.cpp tests/support/drag/iconDragSources.headless.cpp
@@ -138,3 +144,10 @@ stencil_headless_test(stencil_comboscrollhover_headless
   LIBS stencil_gui_objs Qt6::Test
   INCLUDE_TESTS
   ENV STENCIL_NO_ANIM=1)
+
+# The aqua combo list's ✓ (support/aqua/AquaCheckDelegate.hpp): the current row's margin mark, the motion
+# glyphs kept inside it, none on a swatch list, and no Qt indicator on a plain combo.
+stencil_headless_test(stencil_aquacombocheck_headless
+  SOURCES tests/support/aqua/AquaCheckDelegate.headless.cpp
+  LIBS stencil_gui_objs Qt6::Test
+  INCLUDE_TESTS)

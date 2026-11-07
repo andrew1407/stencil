@@ -38,7 +38,7 @@
       QPlainTextEdit#modalPromptText:focus { border: 2px solid %ACCENT%; padding: 4px 6px; }
       /* The browser's box-shadow focus ring as a wrapper frame, always 3px so nothing shifts. */
       QFrame#metaFieldRing { border: 3px solid transparent; border-radius: 11px; background: transparent; }
-      QFrame#metaFieldRing[ringOn="true"] { border: 3px solid %ACCENT_RING%; }
+      QFrame#metaFieldRing[ringOn="true"] { border: 3px solid %ACCENT_HALO%; }   /* browser fields: the accent at 25% */
       /* The thin half, on the fields the ring wraps. */
       QPlainTextEdit#descriptionText:focus { border: 1px solid %ACCENT%; padding: 5px 7px; }
       QLineEdit#keywordsInput:focus { border: 1px solid %ACCENT%; padding: 3px 8px; }

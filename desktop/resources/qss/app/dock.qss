@@ -14,6 +14,10 @@
         background: %BG_CONTROLS%;
         border-bottom-left-radius: 5px; border-bottom-right-radius: 5px;
       }
+      /* Fullscreen: the list fills its height in the header's surface, a rounded left edge (browser #fs-points-panel). */
+      QDockWidget[fsPanel="true"] QWidget#selPanelBody { background: %BG_CONTROLS%; border-bottom-left-radius: 8px; }
+      QDockWidget[fsPanel="true"] QWidget#selPanelTitle { border-top-left-radius: 8px; border-top-right-radius: 0; }
+      QDockWidget[fsPanel="true"] QFrame#selPanelCard { border-radius: 0; }
       /* The panel's chevron, and the one that reopens it from the canvas edge: one rounded square. */
       QToolButton#panelCollapseBtn, QToolButton#panelReopenBtn {
         background: transparent; border: 1px solid %BORDER%; border-radius: 8px; padding: 0;

@@ -1,11 +1,12 @@
 // The shared chat composer, identical in the panel and the context-menu flyout. Model
 // output is data: every string lands via textContent.
 import MEDIA_TYPES from '../../../../../common/config/mediaTypes.json' with { type: 'json' };
+import { popupIn, popupOut } from '../../motion/control/popup.js';
 import UI_STRINGS from '../../../../../common/config/uiStrings.json' with { type: 'json' };
 import { DOUBLE_CLICK_MS, LONG_PRESS_MS, PRESS_SLOP_PX } from '../../tip/popover.js';
 import { replayWaves, swapContent } from '../../motion/control/fx.js';
 import { SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../../motion/surface/motion.js';
-import { surfaceIn, surfaceOut } from '../../motion/surface/surfaces.js';
+import { settleGenie } from '../../motion/genie/window.js';
 import { rectCenter } from '../../motion/control/tips.js';
 import { announcePopup, openComposerMenus } from '../row/chatRowMenu.js';
 import { applyChatSide, toggleChatSide } from '../layoutPrefs.js';
@@ -56,8 +57,9 @@ export const wireChatMoreMenu = (prefix, doc = document, { onOpen } = {}) => {
     const changed = on === menu.hidden;
     if (on) { menu.hidden = false; lastMoreBtn = btn; }
     if (changed) {
-      if (on) surfaceIn(menu, dustPoint(), { ms: SURFACE_MENU_IN_MS });
-      else surfaceOut(menu, dustPoint(), { ms: SURFACE_MENU_OUT_MS });
+      if (on) popupIn(menu, dustPoint(), SURFACE_MENU_IN_MS);
+      else popupOut(menu, dustPoint(), SURFACE_MENU_OUT_MS);
+      if (!on) settleGenie(menu);
     }
     if (!on) menu.hidden = true;
     btn.setAttribute('aria-expanded', String(on));

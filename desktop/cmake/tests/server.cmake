@@ -5,6 +5,8 @@
 # retried in a loop, keeps the saved connection, and the row offers Reconnect.
 stencil_headless_test(stencil_serverauth_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp src/support/aqua/AquaCheckDelegate.cpp
     ${STENCIL_CONTROLREVEAL_SOURCES}
     ${STENCIL_FILTERFADE_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
@@ -28,6 +30,9 @@ stencil_headless_test(stencil_serverauth_headless
 # remove; a mock QTcpServer serves the /projects listing.
 stencil_headless_test(stencil_projectsbatch_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/tune/motionTable.cpp
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp src/support/aqua/AquaCheckDelegate.cpp
     ${STENCIL_CONTROLREVEAL_SOURCES}
     ${STENCIL_FILTERFADE_SOURCES}
     ${STENCIL_APPTOOLTIP_SOURCES}
@@ -60,6 +65,9 @@ stencil_headless_test(stencil_projectsort_headless
 # The same dialog's composition + row-data pin: what it builds, and what refresh() writes per row.
 stencil_headless_test(stencil_projectsdialogrows_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    src/support/tune/motionTable.cpp
+    src/support/genie/stripPaint.cpp
+    src/support/genie/GenieGhost.cpp src/support/aqua/AquaCheckDelegate.cpp
     ${STENCIL_CONTROLREVEAL_SOURCES}
     ${STENCIL_FILTERFADE_SOURCES}
     ${STENCIL_APPTOOLTIP_SOURCES}

@@ -1,5 +1,7 @@
 // Variant thumbnails and clearing the conversation.
 #include "ChatDock.hpp"
+#include "chatCardMotion.hpp"
+#include "../../../support/menu/popupSlide.hpp"   // POPUP_GENIE_MS
 #include "chatDockShared.hpp"
 #include "../../../support/motion/DisintegrateOverlay.hpp"
 #include "../../../support/motionPrefs.hpp"   // support::isDustAllowed()
@@ -90,9 +92,11 @@ namespace stencil::gui {
       QLayoutItem* item = log.transcriptLayout->itemAt(i);
       QWidget* w = item ? item->widget() : nullptr;
       if (!w || w == cmp.suggest) continue;
+      // Sliding / Transition: its entrance reversed, poured back into its tail home or shrunk into its tail corner.
+      const bool moved = chatCardLeave(w, scroll);
       // Snapshot BEFORE the card leaves the layout, hosted on the WINDOW (the dock's content widget
       // paints over its children). Fall, not Rows: the same gesture as the cleared IMAGE.
-      DisintegrateOverlay::over(w, window(), DisintegrateOverlay::Sweep::FALL,
+      if (!moved) DisintegrateOverlay::over(w, window(), DisintegrateOverlay::Sweep::FALL,
                                 CHAT_SCATTER_COLS, CHAT_SCATTER_ROWS,
                                 DisintegrateOverlay::ITEM_MS,
                                 w->palette().color(QPalette::WindowText));
@@ -100,14 +104,14 @@ namespace stencil::gui {
       wiped = true;
       delete log.transcriptLayout->takeAt(i);
       // Out of the layout but still painted while it fades; the fade owns the delete.
-      fadeOutAndDelete(w);
+      if (moved) w->deleteLater(); else fadeOutAndDelete(w);
     }
     clearAttachments();
     // Rows out first, THEN the placeholder (browser chat/view.js restoreEmptyState) — and
     // only while something is actually falling in front of it (browser wipeDurationMs).
-    if (wiped && support::isDustAllowed()) {
-      // A hair past the scatter's duration; the overlay deletes itself on finish.
-      QTimer::singleShot(support::motionMs(DisintegrateOverlay::ITEM_MS + 60), this, [this] {
+    if (wiped && !support::motionReduced()) {
+      // A hair past the leaving cards' flight: the chips never land among them (browser chat/transcript.js restoreEmptyState).
+      QTimer::singleShot(support::motionMs(chatClearWaitMs()), this, [this] {
         // A turn may have started while the wipe played.
         if (transcriptHasCards()) return;
         cmp.suggest->show();
