@@ -48,6 +48,8 @@ let lastEvent = null;       // last pointer event, for positioning
 // is crossed within the grace, and a tip that has just gone is followed at once. ms.
 export const LEAVE_GRACE_MS = 140;
 const WARM_MS = 500;
+// Where no next control follows: a pointer gone onto the canvas (or out of the window) takes the tip down at once.
+export const CANVAS_AREA = '#canvas-viewport';
 let leaveTimer = null;
 let warmUntil = 0;
 
@@ -192,14 +194,19 @@ export const initTooltips = () => {
     lastEvent = e;
     // Same guard as pointerover: a sweep can produce moves with no over in between.
     if (curEl && curEl.isConnected === false) { hide(); return; }
-    if (tip && tip.classList.contains('visible')) place(e);
+    // Only while the pointer is on its control: once it has left, the tip stays put through the leave grace and
+    // leaves from beside its control, never from wherever a flick has taken the pointer (user report).
+    if (tip && tip.classList.contains('visible') && curEl?.contains(e.target)) place(e);
   });
   document.addEventListener('pointerout', (e) => {
     if (!curEl || curEl.contains(e.relatedTarget)) return;
     if (!tip || !tip.classList.contains('visible')) { hide(); return; }
     clearTimeout(leaveTimer);
     // Only a pointer that LEFT warms the next tip: a click, key or scroll dismissed it on purpose.
-    leaveTimer = setTimeout(() => { leaveTimer = null; hide(); warmUntil = now() + WARM_MS; }, LEAVE_GRACE_MS);
+    const left = () => { leaveTimer = null; hide(); warmUntil = now() + WARM_MS; };
+    // The grace is for the gap between two controls; onto the canvas there is none to hand over to (user request).
+    if (!e.relatedTarget || e.relatedTarget.closest?.(CANVAS_AREA)) { left(); return; }
+    leaveTimer = setTimeout(left, LEAVE_GRACE_MS);
   });
   // Never let a tooltip get stuck: drop it on any scroll / click / key / blur.
   document.addEventListener('scroll', hide, true);

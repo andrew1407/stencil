@@ -67,6 +67,8 @@ export const createModalFlight = (overlay, boxOf) => {
     // A side-by-side window's cloud flies at the window's own level, under any window above it.
     const z = overlay.style?.zIndex;
     if (enter && genieEnabled() && restRect) { genie.open(restRect, iconRect, zAbove()); return; }
+    // The hold a Sliding open left (genie-hold: animation none) would still the CSS flight a mode picked since plays.
+    genie.settle();
     (enter ? surfaceIn : surfaceOut)(box, originPoint, z ? { zIndex: z } : {});
   };
   // Measure while the window is still up, hand over to the cloud, wear `modal-closing`.

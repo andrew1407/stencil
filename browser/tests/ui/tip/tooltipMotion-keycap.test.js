@@ -182,15 +182,15 @@ test('a child with its own text takes the tooltip over from its ancestor', () =>
 
 test('a sweep re-points ONE tip: the gap between two controls never hides it, and one just left comes back at once', () => {
   const a = reveal('Open (Ctrl+O)');
-  page.fire('pointerout', { target: a, relatedTarget: null });
+  page.fire('pointerout', { target: a, relatedTarget: page.control('') });   // a toolbar gap: no tip of its own
   assert.equal(page.visible(), true, 'the gap is crossed with the tip still up');
   const b = page.control('Save (Ctrl+S)', { rect: { left: 300, top: 100, width: 30, height: 30 } });
   page.over(b);
   assert.deepEqual([page.visible(), page.tip.innerHTML.includes('Save'), page.delays().includes(LEAVE_GRACE_MS)],
     [true, true, false], 're-pointed in place, its pending hide dropped');
   page.fire('pointerout', { target: b, relatedTarget: null });
-  assert.equal(page.run(LEAVE_GRACE_MS), 1);
-  assert.equal(page.visible(), false, 'left for nothing: it goes once the grace is out');
+  assert.deepEqual([page.visible(), page.delays().includes(LEAVE_GRACE_MS)], [false, false],
+    'left the window: nothing can follow, so it goes at once');
   page.over(page.control('Undo (Ctrl+Z)'));
   assert.deepEqual([page.visible(), page.delays().includes(TIP_SHOW_DELAY_MS)], [true, false],
     'the next control within the warm window shows at once, with no wait');

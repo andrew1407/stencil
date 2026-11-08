@@ -47,6 +47,17 @@ test('the canvas readout leaves a copy of itself that removes itself once its sh
   assert.ok(!p.doc.body.children.includes(copy), 'gone once its run is over');
 });
 
+// Sliding's tip hid on its own dissolve while its picture poured home: two exits at once (user report).
+test("Sliding's pour takes the box's own fade with it", (t) => {
+  installDustPage(t, { Image: function Image() {} });
+  setMotionPrefs({ mode: 'slide' });
+  const el = tipEl();
+  el.cloneNode = () => boxEl(rect(100, 60, 140, 40), { querySelectorAll: () => [] });   // the stand-in copy
+  assert.equal(tipFallbackOut(el, { x: 120, y: 50 }), true, 'the pour plays');
+  assert.ok(el.classList.contains('dust-driven'), 'and the box goes at once with the hide, under its picture');
+  assert.ok(!el.classList.contains(TIP_SHRINK_CLASS));
+});
+
 test('outside Transition neither plays', (t) => {
   installDustPage(t);
   setMotionPrefs({ mode: 'particles' });

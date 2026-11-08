@@ -47,7 +47,14 @@ export const tipFallbackIn = (el, point, landed = null) => {
 const TIP_OUT = Object.freeze({
   transition: (el) => { el.classList.remove(TIP_GROW_CLASS); flashLanding(el, TIP_SHRINK_CLASS, TIP_SHRINK_MS); return true; },
 });
-const pourOut = (el, point) => genieAway(el, pointBox(point), { ms: TIP_SLIDE_OUT_MS });
+// The box's own fade steps aside too: the pour is the whole exit, and the box goes with the caller's hide.
+const pourOut = (el, point) => {
+  const had = el.classList.contains(SURFACE_DRIVEN_CLASS);
+  el.classList.add(SURFACE_DRIVEN_CLASS);
+  const poured = genieAway(el, pointBox(point), { ms: TIP_SLIDE_OUT_MS });
+  if (!poured && !had) el.classList.remove(SURFACE_DRIVEN_CLASS);
+  return poured;
+};
 export const tipFallbackOut = (el, point) =>
   !!el?.classList && !!point && !motionReduced() && (TIP_OUT[motionMode()] ?? pourOut)(el, point);
 // For a tip hidden with display:none (the canvas readout): a copy by class and markup stands where it was

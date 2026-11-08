@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { TIP_SHOW_DELAY_MS } from '../../../js/ui/motion.js';
 import { COMPONENTS_CSS } from '../../helpers/css.js';
 import { installTooltipPage } from '../../helpers/tooltipRig.js';
+import { CANVAS_AREA, LEAVE_GRACE_MS } from '../../../js/ui/tip/controlTooltip.js';
 
 const componentsCss = COMPONENTS_CSS;
 const page = await installTooltipPage();
@@ -83,9 +84,9 @@ test('positioning measures the LAYOUT box, so the entry scale cannot mis-clamp i
   assert.ok(page.visible());
   assert.equal(page.tip.style.left, `${1000 - 120 - 10}px`, 'clamped by the 120px layout width, not the 116px painted one');
   assert.equal(page.tip.style.top, `${790 - 40 - 12}px`, 'and flipped above by the 40px layout height');
-  page.move({ clientX: 2, clientY: 3 });
+  page.move({ target: el, clientX: 2, clientY: 3 });
   assert.deepEqual([page.tip.style.left, page.tip.style.top], ['16px', '21px'], 'it follows the cursor');
-  page.move({ clientX: -50, clientY: -50 });
+  page.move({ target: el, clientX: -50, clientY: -50 });
   assert.deepEqual([page.tip.style.left, page.tip.style.top], ['10px', '10px'], 'and the window clamps still hold');
 });
 
@@ -108,6 +109,38 @@ test('the show delay is unchanged — the transition is layered over it, not ins
     assert.equal(page.run(TIP_SHOW_DELAY_MS), 0, `${name} drops the pending show`);
     assert.equal(page.visible(), false, `${name}: no tooltip wakes up afterwards`);
   }
+});
+
+// A flick off a control can cross half the window inside the leave grace: a tip still tracking the pointer then
+// left (poured, shrank, dusted) from mid-canvas, far from the control it described (user report).
+test('the tooltip stops following the pointer the moment it leaves the control', () => {
+  page.reset();
+  page.page.reduced = true;
+  const el = page.control('Save (Ctrl+S)');
+  page.over(el, { clientX: 110, clientY: 110 });
+  page.run(TIP_SHOW_DELAY_MS);
+  page.move({ target: el, clientX: 120, clientY: 112 });
+  assert.deepEqual([page.tip.style.left, page.tip.style.top], ['134px', '130px'], 'on the control it follows');
+  const gap = page.control('');   // the toolbar between two controls
+  page.fire('pointerout', { target: el, relatedTarget: gap, clientX: 400, clientY: 500 });
+  page.over(gap, { clientX: 400, clientY: 500 });
+  page.move({ target: gap, clientX: 420, clientY: 520 });
+  assert.ok(page.visible(), 'still up through the leave grace');
+  assert.deepEqual([page.tip.style.left, page.tip.style.top], ['134px', '130px'], 'but it stays where the pointer left it');
+});
+
+// The grace exists for the gap between two controls; the canvas has none to hand over to (user request).
+test('onto the canvas the tooltip goes at once, with no leave grace', () => {
+  page.reset();
+  const el = page.control('Save (Ctrl+S)');
+  page.over(el);
+  page.run(TIP_SHOW_DELAY_MS);
+  const canvas = page.control('');
+  canvas.closest = (sel) => (sel === CANVAS_AREA ? canvas : null);
+  page.fire('pointerout', { target: el, relatedTarget: canvas, clientX: 400, clientY: 500 });
+  assert.deepEqual([page.visible(), page.delays().includes(LEAVE_GRACE_MS)], [false, false]);
+  page.over(page.control('Undo (Ctrl+Z)'));
+  assert.ok(page.visible(), 'and back on the toolbar within the warm window the next tip shows at once');
 });
 
 // ── 2. Never stranded ───────────────────────────────────────────────────────
