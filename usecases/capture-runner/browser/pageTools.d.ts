@@ -18,6 +18,11 @@ export interface BrowserPages {
   gotoApp(page: Page, opts?: object): Promise<Page>;
   settleModalAnimations(page: Page, overlayId: string): Promise<unknown>;
   expectModalOpen(page: Page, overlayId: string): Promise<void>;
+  /** One CDP touch point: down, move, up, and a stepped glide. */
+  finger(page: Page): Promise<{
+    down(x: number, y: number): Promise<unknown>; move(x: number, y: number): Promise<unknown>;
+    up(x: number, y: number): Promise<unknown>; glide(x: number, y: number, tx: number, ty: number, steps?: number): Promise<void>;
+  }>;
 }
 
 export const gotoApp: (page: Page, opts?: object) => Promise<Page>;

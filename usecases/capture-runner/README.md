@@ -63,7 +63,7 @@ not a guessed delay; the few remaining pauses are clip timings and live in the c
 A clip is a run of lossless PNG frames: a screencast of the page for the browser app and the
 extension (`lib/shot/cast.mjs`), the window's own grabs for the desktop, screenshots for VS Code
 and the terminal. No video codec sits between the app and the GIF. Pages get a drawn pointer
-(`lib/shot/pointer.mjs`) — an arrow with a ring on each press, a fingertip for touch — because a
+(`lib/shot/pointer.mjs`) — an arrow with a ring on each press, a fingertip and a ring for a touch — because a
 screencast paints no cursor; the Qt capture paints its own into each frame. Identical frames
 merge, and every GIF opens on `gif.firstMs` of its first picture and rests `gif.lastMs` on its
 last (`config/shared.json`), so a reader always has time to see the result.

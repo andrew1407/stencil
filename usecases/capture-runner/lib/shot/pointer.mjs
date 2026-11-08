@@ -1,6 +1,6 @@
 // A drawn pointer for clips: a screencast or a debugger-attached app paints no cursor, so the
 // page under the camera gets an arrow that follows mouse, drag and touch input, a ring on each
-// press and a fingertip for touch. Installed on every document a context loads, or on a live page.
+// press or tap and a fingertip for touch. Installed on every document a context loads, or on a live page.
 
 // Runs IN the page; everything it needs is inside it.
 const install = () => {
@@ -63,11 +63,17 @@ const install = () => {
     },
   };
   const on = (type, fn) => addEventListener(type, fn, { capture: true, passive: true });
-  on('mousemove', (e) => place(e.clientX, e.clientY));
-  on('pointermove', (e) => place(e.clientX, e.clientY, e.pointerType === 'touch'));
+  // A page a finger has touched is a phone: the mouse events a tap synthesizes draw no arrow.
+  let touched = false;
+  on('mousemove', (e) => { if (!touched) place(e.clientX, e.clientY); });
+  on('pointermove', (e) => { if (e.pointerType === 'touch' || !touched) place(e.clientX, e.clientY, e.pointerType === 'touch'); });
   on('dragover', (e) => place(e.clientX, e.clientY));
-  on('pointerdown', (e) => { if (e.pointerType !== 'touch') ring(e.clientX, e.clientY); });
-  on('touchstart', (e) => { const t = e.touches[0]; if (t) place(t.clientX, t.clientY, true); });
+  on('pointerdown', (e) => { if (e.pointerType !== 'touch' && !touched) ring(e.clientX, e.clientY); });
+  on('touchstart', (e) => {
+    touched = true;
+    const t = e.touches[0];
+    if (t) { place(t.clientX, t.clientY, true); ring(t.clientX, t.clientY); }
+  });
   on('touchmove', (e) => { const t = e.touches[0]; if (t) place(t.clientX, t.clientY, true); });
   on('touchend', () => { host.style.display = 'none'; });
 };

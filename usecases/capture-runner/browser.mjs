@@ -18,6 +18,7 @@ import { makeDragSteps } from './browser/dragSteps.mjs';
 import { makeServerSteps } from './browser/serverSteps.mjs';
 import { makeClipSteps } from './browser/clipSteps.mjs';
 import { makeGestureSteps } from './browser/gestureSteps.mjs';
+import { makePhoneSteps } from './browser/phoneSteps.mjs';
 import { makeVideoSteps } from './browser/videoSteps.mjs';
 import { sampleVideo } from './lib/sampleMedia.mjs';
 
@@ -62,6 +63,9 @@ await runner.play(makeClipSteps({
 
 console.log('browser gestures');
 await runner.play(makeGestureSteps({ config, runner, browser, pages }));
+
+console.log('browser phone');
+await runner.play(makePhoneSteps({ config, runner, browser, pages }));
 
 await browser.close();
 await stub.close();

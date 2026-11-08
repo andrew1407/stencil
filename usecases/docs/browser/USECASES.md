@@ -14,6 +14,15 @@ follows your OS; the moon/sun button (`Ctrl+D`) flips it.
 |---|---|
 | ![the editor, light](img/editor-empty-light.png) | ![the editor, dark](img/editor-empty-dark.png) |
 
+## On a phone
+
+On a narrow screen the editor stacks. The toolbar folds behind **Controls** at the top, the
+picture takes the full width under it, and the points table sits below with a chevron that folds
+it away and brings it back. Windows open the width of the screen, and a field in one leaves the
+keyboard down until you tap it. Two quick taps on a control do what a double-click does.
+
+![a phone: a picture with its points, the toolbar shown and folded again, the page scrolled down to the points table, and the table folded and unfolded](img/phone-layout.gif)
+
 ## Start from a blank page, a file or a link
 
 **Open Image** (`Ctrl+O`, or the **Blank image** card) has three tabs: **Local file**,

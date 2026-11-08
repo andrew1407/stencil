@@ -186,6 +186,18 @@
       "steps": 14,
       "holdMs": 900
     },
+    "phone-layout": {
+      "size": {
+        "width": 390,
+        "height": 780
+      },
+      "width": 390,
+      "leadMs": 600,
+      "stepMs": 450,
+      "foldMs": 1300,
+      "scrollMs": 1300,
+      "holdMs": 1600
+    },
     "drag-icon-window": {
       "steps": 14,
       "stepMs": 40,
