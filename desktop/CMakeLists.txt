@@ -80,6 +80,14 @@ if(Qt6_FOUND)
 
   include(cmake/StencilSources.cmake)   # STENCIL_GUI_DIRS / STENCIL_APP_MAIN / STENCIL_GUI_SOURCES / STENCIL_SHARE_LIBS
 
+  # Qt's x86_64 libraries reach their own globals (QCoreApplication::self among them) directly, so a copy
+  # relocation in the executable splits such a global in two and Qt reads null: never take one (GCC 15's LTO did).
+  include(CheckCXXCompilerFlag)
+  check_cxx_compiler_flag(-mno-direct-extern-access stencil_no_direct_extern_access)
+  if(stencil_no_direct_extern_access)
+    add_compile_options(-mno-direct-extern-access)
+  endif()
+
   add_executable(stencil
     ${STENCIL_APP_MAIN}
     ${STENCIL_GUI_SOURCES}
