@@ -1,6 +1,6 @@
 {
   "name": "stencil-browser-extension",
-  "version": "1.2.0",
+  "version": "1.0.0",
   "description": "Chrome (MV3) extension: list/filter page images and send them to the Stencil editor.",
   "type": "module",
   "private": true,

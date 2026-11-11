@@ -1,5 +1,7 @@
 # Stencil — Python package (`pystencil`)
 
+[![pystencil version](https://img.shields.io/badge/pystencil-1.0.0-3572a5?logo=python&logoColor=white)](CHANGELOG.md)
+
 A **stdlib-only** Python mirror of the browser editor's `window.stencil` facade and the
 Zig [CLI](../cli/README.md)'s editing capabilities, driving the **same C++ `core/`** over
 `ctypes`: load an image, crop / rotate it, apply a filter, draw a layout, save the result,

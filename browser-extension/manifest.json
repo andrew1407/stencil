@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Stencil Image Picker",
-  "version": "1.2.0",
+  "version": "1.0.0",
   "description": "List, search and filter every image on a page, then download it, open it in a tab, or send it to the Stencil editor — with a quick page-aspect crop.",
   "permissions": ["activeTab", "scripting", "downloads", "contextMenus", "storage", "tabs", "sidePanel", "offscreen", "clipboardWrite"],
   "host_permissions": ["<all_urls>"],

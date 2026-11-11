@@ -14,6 +14,7 @@ run from the repo root, using Node builtins only: nothing to install, nothing ad
 | edit a file another surface ships a copy of | `node tools/syncTwins.mjs` (then `--check`) | a copy differs from its original |
 | add, split or grow a source file, function or folder | `node tools/caps.mjs --check` | a file passes 230 lines, a function 80 (or its `tools/functionCaps.json` entry), a folder 12 source units, a file name ends in a kind word beyond `tools/kindNames.json`, or a directory's body comments a fifth of its lines |
 | add, remove or rename a `core/*.cpp` or a core folder | `node tools/repo/coreLists.mjs --write` (then `--check`) | `cli/build.zig` or `pystencil/build.py` names other core sources or include dirs than `core/CMakeLists.txt` |
+| release Stencil or move an app's version | bump the app's manifest, add the changelog sections, then `node tools/repo/versions.mjs --write` (then `--check`) | a lockfile or a README badge spells another number than the app's manifest, or the app's `CHANGELOG.md` and the root one have no entry for it |
 
 Every tool prints a one-line summary last (`docPaths: 0 dead paths`), so the last line says
 whether it passed.
@@ -205,6 +206,23 @@ The CLI's `core_sources` / `core_include_dirs` and pystencil's `STENCIL_CORE_SOU
 `INCLUDE_DIRS` must name the same entries, order free; each recompiling build appends
 `cliApi.cpp` itself, and no `wasm*Api.cpp` is shared. **Output:** one line per drifted list
 (`lacks …`, `adds …`, `repeats …`), then `coreLists: N drifted`.
+
+## `repo/versions.mjs` — do the badges and changelogs repeat each manifest's version?
+
+```sh
+node tools/repo/versions.mjs --check   # report only; exits 1 on drift
+node tools/repo/versions.mjs --write   # rewrite the lockfiles and badges that drifted
+```
+
+An app's version is the one its own manifest declares (`package.json`, `Cargo.toml`,
+`build.zig.zon`, `CMakeLists.txt`, `pyproject.toml`, the extension's `manifest.json`, the bot's
+`<Version>`, the server's `const version`); Stencil's is the newest `## [N.N.N]` heading of the
+root `CHANGELOG.md`. The tool holds to them the lockfiles, the badge row in the root `README.md`
+and the badge under each app README's title, and `--write` rewrites those. A changelog is written
+by hand: the newest heading of an app's own `CHANGELOG.md` and its row in the root one are
+reported when they lag, never rewritten. It prints a line per site out of step (`… is 1.0.0,
+cli/build.zig.zon says 1.1.0`, or `no … badge` for a site that is gone), then
+`versions: N out of step`.
 
 ## `repo/cssInventory.mjs` — the stylesheet pins' scanner
 

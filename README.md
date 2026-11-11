@@ -9,6 +9,18 @@
 [![CLI packages](https://github.com/andrew1407/stencil/actions/workflows/cli-packages.yml/badge.svg)](https://github.com/andrew1407/stencil/actions/workflows/cli-packages.yml)
 [![GitHub Pages](https://github.com/andrew1407/stencil/actions/workflows/pages.yml/badge.svg)](https://github.com/andrew1407/stencil/actions/workflows/pages.yml)
 
+[![Stencil 1.0.0](https://img.shields.io/badge/stencil-1.0.0-7c3aed)](CHANGELOG.md)
+[![Core version](https://img.shields.io/badge/core-1.0.0-f34b7d?logo=cplusplus&logoColor=white)](core/CHANGELOG.md)
+[![Browser version](https://img.shields.io/badge/browser-1.0.0-f1e05a?logo=javascript&logoColor=black)](browser/CHANGELOG.md)
+[![Desktop version](https://img.shields.io/badge/desktop-1.0.0-41cd52?logo=qt&logoColor=white)](desktop/CHANGELOG.md)
+[![CLI version](https://img.shields.io/badge/cli-1.0.0-ec915c?logo=zig&logoColor=white)](cli/CHANGELOG.md)
+[![pystencil version](https://img.shields.io/badge/pystencil-1.0.0-3572a5?logo=python&logoColor=white)](pystencil/CHANGELOG.md)
+[![Chrome extension version](https://img.shields.io/badge/chrome_extension-1.0.0-4285f4?logo=googlechrome&logoColor=white)](browser-extension/CHANGELOG.md)
+[![VS Code extension version](https://img.shields.io/badge/vscode_extension-1.0.0-007acc?logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI%2BPHBhdGggZmlsbD0iI2ZmZiIgZD0iTTIzLjE1IDIuNTg3TDE4LjIxLjIxYTEuNDk0IDEuNDk0IDAgMCAwLTEuNzA1LjI5bC05LjQ2IDguNjMtNC4xMi0zLjEyOGEuOTk5Ljk5OSAwIDAgMC0xLjI3Ni4wNTdMLjMyNyA3LjI2MUExIDEgMCAwIDAgLjMyNiA4Ljc0TDMuODk5IDEyIC4zMjYgMTUuMjZhMSAxIDAgMCAwIC4wMDEgMS40NzlMMS42NSAxNy45NGEuOTk5Ljk5OSAwIDAgMCAxLjI3Ni4wNTdsNC4xMi0zLjEyOCA5LjQ2IDguNjNhMS40OTIgMS40OTIgMCAwIDAgMS43MDQuMjlsNC45NDItMi4zNzdBMS41IDEuNSAwIDAgMCAyNCAyMC4wNlYzLjkzOWExLjUgMS41IDAgMCAwLS44NS0xLjM1MnptLTUuMTQ2IDE0Ljg2MUwxMC44MjYgMTJsNy4xNzgtNS40NDh2MTAuODk2eiIvPjwvc3ZnPg%3D%3D)](vscode-extension/CHANGELOG.md)
+[![MCP server version](https://img.shields.io/badge/mcp-1.0.0-dea584?logo=rust&logoColor=black)](mcp/CHANGELOG.md)
+[![Collaboration server version](https://img.shields.io/badge/server-1.0.0-00add8?logo=go&logoColor=white)](server/CHANGELOG.md)
+[![Telegram bot version](https://img.shields.io/badge/bot-1.0.0-512bd4?logo=dotnet&logoColor=white)](bot/CHANGELOG.md)
+
 An image annotation / drawing tool: load an image, draw polylines and rectangles over
 it, edit points numerically, convert pixel coordinates to page (cm) coordinates with
 optional `f(x,y)` formula transforms, and save your work.

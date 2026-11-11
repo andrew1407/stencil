@@ -1,5 +1,7 @@
 # Stencil collaboration server (`server/`)
 
+[![Collaboration server version](https://img.shields.io/badge/server-1.0.0-00add8?logo=go&logoColor=white)](CHANGELOG.md)
+
 A Go server that stores and shares Stencil projects. Any client holding a valid token sees the
 same project list and can open any project; browser / desktop / CLI / extension clients save
 their edits over REST under a version guard, and every connected client hears about each

@@ -5,7 +5,7 @@ ctypes: the browser's ``window.stencil`` facade and the Zig CLI's pipeline over 
 
 from __future__ import annotations
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
 
 from . import _native
 

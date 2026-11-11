@@ -1,5 +1,7 @@
 # Stencil — MCP server (Rust)
 
+[![MCP server version](https://img.shields.io/badge/mcp-1.0.0-dea584?logo=rust&logoColor=black)](CHANGELOG.md)
+
 A Model Context Protocol (MCP) server that exposes Stencil's image/video editing pipeline as
 tools any MCP client (Claude Code, Claude Desktop, or your own agent) can call: load an
 image, video frame, or blank page, crop / rotate it, draw a layout, apply a filter, and write

@@ -1,5 +1,7 @@
 # Stencil — Core (C++17, STL-only)
 
+[![Core version](https://img.shields.io/badge/core-1.0.0-f34b7d?logo=cplusplus&logoColor=white)](CHANGELOG.md)
+
 The shared logic that backs every Stencil front-end. A small, **GUI-free, STL-only**
 C++17 library: formula parsing, geometry & hit-testing, colour, pixel↔page (cm)
 conversion, crop, a software line rasteriser, image filters, undo/redo history and

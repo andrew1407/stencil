@@ -68,6 +68,11 @@ CMake + Doctest; each other surface uses its platform's default.
   extension's `src/lib/` ports, the config copies in `pystencil/pystencil/_data/` …) is never
   edited in place: edit the original, then `node tools/syncTwins.mjs` re-copies every twin
   listed in `tools/twins.json` (`--check` only reports).
+- **Versions** — each app's version is the one its own manifest declares, and Stencil's is the
+  newest heading of the root `CHANGELOG.md`, which lists every app's version per release; each
+  app keeps its own `<app>/CHANGELOG.md`. A bump edits the manifest and adds the changelog
+  sections, then `node tools/repo/versions.mjs --write` refreshes the lockfiles and README badges
+  (`--check` only reports).
 - The CLI builds with Zig 0.17 (`cli/build.zig.zon` `minimum_zig_version`); its C ABI
   bindings are the hand-written `cli/src/core/cApi.zig`, pinned to `core/cliApi.h` by a drift test.
 

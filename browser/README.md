@@ -1,5 +1,7 @@
 # Stencil — Browser app
 
+[![Browser version](https://img.shields.io/badge/browser-1.0.0-f1e05a?logo=javascript&logoColor=black)](CHANGELOG.md)
+
 The browser front-end of Stencil. Built with **vanilla JavaScript and native ES
 modules** — no build step, no bundler, no third-party runtime dependencies. (There is one
 *optional* build, [`npm run build`](#single-file-build), which packs the app into a single

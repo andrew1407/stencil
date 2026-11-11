@@ -10,7 +10,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pystencil"
-version = "0.1.0"
+version = "1.0.0"
 description = "Stdlib-only Python mirror of the Stencil editor, driving the shared C++ core via ctypes"
 readme = "README.md"
 requires-python = ">=3.9"

@@ -1,5 +1,7 @@
 # Stencil — Telegram bot (.NET)
 
+[![Telegram bot version](https://img.shields.io/badge/bot-1.0.0-512bd4?logo=dotnet&logoColor=white)](CHANGELOG.md)
+
 A Telegram bot that drives Stencil's image pipeline from a chat: upload a photo (or start a
 blank canvas), crop / rotate / filter / draw a layout onto it, and download the result image
 or its layout JSON — and connect to a Stencil [collaboration server](../server/README.md) to

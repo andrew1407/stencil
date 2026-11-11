@@ -24,6 +24,9 @@ import (
 	"stencil/server/internal/transport"
 )
 
+// The server's release; its README badge and server/CHANGELOG.md repeat it.
+const version = "1.0.0"
+
 func main() {
 	if err := run(); err != nil {
 		log.Fatalf("stencil-server: %v", err)
@@ -31,6 +34,7 @@ func main() {
 }
 
 func run() error {
+	log.Printf("stencil-server %s", version)
 	cfg, err := config.Load()
 	if err != nil {
 		return err

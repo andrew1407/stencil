@@ -1,5 +1,7 @@
 # Stencil Image Picker — Chrome extension
 
+[![Chrome extension version](https://img.shields.io/badge/chrome_extension-1.0.0-4285f4?logo=googlechrome&logoColor=white)](CHANGELOG.md)
+
 A Manifest V3 Chrome/Edge extension that lists, searches and filters every image on the
 current page and lets you download it, open it in a tab, or send it to the
 [Stencil browser editor](../browser/) — as an in-page modal by default — including a quick

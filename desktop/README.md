@@ -1,5 +1,7 @@
 # Stencil — Desktop app (C++ / Qt)
 
+[![Desktop version](https://img.shields.io/badge/desktop-1.0.0-41cd52?logo=qt&logoColor=white)](CHANGELOG.md)
+
 The desktop front-end of Stencil: a C++17 + Qt 6 app that shares its logic with the
 browser app through the C++ [`core/`](../core/). For the project overview see the
 [repository README](../README.md); for how the app is structured,

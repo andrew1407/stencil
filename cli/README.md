@@ -1,5 +1,7 @@
 # Stencil — CLI (Zig)
 
+[![CLI version](https://img.shields.io/badge/cli-1.0.0-ec915c?logo=zig&logoColor=white)](CHANGELOG.md)
+
 A small command-line image tool that wraps Stencil's shared C++ core for quick, headless
 image manipulation: load an image, video frame, or blank page, crop / rotate it, draw a
 layout, apply a filter, and write the result. For the project overview see the
