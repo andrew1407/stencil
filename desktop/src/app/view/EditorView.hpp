@@ -64,7 +64,8 @@ namespace stencil::gui {
     // Back to the anchor's zoom with its point centred; a fitted anchor refits instead.
     void restoreAnchor(const ViewAnchor& a);
     // A QGraphicsOpacityEffect per bar: QSS cannot express hidden-until-pan-then-fade.
-    void revealCanvasScrollbars();
+    // `show` false only re-lays the canvas out: a zoom the user did not make shows no scrollbars.
+    void revealCanvasScrollbars(bool show = true);
     void scheduleScrollbarHide();
     QScrollBar* canvasScrollBar(Qt::Orientation o) const;
     // FLIP out of / into the viewport box (js/ui/motion.js); the chosen zoom is preserved.

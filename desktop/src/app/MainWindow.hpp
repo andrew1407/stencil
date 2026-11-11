@@ -92,7 +92,8 @@ namespace stencil::gui {
     core::PageSize currentPageDimensions() const;
     core::Point pageCoords(double imageX, double imageY) const;
     core::UnitFormat unitFormat() const;
-    void setZoom(double scale, bool syncCombo = true);
+    // `reveal` false: a zoom the user did not make (a fit following the layout) leaves the scrollbars hidden.
+    void setZoom(double scale, bool syncCombo = true, bool reveal = true);
     void fitToWindow();
     void spinControlsPill(bool animate);
     void setPanelShown(bool show, bool animate);

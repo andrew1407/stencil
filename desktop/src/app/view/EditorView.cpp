@@ -32,10 +32,11 @@ namespace stencil::gui {
   }
 
   // Invisible until an actual pan/zoom, never from hovering.
-  void EditorView::revealCanvasScrollbars() {
+  void EditorView::revealCanvasScrollbars(bool show) {
     // A zoom resizes canvas without resizing scroll, so relayout() directly; static_cast because
     // the subclass has no Q_OBJECT (OverlayScrollArea.hpp).
     if (w.scroll) static_cast<OverlayScrollArea*>(w.scroll)->relayout();
+    if (!show) return;
     // A pan tick fires this twice per frame (both scrollbars); skip until the timer has burnt some
     // fuse.
     const bool shown = vScrollOpacity && vScrollOpacity->opacity() >= 1.0

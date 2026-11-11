@@ -16,7 +16,7 @@
 
 namespace stencil::gui {
 
-  void MainWindow::setZoom(double scale, bool syncCombo) {
+  void MainWindow::setZoom(double scale, bool syncCombo, bool reveal) {
     scale = core::clampScale(scale);  // shared [ZOOM_MIN, ZOOM_MAX] bound (core/state/zoomPan)
     canvas->setScale(scale);
     if (syncCombo) {
@@ -28,7 +28,7 @@ namespace stencil::gui {
     }
     // The single debounced persistence path for every zoom route (browser zoom/pan.js persistZoom).
     parts.persistence.scheduleViewSave();
-    parts.view.revealCanvasScrollbars();   // a zoom can grow/shrink the scrollable range — show it
+    parts.view.revealCanvasScrollbars(reveal);   // a zoom can grow/shrink the scrollable range — show it
   }
 
   void MainWindow::fitToWindow() {
@@ -40,7 +40,7 @@ namespace stencil::gui {
     QTimer::singleShot(0, this, [this, applied] {
       if (!canvas->hasImage() || canvas->getScale() != applied) return;
       const double fit = core::clampScale(parts.view.fitScale());
-      if (std::abs(fit - applied) > 1e-6) setZoom(fit);
+      if (std::abs(fit - applied) > 1e-6) setZoom(fit, true, /*reveal=*/false);
     });
   }
 
