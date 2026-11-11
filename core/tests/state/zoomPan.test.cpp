@@ -10,6 +10,14 @@ TEST_CASE("clampScale matches zoom/pan.js limits [0.05, 32]") {
   CHECK(clampScale(1.0) == doctest::Approx(1.0));
 }
 
+TEST_CASE("zoomStepAt is the step up to 100% and proportional above it") {
+  CHECK(zoomStepAt(0.5, ZOOM_PRESS_STEP) == doctest::Approx(0.25));
+  CHECK(zoomStepAt(1.0, ZOOM_PRESS_STEP) == doctest::Approx(0.25));
+  CHECK(zoomStepAt(9.4, ZOOM_PRESS_STEP) == doctest::Approx(2.35));    // ×1.25 at 940%, as at 100%
+  CHECK(zoomStepAt(4.0, -ZOOM_HOLD_STEP) == doctest::Approx(-0.2));
+  CHECK(zoomStepAt(2.0, ZOOM_PRESS_STEP_BIG) == doctest::Approx(2.0));
+}
+
 TEST_CASE("anchoredZoom keeps the focal pixel under the cursor fixed") {
   // Cursor at viewport (100, 50), scrolled to (200, 100), zoom 1 -> 2.
   // The image pixel under the cursor is contentX/oldScale = (100+200)/1 = 300.

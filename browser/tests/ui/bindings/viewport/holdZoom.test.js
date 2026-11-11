@@ -6,6 +6,10 @@ import assert from 'node:assert/strict';
 import { installViewport } from '../../../helpers/zoomViewportRig.js';
 import { createStubElement } from '../../../helpers/dom.js';
 import { setupHoldZoom, holdStep, HOLD_STEP, HOLD_REPEAT_MS } from '../../../../js/ui/bindings/viewport/holdZoom.js';
+import { zoomStepAt } from '../../../../js/core/zoom/pan.js';
+
+// One held step from `s`: HOLD_STEP up to 100%, proportional above it.
+const held = (s, sign) => s + sign * zoomStepAt(s, HOLD_STEP);
 
 const rig = () => {
   const view = installViewport({ vpW: 1000, vpH: 700, imgW: 2000, imgH: 1400, scale: 1 });
@@ -44,17 +48,18 @@ test('stop() ends a press before its hold repeats', (t) => {
   const again = app.scale;
   t.mock.timers.tick(480);
   for (let i = 0; i < 3; i++) t.mock.timers.tick(HOLD_REPEAT_MS);
-  assert.ok(Math.abs(app.scale - (again + HOLD_STEP * 3)) < 1e-9, 'an unstopped hold repeats at the held rate');
+  const want = held(held(held(again, +1), +1), +1);
+  assert.ok(Math.abs(app.scale - want) < 1e-9, 'an unstopped hold repeats at the held rate');
   hold.stop();
 });
 
 test('holdStep moves the zoom one held step either way, inside the limits', () => {
   const { app, zp } = rig();
   holdStep(zp, +1);
-  assert.ok(Math.abs(app.scale - (1 + HOLD_STEP)) < 1e-9);
+  assert.ok(Math.abs(app.scale - (1 + HOLD_STEP)) < 1e-9, 'at 100% a held step is HOLD_STEP');
   holdStep(zp, -1);
   holdStep(zp, -1);
-  assert.ok(Math.abs(app.scale - (1 - HOLD_STEP)) < 1e-9);
+  assert.ok(Math.abs(app.scale - held(held(1 + HOLD_STEP, -1), -1)) < 1e-9, 'above 100% it is proportional');
   zp.setZoom(zp.clampScale(1e9));
   holdStep(zp, +1);
   assert.equal(app.scale, zp.clampScale(1e9), 'the top of the range holds');

@@ -12,7 +12,7 @@ import { core } from '../../js/core/abi/stencilCore.js';
 import { distToSegment, parseHex } from '../../js/utils.js';
 import { FormulaEngine } from '../../js/core/parse/formulaEngine.js';
 import { parseDuration } from '../../js/core/parse/durationParser.js';
-import { ZoomPan, rectZoom, zoomMin, zoomMax } from '../../js/core/zoom/pan.js';
+import { ZoomPan, rectZoom, zoomMin, zoomMax, zoomStepAt } from '../../js/core/zoom/pan.js';
 import constants from '../../../common/config/constants.json' with { type: 'json' };
 
 // js/wasm/stencilCore.js is a generated, gitignored artifact, present only after the Emscripten build, so the
@@ -40,6 +40,8 @@ const CASES = {
   hex: ['#7c3aed', '#000000', '#ffffff', '#0a1b2c', 'nope'],
   duration: ['days 23', 'fortnight', 'month', '3 weeks', 'off', 'banana', 'days 0', 'days 100000000', 'days 200000000'],
   scale: [99, 0.001, 1, 5, 32, 40, 0.05, -3],
+  // [scale, step]: below 100%, at it, well above it, a negative (zoom-out) step.
+  step: [[0.5, 0.25], [1, 0.25], [9.4, 0.25], [4, -0.05], [32, 1]],
   // [x1, y1, rectW, rectH, availW, availH]: a fit, the 32x ceiling, the zoomMin floor, off-centre.
   rect: [[50, 50, 100, 100, 400, 400], [0, 0, 10, 10, 400, 400], [0, 0, 8000, 100, 400, 400], [300, 20, 60, 90, 1024, 700]],
 };
@@ -64,7 +66,8 @@ const jsRef = {
   hex: CASES.hex.map(h => parseHex(h)),
   // Captured at module-eval time (no wasm installed yet), so this is the JS fallback.
   duration: CASES.duration.map(s => parseDuration(s)),
-  zoom: { min: zoomMin(), max: zoomMax(), clamp: CASES.scale.map(s => new ZoomPan({}).clampScale(s)) },
+  zoom: { min: zoomMin(), max: zoomMax(), clamp: CASES.scale.map(s => new ZoomPan({}).clampScale(s)),
+    step: CASES.step.map(([s, d]) => zoomStepAt(s, d)) },
   rect: CASES.rect.map(r => rectZoom(...r)),
 };
 
@@ -179,6 +182,12 @@ wtest('zoomMin / zoomMax / clampScale: wasm matches the JS fallback range and cl
   // Installed, pan.js's own reads route through the core and still agree.
   assert.strictEqual(zoomMin(), jsRef.zoom.min);
   assert.strictEqual(zoomMax(), jsRef.zoom.max);
+});
+
+wtest('zoomStepAt: wasm matches the JS zoom step, as given up to 100% and proportional above', () => {
+  const fn = core.op('zoomStepAt');
+  CASES.step.forEach(([s, d], i) => assert.strictEqual(fn(s, d), jsRef.zoom.step[i], `step ${s} ${d}`));
+  assert.strictEqual(zoomStepAt(9.4, 0.25), jsRef.zoom.step[2], 'installed, pan.js routes through the core');
 });
 
 wtest('rectZoom: wasm matches the JS zoom-to-rect fit (Float64 out-pointer marshalling)', () => {

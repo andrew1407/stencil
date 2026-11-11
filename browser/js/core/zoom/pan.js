@@ -19,6 +19,14 @@ const ZOOM_MAX = 32;
 export const zoomMin = core.bind('zoomMin', () => ZOOM_MIN);
 export const zoomMax = core.bind('zoomMax', () => ZOOM_MAX);
 
+// One − / + press or zoom key, a double press or Shift, and one held tick: the fallback twins of
+// core/state/zoomPan.hpp ZOOM_PRESS_STEP, ZOOM_PRESS_STEP_BIG, ZOOM_HOLD_STEP.
+export const ZOOM_PRESS_STEP = 0.25;
+export const ZOOM_PRESS_STEP_BIG = 1.0;
+export const ZOOM_HOLD_STEP = 0.05;
+// `step` scale units as given up to 100%, times the scale above it (core/state/zoomPan.cpp zoomStepAt).
+export const zoomStepAt = core.bind('zoomStepAt', (scale, step) => step * Math.max(1, scale));
+
 // A swept image-space rect filling the availW x availH viewport, centred, capped at ZOOM_MAX:
 // the fallback twin of core/state/zoomPan.cpp rectZoom.
 export const rectZoom = (x1, y1, rectW, rectH, availW, availH) => {
@@ -74,6 +82,8 @@ export class ZoomPan {
   syncCoordPanelHeight() { syncCoordPanelHeight(); }
 
   zoomAroundCenter(newScale) { zoomAroundCenter(this, newScale); }
+  // One press of `step` toward `sign` (+1 in, −1 out), proportional above 100%.
+  stepZoom(sign, step) { this.zoomAroundCenter(this.app.scale + sign * zoomStepAt(this.app.scale, step)); }
   zoomToImagePoint(newScale, imgX, imgY) { zoomToImagePoint(this, newScale, imgX, imgY); }
 
   setZoom(newScale, persist = true) {

@@ -5,7 +5,7 @@ import { stateExports } from './coreHandles.js';
 export const RUNTIME_EXPORTS = Object.freeze([
   'stencil_parseHex', 'stencil_formulaValidate', 'stencil_formulaApply',
   'stencil_formulaValidateCtx', 'stencil_formulaApplyCtx', 'stencil_formulaApplyPoints', 'stencil_parseDuration',
-  'stencil_clampScale', 'stencil_zoomMin', 'stencil_zoomMax', 'stencil_shouldCloseShape',
+  'stencil_clampScale', 'stencil_zoomStepAt', 'stencil_zoomMin', 'stencil_zoomMax', 'stencil_shouldCloseShape',
   'stencil_isAlbumOrientation',
   'stencil_cropAspect', 'stencil_cropResizeScale', 'stencil_pageDimensions',
   'stencil_rotatePoints', 'stencil_flipPoints', 'stencil_boundingBoxCenter',

@@ -7,6 +7,10 @@ namespace stencil::core {
     return std::max(ZOOM_MIN, std::min(ZOOM_MAX, scale));
   }
 
+  double zoomStepAt(double scale, double step) {
+    return step * std::max(1.0, scale);
+  }
+
   AnchoredZoom anchoredZoom(double scrollLeft, double scrollTop, double cursorX,
                             double cursorY, double oldScale, double newScale) {
     newScale = clampScale(newScale);

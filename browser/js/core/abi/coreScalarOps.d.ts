@@ -7,7 +7,7 @@ import type { CoreMarshal } from './coreMarshal.js';
 export type ScalarOpName =
   'parseHex' | 'distToSegment' | 'formulaValidate' | 'formulaApply' |
   'formulaValidateCtx' | 'formulaApplyCtx' |
-  'parseDuration' | 'clampScale' | 'zoomMin' | 'zoomMax' | 'rectZoom' | 'shouldCloseShape';
+  'parseDuration' | 'clampScale' | 'zoomStepAt' | 'zoomMin' | 'zoomMax' | 'rectZoom' | 'shouldCloseShape';
 
 export declare const buildScalarOps: (core: unknown, m: CoreMarshal) => Pick<CoreOps, ScalarOpName>;
 /** The formulas over a whole run of raw page points, in one crossing. */

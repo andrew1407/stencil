@@ -7,11 +7,14 @@ import assert from 'node:assert/strict';
 import { installViewport, seenAt } from '../../helpers/zoomViewportRig.js';
 import { createStubElement } from '../../helpers/dom.js';
 import { desktopSource } from '../../helpers/desktopSource.js';
+import { readFileSync } from 'node:fs';
 import { HOLD_STEP, HOLD_REPEAT_MS } from '../../../js/ui/bindings/viewport/holdZoom.js';
 import { createIconDrag, TARGET_CLASS, TARGET_OVER_CLASS } from '../../../js/ui/drag/iconDrag.js';
 import {
   ZOOM_DRAG_K, zoomAtDistance, zoomDragHooks, createFitStepper, fitDragHooks,
 } from '../../../js/ui/drag/zoomDrag.js';
+
+const coreSource = readFileSync(new URL('../../../../core/state/zoomPan.hpp', import.meta.url), 'utf8');
 
 const near = (a, b, msg) => assert.ok(Math.abs(a - b) < 1e-9, `${msg}: ${a} vs ${b}`);
 const ICON = { left: 100, top: 10, right: 128, bottom: 38, width: 28, height: 28 };
@@ -30,7 +33,8 @@ test('the desktop twin follows the same curve and steps at the same held rate', 
   const cpp = desktopSource('app/drag/zoomFollow');
   const num = (name) => Number(new RegExp(`${name} = ([\\d.e+-]+);`).exec(cpp)?.[1]);
   near(num('ZOOM_DRAG_K'), ZOOM_DRAG_K, 'k');
-  assert.equal(num('HOLD_ZOOM_STEP'), HOLD_STEP);
+  assert.match(cpp, /core::zoomStepAt\(z, core::ZOOM_HOLD_STEP\)/, 'the desktop holds at the core step');
+  assert.equal(Number(/ZOOM_HOLD_STEP = ([\d.]+);/.exec(coreSource)?.[1]), HOLD_STEP, 'the browser twin of it');
   assert.equal(num('HOLD_ZOOM_TICK_MS'), HOLD_REPEAT_MS);
 });
 

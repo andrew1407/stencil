@@ -27,6 +27,7 @@ extern "C" {
   void stencil_flipPoints(double*, int, int, double, double);
   void stencil_boundingBoxCenter(const double*, int, double*);
   double stencil_clampScale(double);
+  double stencil_zoomStepAt(double, double);
   double stencil_zoomMin(void);
   double stencil_zoomMax(void);
   void stencil_rectZoom(double, double, double, double, double, double, double*);
@@ -165,6 +166,11 @@ TEST_SUITE("wasmApi") {
     stencil_boundingBoxCenter(pts, 4, out);
     CHECK(out[0] == doctest::Approx(5.0));
     CHECK(out[1] == doctest::Approx(5.0));
+  }
+
+  TEST_CASE("stencil_zoomStepAt scales a step above 100%") {
+    CHECK(stencil_zoomStepAt(0.3, 0.25) == doctest::Approx(0.25));
+    CHECK(stencil_zoomStepAt(8.0, 0.25) == doctest::Approx(2.0));
   }
 
   TEST_CASE("stencil_clampScale clamps into the zoom limits") {

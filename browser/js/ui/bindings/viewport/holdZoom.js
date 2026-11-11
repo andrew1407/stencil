@@ -1,18 +1,16 @@
 import { setZoomInputValue } from '../../../utils/zoomOverlay.js';
 import { zoomAroundCenter } from '../../../core/zoom/animation.js';
+import { zoomStepAt, ZOOM_PRESS_STEP, ZOOM_PRESS_STEP_BIG, ZOOM_HOLD_STEP } from '../../../core/zoom/pan.js';
 
-// Smaller, gentler steps so a single click feels like one notch, not a leap.
-const SMALL = 0.10;
-const LARGE = 0.40;
 const DBL_WINDOW = 280;
 const HOLD_DELAY = 480;
 // The held rate, which a fit drag over ± (ui/drag/zoomDrag.js) runs at too.
-export const HOLD_STEP = 0.05;
+export const HOLD_STEP = ZOOM_HOLD_STEP;
 export const HOLD_REPEAT_MS = 90;
 
 // One continuous step about the viewport centre; sign is +1 zoom-in, −1 zoom-out.
 export const holdStep = (zp, sign) => {
-  const t = zp.clampScale(zp.app.scale + sign * HOLD_STEP);
+  const t = zp.clampScale(zp.app.scale + sign * zoomStepAt(zp.app.scale, HOLD_STEP));
   setZoomInputValue(Math.round(t * 100));
   zoomAroundCenter(zp, t);
 };
@@ -38,9 +36,9 @@ export function setupHoldZoom(zp, btn, sign) {
     const now = performance.now();
     const isDouble = (now - lastPress) < DBL_WINDOW;
     lastPress = isDouble ? 0 : now;
-    // On double-click, top up the prior SMALL step to reach LARGE in total
-    const step = isDouble ? (LARGE - SMALL) : SMALL;
-    const target = zp.clampScale(zp.app.scale + sign * step);
+    // The core's press steps, alike on the desktop; a double press tops the first up to the big one.
+    const step = isDouble ? (ZOOM_PRESS_STEP_BIG - ZOOM_PRESS_STEP) : ZOOM_PRESS_STEP;
+    const target = zp.clampScale(zp.app.scale + sign * zoomStepAt(zp.app.scale, step));
     // Update the zoom % input synchronously so users see immediate feedback
     setZoomInputValue(Math.round(target * 100));
     zoomAroundCenter(zp, target);

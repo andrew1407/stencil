@@ -82,9 +82,9 @@ namespace stencil::gui {
     QObject::connect(w.canvas, &CanvasWidget::fitRequested, &w, &MainWindow::fitToWindow);
     QObject::connect(w.canvas, &CanvasWidget::zoomAtCursor, &w,
                      [this](int dir, const QPoint& posInWidget, bool fast) {
-                       // Step 0.1 (0.3 with Shift), additive — drawingApp.js wheel.
-                       const double step = fast ? 0.3 : 0.1;
-                       const double target = w.canvas->getScale() + dir * step;
+                       // The core's wheel step (Shift: the fast one), proportional above 100%.
+                       const double s = w.canvas->getScale();
+                       const double target = s + dir * core::zoomStepAt(s, fast ? core::ZOOM_STEP_FAST : core::ZOOM_STEP);
                        // posInWidget is canvas-space; the focal math wants viewport coords.
                        const QPoint inVp =
                            w.canvas->mapTo(w.scroll->viewport(), posInWidget);

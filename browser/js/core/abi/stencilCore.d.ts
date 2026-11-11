@@ -23,6 +23,8 @@ export interface CoreOps extends LineOps {
   /** ms, 0 = keep forever; null when invalid. */
   parseDuration(spec: string | null | undefined): number | null;
   clampScale(scale: number): number;
+  /** A zoom step as given up to 100%, multiplied by the scale above it. */
+  zoomStepAt(scale: number, step: number): number;
   /** The bounds clampScale clamps into, as scales. */
   zoomMin(): number;
   zoomMax(): number;

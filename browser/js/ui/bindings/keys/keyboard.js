@@ -9,6 +9,7 @@ import { dragMove } from '../../../core/touch/dragGestures.js';
 import { removeSelectedLines } from '../../../core/line/editOps.js';
 import { CHANGE, changed } from '../../../core/app/changes.js';
 import { cliModeOn } from '../../../console/shell/gate.js';
+import { ZOOM_PRESS_STEP, ZOOM_PRESS_STEP_BIG } from '../../../core/zoom/pan.js';
 export function wireKeyboard(app) {
   const { HK_HANDLERS, EDIT_HOTKEYS, LINE_TRANSFORM_HOTKEYS } = hotkeyActions(app);
   document.addEventListener('keydown', e => {
@@ -55,14 +56,13 @@ export function wireKeyboard(app) {
     }
 
     // Alt + (=/+/−) ergonomic zoom shortcuts (not in the registry so they can't be remapped away)
-    // Shift held → large step (1.0), otherwise small step (0.25)
+    // Shift held → the big press step, otherwise the press step (core/state/zoomPan.hpp)
     if (e.altKey && !e.ctrlKey && !e.metaKey) {
       const inc = e.code === 'Equal' || e.code === 'NumpadAdd';
       const dec = e.code === 'Minus' || e.code === 'NumpadSubtract';
       if (inc || dec) {
         e.preventDefault();
-        const step = e.shiftKey ? 1.0 : 0.25;
-        app.zoomPan.zoomAroundCenter(app.scale + (inc ? step : -step));
+        app.zoomPan.stepZoom(inc ? +1 : -1, e.shiftKey ? ZOOM_PRESS_STEP_BIG : ZOOM_PRESS_STEP);
       }
     }
   });

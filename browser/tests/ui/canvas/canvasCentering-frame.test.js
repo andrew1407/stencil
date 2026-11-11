@@ -38,7 +38,9 @@ test('the wheel zoom pins the cursor through the centring margins, at every fram
     wheel({ ctrlKey: true, deltaY: -80, deltaMode: 0, clientX: 500, clientY: 350, target: vp, preventDefault() {} });
   }
   while (frames.length) frames.shift()(0);
-  assert.ok(Math.abs(app.scale - 1.96) < 1e-9, `three capped notches land at 1.96, got ${app.scale}`);
+  // Each notch caps at 0.32, then scales with the zoom above 100% (core zoomStepAt).
+  const want = [0, 0, 0].reduce((s) => s + 0.32 * Math.max(1, s), 1);
+  assert.ok(Math.abs(app.scale - want) < 1e-9, `three capped notches land at ${want}, got ${app.scale}`);
   assert.ok(writes.length >= 6, 'the loop wrote the scroll on its frames and at the snap');
   for (const { axis, v, s } of writes) {
     const org = zp.originAt(s)[axis === 'scrollLeft' ? 'x' : 'y'];

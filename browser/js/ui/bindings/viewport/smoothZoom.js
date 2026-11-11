@@ -1,4 +1,4 @@
-import { canvasOrigin } from '../../../core/zoom/pan.js';
+import { canvasOrigin, zoomStepAt } from '../../../core/zoom/pan.js';
 import { selectedIndices } from '../../../core/line/selection.js';
 import { rotateSelectedLine } from '../../../core/draw/transformOps.js';
 export function wireSmoothZoom(app) {
@@ -85,11 +85,11 @@ export function wireSmoothZoom(app) {
     const px = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1);
     const factor = e.shiftKey ? 0.0095 : 0.004;
     const cap = e.shiftKey ? 0.65 : 0.32;
-    const delta = Math.max(-cap, Math.min(cap, -px * factor));
     const sz = smoothZoom;
 
     // Accumulate target scale (clampScale = the shared [0.05, ZOOM_MAX] zoom bound)
     const base = sz.target !== null ? sz.target : app.scale;
+    const delta = zoomStepAt(base, Math.max(-cap, Math.min(cap, -px * factor)));
     sz.target = app.zoomPan.clampScale(base + delta);
 
     // Focal point in image-space (unscaled pixels), through the centring margins (canvasOrigin):

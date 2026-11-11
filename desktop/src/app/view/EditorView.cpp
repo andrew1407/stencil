@@ -5,6 +5,7 @@
 #include "windowMotion.hpp"
 #include "../../support/genie/GenieGhost.hpp"   // support::genie::flightEase
 #include "CanvasWidget.hpp"
+#include "zoomCore.hpp"
 #include "Notifications.hpp"
 #include "OverlayScrollArea.hpp"
 #include "../../support/control/WrapRow.hpp"
@@ -19,9 +20,16 @@
 
 namespace stencil::gui {
 
-  void EditorView::zoomIn() { w.setZoom(w.canvas->getScale() * 1.25); }
+  // The press step every surface takes (core/state/zoomPan.hpp; browser holdZoom.js, hotkeyActions.js).
+  void EditorView::zoomIn() {
+    const double s = w.canvas->getScale();
+    w.setZoom(s + core::zoomStepAt(s, core::ZOOM_PRESS_STEP));
+  }
 
-  void EditorView::zoomOut() { w.setZoom(w.canvas->getScale() * 0.8); }
+  void EditorView::zoomOut() {
+    const double s = w.canvas->getScale();
+    w.setZoom(s - core::zoomStepAt(s, core::ZOOM_PRESS_STEP));
+  }
 
   // Invisible until an actual pan/zoom, never from hovering.
   void EditorView::revealCanvasScrollbars() {

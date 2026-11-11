@@ -61,6 +61,7 @@ into `browser/js/wasm/`.
 | `renderer.js` `drawImageWithFilter` (contour) / `contourFilter.js` | `stencil_applyContourRGBA` |
 | `drawingApp.js` `#rotateSelectedLine` rotation + bbox pivot | `stencil_rotatePoints`, `stencil_boundingBoxCenter` |
 | `zoom/pan.js` `clampScale` | `stencil_clampScale` |
+| `zoom/pan.js` `zoomStepAt` — the zoom step, as given up to 100%, proportional above it | `stencil_zoomStepAt` |
 | `zoom/pan.js` `rectZoom` — the zoom-to-rect fit, desktop's `core::rectZoom` | `stencil_rectZoom` |
 | `zoom/pan.js` `zoomMin` / `zoomMax` — the clamp's range, which the zoom input's bounds read | `stencil_zoomMin`, `stencil_zoomMax` |
 | `core/parse/cropGeometry.js` — the crop window math behind `cropModal.js` / `model.js` | `stencil_cropAspect`, `stencil_centeredCrop`, `stencil_resizeCropFromCorner`, `stencil_moveCropClamped`, `stencil_scaleCropCentered`, `stencil_cropResizeScale`, `stencil_cropChange`, `stencil_rotateCropRectQuarter`, `stencil_isAlbumOrientation` |

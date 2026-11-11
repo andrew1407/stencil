@@ -8,6 +8,7 @@ import { flipSelectedLine, rotateSelectedLineQuarter } from '../../../core/draw/
 import { removePoint, removeSelectedLines } from '../../../core/line/editOps.js';
 import { canvasMouseMove } from '../../../core/pointer/hoverController.js';
 import { confirmCloseProject } from '../../projects/closeProject.js';
+import { ZOOM_PRESS_STEP, ZOOM_PRESS_STEP_BIG } from '../../../core/zoom/pan.js';
 // Every hotkey id the editor answers to, as one table of actions — plus the two sets
 // the dispatcher consults: which are edits (inert while comparing) and which act on
 // the selection. The keydown loop above is the only caller.
@@ -64,10 +65,10 @@ export function hotkeyActions(app) {
     toggleControls: () => { const b = document.getElementById('toggle-controls');   if (b) b.click(); },
     togglePointsList: () => { const b = document.getElementById('toggle-coord-panel'); if (b) b.click(); },
     fullscreen: () => app.toggleFullscreen?.('screen'), fullscreenWindow: () => app.toggleFullscreen?.('window'),
-    zoomIn: () => app.zoomPan.zoomAroundCenter(app.scale + 0.25),
-    zoomOut: () => app.zoomPan.zoomAroundCenter(app.scale - 0.25),
-    zoomInBig: () => app.zoomPan.zoomAroundCenter(app.scale + 1.0),
-    zoomOutBig: () => app.zoomPan.zoomAroundCenter(app.scale - 1.0),
+    zoomIn: () => app.zoomPan.stepZoom(+1, ZOOM_PRESS_STEP),
+    zoomOut: () => app.zoomPan.stepZoom(-1, ZOOM_PRESS_STEP),
+    zoomInBig: () => app.zoomPan.stepZoom(+1, ZOOM_PRESS_STEP_BIG),
+    zoomOutBig: () => app.zoomPan.stepZoom(-1, ZOOM_PRESS_STEP_BIG),
     // With a line selected Alt+R arms the line-rotate chord (Alt+R+←/→, wireArrowPan), so it must
     // not also spin the image. Alt+Shift+R is unaffected by the chord.
     rotateImageLeft: () => { if (app.image && selectedIndices(app).length === 0) app.imageModel.rotateImage(-1); },

@@ -10,6 +10,12 @@ export declare const canvasOrigin: () => { x: number; y: number };
 export declare const zoomMin: () => number;
 /** The largest zoom scale (32); core-bound (wasm) with the JS fallback as the reference. */
 export declare const zoomMax: () => number;
+/** One − / + press or zoom key, a double press or Shift, and one held tick, in scale units. */
+export declare const ZOOM_PRESS_STEP: number;
+export declare const ZOOM_PRESS_STEP_BIG: number;
+export declare const ZOOM_HOLD_STEP: number;
+/** `step` scale units as given up to 100%, multiplied by the scale above it; the core's when loaded. */
+export declare const zoomStepAt: (scale: number, step: number) => number;
 /** The scale and scroll that fit a swept image-space rect to the viewport, centred, capped at zoomMax(). */
 export declare const rectZoom: (x1: number, y1: number, rectW: number, rectH: number, availW: number, availH: number) =>
   { scale: number; scrollLeft: number; scrollTop: number };
@@ -49,6 +55,8 @@ export declare class ZoomPan {
   syncViewportHeight(): void;
   syncCoordPanelHeight(): void;
   zoomAroundCenter(newScale: number): void;
+  /** One press of `step` toward `sign` (+1 in, −1 out), proportional above 100%. */
+  stepZoom(sign: 1 | -1, step: number): void;
   zoomToImagePoint(newScale: number, imgX: number, imgY: number): void;
   /** No image → ignored. `persist` false skips the debounced save. */
   setZoom(newScale: number, persist?: boolean): void;

@@ -8,8 +8,14 @@ namespace stencil::core {
   constexpr double ZOOM_MAX = 32.0;   // 3200% — headroom to magnify small images/pixels
   constexpr double ZOOM_STEP = 0.1;
   constexpr double ZOOM_STEP_FAST = 0.3;
+  // One − / + press or zoom key, a double press or Shift, and one tick of a held press, on every surface.
+  constexpr double ZOOM_PRESS_STEP = 0.25;
+  constexpr double ZOOM_PRESS_STEP_BIG = 1.0;
+  constexpr double ZOOM_HOLD_STEP = 0.05;
 
   double clampScale(double scale);
+  // `step` scale units as given up to 100%, times the scale above it: a step reads alike at 940% and 94%.
+  double zoomStepAt(double scale, double step);
 
   struct AnchoredZoom {
     double scale = 1.0;

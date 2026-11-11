@@ -92,7 +92,9 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(near(win.canvas->getScale(), kept / 8), "300 px out, − zooms ÷8");
     const double before = win.canvas->getScale();
     QTest::mouseClick(in, Qt::LeftButton);
-    QVERIFY2(near(win.canvas->getScale(), before * 1.25), "a plain click on + still steps the zoom");
+    // The press step every surface takes: ZOOM_PRESS_STEP, proportional above 100% (core zoomStepAt).
+    QVERIFY2(near(win.canvas->getScale(), before + stencil::core::zoomStepAt(before, stencil::core::ZOOM_PRESS_STEP)),
+             "a plain click on + still steps the zoom");
   }
 
   void theFitDragStepsOnMinusAndPlusAndRestoresOnItself() {
@@ -108,7 +110,7 @@ class MainWindowGuiTest : public QObject {
     iconMouse(fit, QEvent::MouseMove, iconCentre(in));
     QTest::qWait(stencil::gui::HOLD_ZOOM_TICK_MS * 3 + 60);
     const double stepped = win.canvas->getScale();
-    QVERIFY2(stepped >= 1.0 + 2 * stencil::gui::HOLD_ZOOM_STEP - 1e-9, "resting on + steps the zoom in");
+    QVERIFY2(stepped >= 1.0 + 2 * stencil::core::ZOOM_HOLD_STEP - 1e-9, "resting on + steps the zoom in");
     iconMouse(fit, QEvent::MouseMove, iconCentre(out));
     QTest::qWait(stencil::gui::HOLD_ZOOM_TICK_MS * 2 + 60);
     QVERIFY2(win.canvas->getScale() < stepped, "resting on − steps it out");

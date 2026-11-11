@@ -75,7 +75,7 @@ class StencilCore {
       'parseHex', 'distToSegment', 'formulaValidate', 'formulaApply',
       'formulaValidateCtx', 'formulaApplyCtx', 'formulaApplyPoints', 'parseDuration',
       'pageDimensions', 'pageFormats', 'pixelToPageRaw', 'rotatePoints', 'flipPoints', 'boundingBoxCenter',
-      'clampScale', 'zoomMin', 'zoomMax', 'rectZoom', 'shouldCloseShape', 'applyFilterRGBA', 'applyContourRGBA',
+      'clampScale', 'zoomStepAt', 'zoomMin', 'zoomMax', 'rectZoom', 'shouldCloseShape', 'applyFilterRGBA', 'applyContourRGBA',
       'isAlbumOrientation', 'cropAspect', 'centeredCrop', 'resizeCropFromCorner',
       'moveCropClamped', 'scaleCropCentered', 'swapCropOrientation', 'cropResizeScale', 'cropChange',
       'snapCropRect', 'rotateEditQuarter', 'mirrorEdit', 'mergeLinesKeep', 'unchainLine', 'pullOutPoint',

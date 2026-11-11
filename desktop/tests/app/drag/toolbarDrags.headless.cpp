@@ -111,9 +111,9 @@ int main(int argc, char** argv) {
   drag(fit, centreOf(fit) + QPoint(0, 60));
   check(glows(window) == 2, "a fit drag lights − and + as its targets");
   drag(fit, centreOf(in));
-  check(near(z, 1.0 + HOLD_ZOOM_STEP), "arriving on + steps the zoom in at once");
+  check(near(z, 1.0 + stencil::core::ZOOM_HOLD_STEP), "arriving on + steps the zoom in at once");
   QTest::qWait(HOLD_ZOOM_TICK_MS * 2 + 45);
-  check(z >= 1.0 + 2 * HOLD_ZOOM_STEP - 1e-9, "…and on at the hold-zoom rate while it rests there");
+  check(z >= 1.0 + 2 * stencil::core::ZOOM_HOLD_STEP - 1e-9, "…and on at the hold-zoom rate while it rests there");
   const double stepped = z;
   drag(fit, centreOf(out));
   QTest::qWait(HOLD_ZOOM_TICK_MS * 2 + 45);

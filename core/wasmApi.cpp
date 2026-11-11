@@ -111,6 +111,7 @@ extern "C" {
   }
 
   double stencil_clampScale(double scale) { return clampScale(scale); }
+  double stencil_zoomStepAt(double scale, double step) { return zoomStepAt(scale, step); }
 
   // The clamp's range as scales; the browser reads it rather than mirroring it (zoom/pan.js).
   double stencil_zoomMin(void) { return ZOOM_MIN; }

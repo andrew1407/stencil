@@ -19,6 +19,7 @@ export const buildScalarOps = (core, { I32, I64, withCString, allocPoints, withF
   // The spec is caller text of any length, so it crosses on the heap like the formula expr.
   const cParseDuration  = core.cwrap('stencil_parseDuration', 'number', ['number', 'number']);
   const cClampScale     = core.cwrap('stencil_clampScale', 'number', ['number']);
+  const cZoomStepAt     = core.cwrap('stencil_zoomStepAt', 'number', ['number', 'number']);
   const cZoomMin        = core.cwrap('stencil_zoomMin', 'number', []);
   const cZoomMax        = core.cwrap('stencil_zoomMax', 'number', []);
   const cRectZoom       = core.cwrap('stencil_rectZoom', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number']);
@@ -68,6 +69,10 @@ export const buildScalarOps = (core, { I32, I64, withCString, allocPoints, withF
 
     clampScale(scale) {
       return cClampScale(scale);
+    },
+
+    zoomStepAt(scale, step) {
+      return cZoomStepAt(scale, step);
     },
 
     zoomMin() {
