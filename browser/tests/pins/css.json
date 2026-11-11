@@ -2552,7 +2552,7 @@
    "|#open-image-modal-overlay:not(.modal-popover) .app-modal": {
     "min-height": "min(430px, 82vh)"
    },
-   "|#project-color-btn": {
+   "|#project-color-btn, #project-name-copy-btn": {
     "visibility": "hidden"
    },
    "|#project-name-input": {
@@ -7734,7 +7734,7 @@
    "|.project-name-field": {
     "position": "relative"
    },
-   "|.project-name-field.name-hover #project-color-btn": {
+   "|.project-name-field.name-hover #project-color-btn, .project-name-field.name-hover #project-name-copy-btn": {
     "visibility": "visible"
    },
    "|.project-name-field.name-hover .name-edit-pencil": {
@@ -11531,8 +11531,8 @@
    "|#project-name-input:disabled",
    "|.name-edit-pencil",
    "|.project-name-field.name-hover .name-edit-pencil",
-   "|#project-color-btn",
-   "|.project-name-field.name-hover #project-color-btn",
+   "|#project-color-btn, #project-name-copy-btn",
+   "|.project-name-field.name-hover #project-color-btn, .project-name-field.name-hover #project-name-copy-btn",
    "|.name-edit-btn",
    "|.name-edit-btn:not(:disabled):hover",
    "|.name-edit-btn:disabled",

@@ -1,4 +1,4 @@
-// A project row's "Make a copy ›" entry: its three scopes, each opening the copy confirmation
+// A project row's "Copy project ›" entry: its three scopes, each opening the copy confirmation
 // (ui/modal/copyProjectModal.js) grown out of the picked row and closing back into the "⋯" (up,
 // once the projects window is closed).
 import { COPY_SCOPES, COPY_SCOPE_LABELS, COPY_SCOPE_ICONS } from '../../../core/project/copy/options.js';
@@ -13,7 +13,7 @@ const liveMenuButton = (anchor) => () => {
 // `target` is { id } for a local row or { remote } for a server-only one.
 export const copyMenuItem = ({ target, anchor, onDone }) => ({
   icon: 'duplicate',
-  label: 'Make a copy',
+  label: 'Copy project',
   items: COPY_SCOPES.map((what) => ({
     icon: COPY_SCOPE_ICONS[what],
     label: COPY_SCOPE_LABELS[what],

@@ -110,3 +110,39 @@ int pinnedRows(const std::vector<Project>& locals) {
   }
   return 0;
 }
+
+// A double click on a server row opens it at once, unasked, as a local row does (user report).
+int serverRowDoubleClickOpens(const std::vector<Project>& locals, ConnectionManager& mgr) {
+  std::printf("a server row's double click opens it unasked:\n");
+  ProjectsDialog dlg(locals, 5000, &mgr);
+  dlg.show();
+  pumpFor(50);
+  auto* list = dlg.findChild<QListWidget*>("projectsList");
+  if (!list) return 1;
+  pumpUntil([&] { return rowById(list, "r1", true) != nullptr; });
+  QListWidgetItem* r1 = rowById(list, "r1", true);
+  if (!r1) { check(false, "server rows listed"); return 1; }
+  bool asked = false;
+  QTimer watch;
+  QObject::connect(&watch, &QTimer::timeout, [&] {
+    QWidget* m = QApplication::activeModalWidget();
+    if (m && m->objectName() == QLatin1String("stencilConfirmModal")) { asked = true; m->close(); }
+  });
+  watch.start(10);
+  const QPoint at = list->visualItemRect(r1).center() + QPoint(list->visualItemRect(r1).width() / 4, 0);
+  const auto send = [&](QEvent::Type type, Qt::MouseButtons held) {
+    QMouseEvent e(type, QPointF(at), QPointF(list->viewport()->mapToGlobal(at)), Qt::LeftButton, held, Qt::NoModifier);
+    QApplication::sendEvent(list->viewport(), &e);
+  };
+  send(QEvent::MouseButtonPress, Qt::LeftButton);
+  send(QEvent::MouseButtonRelease, Qt::NoButton);
+  send(QEvent::MouseButtonDblClick, Qt::LeftButton);
+  send(QEvent::MouseButtonRelease, Qt::NoButton);
+  pumpFor(QApplication::doubleClickInterval() + 200);
+  watch.stop();
+  check(!asked, "no open confirmation was raised");
+  check(dlg.result() == QDialog::Accepted && dlg.getAction() == ProjectsDialog::Action::OPEN_REMOTE,
+        "the dialog closed to open the server project");
+  check(dlg.getSelectedId() == QStringLiteral("r1"), "…the one double clicked");
+  return 0;
+}

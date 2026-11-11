@@ -51,7 +51,7 @@ class MainWindowGuiTest : public QObject {
       }
       if (!menu) return;
       for (QAction* a : menu->actions()) {
-        if (a->text() != QLatin1String("Make a copy") || !a->menu()) continue;
+        if (a->text() != QLatin1String("Copy project") || !a->menu()) continue;
         QMenu* sub = a->menu();
         menu->setActiveAction(a);   // hover opens the flyout, as a pointer does
         QTRY_VERIFY(sub->isVisible());
@@ -63,7 +63,7 @@ class MainWindowGuiTest : public QObject {
       if (QApplication::activePopupWidget()) menu->close();
     });
     emit list->customContextMenuRequested(list->visualItemRect(row).center());
-    QTRY_COMPARE(picked, int(scope::COPY_IMAGE));
+    QTRY_COMPARE(picked, static_cast<int>(scope::CopyScope::IMAGE));
     QCOMPARE(pickedId, win.projectHost.activeProjectId);
   }
 
@@ -85,7 +85,7 @@ class MainWindowGuiTest : public QObject {
       confirm->findChild<QPushButton*>(QStringLiteral("copyProjectCancel"))->click();
     });
     answer.start(20);
-    emit dlg.copyRequested(win.projectHost.activeProjectId, QString(), scope::COPY_IMAGE, QRect());
+    emit dlg.copyRequested(win.projectHost.activeProjectId, QString(), static_cast<int>(scope::CopyScope::IMAGE), QRect());
     QTRY_VERIFY_WITH_TIMEOUT(parent != nullptr, 5000);
     QCOMPARE(parent, static_cast<QWidget*>(&dlg));
   }

@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include "CropDialog.hpp"   // CropPreview: the SAME crop stage the editor uses
 #include "openImageDialogState.hpp"
 #include <QColor>
@@ -62,6 +63,8 @@ namespace stencil::gui {
     // file/URL open can create on — shown only with servers, never incognito. Empty = local.
     void setServerTargets(const QStringList& urls);
     QString serverTarget() const;
+    // Asked when Create blank is pressed, over this still-open dialog (browser create-blank): false stays.
+    void setBlankGate(std::function<bool()> gate) { blankGate = std::move(gate); }
 
     QColor blankColor() const;
     int blankWidth() const;
@@ -218,6 +221,7 @@ namespace stencil::gui {
     bool measured = false;     // first-show tallest-tab measurement ran (showEvent)
     bool measuring = false;    // …and is running right now (no fade on its switches)
     Outcome outcome = Outcome::HERE;
+    std::function<bool()> blankGate;
   };
 
 }

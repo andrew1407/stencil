@@ -110,14 +110,14 @@ namespace stencil::gui {
   std::optional<bool> WindowEvents::filterProjectNameBar(QObject* obj, QEvent* event) {
     // Deferred so underMouse() settles — moving field→button stays "hovered".
     if (obj == w.nameBar.group || obj == w.nameBar.field || obj == w.nameBar.edit
-        || obj == w.nameBar.colorBtn) {
+        || obj == w.nameBar.colorBtn || obj == w.nameBar.copyBtn) {
       const QEvent::Type t = event->type();
       if (t == QEvent::Enter || t == QEvent::Leave)
         QTimer::singleShot(0, &w, [this] { w.projectTitle->updateNameHover(); });
     }
     // A pointer landing ANYWHERE ELSE has left the group, whether or not the group's own Leave arrived.
     if (w.nameBar.hover && obj != w.nameBar.group && obj != w.nameBar.field && obj != w.nameBar.edit
-        && obj != w.nameBar.colorBtn
+        && obj != w.nameBar.colorBtn && obj != w.nameBar.copyBtn
         && (event->type() == QEvent::Enter || event->type() == QEvent::HoverEnter
             || event->type() == QEvent::MouseMove || event->type() == QEvent::HoverMove))
       QTimer::singleShot(0, &w, [this] { w.projectTitle->updateNameHover(); });

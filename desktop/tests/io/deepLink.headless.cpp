@@ -188,6 +188,27 @@ int main(int argc, char** argv) {
           "over-limit launch payload yields empty url");
   }
 
+  // ── "Copy ›" links: each a stencil:// URI this app opens as the picture it names ──
+  {
+    const auto links = deepLink::projectShareLinks(QStringLiteral("My Plan~1"), QStringLiteral("https://cdn.example/a.png?x=1"),
+                                                   QStringLiteral("https://srv.example"), QStringLiteral("p_1"));
+    check(links.size() == 3 && links[0].kind == deepLink::ShareLinkKind::NAME && links[2].kind == deepLink::ShareLinkKind::SERVER,
+          "name, source and server links, in that order");
+    check(links[0].url == QStringLiteral("stencil://open?project=My+Plan%7E1"), "the name rides form-encoded, as URLSearchParams writes it");
+    const LaunchOptions byName = parseStencilUrl(QUrl(links[0].url));
+    check(byName.project == QStringLiteral("My Plan~1") && byName.serverUrl.isEmpty(), "the name link opens the local project by name");
+    const LaunchOptions bySource = parseStencilUrl(QUrl(links[1].url));
+    check(bySource.src == QStringLiteral("https://cdn.example/a.png?x=1"), "the source link opens the picture at that URL");
+    const LaunchOptions byServer = parseStencilUrl(QUrl(links[2].url));
+    check(byServer.serverUrl == QStringLiteral("https://srv.example") && byServer.serverProjectId == QStringLiteral("p_1"),
+          "the server link opens the server project");
+    check(deepLink::projectShareLinks(QStringLiteral(" "), QStringLiteral("data:image/png;base64,AA"), QString(), QStringLiteral("x")).empty(),
+          "no name, a data: source and no server make no link");
+    check(deepLink::projectShareLinks(QString(), QStringLiteral("https://"), QString(), QString()).empty() &&
+          deepLink::projectShareLinks(QString(), QStringLiteral("https://a b"), QString(), QString()).empty(),
+          "a bare scheme or a source with a space is no link (the browser's rule)");
+  }
+
   std::printf("%s (%d failure%s)\n", failures ? "FAILED" : "OK", failures,
               failures == 1 ? "" : "s");
   return failures ? 1 : 0;

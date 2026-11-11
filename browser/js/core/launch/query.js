@@ -41,9 +41,10 @@ const numberOr = (v, fallback) => { const n = Number(v); return v != null && v !
 const sizeOr = (v, fallback) => { const n = numberOr(v, NaN); return n > 0 ? n : fallback; };
 const isWebUrl = (s) => /^https?:\/\//i.test(s) || /^data:/i.test(s);
 
-// `host[:port]/projects/<id|name>` names the server too; a bare `<id|name>` is the launch's
-// server's project when one is named, else a local one. `server=` supplies a missing server part.
+// `host[:port]/projects/<id|name>` names the server too (`server=` supplies a missing one); a bare ref is the
+// launch's server's project, else a local one. An http(s) URL ending `.stencil` is a project file instead.
 const projectLocator = (value, serverKey) => {
+  if (/^https?:\/\//i.test(value) && /\.stencil$/i.test(value)) return { kind: 'projectFile', url: value };
   const at = value.indexOf('/projects/');
   const server = at < 0 ? null : value.slice(0, at).replace(/\/+$/, '');
   const ref = (at < 0 ? value : value.slice(at + '/projects/'.length)).replace(/\/+$/, '');
@@ -163,6 +164,20 @@ export const parseLaunchQuery = (search = '', hash = '') => {
 
   q.opensSession = !!q.picture || q.incognito || !!q.script;
   return q;
+};
+
+// The URL parts minus their credentials, null when there are none: the link stays in the
+// address bar (a reload reopens it), a `token` or `llm-api-key` never stays in history.
+export const withoutLaunchSecrets = (search = '', hash = '') => {
+  const strip = (raw) => {
+    const pairs = [...new URLSearchParams(raw)];
+    const kept = pairs.filter(([k]) => !LAUNCH_QUERY_SECRET_KEYS.includes(CANONICAL.get(kebab(k))));
+    return kept.length === pairs.length ? null : new URLSearchParams(kept).toString();
+  };
+  const s = strip(String(search ?? '').replace(/^\?/, ''));
+  const h = isLaunchQueryHash(hash) ? strip(String(hash).slice(1)) : null;
+  if (s == null && h == null) return null;
+  return { search: s == null ? search : (s ? `?${s}` : ''), hash: h == null ? hash : (h ? `#${h}` : '') };
 };
 
 // What a surface can act on: a picture URL carrying grammar-looking parameters is not a link.

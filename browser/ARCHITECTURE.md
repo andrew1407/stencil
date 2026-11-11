@@ -148,7 +148,7 @@ classDiagram
 | `ScriptBuffer` | The one `.stc` the page is editing (`ui/script/buffer.js`): the text plus every view of it | Module state for the session; never persisted | `wireScriptEditor` (`ui/script/editor.js`) |
 | `ChatController` | The client-side conversation: replayed history, queued `Attachment`s, the send loop (`llm/chat/controller.js`); its transcript is the `ChatRow` log in `llm/chat/session.js` | One memoized per app via `sharedChatController` | `OpPlan`, `Stencil`, `LlmClient` |
 | `HeldSessionKey` | The user's own Anthropic key and when it lapses (`llm/sessionKey.js`, llm-providers §5) | This tab's `sessionStorage`, until the tab closes, `sessionKey.ttlMinutes` lapses or Forget | Joined to one request by `withSessionKey`; never persisted elsewhere |
-| `LaunchQuery` | What the page URL's `?key=value` pairs, or the same pairs after `#`, ask for: the picture, the connections, the look, the assistant, the project fields and the warnings (`core/launch/query.js`, `contracts/launch/launch-uri.md`) | Parsed by the `DrawingApp` constructor as `app.launchQuery`, consumed once by `console/launchQuery.js`; a `/open <link>` makes a transient one | Applied through `Stencil`; the corpus is `common/fixtures/deepLink/launchQuery.json` |
+| `LaunchQuery` | What the page URL's `?key=value` pairs, or the same pairs after `#`, ask for: the picture, the connections, the look, the assistant, the project fields and the warnings (`core/launch/query.js`, `contracts/launch/launch-uri.md`) | Parsed by the `DrawingApp` constructor as `app.launchQuery`, applied once per load by `console/launchQuery.js`, the link left in the URL; a `/open <link>` makes a transient one | Applied through `Stencil`; the corpus is `common/fixtures/deepLink/launchQuery.json` |
 
 ## Patterns
 
@@ -235,6 +235,13 @@ classDiagram
   `projectTransfer.copyProject` (`core/project/copy/`): it reads the source, names it with
   `copySuffixName`, saves it locally or on the source's server, then opens it. An incognito copy
   writes nothing and a server copy is never incognito.
+- **Copy and share.** A project row's "Copy ›" (name, links, layout, project) and "Copy image ›"
+  (Current / No lines / Original) come from `ui/share/projectMenu.js`; the share button's menu and the
+  name chip's from the same items. A link is the running page's URL plus one launch pair
+  (`core/launch/shareLinks.js`). Nothing loads until an entry is picked: `core/project/share/read.js`
+  reads that one row, `ui/share/renderProject.js` draws a closed project off-screen, and
+  `ui/share/deliver.js` starts the clipboard write inside the click with a Promise-valued
+  `ClipboardItem`; a click shares and a double click copies where an item has both.
 - **Closing a project.** `app.closeProject(id)` leaves the tab an empty editor; the hotkey asks
   first (`confirmCloseProject`, `ui/projects/closeProject.js`), `stencil.closeProject()` does not.
 - **A script.** `stencil.execScript(text)`, the script window and a dropped `.stc` call
@@ -270,7 +277,8 @@ classDiagram
   picture wins over `?open=`. `console/launchQuery.js` applies it after the fragment hand-off, as a
   typed console line would — every setting, connection, picture, layout and project field through
   `window.stencil`, the theme mode and an unknown server's confirm through the app's own
-  collaborator — strips the pairs at once, and turns each problem into one notice. A credential
+  collaborator — leaves the link in the URL minus its credentials (`withoutLaunchSecrets`), and
+  turns each problem into one notice. A credential
   (`token`, `llm-api-key`) is honoured from the fragment only. The console's `/open <link>` applies
   the same query without touching the URL.
 - **A logo show.** Every trigger reaches `activateShow` (`ui/logo/stageTrigger.js`), which runs

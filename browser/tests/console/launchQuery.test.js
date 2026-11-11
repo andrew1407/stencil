@@ -9,15 +9,15 @@ import {
   applyLaunchQuery, parseLaunchQuery,
 } from '../helpers/launchQueryRig.js';
 
-test('a settings-only query sets each key through the facade, strips the URL and leaves no notice', async () => {
+test('a settings-only query sets each key through the facade, keeps the URL and leaves no notice', async () => {
   const { app, stencil } = boot('?theme=auto&main-color=yellow&line-color=%23ff0000&thickness=3');
   await applyLaunchQuery({ app, stencil });
   assert.deepEqual(lastCall(app, 'setThemeMode'), ['setThemeMode', 'system']);
   assert.deepEqual(lastCall(app, 'setAccent'), ['setAccent', 'yellow']);
   assert.deepEqual(lastCall(app, 'setColor'), ['setColor', '#ff0000']);
   assert.deepEqual(lastCall(app, 'setThickness'), ['setThickness', 3]);
-  assert.deepEqual(replaced, [[null, '', '/app']]);
-  assert.equal(app.launchQuery, null, 'consumed once');
+  assert.deepEqual(replaced, [], 'the link stays in the address bar');
+  assert.equal(app.launchQuery, null, 'applied once per load');
   assert.deepEqual(notices, []);
 });
 
@@ -48,18 +48,22 @@ test('an unknown option, a bad value and a query-borne secret are each one notic
   assert.ok(notices.every(([, type]) => type === 'info'));
 });
 
-test('the fragment carries pairs too, and a consumed fragment is stripped with the query', async () => {
+test('the fragment carries pairs too, and the link stays; only its credentials leave the URL', async () => {
   const { app, stencil } = boot('?theme=dark', '#main-color=sky');
   await applyLaunchQuery({ app, stencil });
   assert.deepEqual(lastCall(app, 'setThemeMode'), ['setThemeMode', 'dark']);
   assert.deepEqual(lastCall(app, 'setAccent'), ['setAccent', 'sky']);
-  assert.deepEqual(replaced, [[null, '', '/app']]);
+  assert.deepEqual(replaced, []);
+
+  const keyed = boot('?theme=dark&llm_api_key=q', '#connect=https%3A%2F%2Fsrv.example&token=t&main-color=sky');
+  await applyLaunchQuery(keyed);
+  assert.deepEqual(replaced, [[null, '', '/app?theme=dark#connect=https%3A%2F%2Fsrv.example&main-color=sky']]);
 });
 
 test('a fragment that is not this grammar stays on the URL', async () => {
   const { app, stencil } = boot('?theme=dark', '#about');
   await applyLaunchQuery({ app, stencil });
-  assert.deepEqual(replaced, [[null, '', '/app#about']]);
+  assert.deepEqual(replaced, []);
 });
 
 test('incognito alone opens an empty incognito editor', async () => {
@@ -114,6 +118,25 @@ test('a picture that cannot be fetched is one notice and never a rejection; earl
   assert.deepEqual(lastCall(app, 'setThickness'), ['setThickness', 5]);
   assert.equal(app.image, null);
   assert.deepEqual(texts(), ['Launch link: picture — offline']);
+});
+
+test('project=<url>.stencil is fetched through the guard and opened as a project file; a 404 is one notice', async () => {
+  const doc = '{"format":"stencil-project","version":1}';
+  const opened = [];
+  const openIn = (app) => { app.export = { ...app.export, openProjectFile: async (t, o) => { opened.push([t, o]); } }; };
+  const ok = boot('', '#project=https%3A%2F%2Fcdn.example%2Fp.stencil&incognito', {}, openIn);
+  const bytes = new TextEncoder().encode(doc).buffer;
+  const fetchStub = installFetchStub({ arrayBuffer: bytes });
+  try { await applyLaunchQuery(ok); } finally { fetchStub.restore(); }
+  assert.equal(fetchStub.calls[0].url, 'https://cdn.example/p.stencil');
+  assert.deepEqual(opened, [[doc, { incognito: true }]]);
+  assert.deepEqual(texts(), []);
+
+  const missing = boot('?project=https://cdn.example/gone.stencil', '', {}, openIn);
+  const notFound = installFetchStub({ ok: false, status: 404 });
+  try { await applyLaunchQuery(missing); } finally { notFound.restore(); }
+  assert.equal(opened.length, 1);
+  assert.deepEqual(texts(), ['Launch link: picture — HTTP 404']);
 });
 
 test('layout= is fetched through the guard and installed; layout-raw= needs no fetch', async () => {

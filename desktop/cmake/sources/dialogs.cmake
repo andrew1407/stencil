@@ -23,6 +23,7 @@ set(STENCIL_PROJECTS_DIALOG_SOURCES
   src/dialogs/projects/row/projectsRowChrome.cpp
   src/dialogs/projects/row/ProjectsRowIcons.cpp
   src/dialogs/projects/row/ProjectsRowMenu.cpp
+  src/dialogs/projects/row/ProjectsRowShare.cpp
   src/dialogs/projects/row/ProjectsRows.cpp
   src/dialogs/projects/row/ProjectsThumbs.cpp
   src/dialogs/projects/ProjectsTransfer.cpp)

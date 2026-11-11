@@ -56,20 +56,20 @@ class MainWindowGuiTest : public QObject {
 
     CopyRequest req;
     req.id = srcId;
-    req.what = scope::COPY_IMAGE;
+    req.what = scope::CopyScope::IMAGE;
     const Project image = *win.projectHost.findProject(copyNow(win, req).toStdString());
     QCOMPARE(image.meta.name, src.meta.name + "-copy");
     QVERIFY2(image.lines.empty() && image.meta.color.empty(), "image only is the untouched original");
     QVERIFY2(image.imagePath != src.imagePath && QFileInfo::exists(image.imagePath),
              "a copy owns its image file, never the source's path");
 
-    req.what = scope::COPY_LAYOUT;
+    req.what = scope::CopyScope::LAYOUT;
     const Project layout = *win.projectHost.findProject(copyNow(win, req).toStdString());
     QCOMPARE(layout.meta.name, src.meta.name + "-copy(1)");
     QCOMPARE(layout.lines.size(), src.lines.size());
     QVERIFY(layout.meta.color.empty());
 
-    req.what = scope::COPY_PROJECT;
+    req.what = scope::CopyScope::PROJECT;
     const Project whole = *win.projectHost.findProject(copyNow(win, req).toStdString());
     QCOMPARE(whole.meta.name, src.meta.name + "-copy(2)");
     QCOMPARE(whole.meta.color, src.meta.color);
@@ -84,8 +84,8 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
     const std::size_t before = win.projectHost.projectList.size();
     CopyRequest req;
-    req.what = scope::COPY_LAYOUT;
-    req.open = stencil::gui::COPY_OPEN_HERE;
+    req.what = scope::CopyScope::LAYOUT;
+    req.open = stencil::gui::CopyOpen::HERE;
     req.incognito = true;
     QVERIFY(copyNow(win, req).isEmpty());
     QTRY_VERIFY(win.projectHost.incognito);
@@ -100,7 +100,7 @@ class MainWindowGuiTest : public QObject {
     QString note;
     QVERIFY(!ProjectCopy::settle(req, false, &note).incognito);
     QVERIFY(note.contains("must be opened"));
-    req.open = stencil::gui::COPY_OPEN_NEW_WINDOW;
+    req.open = stencil::gui::CopyOpen::NEW_WINDOW;
     QVERIFY(!ProjectCopy::settle(req, true, &note).incognito);
     QVERIFY(note.contains("server copy"));
     req.local = true;
@@ -153,7 +153,7 @@ class MainWindowGuiTest : public QObject {
     answer.start(20);
     QString made;
     CopyRequest req;
-    req.what = scope::COPY_LAYOUT;
+    req.what = scope::CopyScope::LAYOUT;
     win.projectHost.copy.offer(req, QRect(), [&made](QString id, CopyOpen) { made = id; });
     QTRY_VERIFY_WITH_TIMEOUT(!made.isEmpty(), 5000);
     QCOMPARE(win.projectHost.projectList.size(), before + 1);

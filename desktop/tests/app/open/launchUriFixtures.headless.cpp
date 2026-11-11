@@ -64,6 +64,10 @@ int main(int argc, char** argv) {
     LaunchOptions bare;
     adoptLaunchUri(bare, *launchUri::parse(QUrl("https://app.example/?project=Sketch")));
     check(bare.project == "Sketch" && bare.serverUrl.isEmpty(), "a bare ref with no server is a local project");
+    LaunchOptions file;
+    adoptLaunchUri(file, *launchUri::parse(QUrl("stencil://open?project=https%3A%2F%2Fcdn.example%2Fp.stencil&incognito")));
+    check(file.projectFileUrl == "https://cdn.example/p.stencil" && file.project.isEmpty() && file.serverUrl.isEmpty() &&
+              file.incognito && !file.empty(), "a .stencil URL is a project file to fetch, not a ref");
     LaunchOptions viaConnect;
     adoptLaunchUri(viaConnect, *launchUri::parse(QUrl("https://app.example/#project=p_2&connect=http://h:8090&token=tok")));
     check(viaConnect.serverUrl == "http://h:8090" && viaConnect.serverProjectId == "p_2", "a bare ref takes the launch's server");

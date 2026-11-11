@@ -144,10 +144,10 @@ namespace stencil::gui {
     if (connections && !connections->urls().isEmpty()) {
       // Deferred a turn so the dialog paints at once with local rows + the "Loading shared projects…" placeholder.
       QTimer::singleShot(0, this, &ProjectsDialog::refreshRemote);
-      remoteTimer = new QTimer(this);
-      remoteTimer->setInterval(5000);
-      connect(remoteTimer, &QTimer::timeout, this, &ProjectsDialog::refreshRemote);
-      remoteTimer->start();
+      listing.remoteTimer = new QTimer(this);
+      listing.remoteTimer->setInterval(5000);
+      connect(listing.remoteTimer, &QTimer::timeout, this, &ProjectsDialog::refreshRemote);
+      listing.remoteTimer->start();
     }
   }
 

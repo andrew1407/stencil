@@ -21,7 +21,7 @@
 namespace stencil::gui {
 
   namespace {
-    constexpr CopyOpen OPEN_OF[] = {COPY_OPEN_NONE, COPY_OPEN_HERE, COPY_OPEN_NEW_WINDOW};   // by Outcome
+    constexpr CopyOpen OPEN_OF[] = {CopyOpen::NONE, CopyOpen::HERE, CopyOpen::NEW_WINDOW};   // by Outcome
 
     QListWidgetItem* rowOf(QListWidget* list, const QString& id, const QString& server) {
       for (int i = 0; list && i < list->count(); ++i) {
@@ -70,7 +70,7 @@ namespace stencil::gui {
   void ProjectCopy::showToolbarMenu() {
     QWidget* button = w.buttonForAction(w.acts.copyProject);
     QMenu menu(w.window);
-    support::CopyScope picked = support::COPY_LAYOUT;
+    support::CopyScope picked = support::CopyScope::LAYOUT;
     bool chose = false;
     support::addCopyScopes(menu, w.window->palette().color(QPalette::WindowText), 15,
                            [&picked, &chose](support::CopyScope s) { picked = s; chose = true; });
@@ -90,6 +90,13 @@ namespace stencil::gui {
 
   void ProjectCopy::wireProjectsList(ProjectsDialog& dlg) {
     QPointer<ProjectsDialog> live(&dlg);
+    QObject::connect(&dlg, &ProjectsDialog::clipboardRequested, w.window,
+                     [this](const QString& id, const QString& server, int item, const QString& text) {
+      CopyRequest at;
+      at.id = id;
+      at.serverUrl = server;
+      copyToClipboard(at, static_cast<support::ShareItem>(item), text);
+    });
     QObject::connect(&dlg, &ProjectsDialog::copyRequested, w.window,
                      [this, live](const QString& id, const QString& server, int scope, const QRect& closeRect) {
       QListWidget* list = live ? live->findChild<QListWidget*>() : nullptr;
@@ -100,7 +107,7 @@ namespace stencil::gui {
       if (QListWidgetItem* it = rowOf(list, id, server)) from.name = it->data(Qt::UserRole + 3).toString();
       offer(from, closeRect, [this, live](const QString& newId, CopyOpen open) {
         if (!live) return;
-        if (open == COPY_OPEN_HERE) return live->reject();   // the editor moved on to the copy
+        if (open == CopyOpen::HERE) return live->reject();   // the editor moved on to the copy
         live->setProjects(host.projectList);
         QListWidget* rows = live->findChild<QListWidget*>();
         if (QListWidgetItem* it = rowOf(rows, newId, QString())) {

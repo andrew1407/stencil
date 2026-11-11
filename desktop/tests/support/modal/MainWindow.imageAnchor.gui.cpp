@@ -42,7 +42,8 @@ class MainWindowGuiTest : public QObject {
           QTest::qWait(5);
         }
       });
-      win.parts.sourceOpener.createBlankImageFromDialog(Qt::white, 200, 200);
+      if (win.parts.sourceOpener.confirmReplaceWithBlank(&win, /*overWindow=*/false))
+        win.parts.sourceOpener.createBlankImage(Qt::white, 200, 200);
       settle([&] { return watcher.captured; }, 600);
       QVERIFY(awaitFlights(&win));
     };
@@ -88,7 +89,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(!aimed.contains(QRect(big->mapToGlobal(QPoint(0, 0)), big->size()).center()),
              "the anchor is still the big button the icon replaces");
 
-    win.parts.sourceOpener.createBlankImageFromDialog(Qt::white, 200, 200);
+    win.parts.sourceOpener.createBlankImage(Qt::white, 200, 200);   // nothing open: no question
     settleLayout(&win, 1200);
     QVERIFY(icon->isVisible());
     QCOMPARE(aimed, QRect(icon->mapToGlobal(QPoint(0, 0)), icon->size()));
@@ -123,6 +124,9 @@ class MainWindowGuiTest : public QObject {
     RevealOriginWatcher watcher;
     qApp->installEventFilter(&watcher);
     const auto removeWatcher = qScopeGuard([&] { qApp->removeEventFilter(&watcher); });
+    // A press first: the fallback is the press, and before any there is none (it falls from above).
+    QTest::mousePress(win.canvas, Qt::LeftButton, {}, QPoint(20, 20));
+    QTest::mouseRelease(win.canvas, Qt::LeftButton, {}, QPoint(20, 20));
 
     bool claimed = true;
     QTimer::singleShot(0, &win, [&] {

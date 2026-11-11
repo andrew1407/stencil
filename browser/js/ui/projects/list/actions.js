@@ -1,9 +1,16 @@
 // The two buttons under the projects list: a fresh editor tab, and Clear All. Clear All wipes
-// only LOCAL projects — server ones are never touched — and plays every row out first.
+// only LOCAL projects — server ones are never touched — and plays the local rows out first.
 import { notify } from '../../../utils.js';
 import { rowLeave } from './rowMotion.js';
 import { rowLeaveDust, ITEM_DUST_MS } from '../../motion/surface/tiles.js';
 import { clearedToast } from '../../../core/project/transferController.js';
+
+// What Clear All Local plays out: the local saved rows and their keys; a server row stays put rather than
+// scattering and arriving again (user report; desktop: scatterRows over the local keys).
+export const localLeavers = (list, keys) => ({
+  rows: [...list.querySelectorAll('.project-row:not(.project-temp):not(.project-remote)')],
+  keys: [...keys].filter((k) => k.startsWith('local:')),
+});
 
 export function wireListActions({ app, els, list, hasServers, selected, selectables, doomed,
   updateBatchBar, beginRemoval, close }) {
@@ -21,15 +28,12 @@ export function wireListActions({ app, els, list, hasServers, selected, selectab
       : 'Are you sure? This permanently deletes ALL saved projects.';
     const title = hasServers() ? 'Delete all local projects' : 'Delete all projects';
     if (!(await app.confirm(msg, { title, danger: true, confirmLabel: 'Yes', confirmIcon: 'trash', cancelLabel: 'No' }))) return;
-    // The same leave every removal plays, real saved rows only (desktop: scatterRows).
-    const rows = [...list.querySelectorAll('.project-row:not(.project-temp)')];
+    const { rows, keys } = localLeavers(list, selectables.keys());
     const settle = beginRemoval();
-    // The bar's controls leave with them: every selectable row is going.
-    const keys = [...selectables.keys()];
     for (const k of keys) doomed.add(k);
     const leaving = Promise.all(rows.map((row, i) =>
       rowLeave(row, rowLeaveDust(rows.length, i, ITEM_DUST_MS))));
-    selected.clear();
+    for (const k of keys) selected.delete(k);
     updateBatchBar();
     await leaving;
     const cleared = app.storage.store.list().length;

@@ -22,7 +22,7 @@ namespace stencil::gui {
       filter->addItem(tr("All servers"), "server");
       for (const QString& u : urls) filter->addItem(u, u);  // one entry per specific server URL
     }
-    knownServerUrls = urls;
+    listing.knownServerUrls = urls;
     const int idx = filter->findData(prev.isEmpty() ? QStringLiteral("all") : prev);
     filter->setCurrentIndex(idx < 0 ? 0 : idx);
     filter->blockSignals(false);

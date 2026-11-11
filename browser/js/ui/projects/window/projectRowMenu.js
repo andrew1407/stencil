@@ -3,7 +3,7 @@
 import { SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../../motion/surface/motion.js';
 import { popupIn, popupOut } from '../../motion/control/popup.js';
 import { rectCenter } from '../../motion/control/tips.js';
-import { menuItemButton, createRowSubmenu } from './rowSubmenu.js';
+import { menuItemButton, createRowSubmenu, wireActionItem } from './rowSubmenu.js';
 
 export const createProjectRowMenu = () => {
   let openMenu = null;
@@ -43,11 +43,11 @@ export const createProjectRowMenu = () => {
       if (!it) continue;
       const b = menuItemButton(it);
       // A nested list flies out beside its item; moving onto any other item folds it.
-      if (it.items) { subs.push(createRowSubmenu(b, it.items, run)); menu.appendChild(b); continue; }
+      if (it.items) { subs.push(createRowSubmenu(b, it.items, run, () => subs)); menu.appendChild(b); continue; }
       b.addEventListener('mouseenter', () => { for (const s of subs) s.hide(); });
       // Each handler gets its row's rect, measured before the menu goes, so a window raised
       // from here grows out of the clicked row.
-      b.addEventListener('click', e => { e.stopPropagation(); run(it, b.getBoundingClientRect()); });
+      wireActionItem(b, it, run);
       menu.appendChild(b);
     }
     document.body.appendChild(menu);

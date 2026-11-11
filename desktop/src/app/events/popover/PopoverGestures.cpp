@@ -115,9 +115,12 @@ namespace stencil::gui {
 
     const auto verdict = PopoverHost::judgePress(f, button);
     if (verdict.clearPeek) w.pop.peekAction.clear();
-    // Side by side, a click on the popover's own icon grows it into the full window.
-    if (verdict.dismiss && support::multiWindow() && button == Qt::LeftButton && target && target == w.pop.openAnchor)
-      w.pop.fullNextAction = w.pop.buttons.value(target, nullptr);
+    // A click on another popover icon opens that icon's window once this loop unwinds (browser parity); on its
+    // own icon, only side by side, it grows into the full window. The logo keeps its own click gestures.
+    QAction* const next = target && target != w.tools.logoBtn ? w.pop.buttons.value(target, nullptr) : nullptr;
+    const bool ownIcon = target == w.pop.openAnchor;
+    if (verdict.dismiss && button == Qt::LeftButton && next && (!ownIcon || support::multiWindow()))
+      w.pop.fullNextAction = next;
     if (verdict.dismiss) w.dismissPopover();
     if (verdict.armDismissClick) w.pop.dismissClick = true;
     return verdict.consume;

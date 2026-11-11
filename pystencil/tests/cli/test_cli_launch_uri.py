@@ -7,7 +7,10 @@ from __future__ import annotations
 
 import argparse
 import io
+import os
+import tempfile
 import unittest
+from unittest import mock
 
 from pystencil.cli.launch.link import expand_args
 from pystencil.editor import Editor
@@ -59,6 +62,19 @@ class LaunchLinkConsoleTests(unittest.TestCase):
     repl.run(io.StringIO("/upload https://app.example/?project=Sketch\n"))
     self.assertIn("names no server, and this console keeps no local projects", out.getvalue())
     self.assertFalse(repl._editor.has_image())
+
+  def test_a_project_file_url_is_fetched_through_the_guard_and_opened(self) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+      path = Editor().blank(5, 4, "white").save_project(os.path.join(tmp, "plan.stencil"))
+      with open(path, "rb") as fh: data = fh.read()
+    fetched = []
+    def fake_fetch(url): fetched.append(url); return data
+    repl, out = _wire_repl(_MockLlmClient(""))
+    with mock.patch("pystencil.cli.launch.link.__fetch_url", fake_fetch):
+      repl.run(io.StringIO("/open https://app.example/#project=https%3A%2F%2Fcdn.example%2Fplan.stencil\n"))
+    self.assertEqual(fetched, ["https://cdn.example/plan.stencil"])
+    self.assertEqual(repl._editor.image_size, (5, 4))
+    self.assertIn("(5x4)", out.getvalue())
 
 
 class LaunchLinkAssistantTests(unittest.TestCase):

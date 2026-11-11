@@ -168,12 +168,12 @@ namespace stencil::gui {
     // replace; a QIcon is the only way in.
     const QColor affordanceInk = support::skinTraits().hasGlassToggles ? iconColor : themePalette(dark, w.settings.accentColor).onAccent;
     const auto affordanceIcon = [&](const char* glyph) {
-      // A plain themedIcon, not a composed pixmap: the icon-motion filter finds a glyph via
-      // QIcon::cacheKey.
+      // A plain themedIcon, not a composed pixmap: the icon-motion filter finds it by QIcon::cacheKey.
       return themedIcon(glyph, affordanceInk, NAME_CHIP_GLYPH);
     };
     if (w.nameBar.edit) w.nameBar.edit->setIcon(affordanceIcon("pencil"));
     if (w.nameBar.colorBtn) w.nameBar.colorBtn->setIcon(affordanceIcon("palette"));
+    if (w.nameBar.copyBtn) w.nameBar.copyBtn->setIcon(affordanceIcon("copy"));
     if (w.nameBar.accept) w.nameBar.accept->setIcon(affordanceIcon("check"));
     if (w.nameBar.cancel) w.nameBar.cancel->setIcon(affordanceIcon("x"));
     // blankColorBtn's icon is a live swatch; the Draw toggles repaint through their face

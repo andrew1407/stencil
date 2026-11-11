@@ -7,6 +7,7 @@ import { beginRowRename } from './rename.js';
 import { clearedToast } from '../../../core/project/transferController.js';
 import { publishIncognitoToServer } from '../../../core/launch/incognitoFlow.js';
 import { copyMenuItem, afterRowCopy } from './copyItem.js';
+import { copyMenuItems } from '../../share/projectMenu.js';
 
 // The active project's row at the top of the list: the pinned temporary row replaces it in place.
 const takesTopSlot = (el, isActive) => isActive && el?.parentElement?.querySelector('.project-row') === el;
@@ -98,9 +99,9 @@ export function attachRowActions(deps) {
   const menuItems = () => [
     isActive ? null : { icon: 'folder', label: 'Open', onClick: open },
     { icon: 'external', label: 'Open in new tab', onClick: async () => { if (await confirmOpen(meta.name, true, menuBtn)) app.projectTransfer.openProjectInNewTab(meta.id); } },
-    // Hidden when no target is configured, exactly as the toolbar button hides
-    // (ui/control/state.js), so it never offers a dead action.
+    // Hidden with no target configured, as the toolbar button hides (ui/control/state.js).
     app.openInAvailable?.() ? { icon: 'monitor', label: 'Open in another app', onClick: (at) => document.querySelector('stencil-open-in-modal')?.openFor(meta.id, { from: at, backTo: menuBtn }) } : null,
+    ...copyMenuItems(app, { meta: isActive ? null : meta }),
     copyMenuItem({ target: { id: meta.id }, anchor: menuBtn, onDone: afterRowCopy({ close, render, invalidateRemotes, scrollRowIntoView }) }),
     { icon: 'pencil', label: 'Rename', onClick: () => beginRename() },
     { icon: 'palette', label: 'Set color', onClick: pickColor },

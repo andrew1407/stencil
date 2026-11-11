@@ -3,6 +3,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QString>
+#include <vector>
 
 // "Open in…" link builders + Telegram start-payload codec — browser twin js/core/launch/deepLink.js, bot
 // twin Infrastructure/Links/DeepLinkCodec.cs; shared golden vectors in the three surfaces' tests.
@@ -32,5 +33,13 @@ namespace stencil::gui::deepLink {
   QString encodeTelegramStartPayload(const QString& serverUrl, const QString& projectId);
 
   QString buildTelegramLink(const QString& botUsername, const QString& payload);
+
+  // The stencil:// links a project is copied as (browser core/launch/shareLinks.js over the
+  // desktop's own scheme): one launch pair each, as launchUri.cpp reads it back.
+  enum class ShareLinkKind { NAME, SOURCE, SERVER };
+  struct ShareLink { ShareLinkKind kind; QString url; };
+  // Name, then an http(s) source, then the server project; a missing value makes no link.
+  std::vector<ShareLink> projectShareLinks(const QString& name, const QString& source,
+                                           const QString& serverUrl, const QString& remoteId);
 
 }  // namespace stencil::gui::deepLink

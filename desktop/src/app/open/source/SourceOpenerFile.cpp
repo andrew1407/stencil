@@ -6,6 +6,9 @@
 #include "Notifications.hpp"
 #include "fileBytes.hpp"
 #include "StencilFileSync.hpp"
+#include "fetchGuard.hpp"
+
+#include <QUrl>
 
 #include <memory>
 
@@ -18,6 +21,20 @@ namespace stencil::gui {
   // project and links no file, so nothing it holds is written back.
   void SourceOpener::openProjectFile(const QString& path, std::function<void(bool)> done,
                                      bool incognito) {
+    openProjectData(path, QByteArray(), std::move(done), incognito);
+  }
+
+  // A link's `.stencil` URL: strict (no loopback), as every source a link names is fetched.
+  void SourceOpener::openProjectUrl(const QString& url, bool incognito) {
+    net::fetchGuard::get(&w, QUrl(url), /*strict=*/true, [this, incognito](const QByteArray& body, const QString& err) {
+      if (err.isEmpty()) openProjectData(QString(), body, {}, incognito);
+      else w.notify->error(QStringLiteral("Could not fetch the project file: ") + err);
+    });
+  }
+
+  // `fetched` empty = read `path`; an empty `path` (a fetched file) links no file for live sync.
+  void SourceOpener::openProjectData(const QString& path, const QByteArray& fetched,
+                                     std::function<void(bool)> done, bool incognito) {
     // Filled on the pool (the read, the parse and its base64, the picture), read here once it lands.
     struct Parsed {
       QByteArray bytes;
@@ -26,9 +43,10 @@ namespace stencil::gui {
     };
     const auto parsed = std::make_shared<Parsed>();
     w.decodeForCanvas(
-        [path, parsed] {
+        [path, fetched, parsed] {
           QString why;
-          if (!readFileBytes(path, parsed->bytes)) parsed->err = QStringLiteral("Could not read the project file");
+          parsed->bytes = fetched;
+          if (fetched.isEmpty() && !readFileBytes(path, parsed->bytes)) parsed->err = QStringLiteral("Could not read the project file");
           else if (!fileStore::parseProjectFile(parsed->bytes, parsed->pf, &why))
             parsed->err = QStringLiteral("Invalid .stencil file: ") + why;
           if (!parsed->err.isEmpty()) return QImage();
@@ -74,7 +92,7 @@ namespace stencil::gui {
           }
           if (!incognito) {
             w.projectHost.createLocalProject(pf.name, /*announce=*/false, /*fromFile=*/true);
-            w.stencilSync->link(path, bytes);
+            if (!path.isEmpty()) w.stencilSync->link(path, bytes);
           }
           // Chat persistence (§12.3): adopt the file's saved chat when the opt-in is on.
           if (w.settings.saveChatsWithProject) {

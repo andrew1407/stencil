@@ -37,7 +37,7 @@ stencil_headless_test(stencil_faceswap_headless
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/support/theme/faceSwap.headless.cpp ${STENCIL_FACESWAP_SOURCES}
     src/support/icon/iconSet.cpp       # the glyphs it turns
-    src/support/modal/modalReveal.cpp   # motionReduced()
+    ${STENCIL_MODALREVEAL_SOURCES}   # motionReduced()
     resources/app.qrc
   LIBS Qt6::Widgets Qt6::Svg)
 
@@ -55,7 +55,7 @@ stencil_headless_test(stencil_controlswap_headless
     tests/support/control/swap/menuCheckSwap.headless.cpp
     ${STENCIL_THEME_SOURCES} src/support/icon/iconSet.cpp
     ${STENCIL_FACESWAP_SOURCES} src/support/menu/menuReveal.cpp src/support/menu/popupSlide.cpp
-    src/support/modal/modalReveal.cpp
+    ${STENCIL_MODALREVEAL_SOURCES}
     resources/app.qrc
   LIBS Qt6::Widgets Qt6::Svg
   INCLUDE_TESTS)
@@ -86,7 +86,7 @@ stencil_headless_test(stencil_iconmotion_headless
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/support/icon/iconMotion.headless.cpp tests/support/icon/iconMotionCanon.headless.cpp
     tests/support/icon/iconMotionGlyphs.headless.cpp tests/support/icon/iconMotionDriver.headless.cpp
-    src/support/icon/iconSet.cpp src/support/modal/modalReveal.cpp
+    src/support/icon/iconSet.cpp ${STENCIL_MODALREVEAL_SOURCES}
     ${STENCIL_FACESWAP_SOURCES} resources/app.qrc
   LIBS Qt6::Widgets Qt6::Svg
   INCLUDE_TESTS)

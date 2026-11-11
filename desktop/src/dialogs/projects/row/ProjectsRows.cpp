@@ -126,6 +126,8 @@ namespace stencil::gui {
       if (!row) return;
       building = true;   // our frame, not a check-state edit
       row->setData(FILTER_PRESENCE_ROLE, v.toDouble());
+      // Closed, it gives back its list spacing too, or the rows below jump that gap at the rebuild.
+      if (v.toDouble() <= 0.0) row->setHidden(true);
       building = false;
     });
     anim->start(QAbstractAnimation::DeleteWhenStopped);

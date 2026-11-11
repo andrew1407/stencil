@@ -50,6 +50,8 @@ pub fn expandOptions(a: std.mem.Allocator, opts: *options.Options) !bool {
             opts.server_from_link = true;
             opts.input = s.id;
         },
+        // A `.stencil` URL is the input itself: modeOf then takes the project path, which fetches it.
+        .project_file => |url| opts.input = url,
         // A bare ref without a server names a local project, which the one-shot has none of.
         .project => |p| {
             opts.server = q.projectOrigin(p.server) orelse return false;
@@ -111,6 +113,10 @@ test "expandOptions: a source URI becomes -i -f -l, a blank one --blank, a serve
     try testing.expectEqualStrings("p_1", bare.input.?);
     var local = options.Options{ .input = "https://app.example/?project=Sketch" };
     try testing.expect(!try expandOptions(a, &local));
+    var file = options.Options{ .input = "https://app.example/?project=https://cdn.example/p.stencil" };
+    try testing.expect(try expandOptions(a, &file));
+    try testing.expectEqualStrings("https://cdn.example/p.stencil", file.input.?);
+    try testing.expect(file.server == null);
 }
 
 test "a launch URI positional is the input, never the output, and clashes with --blank" {

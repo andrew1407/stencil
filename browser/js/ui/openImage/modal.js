@@ -11,7 +11,7 @@ import { createFrameScrub } from './frameScrub.js';
 import { createCropRows } from './cropRows.js';
 import { createOpenImageTabs } from './tabs.js';
 import { wireOpenActions } from './actions.js';
-import { openImageAnchorRect, openImageConfirmAnchors } from '../modal/imageAnchor.js';
+import { openImageAnchorRect, openImageConfirmAnchorsOver } from '../modal/imageAnchor.js';
 import { notify } from '../../utils.js';
 import { waitForImage } from '../../core/image/loadFlow.js';
 import { createBlankImage } from '../../core/image/blankImage.js';
@@ -20,6 +20,10 @@ import { createBlankImage } from '../../core/image/blankImage.js';
 // sources/ and speak up on the bubbling `source-change` / `preview-request` / `create-blank`;
 // this window owns the preview, the crop and the footer. The DOM is built once and reused, so
 // onOpen MUST reset every field.
+
+const replaceAsk = (stacked) => ({
+  title: 'Replace image', confirmLabel: 'Replace', confirmIcon: 'swap', ...openImageConfirmAnchorsOver(stacked) });
+
 // A blank made from Projects' Blank image closes the list it was raised over too (desktop wireProjectsBlank).
 const closeProjectsUnder = () => {
   const projects = shellFor('projects-modal-overlay');
@@ -192,10 +196,10 @@ export class StencilOpenImageModal extends StencilElement {
     });
     this.addEventListener('create-blank', async (e) => {
       const { color, width, height } = e.detail;
-      if (app.image && !(await app.confirm('Replace the current image with a new blank image?',
-        { title: 'Replace image', confirmIcon: 'swap', ...openImageConfirmAnchors() }))) return;
+      // Over Projects the window pours back into Projects' Blank image, not the toolbar under it.
+      if (app.image && !(await app.confirm('Replace the current image with a new blank image?', replaceAsk(overProjects)))) return;
       createBlankImage(app, { color, width, height, address: target() || undefined })
-        .then(() => closeIntoOpen())
+        .then(() => (overProjects ? close() : closeIntoOpen()))
         .then(() => { if (overProjects) closeProjectsUnder(); overProjects = false; })
         .then(() => notify(`Blank ${width}×${height} image created`, 'ok'))
         .catch((err) => notify(err && err.message ? err.message : 'Could not create the image', 'fail'));

@@ -3,10 +3,8 @@
 #include "modalRevealFlight.hpp"
 
 #include <QColorDialog>
-#include <QFile>
 #include <QFileDialog>
 #include <QPointer>
-#include <QTextStream>
 
 namespace stencil::support {
 
@@ -138,73 +136,15 @@ namespace stencil::support {
         return QRect(icon->mapToGlobal(QPoint(0, 0)), icon->size());
       return QRect();
     }
+    // Nothing pressed yet (a launch link's question): no gesture to grow from, so it falls from above and
+    // rises back there, as the browser's (gesturePoint.js), not out of wherever the cursor rests.
+    if (g.pressAt == 0) return QRect();
     const QPoint p = QCursor::pos();
     return QRect(p.x() - GESTURE_ANCHOR_PX / 2, p.y() - GESTURE_ANCHOR_PX / 2,
                  GESTURE_ANCHOR_PX, GESTURE_ANCHOR_PX);
   }
 
-  bool modalDismissLogOn() {
-    static const bool on = !qEnvironmentVariableIsEmpty("STENCIL_MODAL_LOG");
-    return on;
-  }
-
-  void modalDismissLog(const QString& line) {
-    if (!modalDismissLogOn()) return;
-    QFile f(QString::fromLocal8Bit(qgetenv("STENCIL_MODAL_LOG")));
-    if (!f.open(QIODevice::Append | QIODevice::Text)) return;
-    QTextStream(&f) << line << '\n';
-  }
-
-  namespace {
-    constexpr const char* MODAL_DISMISS_FILTER_NAME = "stencilModalDismissFilter";
-
-    // Application-wide: the press goes to a BLOCKED window and QApplication drops it, but
-    // an application filter still sees it first.
-    class ModalDismissFilter : public QObject {
-     public:
-      explicit ModalDismissFilter(QObject* parent) : QObject(parent) {
-        setObjectName(QString::fromLatin1(MODAL_DISMISS_FILTER_NAME));
-      }
-
-     protected:
-      bool eventFilter(QObject* o, QEvent* e) override {
-        if (e->type() != QEvent::MouseButtonPress) return QObject::eventFilter(o, e);
-        auto* dlg = qobject_cast<QDialog*>(QApplication::activeModalWidget());
-        auto* w = qobject_cast<QWidget*>(o);
-        if (modalDismissLogOn())
-          modalDismissLog(QStringLiteral("[modal] Qt press on %1, modal=%2")
-                              .arg(QString::fromLatin1(w ? w->metaObject()->className()
-                                                         : o->metaObject()->className()),
-                                   QString::fromLatin1(dlg ? dlg->metaObject()->className() : "(none)")));
-        if (!dlg || !w || !dlg->isVisible() || qobject_cast<QFileDialog*>(dlg)
-            || dlg->property(NO_OUTSIDE_DISMISS_PROPERTY).toBool())
-          return QObject::eventFilter(o, e);
-        // Popups keep the widget they were built from as parent, so the walk reaches the dialog.
-        for (const QWidget* p = w; p; p = p->parentWidget())
-          if (p == dlg) return QObject::eventFilter(o, e);
-        dlg->reject();
-        return true;   // swallowed, like the overlay eating the click in the browser
-      }
-    };
-  }  // namespace
-
-  void installModalDismiss() {
-    QCoreApplication* app = QCoreApplication::instance();
-    if (!app) return;
-    if (app->findChild<QObject*>(QString::fromLatin1(MODAL_DISMISS_FILTER_NAME),
-                                 Qt::FindDirectChildrenOnly))
-      return;
-    app->installEventFilter(new ModalDismissFilter(app));
-    app->installEventFilter(new GestureClock(app));
-    installModalDismissNative();
-  }
-
-  // WEAK so headless binaries link without modalDismissMac.mm; MSVC has no weak symbols.
-#if defined(_MSC_VER)
-  void installModalDismissNative() {}
-#else
-  __attribute__((weak)) void installModalDismissNative() {}
-#endif
+  void installGestureClock(QCoreApplication* app) { app->installEventFilter(new GestureClock(app)); }
 
   void installDialogCentring() {
     QCoreApplication* app = QCoreApplication::instance();

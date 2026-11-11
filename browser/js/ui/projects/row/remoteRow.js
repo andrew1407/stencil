@@ -5,6 +5,8 @@ import { rowLeave } from '../list/rowMotion.js';
 import { rowLeaveDust, ITEM_DUST_MS } from '../../motion/surface/tiles.js';
 import { clearedToast } from '../../../core/project/transferController.js';
 import { copyMenuItem, afterRowCopy } from './copyItem.js';
+import { copyMenuItems } from '../../share/projectMenu.js';
+import { createOpenGesture } from '../../../core/project/openGesture.js';
 
 // Thumbnail blobs keyed `serverUrl|id|version`, so the many re-renders (search keystrokes,
 // live events, peer pings) share one fetch per version. Twin: ProjectsDialog::remoteThumbs_.
@@ -131,12 +133,12 @@ export function createRemoteRow(deps) {
       const actions = document.createElement('div');
       actions.className = 'project-actions';
 
-      // The row opens the server project on click (fetches image + layout). A brief
-      // dimmed state reads as "working" since opening hits the network.
+      // A click opens it from the server after asking, a double click at once (local rows' gesture);
+      // the brief dim reads as "working" over the network.
       let opening = false;
-      const openFromServer = async () => {
+      const openFromServer = async ({ confirm = true } = {}) => {
         if (opening) return;
-        if (!(await confirmOpen(meta.name))) return;
+        if (confirm && !(await confirmOpen(meta.name))) return;
         opening = true;
         row.classList.add('is-opening');
         try { await openRemote(meta); close(); }
@@ -194,6 +196,7 @@ export function createRemoteRow(deps) {
       // The "⋯" overflow menu, shared with the row's right-click menu (as local rows).
       const menuItems = () => [
         { icon: 'folder', label: 'Open from server', onClick: openFromServer },
+        ...copyMenuItems(app, { meta, remote: true }),
         copyMenuItem({ target: { remote: meta }, anchor: menuBtn, onDone: afterRowCopy({ close, render, invalidateRemotes, scrollRowIntoView }) }),
         { icon: 'copy', label: 'Copy to local', onClick: copyToLocal },
         { icon: 'incognito', label: 'Copy to incognito', onClick: copyToIncognito },
@@ -212,13 +215,10 @@ export function createRemoteRow(deps) {
 
       actions.append(menuBtn);
       row.appendChild(actions);
-      // Right-click anywhere on the row opens the same overflow menu at the cursor.
-      row.addEventListener('contextmenu', e => {
-        e.preventDefault();
-        showMenu(menuBtn, menuItems(), { x: e.clientX, y: e.clientY });
-      });
+      row.addEventListener('contextmenu', e => { e.preventDefault(); showMenu(menuBtn, menuItems(), { x: e.clientX, y: e.clientY }); });
       row.classList.add('project-clickable');
-      row.addEventListener('click', openFromServer);
+      const gesture = createOpenGesture({ run: openFromServer });
+      for (const type of ['click', 'dblclick']) row.addEventListener(type, (e) => gesture[type](e));
       return row;
     };
   return makeRemoteRow;

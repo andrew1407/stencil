@@ -23,9 +23,8 @@ namespace stencil::gui {
     }
   }  // namespace
 
-  void ProjectFlows::wireProjectsRequests(ProjectsDialog& dlg,
-                                          const std::function<bool()>& unsavedSession) {
-    // Handled WHILE the dialog is up: it confirms itself, we remove, it repaints.
+  // Clear all and Remove, handled WHILE the dialog is up: it confirms itself, we remove, it repaints.
+  void ProjectFlows::wireProjectsRemoval(ProjectsDialog& dlg, const std::function<bool()>& unsavedSession) {
     QObject::connect(&dlg, &ProjectsDialog::clearAllRequested, w.window, [this, &dlg, unsavedSession] {
       const int n = static_cast<int>(host.projectList.size());
       const bool hadActive = !host.activeProjectId.isEmpty();
@@ -52,13 +51,15 @@ namespace stencil::gui {
         if (live) live->setProjects(host.projectList);
         return;
       }
+      // A server row leaves the open list at once, a refused delete relists it (user report).
       for (const auto& pr : items) {
         if (pr.second.isEmpty()) {
           eraseLocalProject(pr.first);
         } else if (auto* c = w.remote.conns() ? w.remote.conns()->find(pr.second) : nullptr) {
-          c->deleteProjectAsync(pr.first, [](bool) {});  // fire-and-forget; list refresh is independent
+          c->deleteProjectAsync(pr.first, [live](bool ok) { if (!ok && live) live->relistServers(); });
         }
       }
+      if (live) live->dropServerRows(items);
       SharedState::instance().saveProjects(w.window);
       w.refreshActions();
       SiblingWindows::refreshDockMenu(host.projectList);  // drop it from the Dock "recent" list
@@ -67,6 +68,11 @@ namespace stencil::gui {
         if (live) live->setProjects(host.projectList, unsavedSession(), host.incognito);
       });
     });
+  }
+
+  void ProjectFlows::wireProjectsRequests(ProjectsDialog& dlg,
+                                          const std::function<bool()>& unsavedSession) {
+    wireProjectsRemoval(dlg, unsavedSession);
     // Inline rename: same stay-open pattern.
     QObject::connect(&dlg, &ProjectsDialog::renameRequested, w.window,
                      [this, &dlg](const QString& id, const QString& name) {

@@ -16,4 +16,8 @@ namespace stencil::support {
   // one. False only when nothing could be shown at all.
   bool showShareSheet(QWidget* anchor, const QString& filePath, const QString& title);
 
+  // The same sheet over a link (a stencil:// URI or a web URL); false where there is none, and the
+  // caller copies it instead.
+  bool showShareLinkSheet(QWidget* anchor, const QString& url, const QString& title);
+
 }  // namespace stencil::support

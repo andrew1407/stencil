@@ -33,6 +33,7 @@ export const toolbarTopbarHtml = () => `            <div class="controls-topbar"
                     <button id="project-name-cancel" class="name-edit-btn name-edit-cancel" type="button" data-title="Cancel (Esc)" style="display:none;">${icon('x', { size: 14 })}</button>
                     <button id="project-color-btn" class="name-edit-btn" type="button" data-title="Project color — paints the project name" style="display:none;">${icon('palette', { size: 14 })}</button>
                     <input id="project-color-input" type="color" tabindex="-1" aria-hidden="true" style="position:absolute;width:1px;height:1px;opacity:0;border:0;padding:0;pointer-events:none;">
+                    <button id="project-name-copy-btn" class="name-edit-btn" type="button" data-title="Copy project name — right-click for its links" style="display:none;">${icon('copy', { size: 14 })}</button>
                     <!-- Sits INSIDE the name field, right after the name (which sizes to its
                          text), so the "?" reads as belonging to this project rather than
                          floating off in the toolbar. Owns its own hover bubble

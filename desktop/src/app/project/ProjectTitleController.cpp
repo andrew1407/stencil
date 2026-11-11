@@ -78,6 +78,10 @@ namespace stencil::gui {
       nameBar.colorBtn->setEnabled(hasProject);
       nameBar.colorBtn->setCursor(hasProject ? Qt::PointingHandCursor : Qt::ForbiddenCursor);
     }
+    if (nameBar.copyBtn) {
+      nameBar.copyBtn->setEnabled(!name.isEmpty());
+      nameBar.copyBtn->setCursor(name.isEmpty() ? Qt::ForbiddenCursor : Qt::PointingHandCursor);
+    }
     if (nameBar.edit) {
       nameBar.edit->setEnabled(editable);
       nameBar.edit->setCursor(editable ? Qt::PointingHandCursor : Qt::ForbiddenCursor);
@@ -101,8 +105,10 @@ namespace stencil::gui {
     const auto placeAffordances = [this](bool on) {
       if (nameBar.edit) nameBar.edit->setVisible(on);
       if (nameBar.colorBtn) nameBar.colorBtn->setVisible(on);
+      if (nameBar.copyBtn) nameBar.copyBtn->setVisible(on);
       setPaintedOut(nameBar.edit, on && !nameBar.hover);
       setPaintedOut(nameBar.colorBtn, on && !nameBar.hover);
+      setPaintedOut(nameBar.copyBtn, on && !nameBar.hover);
     };
     if (!affordable) {
       placeAffordances(false);

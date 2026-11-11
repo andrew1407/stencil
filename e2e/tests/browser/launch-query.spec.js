@@ -1,16 +1,16 @@
 // The launch query (contracts/launch/launch-uri.md) on the real app: the page URL's `?key=value`
 // pairs open a blank or a served picture, set the look and the editor settings, keep a URL source
-// as the project's source, and are stripped once consumed; an incognito launch saves nothing, and
-// a credential is taken from the fragment, never from the query.
+// as the project's source, and stay in the address bar minus the credentials; an incognito launch
+// saves nothing, and a credential is taken from the fragment, never from the query.
 import { test, expect } from '@playwright/test';
 import { gotoApp, SITE_URL } from '../../helpers/boot.js';
 
-// Ready once the launch has landed a picture and stripped its pairs from the address bar.
+// Ready once the launch has landed a picture and no credential is left in the address bar.
 const launched = (page) => page.waitForFunction(
-  () => !!(window.stencil && window.stencil.imageSize) && location.search === '' && location.hash === '',
+  () => !!(window.stencil && window.stencil.imageSize) && !/token=|llm-api-key=/.test(location.href),
   null, { timeout: 15_000 });
 
-test('a blank launch sets colour, size, name, theme, accent and a setting, then strips the query', async ({ page }) => {
+test('a blank launch sets colour, size, name, theme, accent and a setting, and keeps the link', async ({ page }) => {
   await gotoApp(page, { search: '?blank=%23336699&width=400&height=300&name=Sketch&theme=dark&main-color=yellow&thickness=7' });
   await launched(page);
   const state = await page.evaluate(() => ({
@@ -21,7 +21,9 @@ test('a blank launch sets colour, size, name, theme, accent and a setting, then 
     accent: window.stencil.mainTheme,
     thickness: window.stencil.thickness,
     incognito: window.stencil.incognito,
+    search: location.search,
   }));
+  expect(state.search).toContain('blank=%23336699');
   expect(state.size.width).toBeGreaterThan(0);
   expect(state.name).toBe('Sketch');
   expect(state.blankColor).toBe('#336699');
@@ -62,7 +64,10 @@ test('an incognito launch saves no project, and a credential rides the fragment 
     provider: window.stencil.llm.provider,
     key: window.stencil.llm.apiKey,
     stored: localStorage.getItem('drawingApp_llmSettings') || '',
+    href: location.href,
   }));
+  expect(state.href).toContain('llm-provider=anthropic');
+  expect(state.href).not.toContain('llm-api-key');
   expect(state.incognito).toBe(true);
   expect(state.saved).toBe(0);
   expect(state.provider).toBe('anthropic');

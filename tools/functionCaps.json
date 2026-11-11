@@ -169,7 +169,6 @@
     "desktop/src/app/meta/MainWindowSettings.cpp#MainWindow::applySettings": 112,
     "desktop/src/app/open/launchUri.cpp#parseParts": 93,
     "desktop/src/app/project/flows/ProjectFlows.cpp#ProjectFlows::openProjects": 139,
-    "desktop/src/app/project/flows/ProjectFlowsRequests.cpp#bool": 89,
     "desktop/src/app/project/flows/ProjectFlowsSave.cpp#ProjectFlows::saveToServer": 105,
     "desktop/src/app/project/flows/ProjectFlowsServer.cpp#ProjectFlows::openServerProject": 151,
     "desktop/src/app/selection/SelectedLineBar.cpp#QWidget": 188,

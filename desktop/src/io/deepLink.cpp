@@ -1,6 +1,7 @@
 #include "deepLink.hpp"
 #include "ServerClient.hpp"
 #include <QJsonDocument>
+#include <QRegularExpression>
 #include <QUrl>
 
 namespace stencil::gui::deepLink {
@@ -42,6 +43,30 @@ namespace stencil::gui::deepLink {
 
   QString buildTelegramLink(const QString& botUsername, const QString& payload) {
     return QStringLiteral("https://t.me/%1?start=%2").arg(botUsername, payload);
+  }
+
+  namespace {
+    // application/x-www-form-urlencoded as URLSearchParams writes it: `*` bare, `~` escaped, a space `+`.
+    QString formValue(const QString& v) {
+      return QString::fromLatin1(QUrl::toPercentEncoding(v, "*", "~")).replace(QLatin1String("%20"), QLatin1String("+"));
+    }
+    // The browser's own test (core/launch/shareLinks.js): a scheme, then at least one character, no space.
+    bool isWebUrl(const QString& s) {
+      static const QRegularExpression web(QStringLiteral("^https?://\\S+$"), QRegularExpression::CaseInsensitiveOption);
+      return web.match(s).hasMatch();
+    }
+  }  // namespace
+
+  std::vector<ShareLink> projectShareLinks(const QString& name, const QString& source,
+                                           const QString& serverUrl, const QString& remoteId) {
+    const QString open = QStringLiteral("stencil://open?");
+    const QString named = name.trimmed(), from = source.trimmed();
+    std::vector<ShareLink> out;
+    if (!named.isEmpty()) out.push_back({ShareLinkKind::NAME, open + QStringLiteral("project=") + formValue(named)});
+    if (isWebUrl(from)) out.push_back({ShareLinkKind::SOURCE, open + QStringLiteral("source=") + formValue(from)});
+    if (!serverUrl.isEmpty() && !remoteId.isEmpty())
+      out.push_back({ShareLinkKind::SERVER, open + QStringLiteral("server=") + formValue(serverUrl) + QStringLiteral("&id=") + formValue(remoteId)});
+    return out;
   }
 
 }  // namespace stencil::gui::deepLink

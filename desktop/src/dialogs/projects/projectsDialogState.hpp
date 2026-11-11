@@ -1,11 +1,15 @@
 #pragma once
 // The projects dialog's own furniture, grouped as plain value-type bags held by value — the batch
-// bar, the hover preview with its kebab shimmer, and the press state a click/drag is decided from.
+// bar, the hover preview with its kebab shimmer, the press state a click/drag is decided from, and
+// the server listing's poll with the thumbnails fetched for its rows.
+#include "LruCache.hpp"
+#include <QPixmap>
 #include <QPoint>
 #include <QPointer>
 #include <QRect>
 #include <QSet>
 #include <QString>
+#include <QStringList>
 #include <QVector>
 #include <Qt>
 
@@ -62,6 +66,16 @@ namespace stencil::gui {
     bool rowDragging = false;
     QString openServerUrl;   // with openServerId, the server project this window holds
     QString openServerId;
+  };
+
+  struct ProjectsListingParts {
+    QTimer* remoteTimer = nullptr;
+    bool remoteBusy = false;
+    bool remoteLoaded = false;
+    QStringList knownServerUrls;
+    // Keyed "serverUrl|id|version"; bounded because every edit anywhere bumps a version.
+    LruCache<QString, QPixmap> remoteThumbs{128};
+    QSet<QString> thumbInFlight;
   };
 
 }  // namespace stencil::gui

@@ -74,8 +74,8 @@ namespace stencil::gui {
     w.nameBar.colorBtn->setToolTip("Project color — paints the project name");
     w.nameBar.colorBtn->setEnabled(false);
     nameLay->addWidget(w.nameBar.colorBtn);
-    // The menu runs its own loop and fully closes before the picker opens (deferred), so no stray
-    // grab dismisses the dialog.
+    buildNameCopyChip(nameLay, sizeToRow);
+    // The menu runs its own loop and closes before the picker opens (deferred): no stray grab dismisses it.
     support::wireColorChip(w.nameBar.colorBtn, [this] { w.projectHost.flows.showProjectColorMenu(); },
                            [this] { w.projectHost.flows.setActiveProjectColor(QString()); });
     support::installColorDrag(w.nameBar.colorBtn, {[this] { return w.projectHost.flows.projectNameColor(); },
@@ -126,6 +126,27 @@ namespace stencil::gui {
     w.nameBar.group->installEventFilter(&w);
     w.nameBar.edit->installEventFilter(&w);
     w.nameBar.colorBtn->installEventFilter(&w);
+  }
+
+  // The copy chip after 🎨 (browser #project-name-copy-btn): a click copies the name, a right-click
+  // lists its stencil:// links (app/project/copy/ProjectCopyShare.cpp).
+  void ToolbarBuilder::buildNameCopyChip(QHBoxLayout* nameLay, const std::function<void(QToolButton*)>& sizeToRow) {
+    QToolButton* chip = w.nameBar.copyBtn = new QToolButton(w.nameBar.group);
+    chip->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    sizeToRow(chip);
+    chip->setAutoRaise(true);
+    chip->setToolTip("Copy project name — right-click for its links");
+    chip->setEnabled(false);
+    nameLay->addWidget(chip);
+    QObject::connect(chip, &QToolButton::clicked, &w, [this] {
+      const QString name = w.nameBar.field ? w.nameBar.field->text().trimmed() : QString();
+      if (!name.isEmpty()) w.projectHost.copy.copyToClipboard(CopyRequest{}, support::ShareItem::NAME, name);
+    });
+    chip->setContextMenuPolicy(Qt::CustomContextMenu);
+    QObject::connect(chip, &QToolButton::customContextMenuRequested, &w, [this, chip](const QPoint& at) {
+      w.projectHost.copy.showNameMenu(chip, chip->mapToGlobal(at));
+    });
+    chip->installEventFilter(&w);
   }
 }  // namespace stencil::gui
 

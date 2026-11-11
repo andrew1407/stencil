@@ -3,11 +3,15 @@
 // canvas menu, the toolbar and the copyProject op take — read the source, name it "<name>-copy(N)"
 // (core ProjectsStore::copySuffixName), save it here or on its server, then open it.
 #include "copyProjectMenu.hpp"   // support::CopyScope
+#include "shareRows.hpp"         // support::ShareItem
 #include "fileStore.hpp"         // Project
 
 #include <QByteArray>
+#include <QHash>
 #include <QImage>
 #include <QJsonObject>
+#include <QPoint>
+#include <QSize>
 #include <QRect>
 #include <QString>
 #include <functional>
@@ -22,14 +26,14 @@ namespace stencil::gui {
   struct ProjectWindow;
   class ProjectsDialog;
 
-  enum CopyOpen { COPY_OPEN_NONE, COPY_OPEN_HERE, COPY_OPEN_NEW_WINDOW };
+  enum class CopyOpen { NONE, HERE, NEW_WINDOW };
 
   struct CopyRequest {
     QString id;          // a stored row; empty = the live editor
     QString serverUrl;   // with `id`: a server-only row instead
     QString name;        // a server-only row's name, for the question asked before it is read
-    support::CopyScope what = support::COPY_LAYOUT;
-    CopyOpen open = COPY_OPEN_NONE;
+    support::CopyScope what = support::CopyScope::LAYOUT;
+    CopyOpen open = CopyOpen::NONE;
     bool incognito = false;
     bool local = false;  // a server source: make it on this computer instead of on its server
   };
@@ -69,6 +73,14 @@ namespace stencil::gui {
     void run(const CopyRequest& req, std::function<void(bool ok, QString newId, QString note)> done = {});
     // Enters incognito on this window with `img` under `layout` (a copy opened unsaved).
     void enterIncognito(const QImage& img, const QJsonObject& layout, const core::ProjectMeta& meta);
+    // ProjectCopyShare.cpp — "Copy ›" (browser ui/share/projectMenu.js): `text`, a name or a stencil://
+    // link, goes to the clipboard as it is; a picture, the layout or the project is read first.
+    void copyToClipboard(const CopyRequest& at, support::ShareItem item, const QString& text = QString());
+    // The name chip's right-click menu over the open editor: its name and stencil:// links.
+    void showNameMenu(QWidget* anchor, const QPoint& globalPos);
+    // The share button's right-click: Image › three variants (through `shareImage`), then the links;
+    // a click shares, a double click copies.
+    void showShareMenu(QWidget* anchor, const QPoint& globalPos, const std::function<void(const QString&)>& shareImage);
 
    private:
     // ProjectCopySource.cpp
@@ -83,6 +95,10 @@ namespace stencil::gui {
     void createOnServer(const CopySource& src, support::CopyScope what, const QString& name,
                         std::function<void(bool ok, QString newId)> done);
     QJsonObject layoutOf(const CopySource& src, support::CopyScope what, int width, int height) const;
+    // ProjectCopyShare.cpp: the open project's name and links (support::projectShareTexts); `variant`
+    // "current" | "tint" | "original", drawn off-screen.
+    QHash<support::ShareItem, QString> liveText();
+    QImage renderSource(const CopySource& src, const QImage& original, const QString& variant) const;
     // ProjectCopyOpen.cpp
     // `then` runs once a copy opened here has landed (at once for every other way).
     void openSaved(CopyOpen open, const QString& server, const QString& id, std::function<void()> then);
@@ -93,6 +109,14 @@ namespace stencil::gui {
     ProjectHost& host;
     ProjectWindow& w;
   };
+
+  // The original's encoded bytes — as read, else on disk, else the picture as PNG — their extension and size.
+  struct CopyUpload {
+    QByteArray bytes;
+    QString ext;
+    QSize size;
+  };
+  CopyUpload uploadOf(const CopySource& src);
 
   // What a copy carries by scope (browser copy/scope.js): the original always, with its blank colour
   // and provenance; the layout from `layout` up; its own colour, words, expiry and chat for `project`.

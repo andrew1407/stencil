@@ -1,7 +1,6 @@
 #pragma once
 #include "projectsDialogState.hpp"
 #include "fileStore.hpp"
-#include "LruCache.hpp"
 #include "ServerClient.hpp"
 #include "tooltipRows.hpp"
 #include <QColor>
@@ -24,9 +23,7 @@ class QComboBox;
 class QLineEdit;
 class QTimer;
 class QVariantAnimation;
-class QLabel;
 class QPushButton;
-class QWidget;
 
 namespace stencil::net {
   class ConnectionManager;
@@ -77,6 +74,9 @@ namespace stencil::gui {
     // A server row's meta PUT landed: its cached record edited, at `version`, and repainted.
     void patchServerRow(const QString& id, const QString& serverUrl, qint64 version,
                         const std::function<void(stencil::net::ServerProject&)>& edit);
+    // Removed server rows (`items` as removeRequested's) leave the cached listing for the next rebuild.
+    void dropServerRows(const QVector<QPair<QString, QString>>& items);
+    void relistServers() { refreshRemote(); }   // a refused delete: the listing is fetched again
     // A local row's picture arriving after the rows were built; kept across rebuilds.
     void setLocalThumb(const QString& id, const QPixmap& thumb);
 
@@ -94,6 +94,8 @@ namespace stencil::gui {
     void openInRequested(const QString& id, const QString& serverUrl, const QRect& closeRect);
     // "Make a copy" of a row (a stay-open request too); `scope` is a support::CopyScope.
     void copyRequested(const QString& id, const QString& serverUrl, int scope, const QRect& closeRect);
+    // A "Copy ›" pick (a support::ShareItem): `text` is its name or stencil:// link, else the owner reads it.
+    void clipboardRequested(const QString& id, const QString& serverUrl, int item, const QString& text);
     void closeProjectRequested();   // the open project was dropped on Close
     void blankRequested(const QRect& from);   // GLOBAL: the Blank image button, its dialog stacked over this one
 
@@ -124,7 +126,7 @@ namespace stencil::gui {
                               const QString& origin) const;
     void refreshRemote();
     QPixmap remoteThumb(const stencil::net::ServerProject& sp);
-    // Asynchronous, each swapping the row icon in on arrival; `key` is the remoteThumbs cache key.
+    // Asynchronous, each swapping the row icon in on arrival; `key` is the listing.remoteThumbs cache key.
     void fetchServerThumbAsync(const QString& key, const stencil::net::ServerProject& sp);
     void fetchSourceThumbAsync(const QString& key, const stencil::net::ServerProject& sp);
     void applyRemoteThumb(const QString& key, const QString& id, const QString& serverUrl,
@@ -174,6 +176,7 @@ namespace stencil::gui {
     void clearColorSelected();
     void emitSetColor(QListWidgetItem* it, const QString& color);
     QString rowColor(const QListWidgetItem* it) const;
+    void addRowCopyMenu(QMenu& menu, const QString& rowId, const QString& rowServer, const QColor& ico);
     QString currentRowColor() const;
     QString rowKeyAt(int i) const;
     // Empty `keys` = every data row.
@@ -186,6 +189,7 @@ namespace stencil::gui {
     ProjectsBatchParts batch;   // furniture in projectsDialogState.hpp
     ProjectsHoverParts hover;
     ProjectsPressParts press;
+    ProjectsListingParts listing;
     // The open menu's "⋯" chip in global coords — where a window raised from that menu flies back to.
     bool openInLocalOk = false;
     bool openInServerOk = false;
@@ -198,15 +202,9 @@ namespace stencil::gui {
     bool temporary = false;
     bool incognito = false;
     QHash<QString, QPixmap> thumbs;
-    // Keyed "serverUrl|id|version"; bounded because every edit anywhere bumps a version.
-    LruCache<QString, QPixmap> remoteThumbs{128};
     QVector<stencil::net::ServerProject> remote;
-    QSet<QString> thumbInFlight;
     // -1 = none. Only its OWN hover styles the chip.
     void setKebabHover(int row);
-    QTimer* remoteTimer = nullptr;
-    bool remoteBusy = false;
-    bool remoteLoaded = false;
     QListWidget* list = nullptr;
     QPushButton* clearAllBtn = nullptr;
     QComboBox* filter = nullptr;
@@ -216,7 +214,6 @@ namespace stencil::gui {
     QComboBox* searchModeCombo = nullptr;
     QLineEdit* search = nullptr;
     QPushButton* selectAllBtn = nullptr;
-    QStringList knownServerUrls;
     bool building = false;
     QWidget* renameBox = nullptr;
     bool confirmOpen = true;

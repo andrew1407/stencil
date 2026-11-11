@@ -11,7 +11,7 @@ stencil_headless_test(stencil_scriptwindowkeys_headless
     src/dialogs/script/ScriptMenuPanel.cpp src/dialogs/script/ScriptMenuPanelState.cpp
     src/dialogs/script/ScriptEditorWidget.cpp src/dialogs/script/ScriptEditorWidgetKeys.cpp src/dialogs/script/ScriptHighlighter.cpp
     src/model/ScriptBuffer.cpp src/model/ScriptDoc.cpp
-    ${STENCIL_MODALCHROME_SOURCES} src/support/icon/iconSet.cpp src/support/modal/modalReveal.cpp
+    ${STENCIL_MODALCHROME_SOURCES} src/support/icon/iconSet.cpp ${STENCIL_MODALREVEAL_SOURCES}
     ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Svg)
 
@@ -25,7 +25,7 @@ stencil_headless_test(stencil_scriptdialog_headless
     tests/dialogs/script/scriptDialog.headless.cpp src/dialogs/script/ScriptDialog.cpp src/dialogs/script/ScriptDialogFile.cpp
     src/dialogs/script/ScriptEditorWidget.cpp src/dialogs/script/ScriptEditorWidgetKeys.cpp src/dialogs/script/ScriptHighlighter.cpp
     src/model/ScriptBuffer.cpp src/model/ScriptDoc.cpp
-    ${STENCIL_MODALCHROME_SOURCES} src/support/icon/iconSet.cpp src/support/modal/modalReveal.cpp
+    ${STENCIL_MODALCHROME_SOURCES} src/support/icon/iconSet.cpp ${STENCIL_MODALREVEAL_SOURCES}
     ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Svg)
 
@@ -38,7 +38,7 @@ stencil_headless_test(stencil_scriptmenupanel_headless
     tests/dialogs/script/scriptMenuPanel.headless.cpp src/dialogs/script/ScriptMenuPanel.cpp
     src/dialogs/script/ScriptMenuPanelState.cpp src/dialogs/script/ScriptEditorWidget.cpp src/dialogs/script/ScriptEditorWidgetKeys.cpp
     src/dialogs/script/ScriptHighlighter.cpp src/model/ScriptBuffer.cpp src/model/ScriptDoc.cpp
-    ${STENCIL_MODALCHROME_SOURCES} src/support/icon/iconSet.cpp src/support/modal/modalReveal.cpp
+    ${STENCIL_MODALCHROME_SOURCES} src/support/icon/iconSet.cpp ${STENCIL_MODALREVEAL_SOURCES}
     ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Svg)
 
@@ -52,7 +52,7 @@ stencil_headless_test(stencil_scriptbuffer_headless
     src/dialogs/script/ScriptMenuPanel.cpp src/dialogs/script/ScriptMenuPanelState.cpp
     src/dialogs/script/ScriptEditorWidget.cpp src/dialogs/script/ScriptEditorWidgetKeys.cpp src/dialogs/script/ScriptHighlighter.cpp
     src/model/ScriptBuffer.cpp src/model/ScriptDoc.cpp
-    ${STENCIL_MODALCHROME_SOURCES} src/support/icon/iconSet.cpp src/support/modal/modalReveal.cpp
+    ${STENCIL_MODALCHROME_SOURCES} src/support/icon/iconSet.cpp ${STENCIL_MODALREVEAL_SOURCES}
     ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Svg)
 
@@ -66,7 +66,7 @@ stencil_headless_test(stencil_scriptbufferhidden_headless
     src/dialogs/script/ScriptMenuPanel.cpp src/dialogs/script/ScriptMenuPanelState.cpp
     src/dialogs/script/ScriptEditorWidget.cpp src/dialogs/script/ScriptEditorWidgetKeys.cpp src/dialogs/script/ScriptHighlighter.cpp
     src/model/ScriptBuffer.cpp src/model/ScriptDoc.cpp
-    ${STENCIL_MODALCHROME_SOURCES} src/support/icon/iconSet.cpp src/support/modal/modalReveal.cpp
+    ${STENCIL_MODALCHROME_SOURCES} src/support/icon/iconSet.cpp ${STENCIL_MODALREVEAL_SOURCES}
     ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Svg)
 

@@ -58,6 +58,7 @@ namespace stencil::support {
         }
         auto* dlg = qobject_cast<QDialog*>(w);
         if (!dlg || e->spontaneous() || dlg->windowModality() == Qt::NonModal) return QObject::eventFilter(o, e);
+        frontTopModal(dlg);
         QWidget* host = dialogHost(dlg);
         if (!host) host = QApplication::topLevelAt(QCursor::pos());
         if (!host || host == dlg) return QObject::eventFilter(o, e);
@@ -88,6 +89,18 @@ namespace stencil::support {
     }
     QWidget* native = under->internalWinId() ? under : under->nativeParentWidget();
     if (QWindow* shown = native ? native->windowHandle() : nullptr) reapplyCursor(shown, under->cursor());
+  }
+
+  void frontTopModal(QWidget* closed) {
+    QPointer<QWidget> gone(closed);
+    const auto front = [gone] {
+      QWidget* top = QApplication::activeModalWidget();
+      if (!top || top == gone || !top->isVisible() || top->isActiveWindow()) return;
+      top->raise();
+      top->activateWindow();
+    };
+    front();   // before the window server draws a frame with the wrong window on top
+    QTimer::singleShot(0, qApp, front);
   }
 
   void dropStaleHover(QWidget* w) {

@@ -73,6 +73,12 @@ stencil_headless_test(stencil_menutrigger_headless
   LIBS stencil_gui_objs Qt6::Test
   INCLUDE_TESTS)
 
+# A two-meaning menu row (support/share/menuDoubleClick.hpp): a click after the interval, a double inside it.
+stencil_headless_test(stencil_menudoubleclick_headless
+  SOURCES tests/support/share/menuDoubleClick.headless.cpp
+  LIBS stencil_gui_objs Qt6::Test
+  INCLUDE_TESTS)
+
 # Dragging a toolbar control (support/drag/iconDrag): slop, drop, cancel and Escape on a live button.
 stencil_headless_test(stencil_icondrag_headless
   SOURCES tests/support/drag/iconDrag.headless.cpp tests/support/drag/iconDragSources.headless.cpp

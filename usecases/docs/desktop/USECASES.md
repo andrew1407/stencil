@@ -267,7 +267,8 @@ and **Copy** (`Ctrl+C`) puts it on the clipboard. Right-click or double-click ei
 choices: **Current** (with the filter, lines and points), **Original** (with neither), **Filter
 Only** (no lines or points) and, while a split compare is up, **With Compare**. **Data ▸ Copy
 Image** and **Download Image** hold the same choices; **Share Image…** (`Ctrl+Alt+S`) hands the
-picture to the system's share sheet where there is one.
+picture to the system's share sheet where there is one, and a right-click on its button offers the
+picture's variants and the project's links: a click shares, a double click copies.
 
 ![the Download button's choices, with a split compare up](img/export-menu.png)
 
@@ -287,7 +288,7 @@ after 7 days unless you give it longer; one kept forever says **never expires**.
 
 ![the Projects dialog](img/projects-dialog.png)
 
-A row's **⋯** menu opens, renames, colours, describes and expires it, and has **Make a copy**
+A row's **⋯** menu opens, renames, colours, describes and expires it, and has **Copy project**
 right after **Open in another app**; the toolbar's Image section has the same choice behind its
 copy button. Pick **Image only**, **Image and layout** or **Whole project**, then answer the
 question: **Just copy** adds the copy to the list and leaves everything else open, **Open**
@@ -296,7 +297,12 @@ copy without ever saving it. Copies are named after the project — `Kitchen pla
 `Kitchen plan-copy(1)`, and so on. For a project that lives on a server, the copy is made on that
 server unless **Make a local copy** is ticked, and only a local copy can open incognito.
 
-![a project row's Make a copy submenu](img/projects-row-copy.png)
+Above it, **Copy entries** puts the project's name, a `stencil://` link that opens it, its layout or
+the whole `.stencil` on the clipboard, and **Copy image** its picture — **Current**, **No lines** or
+**Original** — without opening the project. The copy button beside the open project's name copies
+that name; right-click it for the same links.
+
+![a project row's Copy project submenu](img/projects-row-copy.png)
 
 | A local project | A server project |
 |---|---|

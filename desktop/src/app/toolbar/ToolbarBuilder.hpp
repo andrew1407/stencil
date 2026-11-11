@@ -1,9 +1,12 @@
 #pragma once
 #include <QList>
 #include <QString>
+#include <functional>
 
 class QAction;
+class QHBoxLayout;
 class QLabel;
+class QToolButton;
 class QToolBar;
 class QWidget;
 
@@ -32,6 +35,8 @@ namespace stencil::gui {
     QWidget* makeToolSection(const QString& title, const QList<QAction*>& actions,
                              const QList<QWidget*>& extras = {}, const QList<QWidget*>& leading = {});
     void buildProjectNameGroup(QToolBar* bar);
+    void wireShareButtonMenu();
+    void buildNameCopyChip(QHBoxLayout* nameLay, const std::function<void(QToolButton*)>& sizeToRow);
     void buildPageFormulaToolbar();
     void buildStyleToolbar();
     void buildDrawViewToolbar();

@@ -1,4 +1,4 @@
-// A project row's "Make a copy ›" entry (ui/projects/row/copyItem.js): each scope opens the copy
+// A project row's "Copy project ›" entry (ui/projects/row/copyItem.js): each scope opens the copy
 // confirmation for that row, and the list follows the copy once it lands.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

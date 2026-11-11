@@ -121,8 +121,8 @@ namespace stencil::gui {
         spec.message = MainWindow::tr("Replace current image with the pasted image?");
         spec.confirmLabel = MainWindow::tr("Replace");
         spec.confirmIcon = QStringLiteral("refresh");
-        spec.flight = openImageConfirmFlight(&w);
-        if (!confirmModal(&w, spec)) {
+        QWidget* asker = openImageAsker(&w, spec.flight);
+        if (!confirmModal(asker, spec)) {
           w.notify->info("Image paste canceled");  // drawingApp.js:568
           return;
         }

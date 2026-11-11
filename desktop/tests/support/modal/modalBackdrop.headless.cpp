@@ -1,9 +1,7 @@
-// The window backdrop (support/ModalBackdrop): the browser's `.app-modal-overlay` scrim +
-// `backdrop-filter: blur()`, which Qt has no equivalent for, so the page behind is photographed once
-// and blurred. The Visuals switch gates it (off creates nothing), blurred() really softens the picture
-// and keeps its size and device pixel ratio, it covers the host under a scrim and takes no clicks, and
-// it goes when the dialog that asked for it closes, however that dialog was dismissed — fading in
-// and out on the browser's overlayFade clocks, or landing whole under reduced motion.
+// The window backdrop (support/ModalBackdrop): the browser's `.app-modal-overlay` scrim + `backdrop-filter:
+// blur()`, photographed once and blurred. The Visuals switch gates it, blurred() softens the picture and keeps
+// its size, it covers the host and takes no clicks, and it goes with its dialog — fading on the browser's
+// overlayFade clocks, whole under reduced motion, and at once over a nested dialog's still dark beneath it.
 #include "ModalBackdrop.hpp"
 #include "motionPrefs.hpp"
 
@@ -189,6 +187,28 @@ int main(int argc, char** argv) {
     QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
     delete toast;
     delete plain;
+  }
+
+  // A nested dialog closing over one still up: its backdrop drops at once, as the browser's one overlay
+  // stays; fading bared its undimmed photo, so the window blinked bright between the two (user report).
+  {
+    QDialog outer(&host);
+    outer.show();
+    ModalBackdrop* below = ModalBackdrop::behind(&outer, &host);
+    pump(ModalBackdrop::FADE_IN_MS + 60);
+    QDialog inner(&outer);
+    ModalBackdrop* above = ModalBackdrop::behind(&inner, &host);
+    check(above && qFuzzyCompare(above->opacityNow(), 1.0), "nested: over a dark backdrop it starts dark");
+    QPointer<QWidget> guard(above);
+    inner.reject();
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    check(guard.isNull(), "nested: closing over a backdrop still dark drops it at once");
+    check(below && qFuzzyCompare(below->opacityNow(), 1.0), "nested: the outer dialog's backdrop stays dark");
+    outer.reject();
+    pump(ModalBackdrop::FADE_OUT_MS / 3);
+    check(below && below->opacityNow() < 1.0, "nested: the last one out still fades");
+    pump(ModalBackdrop::FADE_OUT_MS);
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
   }
 
   std::printf("\n%s (%d failure%s)\n", failures ? "FAILURE" : "SUCCESS", failures,

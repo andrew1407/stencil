@@ -16,4 +16,11 @@ namespace stencil::support {
     return false;
   }
 
+  bool showShareLinkSheet(QWidget* anchor, const QString& url, const QString& title) {
+    (void)anchor;
+    (void)url;
+    (void)title;
+    return false;
+  }
+
 }  // namespace stencil::support

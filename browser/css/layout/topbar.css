@@ -18,8 +18,9 @@
 .name-edit-pencil { visibility: hidden; }
 .project-name-field.name-hover .name-edit-pencil { visibility: visible; }
 /* visibility, not display, keeps the row width stable. */
-#project-color-btn { visibility: hidden; }
-.project-name-field.name-hover #project-color-btn { visibility: visible; }
+#project-color-btn, #project-name-copy-btn { visibility: hidden; }
+.project-name-field.name-hover #project-color-btn,
+.project-name-field.name-hover #project-name-copy-btn { visibility: visible; }
 /* ✎ and 🎨: the toolbar's own filled squares (user decision; desktop twin:
    QToolButton[nameAffordance="true"]). */
 .name-edit-btn {

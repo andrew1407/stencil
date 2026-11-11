@@ -28,8 +28,8 @@ test('a declined assistant link changes nothing and never reaches the endpoint i
   await gotoSeeded(page, ASSISTANT, `#llm-base-url=${encodeURIComponent(EVIL)}`);
   await expect(page.locator('#confirm-modal-message')).toContainText(EVIL, { timeout: 15_000 });
   await page.locator('#confirm-modal-cancel').click();
-  await page.waitForFunction(() => location.hash === '', null, { timeout: 15_000 });
   await page.waitForTimeout(500);
+  expect(await page.evaluate(() => location.hash)).toContain('llm-base-url=');
   const state = await page.evaluate(() => ({ baseUrl: window.stencil.llm.baseUrl, key: window.stencil.llm.apiKey }));
   expect(state).toEqual({ baseUrl: 'http://127.0.0.1:9/v1', key: 'sk-e2e-mine' });
   expect(toEvil).toEqual([]);
@@ -69,7 +69,7 @@ test('a link token for a saved server connects for the session and never replace
       drawingApp_autoConnectServers: '0',
     }, `#connect=${encodeURIComponent(url)}&token=tok-theirs`);
     await page.waitForFunction((u) => window.stencil.servers?.some?.((s) => s.url === u && s.connected)
-      || (location.hash === '' && JSON.parse(localStorage.getItem('drawingApp_servers') || '[]').length > 0), url, { timeout: 15_000 });
+      || (!location.hash.includes('token=') && JSON.parse(localStorage.getItem('drawingApp_servers') || '[]').length > 0), url, { timeout: 15_000 });
     await page.waitForTimeout(300);
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('drawingApp_servers') || '[]'));
     expect(saved).toEqual([{ url, token: 'tok-mine' }]);

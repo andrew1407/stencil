@@ -1,8 +1,6 @@
 #include "launchUri.hpp"
+#include "launchUriGrammar.hpp"
 #include "launchOptions.hpp"
-#include <QFile>
-#include <QHash>
-#include <QJsonArray>
 #include <QJsonDocument>
 #include <QRegularExpression>
 #include <QStringList>
@@ -11,36 +9,6 @@
 namespace stencil::gui::launchUri {
 
   namespace {
-    // common/config/launchQuery.json through the qrc: the browser's vocabulary, read once.
-    struct Grammar {
-      QHash<QString, QString> canonical;   // spelling → canonical key
-      QStringList secret, docks, trueWords, falseWords;
-      QHash<QString, QString> themes;
-    };
-    const Grammar& grammar() {
-      static const Grammar g = [] {
-        Grammar out;
-        QFile f(QStringLiteral(":/config/launchQuery.json"));
-        if (!f.open(QIODevice::ReadOnly)) return out;
-        const QJsonObject root = QJsonDocument::fromJson(f.readAll()).object();
-        const QJsonObject keys = root.value("keys").toObject();
-        for (auto it = keys.begin(); it != keys.end(); ++it)
-          for (const QJsonValue& w : it.value().toArray()) out.canonical.insert(w.toString(), it.key());
-        const auto list = [&](const char* key) {
-          QStringList l;
-          for (const QJsonValue& v : root.value(QLatin1String(key)).toArray()) l << v.toString();
-          return l;
-        };
-        out.secret = list("secretKeys");
-        out.docks = list("chatDocks");
-        out.trueWords = list("trueWords");
-        out.falseWords = list("falseWords");
-        const QJsonObject themes = root.value("themeWords").toObject();
-        for (auto it = themes.begin(); it != themes.end(); ++it) out.themes.insert(it.key(), it.value().toString());
-        return out;
-      }();
-      return g;
-    }
     const QStringList UNSAFE_KEYS = {"__proto__", "constructor", "prototype"};
 
     struct Pair { QString key, value; };
@@ -108,6 +76,17 @@ namespace stencil::gui::launchUri {
       if (number.match(s).hasMatch()) return s.toDouble();
       return v;
     }
+    // `host[:port]/projects/<ref>` names the server too; `server=` supplies a missing one. An
+    // http(s) URL ending `.stencil` is a project file to fetch instead.
+    std::optional<Picture> projectPicture(const QString& locator, const std::optional<QString>& server) {
+      if (isHttp(locator) && locator.endsWith(".stencil", Qt::CaseInsensitive)) return ProjectFilePicture{locator};
+      const int at = locator.indexOf("/projects/");
+      static const QRegularExpression slashes("/+$");
+      const QString origin = (at < 0 ? QString() : locator.left(at)).remove(slashes);
+      const QString ref = QString(at < 0 ? locator : locator.mid(at + static_cast<int>(qstrlen("/projects/")))).remove(slashes);
+      if (ref.isEmpty()) return std::nullopt;
+      return ProjectPicture{origin.isEmpty() ? server : std::optional<QString>(origin), ref};
+    }
     std::optional<QJsonObject> jsonObject(const QString& s) {
       const QJsonDocument doc = QJsonDocument::fromJson(s.toUtf8());
       return doc.isObject() ? std::optional<QJsonObject>(doc.object()) : std::nullopt;
@@ -155,13 +134,8 @@ namespace stencil::gui::launchUri {
     if (server && id) {
       q.picture = ServerPicture{*server, *id, *numberOr(first("version"), 0.0)};
     } else if (const auto locator = text(first("project"))) {
-      // `host[:port]/projects/<ref>` names the server too; `server=` supplies a missing one.
-      const int at = locator->indexOf("/projects/");
-      static const QRegularExpression slashes("/+$");
-      const QString origin = (at < 0 ? QString() : locator->left(at)).remove(slashes);
-      const QString ref = QString(at < 0 ? *locator : locator->mid(at + int(qstrlen("/projects/")))).remove(slashes);
-      if (ref.isEmpty()) warn(WarningCode::BAD_VALUE, "project");
-      else q.picture = ProjectPicture{origin.isEmpty() ? server : std::optional<QString>(origin), ref};
+      q.picture = projectPicture(*locator, server);
+      if (!q.picture) warn(WarningCode::BAD_VALUE, "project");
     } else if (const auto src = text(first("source"))) {
       if (isHttp(*src) || src->startsWith("data:", Qt::CaseInsensitive)) {
         q.picture = SourcePicture{*src, numberOr(first("frame"), std::nullopt)};

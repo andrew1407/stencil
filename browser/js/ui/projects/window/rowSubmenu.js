@@ -1,10 +1,11 @@
 // A row menu item's nested list (projectRowMenu.js): a second `.project-menu` flown out beside
 // its item — right, or left when the window has no room — on hover, click or ArrowRight, back
-// on ArrowLeft / Escape. It lives on <body> like its parent, so the parent asks it `contains`.
+// on ArrowLeft / Escape; an item in it may nest again. It lives on <body> like its parent.
 import { icon } from '../../icons.js';
 import { popupIn, popupOut } from '../../motion/control/popup.js';
 import { SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../../motion/surface/motion.js';
 import { rectCenter } from '../../motion/control/tips.js';
+import { clickOrDouble } from '../../../core/pointer/clickOrDouble.js';
 
 const GAP = 4;
 const EDGE = 8;
@@ -18,19 +19,33 @@ export const menuItemButton = (it) => {
   return b;
 };
 
+// An action item's click: `pick` at once, or — with `onDoubleClick` — once the double-click window
+// passes, a second click inside it picking the double instead. Each gets the row's rect.
+export const wireActionItem = (b, it, pick) => {
+  const at = () => b.getBoundingClientRect();
+  const run = it.onDoubleClick
+    ? clickOrDouble({ single: () => pick(it, at()), double: () => pick({ ...it, onClick: it.onDoubleClick }, at()) })
+    : () => pick(it, at());
+  b.addEventListener('click', (e) => { e.stopPropagation(); run(e); });
+};
+
 // The submenu grows out of, and goes back into, its item's ▸ arrow (the item's centre without one).
 const arrowPoint = (trigger) => {
   const a = trigger.querySelector?.('.project-menu-arrow');
   return a ? rectCenter(a) : rectCenter(trigger);
 };
 
-// `pick(child, rect)` runs a nested item; the parent closes everything first.
-export const createRowSubmenu = (trigger, items, pick) => {
+// `pick(child, rect)` runs a nested item; the parent closes everything first. `siblings()` is its
+// level's lists: showing this one folds the others, so one flyout is out per level.
+export const createRowSubmenu = (trigger, items, pick, siblings = () => []) => {
   let sub = null;
+  let nested = [];
+  const hideNested = () => { for (const n of nested) n.hide(); };
   const hide = () => {
     if (!sub) return;
-    const at = arrowPoint(trigger);
-    popupOut(sub, at, SURFACE_MENU_OUT_MS);
+    hideNested();
+    nested = [];
+    popupOut(sub, arrowPoint(trigger), SURFACE_MENU_OUT_MS);
     sub.remove();
     sub = null;
     trigger.classList.remove('is-open');
@@ -46,11 +61,17 @@ export const createRowSubmenu = (trigger, items, pick) => {
   };
   const show = () => {
     if (sub) return;
+    for (const s of siblings()) if (s !== self) s.hide();
     sub = document.createElement('div');
     sub.className = 'project-menu project-submenu';
     for (const it of items) {
+      if (!it) continue;
       const b = menuItemButton(it);
-      b.addEventListener('click', (e) => { e.stopPropagation(); pick(it, b.getBoundingClientRect()); });
+      if (it.items) nested.push(createRowSubmenu(b, it.items, pick, () => nested));
+      else {
+        b.addEventListener('mouseenter', hideNested);
+        wireActionItem(b, it, pick);
+      }
       b.addEventListener('keydown', (e) => {
         if (e.key !== 'ArrowLeft' && e.key !== 'Escape') return;
         e.stopPropagation();
@@ -62,8 +83,7 @@ export const createRowSubmenu = (trigger, items, pick) => {
     document.body.appendChild(sub);
     place();
     trigger.classList.add('is-open');
-    const at = arrowPoint(trigger);
-    popupIn(sub, at, SURFACE_MENU_IN_MS);
+    popupIn(sub, arrowPoint(trigger), SURFACE_MENU_IN_MS);
   };
   // A click only opens: the pointer that hovered the list out must not click it shut again.
   trigger.addEventListener('click', (e) => { e.stopPropagation(); show(); });
@@ -74,5 +94,6 @@ export const createRowSubmenu = (trigger, items, pick) => {
     show();
     sub.querySelector('button')?.focus();
   });
-  return { hide, contains: (t) => !!sub && sub.contains(t) };
+  const self = { hide, contains: (t) => !!sub && (sub.contains(t) || nested.some((n) => n.contains(t))) };
+  return self;
 };

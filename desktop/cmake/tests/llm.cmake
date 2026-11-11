@@ -78,7 +78,7 @@ stencil_headless_test(stencil_deeplinkfixtures_headless
 
 # The shared launch-URI vectors through the real parser (app/open/launchUri.cpp) and the desktop's subset.
 stencil_headless_test(stencil_launchurifixtures_headless
-  SOURCES tests/app/open/launchUriFixtures.headless.cpp src/app/open/launchUri.cpp src/app/open/launchUriJson.cpp src/app/open/launchOptions.cpp
+  SOURCES tests/app/open/launchUriFixtures.headless.cpp src/app/open/launchUri.cpp src/app/open/launchUriGrammar.cpp src/app/open/launchUriJson.cpp src/app/open/launchOptions.cpp
     src/io/deepLink.cpp ${STENCIL_SERVERCLIENT_SOURCES} resources/app.qrc
   DEFS ${STENCIL_FIXTURE_WALKER_DEFS}
   LIBS stencil_core Qt6::Network)

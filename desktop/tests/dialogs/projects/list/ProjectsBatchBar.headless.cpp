@@ -59,6 +59,10 @@ int main(int argc, char** argv) {
   if (batchBarVisibility(locals, mgr)) return 1;
   if (batchRemoveAndCheckboxPress(locals)) return 1;
   if (removedTopRowKeepsItsSlot(locals)) return 1;
+  if (removedServerRowsLeaveAtOnce(locals, mgr)) return 1;
+  if (removedRowSlidesOnce()) return 1;
+  if (clearAllLocalKeepsServerRows(locals, mgr)) return 1;
+  if (serverRowDoubleClickOpens(locals, mgr)) return 1;
   if (filterTransitions(locals)) return 1;
   if (wheelScroll()) return 1;
 

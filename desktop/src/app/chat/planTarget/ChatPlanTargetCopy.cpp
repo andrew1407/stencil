@@ -11,15 +11,15 @@ namespace stencil::gui {
 
   void ChatPlanTarget::copyActiveProjectThen(const llm::Action& a, llm::OpDone done) {
     static const QHash<QString, support::CopyScope> SCOPES = {
-        {QStringLiteral("image"), support::COPY_IMAGE},
-        {QStringLiteral("layout"), support::COPY_LAYOUT},
-        {QStringLiteral("project"), support::COPY_PROJECT}};
+        {QStringLiteral("image"), support::CopyScope::IMAGE},
+        {QStringLiteral("layout"), support::CopyScope::LAYOUT},
+        {QStringLiteral("project"), support::CopyScope::PROJECT}};
     static const QHash<QString, CopyOpen> OPENS = {
-        {QStringLiteral("here"), COPY_OPEN_HERE}, {QStringLiteral("newtab"), COPY_OPEN_NEW_WINDOW}};
+        {QStringLiteral("here"), CopyOpen::HERE}, {QStringLiteral("newtab"), CopyOpen::NEW_WINDOW}};
     if (!w.canvas->hasImage()) return done(true, QStringLiteral("there is no image to copy"));
     CopyRequest req;
-    req.what = SCOPES.value(a.what, support::COPY_LAYOUT);
-    req.open = OPENS.value(a.open, COPY_OPEN_NONE);
+    req.what = SCOPES.value(a.what, support::CopyScope::LAYOUT);
+    req.open = OPENS.value(a.open, CopyOpen::NONE);
     req.incognito = a.incognito;
     req.local = a.local;
     w.projectHost.copy.run(req, [done](bool ok, QString, QString note) {

@@ -28,6 +28,9 @@ export const wireEscapeOnce = () => {
   });
 };
 
+// True while any window is up over the editor: an anchor on the canvas or the toolbar lies under it.
+export const anyWindowOpen = () => [...modalShells].some((s) => s.isOpen());
+
 // The shell wired over an overlay id: config/uiStrings.json `windows` names each window's overlay.
 export const shellFor = (overlayId) => {
   for (const shell of modalShells) if (overlayId && shell.overlayId === overlayId) return shell;

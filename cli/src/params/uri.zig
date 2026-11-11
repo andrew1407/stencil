@@ -7,8 +7,7 @@ const keys = @import("uriKeys.zig");
 const t = @import("uriText.zig");
 
 pub const Server = struct { url: []const u8, id: []const u8, version: f64 };
-/// `host[:port]/projects/<ref>` or a bare `<ref>` (id or name); a null server is the launch's, else local.
-pub const Project = struct { server: ?[]const u8, ref: []const u8 };
+pub const Project = t.Project;
 pub const Source = struct {
     url: []const u8,
     frame: ?f64,
@@ -29,7 +28,7 @@ pub const Blank = struct {
         return .{ t.px(w), t.px(h) };
     }
 };
-pub const Picture = union(enum) { server: Server, project: Project, source: Source, blank: Blank };
+pub const Picture = union(enum) { server: Server, project: Project, project_file: []const u8, source: Source, blank: Blank };
 /// `json` is the inline text, already checked to be one JSON object.
 pub const Layout = union(enum) {
     url: []const u8,
@@ -152,12 +151,10 @@ pub fn parseParts(a: std.mem.Allocator, search: []const u8, hash: []const u8) !?
     const id = t.text(first(g, "id"));
     if (server != null and id != null) {
         q.picture = .{ .server = .{ .url = server.?, .id = id.?, .version = t.numberOr(first(g, "version"), 0).? } };
+    } else if (t.projectFileUrl(first(g, "project"))) |url| {
+        q.picture = .{ .project_file = url };
     } else if (t.text(first(g, "project"))) |locator| {
-        // `host[:port]/projects/<ref>` names the server too; `server=` supplies a missing one.
-        const at = std.mem.indexOf(u8, locator, "/projects/");
-        const origin = if (at) |i| std.mem.trimEnd(u8, locator[0..i], "/") else "";
-        const ref = std.mem.trimEnd(u8, if (at) |i| locator[i + "/projects/".len ..] else locator, "/");
-        if (ref.len == 0) try warnings.append(a, .{ .code = .bad_value, .key = "project" }) else q.picture = .{ .project = .{ .server = if (origin.len > 0) origin else server, .ref = ref } };
+        if (t.projectLocator(locator, server)) |p| q.picture = .{ .project = p } else try warnings.append(a, .{ .code = .bad_value, .key = "project" });
     } else if (t.text(first(g, "source"))) |src| {
         if (t.isHttp(src) or std.ascii.startsWithIgnoreCase(src, "data:")) {
             q.picture = .{ .source = .{ .url = src, .frame = t.numberOr(first(g, "frame"), null) } };

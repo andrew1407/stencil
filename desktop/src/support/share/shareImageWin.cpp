@@ -5,6 +5,7 @@
 
 #include <QWidget>
 
+#include <functional>
 #include <map>
 
 // IDataTransferManagerInterop lives in shobjidl_core.h. NOMINMAX keeps min/max off the WinRT headers.
@@ -47,28 +48,40 @@ namespace stencil::support {
 
   bool isShareSheetAvailable() { return true; }
 
+  namespace {
+    // One sheet per call: `fill` answers the request the sheet raises.
+    bool showShareUi(QWidget* anchor, std::function<void(DataRequest)> fill) {
+      if (!anchor) return false;
+      const HWND hwnd = reinterpret_cast<HWND>(anchor->winId());
+      if (!hwnd) return false;
+
+      // A plain HWND has no DataTransferManager; IDataTransferManagerInterop is the bridge.
+      auto interop = winrt::get_activation_factory<DataTransferManager, IDataTransferManagerInterop>();
+      DataTransferManager manager{nullptr};
+      if (FAILED(interop->GetForWindow(hwnd, winrt::guid_of<DataTransferManager>(),
+                                       winrt::put_abi(manager))))
+        return false;
+
+      // GetForWindow returns the SAME per-HWND manager, so revoke the previous handler first.
+      static std::map<HWND, winrt::event_token> tokens;
+      if (auto it = tokens.find(hwnd); it != tokens.end()) manager.DataRequested(it->second);
+      tokens[hwnd] = manager.DataRequested(
+          [fill](DataTransferManager const&, DataRequestedEventArgs const& e) { fill(e.Request()); });
+
+      return SUCCEEDED(interop->ShowShareUIForWindow(hwnd));
+    }
+  }  // namespace
+
   bool showShareSheet(QWidget* anchor, const QString& filePath, const QString& title) {
-    if (!anchor) return false;
-    const HWND hwnd = reinterpret_cast<HWND>(anchor->winId());
-    if (!hwnd) return false;
+    return showShareUi(anchor, [filePath, title](DataRequest request) { fulfil(request, filePath, title); });
+  }
 
-    // A plain HWND has no DataTransferManager; IDataTransferManagerInterop is the bridge.
-    auto interop = winrt::get_activation_factory<DataTransferManager, IDataTransferManagerInterop>();
-    DataTransferManager manager{nullptr};
-    if (FAILED(interop->GetForWindow(hwnd, winrt::guid_of<DataTransferManager>(),
-                                     winrt::put_abi(manager))))
-      return false;
-
-    // GetForWindow returns the SAME per-HWND manager, so revoke the previous handler first.
-    static std::map<HWND, winrt::event_token> tokens;
-    if (auto it = tokens.find(hwnd); it != tokens.end()) manager.DataRequested(it->second);
-    tokens[hwnd] = manager.DataRequested(
-        [filePath, title](DataTransferManager const&, DataRequestedEventArgs const& e) {
-          fulfil(e.Request(), filePath, title);
-        });
-
-    if (FAILED(interop->ShowShareUIForWindow(hwnd))) return false;
-    return true;
+  // A stencil:// link is no web link, so it goes as text.
+  bool showShareLinkSheet(QWidget* anchor, const QString& url, const QString& title) {
+    return showShareUi(anchor, [url, title](DataRequest request) {
+      request.Data().Properties().Title(winrt::hstring(title.toStdWString()));
+      request.Data().SetText(winrt::hstring(url.toStdWString()));
+    });
   }
 
 }  // namespace stencil::support

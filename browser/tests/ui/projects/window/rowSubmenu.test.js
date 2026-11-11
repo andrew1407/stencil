@@ -102,3 +102,75 @@ test('its own ⋯ toggles it: a press there is not a click-away, and the click c
   rows.showMenu(dots, items);
   assert.equal(menus().length, 0, 'and now toggles it shut');
 });
+
+test('a list nests a second list (Copy image ›): a press inside it is no click-away, and its pick closes all three', async () => {
+  const picked = [];
+  const rows = createProjectRowMenu();
+  rows.showMenu(createStubElement('button', { getBoundingClientRect: () => rect(500, 100, 24, 24) }), [
+    { icon: 'copy', label: 'Copy', items: [
+      { icon: 'file-text', label: 'Layout', onClick: () => picked.push('layout') },
+      { icon: 'image', label: 'Image', items: [{ icon: 'image', label: 'Current', onClick: () => picked.push('current') }] },
+    ] },
+  ]);
+  await new Promise((r) => setTimeout(r, 0));
+  menus()[0].children[0].dispatch('click', ev());
+  const [layoutBtn, imageBtn] = menus()[1].children;
+  imageBtn.dispatch('mouseenter');
+  assert.equal(menus().length, 3, 'the second level is out beside the first');
+  const current = menus()[2].children[0];
+  doc.dispatch('mousedown', ev({ target: current }));
+  assert.equal(menus().length, 3, 'a press in the second level does not close the menu');
+  layoutBtn.dispatch('mouseenter');
+  assert.equal(menus().length, 2, 'hovering a plain sibling folds the second level only');
+  imageBtn.dispatch('mouseenter');
+  menus()[2].children[0].dispatch('click', ev());
+  assert.deepEqual(picked, ['current']);
+  assert.equal(menus().length, 0, 'the pick closed every level');
+});
+
+test('an item with onDoubleClick waits out the double-click window: one click runs onClick, two run onDoubleClick', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const picked = [];
+  const rows = createProjectRowMenu();
+  const open = () => rows.showMenu(createStubElement('button', { getBoundingClientRect: () => rect(500, 100, 24, 24) }), [
+    { icon: 'link', label: 'Project link', onClick: () => picked.push('copy'), onDoubleClick: () => picked.push('share') },
+  ]);
+  open();
+  menus()[0].children[0].dispatch('click', ev({ detail: 1 }));
+  assert.deepEqual(picked, [], 'nothing runs inside the window');
+  t.mock.timers.tick(1000);
+  assert.deepEqual(picked, ['copy']);
+  open();
+  const btn = menus()[0].children[0];
+  btn.dispatch('click', ev({ detail: 1 }));
+  btn.dispatch('click', ev({ detail: 2 }));
+  t.mock.timers.tick(1000);
+  assert.deepEqual(picked, ['copy', 'share'], 'the second click inside the window is the double, once');
+  assert.equal(menus().length, 0);
+});
+
+test('one flyout out per level: hovering a sibling flyout item folds the open one, top level and nested (user report)', () => {
+  const rows = createProjectRowMenu();
+  rows.showMenu(createStubElement('button', { getBoundingClientRect: () => rect(500, 100, 24, 24) }), [
+    { icon: 'copy', label: 'Copy entries', items: [
+      { icon: 'image', label: 'A', items: [{ icon: 'image', label: 'A1', onClick() {} }] },
+      { icon: 'image', label: 'B', items: [{ icon: 'image', label: 'B1', onClick() {} }] },
+    ] },
+    { icon: 'image', label: 'Copy image', items: [{ icon: 'image', label: 'Current', onClick() {} }] },
+  ]);
+  const [entries, image] = menus()[0].children;
+  const subs = () => menus().filter((m) => m.classes.has('project-submenu'));
+  entries.dispatch('mouseenter');
+  assert.equal(subs().length, 1);
+  image.dispatch('mouseenter');
+  assert.equal(subs().length, 1, 'Copy entries folded when Copy image opened');
+  assert.ok(!entries.classes.has('is-open') && image.classes.has('is-open'));
+  entries.dispatch('mouseenter');
+  const [a, b] = subs()[0].children;
+  a.dispatch('mouseenter');
+  assert.equal(subs().length, 2);
+  b.dispatch('mouseenter');
+  assert.equal(subs().length, 2, 'the nested A folded when B opened');
+  assert.ok(!a.classes.has('is-open') && b.classes.has('is-open'));
+  rows.closeMenu?.();
+});

@@ -17,6 +17,7 @@ namespace stencil::gui::launchUri {
       QJsonObject operator()(const ProjectPicture& p) const {
         return {{"kind", "project"}, {"server", opt(p.server)}, {"ref", p.ref}};
       }
+      QJsonObject operator()(const ProjectFilePicture& p) const { return {{"kind", "projectFile"}, {"url", p.url}}; }
       QJsonObject operator()(const SourcePicture& p) const {
         return {{"kind", "source"}, {"url", p.url}, {"frame", opt(p.frame)}};
       }

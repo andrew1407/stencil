@@ -72,7 +72,7 @@ namespace stencil::gui {
     stencil::net::ServerClient* c = w.remote.conns() ? w.remote.conns()->find(req.serverUrl) : nullptr;
     if (!c) return done(std::nullopt, QStringLiteral("not connected to %1").arg(req.serverUrl));
     QPointer<QWidget> self(w.window);
-    const bool wantChat = req.what == support::COPY_PROJECT;
+    const bool wantChat = req.what == support::CopyScope::PROJECT;
     c->getProjectAsync(req.id, [self, c, req, wantChat, done](bool ok, stencil::net::ServerProject p, QJsonObject layout) {
       if (!self) return;
       if (!ok) return done(std::nullopt, c->lastError());

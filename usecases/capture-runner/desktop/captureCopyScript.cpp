@@ -71,7 +71,7 @@ namespace {
 
   void copyDialog(MainWindow& win, const QString& name, const QString& server) {
     CopyProjectDialog dlg(&win, COPY_SOURCE,
-                          QString::fromUtf8(stencil::support::copyScopeLabel(stencil::support::COPY_LAYOUT)),
+                          QString::fromUtf8(stencil::support::copyScopeLabel(stencil::support::CopyScope::LAYOUT)),
                           COPY_SOURCE + QStringLiteral("-copy"), server);
     dlg.show();
     waitUntil([&dlg] { return dlg.isVisible(); }, 2000);
@@ -103,7 +103,7 @@ void MainWindowGuiTest::copyScriptShots(MainWindow& win, const ShotSet& shots) {
         QTimer::singleShot(0, [&] {
           QMenu* menu = nullptr;
           waitUntil([&menu] { return (menu = popupMenu()); }, 2000);
-          if (QMenu* sub = menu ? openSubmenu(menu, QStringLiteral("Make a copy")) : nullptr)
+          if (QMenu* sub = menu ? openSubmenu(menu, QStringLiteral("Copy project")) : nullptr)
             saveLayers("projects-row-copy", &win, {dlg, menu, sub}, true);
           while (QWidget* open = QApplication::activePopupWidget()) open->close();
         });

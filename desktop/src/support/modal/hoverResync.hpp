@@ -17,6 +17,9 @@ namespace stencil::support {
     });
   }
 
+  // As a nested modal closes, the modal left on top is raised and keyed, at once and again a turn later: macOS
+  // hands the key to the window beneath, which covered it, and a raise only a turn later blinked it (user report).
+  void frontTopModal(QWidget* closed);
   // Enters the widget under the pointer when Qt has it un-hovered, and puts its cursor back on.
   void resyncHover(QWidget* window);
   // Un-hovers `w` when Qt still holds it under a pointer that is no longer over it: the layout slid it out

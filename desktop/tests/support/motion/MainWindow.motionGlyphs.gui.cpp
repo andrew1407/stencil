@@ -89,7 +89,7 @@ class MainWindowGuiTest : public QObject {
           win.openPathFromOS(guiTestImage());
           break;
         case CREATED_BLANK:
-          win.parts.sourceOpener.createBlankImageFromDialog(QColor("#3366cc"), 320, 240);
+          win.parts.sourceOpener.createBlankImage(QColor("#3366cc"), 320, 240);
           break;
         case REOPENED_PROJECT:
           QVERIFY2(!win.projectHost.activeProjectId.isEmpty(), "the loaded image was adopted as a project");

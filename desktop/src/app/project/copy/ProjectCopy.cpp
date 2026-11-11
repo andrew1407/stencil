@@ -23,7 +23,7 @@ namespace stencil::gui {
     pr.meta.resource = m.resource;
     pr.meta.blank = m.blank;
     pr.meta.blankColor = m.blankColor;
-    if (what == support::COPY_IMAGE) return pr;
+    if (what == support::CopyScope::IMAGE) return pr;
     pr.meta.imageW = m.imageW;
     pr.meta.imageH = m.imageH;
     pr.meta.lineLengthCm = m.lineLengthCm;
@@ -31,7 +31,7 @@ namespace stencil::gui {
     pr.cropRect = src.crop;
     pr.rotationQuarters = src.quarters;
     pr.mirrored = src.mirrored;
-    if (what != support::COPY_PROJECT) return pr;
+    if (what != support::CopyScope::PROJECT) return pr;
     pr.meta.color = m.color;
     pr.meta.description = m.description;
     pr.meta.keywords = m.keywords;
@@ -44,7 +44,7 @@ namespace stencil::gui {
 
   CopyRequest ProjectCopy::settle(CopyRequest req, bool serverSource, QString* note) {
     QStringList notes;
-    if (req.incognito && req.open == COPY_OPEN_NONE) {
+    if (req.incognito && req.open == CopyOpen::NONE) {
       req.incognito = false;
       notes << QStringLiteral("an incognito copy must be opened — saved it instead");
     }

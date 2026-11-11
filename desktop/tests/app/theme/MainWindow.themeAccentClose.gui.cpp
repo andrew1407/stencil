@@ -26,6 +26,16 @@ class MainWindowGuiTest : public QObject {
     // popover opened and then went.
     const auto outsidePressCloses = [&](Route route, QWidget* target, const char* what) {
       bool opened = false, closed = false, notModal = false;
+      // A press on another icon also opens that icon's own window (browser parity): taken here.
+      QString followed;
+      QTimer follow;
+      QObject::connect(&follow, &QTimer::timeout, &win, [&] {
+        auto* d = qobject_cast<QDialog*>(QApplication::activeModalWidget());
+        if (!d || d == win.pop.active.data() || d->objectName() == QLatin1String("accentPopover")) return;
+        followed = d->windowTitle();
+        d->reject();
+      });
+      follow.start(40);
       QTimer::singleShot(120, &win, [&] {
         opened = win.pop.active &&
                  win.pop.active->objectName() == QLatin1String("accentPopover") &&
@@ -74,6 +84,10 @@ class MainWindowGuiTest : public QObject {
       bool alive = false;
       QTimer::singleShot(0, &win, [&alive] { alive = true; });
       QTRY_VERIFY2(alive, qPrintable(QString("%1: the nested event loop leaked").arg(what)));
+      follow.stop();
+      QVERIFY2(followed.isEmpty() == (target == win.canvas),
+               qPrintable(QString("%1: an icon press opens that icon's window, a canvas press nothing (got \"%2\")")
+                              .arg(what, followed)));
     };
 
     outsidePressCloses(STICKY, win.canvas, "sticky + canvas press");

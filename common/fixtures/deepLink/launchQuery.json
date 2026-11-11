@@ -67,6 +67,27 @@
     "search": "?project=https://srv.example/projects/",
     "expect": { "warnings": [ { "code": "bad-value", "key": "project" } ] } },
 
+  { "name": "project-file-url",
+    "search": "?project=https://cdn.example/shared/plan.stencil",
+    "expect": { "picture": { "kind": "projectFile", "url": "https://cdn.example/shared/plan.stencil" }, "opensSession": true } },
+
+  { "name": "project-file-wins-over-the-locator-form",
+    "search": "?project=https://srv.example/projects/plan.STENCIL",
+    "expect": { "picture": { "kind": "projectFile", "url": "https://srv.example/projects/plan.STENCIL" }, "opensSession": true } },
+
+  { "name": "project-file-in-the-fragment-with-incognito",
+    "search": "", "hash": "#project=https%3A%2F%2Fcdn.example%2Fp.stencil&incognito",
+    "expect": { "picture": { "kind": "projectFile", "url": "https://cdn.example/p.stencil" },
+      "incognito": true, "fromHash": true, "opensSession": true } },
+
+  { "name": "project-file-wins-over-source",
+    "search": "?project=http://cdn.example/a.stencil&src=https://x.example/y.png",
+    "expect": { "picture": { "kind": "projectFile", "url": "http://cdn.example/a.stencil" }, "opensSession": true } },
+
+  { "name": "project-bare-name-ending-in-stencil-is-a-ref",
+    "search": "?project=plan.stencil",
+    "expect": { "picture": { "kind": "project", "server": null, "ref": "plan.stencil" }, "opensSession": true } },
+
   { "name": "source-on-the-connection-server-is-a-full-url",
     "search": "?connect=https://localhost:8090&source=https://localhost:8090/source/clip.mp4&frame=0",
     "expect": { "picture": { "kind": "source", "url": "https://localhost:8090/source/clip.mp4", "frame": 0 },

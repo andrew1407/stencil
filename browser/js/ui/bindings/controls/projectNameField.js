@@ -28,6 +28,8 @@ export function wireProjectNameField(app) {
       if (nameEdit) nameEdit.style.display = 'none';
       const colorBtn = document.getElementById('project-color-btn');
       if (colorBtn) colorBtn.style.display = 'none';
+      const copyBtn = nameInput.parentElement?.querySelector('#project-name-copy-btn');
+      if (copyBtn) copyBtn.style.display = 'none';
       nameAccept.style.display = '';
       nameCancel.style.display = '';
       // …and FORM from dust once shown (the projects-modal rename editor's twin).
@@ -53,7 +55,8 @@ export function wireProjectNameField(app) {
     // their visibility and the mark dust makes the flip read as forming.
     {
       const field = nameInput.closest('.project-name-field');
-      const revealable = () => [nameEdit, document.getElementById('project-color-btn')]
+      const revealable = () => [nameEdit, document.getElementById('project-color-btn'),
+        field?.querySelector('#project-name-copy-btn')]
         .filter((b) => b && b.style.display !== 'none');
       if (field) {
         field.addEventListener('mouseenter', () => {

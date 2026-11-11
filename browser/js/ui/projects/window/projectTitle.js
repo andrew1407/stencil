@@ -54,6 +54,9 @@ export const updateProjectTitle = (app, force = false) => {
       // The chip is accent-filled, so an uncoloured project's glyph is white like the pencil's.
       colorBtn.style.color = projColor || '#fff';
     }
+    // The copy-name chip shows whenever there is a named picture, incognito included.
+    const copyBtn = input.parentElement?.querySelector('#project-name-copy-btn');
+    if (copyBtn && !app.nameEditing) copyBtn.style.display = app.image && name ? '' : 'none';
   }
   // Outside edit mode the ✓/✗ rename controls must never linger.
   if (!app.nameEditing) {

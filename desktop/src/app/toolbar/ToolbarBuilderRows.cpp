@@ -11,6 +11,7 @@
 #include "colorDrag.hpp"
 #include "../../support/control/dblReset.hpp"
 #include "tipContent.hpp"
+#include "DataExportController.hpp"
 
 namespace stencil::gui {
 
@@ -72,9 +73,9 @@ namespace stencil::gui {
                                      w.acts.copyProject},
                                     {}, {w.tools.openImageBtn});
     addWrapped(tb, w.tools.imageSection);
+    wireShareButtonMenu();
     addWrappedSeparator(tb);
-    // Description, keywords and links all gate on a saved, non-incognito project
-    // (updateProjectTitle).
+    // Description, keywords and links all gate on a saved, non-incognito project (updateProjectTitle).
     addWrapped(tb, makeToolSection("Description & attributes", {w.acts.description, w.acts.keywords, w.acts.links}));
     addWrappedSeparator(tb);
     addWrapped(tb, makeToolSection("Projects", {w.acts.projects, w.acts.saveProjectFile, w.acts.openProjectFile, w.acts.stencilLiveSync, w.acts.deleteProjectFile}));
@@ -125,6 +126,18 @@ namespace stencil::gui {
     w.tools.zoomFitBtn->setIconSize(QSize(TOOL_ICON, TOOL_ICON));
     // Draw / Zoom / Settings sit on the rows below: all seven sections need ~1230px, and the
     // browser splits them the same way.
+  }
+
+  // The share button's right-click (browser bindings/controls/shareButton.js): Image › its three
+  // variants, then the open project's stencil:// links (app/project/copy/ProjectCopyShare.cpp).
+  void ToolbarBuilder::wireShareButtonMenu() {
+    auto* btn = qobject_cast<QToolButton*>(w.buttonForAction(w.acts.shareImage));
+    if (!btn) return;
+    btn->setContextMenuPolicy(Qt::CustomContextMenu);
+    QObject::connect(btn, &QToolButton::customContextMenuRequested, &w, [this, btn](const QPoint& at) {
+      w.projectHost.copy.showShareMenu(btn, btn->mapToGlobal(at),
+                                       [this, btn](const QString& variant) { w.dataExport->shareImage(btn, variant); });
+    });
   }
 
 }  // namespace stencil::gui

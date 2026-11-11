@@ -4,10 +4,12 @@
 // Consumed once at boot, after the `#stencil=` hand-off; it never rejects.
 import { notify } from '../utils.js';
 import { guardedFetch } from '../net/fetchGuard.js';
-import { readJsonCapped } from '../net/cappedBody.js';
+import { readJsonCapped, readCapped } from '../net/cappedBody.js';
+import { MAX_PROJECT_FILE_CHARS } from '../core/project/file.js';
 import { parseDuration } from '../core/parse/durationParser.js';
 import { normalizeUrl } from '../net/urlRules.js';
 import { ensureLaunchConnection, applyServerLaunch } from '../core/launch/controller.js';
+import { withoutLaunchSecrets } from '../core/launch/query.js';
 import { reportIncognitoSession } from '../core/launch/incognitoFlow.js';
 import { loadLlmSettings, withSessionKey } from '../llm/settings.js';
 import { splitKeywords } from './coerce.js';
@@ -84,11 +86,20 @@ const openProjectRef = async ({ app, stencil }, q) => {
   await applyServerLaunch(app, { server: { url, id: match.id, version: match.version || 0 }, incognito: q.incognito });
 };
 
+// `project=<url>.stencil`: fetched through the guard under the project-file cap, then opened as a dropped file is.
+const openProjectFileUrl = async ({ app }, { picture, incognito }) => {
+  const resp = await guardedFetch(picture.url);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const text = new TextDecoder().decode(await readCapped(resp, MAX_PROJECT_FILE_CHARS));
+  await app.export.openProjectFile(text, { incognito });
+};
+
 // Each picture kind lands on the facade call a typed line would make; a source or a blank makes
 // the picture `name=` renames.
 const PICTURE_OPENERS = {
   server: ({ app }, { picture, incognito }) => applyServerLaunch(app, { server: picture, incognito }),
   project: openProjectRef,
+  projectFile: openProjectFileUrl,
   source: ({ stencil }, { picture, incognito }) =>
     stencil.load(picture.url, picture.frame != null ? { incognito, frame: picture.frame } : { incognito }),
   blank: ({ stencil }, { picture, incognito }) => {
@@ -166,15 +177,15 @@ const attempt = async (problems, label, run) => {
   try { await run(); } catch (err) { problems.push(`${label} — ${err?.message || err}`); }
 };
 
-// Reads app.launchQuery (parsed by the DrawingApp constructor) and strips the URL at once so a
-// reload repeats nothing — or a `query` typed at the console, which strips nothing — then applies
-// it in order: look, assistant, servers, picture, layout, project, chat.
+// app.launchQuery (its link stays in the URL, minus `token` / `llm-api-key`) or a `query` typed at the
+// console (no URL touched), applied in order: look, assistant, servers, picture, layout, project, chat.
 export const applyLaunchQuery = async ({ app, stencil, query = null }) => {
   let q = query ?? app.launchQuery;
   if (!q) return;
   if (!query) {
     app.launchQuery = null;
-    history.replaceState(null, '', location.pathname + (q.fromHash ? '' : location.hash));
+    const kept = withoutLaunchSecrets(location.search, location.hash);
+    if (kept) history.replaceState(null, '', location.pathname + kept.search + kept.hash);
   }
 
   const problems = q.warnings.map((w) => WARNING_TEXT[w.code](w.key));

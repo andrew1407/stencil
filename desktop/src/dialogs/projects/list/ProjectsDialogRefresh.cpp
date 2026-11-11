@@ -68,7 +68,7 @@ namespace stencil::gui {
     // that as the opening build made the pinned row appear with no arrival.
     const bool wasBuilt = built;
     built = true;
-    if (filter && connections && connections->urls() != knownServerUrls)
+    if (filter && connections && connections->urls() != listing.knownServerUrls)
       rebuildFilterOptions();
     building = true;
     hideHoverPreview();
@@ -81,7 +81,7 @@ namespace stencil::gui {
     const int carried = restoreDoomed(list, doomed, wasBuilt && !keysBefore.contains(QStringLiteral("temp")), replaced);
 
     // While the first server listing is in flight, a loading hint rather than a misleading "No projects yet".
-    if (connections && !connections->urls().isEmpty() && !remoteLoaded) {
+    if (connections && !connections->urls().isEmpty() && !listing.remoteLoaded) {
       auto* it = new QListWidgetItem(QStringLiteral("Loading shared projects…"), list);
       it->setFlags(Qt::NoItemFlags);
       it->setForeground(palette().brush(QPalette::Disabled, QPalette::Text));
@@ -145,6 +145,15 @@ namespace stencil::gui {
         refresh();
         return;
       }
+  }
+
+  void ProjectsDialog::dropServerRows(const QVector<QPair<QString, QString>>& items) {
+    const auto gone = [&items](const stencil::net::ServerProject& sp) {
+      return std::any_of(items.begin(), items.end(), [&sp](const auto& it) { return it.first == sp.id && it.second == sp.serverUrl; });
+    };
+    // No rebuild here: the rows are already leaving, and one now, over the owner's stale local list,
+    // brought a removed row back for a frame. The owner's rebuild after the dust leaves them out.
+    remote.erase(std::remove_if(remote.begin(), remote.end(), gone), remote.end());
   }
 
   // Local + server interleaved by the active sort mode (browser js/ui/projects/window/projectSort.js); the pinned

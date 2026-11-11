@@ -128,14 +128,14 @@ namespace stencil::gui {
       emit expirationRequested(id, exp.expiresAtMs(), exp.refreshPeriod(), exp.autoRefresh());
     };
 
-    // "Clear color" only when the row HAS a custom colour (browser modal parity): with none set
-    // there is nothing to clear, and "Set color" already clicks straight into the picker.
-    // "Make a copy ›" rides right after "Open in another app" (browser row/actions.js copyMenuItem).
+    // "Clear color" only when the row HAS a custom colour (browser modal parity): nothing to clear else.
+    // "Copy ›" then "Make a copy ›" ride right after "Open in another app" (browser row/actions.js).
     const auto addCopyMenu = [this, &menu, rowId, rowServer, kebabGlobal, ico] {
+      addRowCopyMenu(menu, rowId, rowServer, ico);
       gui::compactIconMenu(*support::addCopyProjectMenu(menu, ico, 16, support::CONTEXT_MENU_DUST_MS,
                                                         [this, rowId, rowServer, kebabGlobal](support::CopyScope s) {
-        emit copyRequested(rowId, rowServer, s, kebabGlobal);
-      }));
+        emit copyRequested(rowId, rowServer, static_cast<int>(s), kebabGlobal);
+      }, "Copy project"));
     };
     const bool hasColor = !rowColor(it).isEmpty();
     QAction* removeAct = nullptr;   // marked as the danger row once the sheet is on (below)

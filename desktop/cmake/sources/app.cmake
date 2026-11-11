@@ -150,6 +150,7 @@ set(STENCIL_GUI_SOURCES
   src/app/project/copy/ProjectCopy.cpp
   src/app/project/copy/ProjectCopySource.cpp
   src/app/project/copy/ProjectCopySave.cpp
+  src/app/project/copy/ProjectCopyShare.cpp
   src/app/project/copy/ProjectCopyOpen.cpp
   src/app/project/copy/ProjectCopyFlow.cpp
   src/app/meta/MainWindowSettings.cpp
@@ -189,7 +190,7 @@ set(STENCIL_GUI_SOURCES
   src/app/project/ProjectTransferController.cpp
   src/app/project/ProjectTransferImport.cpp
   src/app/open/launchOptions.cpp
-  src/app/open/launchUri.cpp src/app/open/launchUriJson.cpp
+  src/app/open/launchUri.cpp src/app/open/launchUriGrammar.cpp src/app/open/launchUriJson.cpp
   src/io/deepLink.cpp
   src/app/selection/SelectionPanel.cpp
   src/app/selection/SelectionPanelRows.cpp

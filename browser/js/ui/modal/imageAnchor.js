@@ -106,3 +106,8 @@ export const openImageConfirmAnchors = (opensImage = Boolean) => ({
   openAnchor: canvasAnchorRect(),
   closeAnchor: (answer) => (opensImage(answer) ? openImageAnchorRect() : canvasAnchorRect()),
 });
+
+// …and over another window (Projects' Blank image) none: the canvas and the toolbar lie under it, so the
+// question grows out of the press that raised it and goes back there (user report: dust from nowhere).
+export const openImageConfirmAnchorsOver = (stacked, opensImage = Boolean) =>
+  (stacked ? {} : openImageConfirmAnchors(opensImage));

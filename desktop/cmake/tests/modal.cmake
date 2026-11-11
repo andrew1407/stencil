@@ -9,7 +9,7 @@ stencil_headless_test(stencil_notifications_headless
     tests/support/notify/Notifications.headless.cpp ${STENCIL_NOTIFY_SOURCES}
     src/support/logo/logoStageRules.cpp src/support/logo/logoStageConfig.cpp
     src/support/icon/iconSet.cpp
-    src/support/modal/modalReveal.cpp   # the toast dust flight needs motionReduced()
+    ${STENCIL_MODALREVEAL_SOURCES}   # the toast dust flight needs motionReduced()
     resources/app.qrc
   LIBS Qt6::Widgets Qt6::Svg ${STENCIL_NOTIFY_LIBS})
 
@@ -22,7 +22,7 @@ stencil_headless_test(stencil_notifychannel_headless
     tests/support/notify/channel.headless.cpp ${STENCIL_NOTIFY_SOURCES}
     src/support/logo/logoStageRules.cpp src/support/logo/logoStageConfig.cpp
     src/support/icon/iconSet.cpp
-    src/support/modal/modalReveal.cpp
+    ${STENCIL_MODALREVEAL_SOURCES}
     resources/app.qrc
   LIBS Qt6::Widgets Qt6::Svg ${STENCIL_NOTIFY_LIBS})
 
@@ -43,7 +43,7 @@ stencil_headless_test(stencil_connectrow_headless
     src/io/deferredWrite.cpp
     src/support/pageSizeCombo.cpp src/support/colorSwatch.cpp src/support/icon/iconInline.cpp src/support/cursor/pointerCursor.cpp
     ${STENCIL_THEME_SOURCES}
-    src/support/icon/iconSet.cpp src/support/modal/modalReveal.cpp
+    src/support/icon/iconSet.cpp ${STENCIL_MODALREVEAL_SOURCES}
     src/support/menu/menuReveal.cpp
     src/support/menu/popupSlide.cpp
     src/support/menu/SearchCombo.cpp src/support/menu/SearchComboPopup.cpp
@@ -62,7 +62,7 @@ stencil_headless_test(stencil_modalchrome_headless
     src/dialogs/meta/OpenInDialog.cpp src/io/deepLink.cpp
     ${STENCIL_SERVERCLIENT_SOURCES}      # deepLink's origin normalisation
     src/support/icon/iconSet.cpp
-    src/support/modal/modalReveal.cpp resources/app.qrc src/support/sheets/dialogSheets.cpp
+    ${STENCIL_MODALREVEAL_SOURCES} resources/app.qrc src/support/sheets/dialogSheets.cpp
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
 
 # Project ▸ Open In Targets… (dialogs/meta/OpenInTargetsDialog): the URL and bot validation, and Save's refusal.
@@ -72,7 +72,7 @@ stencil_headless_test(stencil_openintargets_headless
     src/support/genie/GenieGhost.cpp src/support/aqua/AquaCheckDelegate.cpp
     ${STENCIL_DUSTKIT_SOURCES} ${STENCIL_DISINTEGRATE_SOURCES} ${STENCIL_MODALCHROME_SOURCES}
     src/support/icon/iconSet.cpp
-    src/support/modal/modalReveal.cpp resources/app.qrc src/support/sheets/dialogSheets.cpp
+    ${STENCIL_MODALREVEAL_SOURCES} resources/app.qrc src/support/sheets/dialogSheets.cpp
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
 
 # The "Make a copy" confirmation (dialogs/projects/copy/CopyProjectDialog): its question and the
@@ -85,7 +85,7 @@ stencil_headless_test(stencil_copyprojectdialog_headless
     tests/dialogs/projects/copy/copyProjectDialog.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
     src/dialogs/projects/copy/CopyProjectDialog.cpp
     src/support/icon/iconSet.cpp
-    src/support/modal/modalReveal.cpp resources/app.qrc
+    ${STENCIL_MODALREVEAL_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
 
 # The modal shell's header drag: it moves a dialog that is its own window, never one
@@ -97,7 +97,7 @@ stencil_headless_test(stencil_modalheaderdrag_headless
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/support/modal/modalHeaderDrag.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
     src/support/icon/iconSet.cpp
-    src/support/modal/modalReveal.cpp resources/app.qrc
+    ${STENCIL_MODALREVEAL_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
 
 # The DESCRIPTION & ATTRIBUTES editors: the shell, Enter/Escape, keywords and the store write.
@@ -110,7 +110,7 @@ stencil_headless_test(stencil_projectmeta_headless
     src/dialogs/meta/keywords/KeywordsDialog.cpp src/dialogs/meta/keywords/KeywordChips.cpp
     src/dialogs/meta/keywords/KeywordChipsMotion.cpp src/support/control/reveal/modeGhost.cpp
     ${STENCIL_MODALCHROME_SOURCES} src/support/icon/iconSet.cpp
-    src/support/modal/modalReveal.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
+    ${STENCIL_MODALREVEAL_SOURCES} ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Svg)
 
@@ -128,7 +128,7 @@ stencil_headless_test(stencil_dialoglanding_headless
 
 # The window backdrop (support/ModalBackdrop): the browser's scrim + blur, on its switch.
 stencil_headless_test(stencil_modalbackdrop_headless
-  SOURCES tests/support/modal/modalBackdrop.headless.cpp
+  SOURCES tests/support/modal/modalBackdrop.headless.cpp src/support/modal/ModalBackdrop.cpp
   LIBS stencil_core Qt6::Widgets)
 
 # The keyword chips' clocks (dialogs/meta/keywords/chipClocks.hpp over motion.json's CHIP_DUST_* and
@@ -147,6 +147,6 @@ stencil_headless_test(stencil_keywordchips_headless
     src/dialogs/meta/keywords/KeywordsDialog.cpp src/dialogs/meta/keywords/KeywordChips.cpp
     src/dialogs/meta/keywords/KeywordChipsMotion.cpp src/support/control/reveal/modeGhost.cpp
     ${STENCIL_MODALCHROME_SOURCES} src/support/icon/iconSet.cpp
-    src/support/modal/modalReveal.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
+    ${STENCIL_MODALREVEAL_SOURCES} ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Svg)

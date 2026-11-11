@@ -105,7 +105,7 @@ namespace stencil::gui {
     connect(act.newWindow, &QPushButton::clicked, this, [this] { outcome = Outcome::NEW_WINDOW; accept(); });
     act.createBlank = new QPushButton("Create blank", this);
     makeModalCta(act.createBlank, "image");   // browser #blank-image-create
-    connect(act.createBlank, &QPushButton::clicked, this, [this] { outcome = Outcome::BLANK; accept(); });
+    connect(act.createBlank, &QPushButton::clicked, this, [this] { if (!blankGate || blankGate()) { outcome = Outcome::BLANK; accept(); } });
     btnRow->addWidget(cancel);
     if (this->canReplace) {
       act.replace = new QPushButton("Replace image", this);

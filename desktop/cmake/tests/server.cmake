@@ -19,7 +19,7 @@ stencil_headless_test(stencil_serverauth_headless
     src/io/deferredWrite.cpp
     src/support/pageSizeCombo.cpp src/support/colorSwatch.cpp src/support/icon/iconInline.cpp src/support/cursor/pointerCursor.cpp
     ${STENCIL_THEME_SOURCES}
-    src/support/icon/iconSet.cpp src/support/modal/modalReveal.cpp
+    src/support/icon/iconSet.cpp ${STENCIL_MODALREVEAL_SOURCES}
     src/support/menu/menuReveal.cpp
     src/support/menu/popupSlide.cpp
     src/support/menu/SearchCombo.cpp src/support/menu/SearchComboPopup.cpp
@@ -38,6 +38,7 @@ stencil_headless_test(stencil_projectsbatch_headless
     ${STENCIL_APPTOOLTIP_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/dialogs/projects/list/ProjectsBatchBar.headless.cpp tests/dialogs/projects/list/ProjectsBatchBarRows.headless.cpp
+    tests/dialogs/projects/list/ProjectsBatchBarLeave.headless.cpp
     tests/dialogs/projects/list/ProjectsBatchBarBar.headless.cpp tests/dialogs/projects/list/ProjectsBatchBarRemove.headless.cpp
     tests/dialogs/projects/list/ProjectsBatchBarFilter.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
     ${STENCIL_TIPCONTENT_SOURCES}
@@ -46,9 +47,9 @@ stencil_headless_test(stencil_projectsbatch_headless
     src/dialogs/meta/DescriptionDialog.cpp src/dialogs/meta/keywords/KeywordsDialog.cpp
     src/dialogs/meta/keywords/KeywordChips.cpp src/dialogs/meta/keywords/KeywordChipsMotion.cpp
     ${STENCIL_SERVERCLIENT_SOURCES} ${STENCIL_FETCHGUARD_SOURCES}
-    ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp src/support/pageSizeCombo.cpp src/support/colorSwatch.cpp src/support/icon/iconInline.cpp src/support/cursor/pointerCursor.cpp
+    ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp src/io/deepLink.cpp src/support/pageSizeCombo.cpp src/support/colorSwatch.cpp src/support/icon/iconInline.cpp src/support/cursor/pointerCursor.cpp
     ${STENCIL_THEME_SOURCES}
-    src/support/icon/iconSet.cpp src/support/modal/modalReveal.cpp
+    src/support/icon/iconSet.cpp ${STENCIL_MODALREVEAL_SOURCES}
     src/support/menu/menuReveal.cpp
     src/support/menu/popupSlide.cpp
     src/support/menu/SearchCombo.cpp src/support/menu/SearchComboPopup.cpp
@@ -79,9 +80,9 @@ stencil_headless_test(stencil_projectsdialogrows_headless
     src/dialogs/meta/DescriptionDialog.cpp src/dialogs/meta/keywords/KeywordsDialog.cpp
     src/dialogs/meta/keywords/KeywordChips.cpp src/dialogs/meta/keywords/KeywordChipsMotion.cpp
     ${STENCIL_SERVERCLIENT_SOURCES} ${STENCIL_FETCHGUARD_SOURCES}
-    ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp src/support/pageSizeCombo.cpp src/support/colorSwatch.cpp src/support/icon/iconInline.cpp src/support/cursor/pointerCursor.cpp
+    ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp src/io/deepLink.cpp src/support/pageSizeCombo.cpp src/support/colorSwatch.cpp src/support/icon/iconInline.cpp src/support/cursor/pointerCursor.cpp
     ${STENCIL_THEME_SOURCES}
-    src/support/icon/iconSet.cpp src/support/modal/modalReveal.cpp
+    src/support/icon/iconSet.cpp ${STENCIL_MODALREVEAL_SOURCES}
     src/support/menu/menuReveal.cpp
     src/support/menu/popupSlide.cpp
     src/support/menu/SearchCombo.cpp src/support/menu/SearchComboPopup.cpp

@@ -14,7 +14,7 @@
 
 namespace stencil::support {
 
-  enum CopyScope { COPY_IMAGE, COPY_LAYOUT, COPY_PROJECT };
+  enum class CopyScope { IMAGE, LAYOUT, PROJECT };
 
   struct CopyScopeRow {
     CopyScope scope;
@@ -22,9 +22,9 @@ namespace stencil::support {
     const char* label;
   };
   inline constexpr CopyScopeRow COPY_SCOPE_ROWS[] = {
-      {COPY_IMAGE, "image", "Image only"},
-      {COPY_LAYOUT, "layers", "Image and layout"},
-      {COPY_PROJECT, "folder", "Whole project"},
+      {CopyScope::IMAGE, "image", "Image only"},
+      {CopyScope::LAYOUT, "layers", "Image and layout"},
+      {CopyScope::PROJECT, "folder", "Whole project"},
   };
   inline constexpr const char* COPY_MENU_ICON = "duplicate";
   inline constexpr const char* COPY_MENU_LABEL = "Make a copy";
@@ -46,10 +46,12 @@ namespace stencil::support {
     }
   }
 
-  // A "Make a copy" flyout under `parent`, growing its dust from its own row on `dustMs`.
+  // A "Make a copy" flyout under `parent`, growing its dust from its own row on `dustMs`; the
+  // projects row names it "Copy project" (browser projects/row/copyItem.js).
   inline QMenu* addCopyProjectMenu(QMenu& parent, const QColor& ink, int iconSize, int dustMs,
-                                   const std::function<void(CopyScope)>& pick) {
-    auto* sub = new QMenu(QString::fromUtf8(COPY_MENU_LABEL), &parent);
+                                   const std::function<void(CopyScope)>& pick,
+                                   const char* label = COPY_MENU_LABEL) {
+    auto* sub = new QMenu(QString::fromUtf8(label), &parent);
     QAction* opener = parent.addMenu(sub);
     opener->setIcon(gui::themedIcon(QString::fromLatin1(COPY_MENU_ICON), ink, iconSize));
     revealSubmenu(*sub, parent, *opener, dustMs);

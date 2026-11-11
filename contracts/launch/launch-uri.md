@@ -32,7 +32,7 @@ part of this grammar.
 | Key (spellings) | Value | Meaning |
 |---|---|---|
 | `server`, `id`, `version` | origin · project id · number | A server project, the `stencil://` form; `version` is the one the link was made at |
-| `project` | `[<origin>/projects/]<id or name>` | A project locator. With an origin it names the server; a bare ref is the launch's server's (`connect=` or `server=`), else a saved local project |
+| `project` | `[<origin>/projects/]<id or name>`, or an `http(s)` URL ending `.stencil` | A project locator. With an origin it names the server; a bare ref is the launch's server's (`connect=` or `server=`), else a saved local project. An `http(s)` URL whose last characters are `.stencil` (any case) is a **project file** instead — fetched through the surface's guard as a link's source is (strict: no loopback) and opened as a dropped `.stencil` opens; it wins over the locator reading, so a server project whose name ends `.stencil` is reached by `server`+`id` or a bare ref |
 | `source` (`src`) | `http(s)` or `data:` URL | A picture or a video to open — its full URL, which may be a connected server's own path |
 | `frame` | seconds | Into a video, when `source` is one; absent = `0` |
 | `blank` | a colour | A blank page in that colour (`#ffffff` for an empty value) |
@@ -55,7 +55,8 @@ A **flag** is on for an empty value (`?incognito`), `1`, `true`, `yes` or `on`.
 
 ## 2. Precedence and carriers
 
-- The picture is one of `server`+`id` › `project` › `source` › `blank`, in that order.
+- The picture is one of `server`+`id` › `project` (a `.stencil` URL, else the locator) › `source` ›
+  `blank`, in that order.
 - Connections are applied first, then the assistant settings, then the picture, then the layout,
   the name and the project fields, then the chat.
 - **A credential rides the fragment only.** `token` and `llm-api-key` in the `?query` are dropped
@@ -78,8 +79,9 @@ A **flag** is on for an empty value (`?incognito`), `1`, `true`, `yes` or `on`.
 - **Inside a frame only the picture and the look apply** (the browser): a host page could dress the
   confirms up as its own, so `connect`, `token`, `llm-*`, a server picture and the project fields
   are left out with one notice.
-- A link is consumed once: the browser strips the pairs from its URL at once, so a reload repeats
-  nothing.
+- **A link stays in the address bar.** The browser applies it once per page load and leaves the
+  pairs in its URL, so a reload or a bookmark reopens the same link; only the credentials (`token`,
+  `llm-api-key`) are removed from it at once, so none stays in history.
 
 ## 3. Editor settings
 
@@ -96,6 +98,7 @@ query's):
 ```jsonc
 { "picture": null | { "kind": "server", "url", "id", "version" }
                  | { "kind": "project", "server": string|null, "ref" }
+                 | { "kind": "projectFile", "url" }
                  | { "kind": "source", "url", "frame": number|null }
                  | { "kind": "blank", "color", "width": number|null, "height": number|null },
   "name": string|null, "layout": null | { "url" } | { "data": {…} },
@@ -117,6 +120,7 @@ assistant or the chat; settings alone (`main-color` included) do not make one.
 | Key | browser | browser console `/open` | cli one-shot (`-i`, positional) | cli console `/open` | desktop (argv, `stencil://`, console `/open`) | pystencil one-shot (`-i`) | pystencil console `/open` |
 |---|---|---|---|---|---|---|---|
 | `server`+`id`, `project` | ✓ (local ref by name or id) | ✓ | ✓ (`--server -i`) | ✓ (`/fetch`) | ✓ (bare ref = `--project`) | — | ✓ (`/fetch`) |
+| `project=<url>.stencil` | ✓ | ✓ | ✓ (`-i <url>`) | ✓ (`/upload`) | ✓ | — | ✓ (`/upload`) |
 | `source`, `frame` | ✓ | ✓ | ✓ (`-i -f`) | ✓ | ✓ (`--src --frame`) | ✓ | ✓ |
 | `blank`, `width`, `height` | ✓ | ✓ | ✓ (`--blank`) | ✓ (`/blank`) | — | ✓ | ✓ |
 | `layout`, `layout-raw` | ✓ | ✓ | ✓ (`-l`) | ✓ (`/apply`) | ✓ | ✓ | ✓ |

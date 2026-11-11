@@ -61,6 +61,7 @@ fn openPicture(session: *Session, io: std.Io, a: std.mem.Allocator, q: uri.Launc
                 b.color;
             try media.doBlank(session, spec);
         },
+        .project_file => |url| try media.openProject(session, io, url),
         .server => |s| try fetch(session, io, a, s.url, s.id, tokenFor(q, s.url)),
         .project => |p| {
             const origin = q.projectOrigin(p.server) orelse return logo.err(msg.launch_project_needs_server, .{p.ref});

@@ -1,5 +1,6 @@
 import { supportsShareFiles } from '../../../utils.js';
 import { wireExportOptionsMenu } from '../../export/optionsMenu.js';
+import { wireShareButton } from './shareButton.js';
 
 const TINT_PREVIEW_MS = 80;
 export function wireStyleControls(app) {
@@ -12,7 +13,7 @@ export function wireStyleControls(app) {
   const shareBtn = document.getElementById('share-image');
   if (shareBtn) {
     if (supportsShareFiles()) shareBtn.style.display = '';
-    shareBtn.addEventListener('click', () => app.export.shareImage());
+    wireShareButton(app, shareBtn);
   }
   for (const [id, act] of [['flip-horizontal', () => app.imageModel.flipImage()],
     ['rotate-left', () => app.imageModel.rotateImage(-1)], ['rotate-right', () => app.imageModel.rotateImage(1)]])

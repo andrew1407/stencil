@@ -59,12 +59,12 @@ test('a batch removal retires the rows and re-asks the bar in the same turn', ()
   assert.match(body, /'Removed', 'Could not remove', settle, rows, clearedToast\);\s*\n[^\n]*\n\s*for \(const k of keys\) doomed\.delete\(k\);/);
 });
 
-// Clear All is the same rule over the whole list: every selectable row is going, so the
-// bar has nothing left to offer and must say so while the rows are still falling.
+// Clear All is the same rule over the local rows: every local selectable is going, so the bar
+// drops them while the rows are still falling; a server row is never among them.
 test('clear-all lets the selection bar go with the rows', () => {
   const src = projectsModalSource();
   const body = src.slice(src.indexOf('clearAllBtn.addEventListener'));
-  assert.match(body, /const keys = \[\.\.\.selectables\.keys\(\)\];\s*\n\s*for \(const k of keys\) doomed\.add\(k\);[\s\S]*const leaving = Promise\.all\([\s\S]*updateBatchBar\(\);\s*\n\s*await leaving;/);
+  assert.match(body, /const \{ rows, keys \} = localLeavers\(list, selectables\.keys\(\)\);[\s\S]*for \(const k of keys\) doomed\.add\(k\);[\s\S]*const leaving = Promise\.all\([\s\S]*updateBatchBar\(\);\s*\n\s*await leaving;/);
   assert.match(body, /await settle\(\);\s*\n\s*for \(const k of keys\) doomed\.delete\(k\);/);
 });
 

@@ -53,3 +53,5 @@ export declare function collapseToOneWindow(doc?: Document): void;
 
 /** Installs the one listener that collapses the windows when multiWindow turns off. */
 export declare function wireCollapseOnce(): void;
+/** True while any window is up over the editor (its canvas and toolbar then lie under it). */
+export declare const anyWindowOpen: () => boolean;

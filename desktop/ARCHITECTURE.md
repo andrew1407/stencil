@@ -218,6 +218,12 @@ classDiagram
   runs `ProjectCopy::run` (`app/project/copy/`): it reads the source (live editor, stored row or
   server row), names it with core `ProjectsStore::copySuffixName`, writes a local row or a new
   project on the source's server, and opens it here, in a new window, or unsaved in incognito.
+- **Copy to the clipboard.** A projects row's "Copy entries ›" (name, `stencil://` links, layout, project)
+  and "Copy image ›" (Current / No lines / Original) are built by `support/share/shareRows.hpp`;
+  the dialog makes the name and links (`deepLink::projectShareLinks`) and signals
+  `clipboardRequested`, and `ProjectCopy::copyToClipboard` reads that one row only then — the open
+  editor renders from its canvas, any other row into a fresh `CanvasScene`. The name chip's
+  right-click lists the open project's name and links the same way.
 - **Closing a project.** The Close Project action and a drop on the Projects window's Close run
   `ProjectFlows::closeActiveProject`: the held project is saved, leaves an empty editor and stays
   in Projects.

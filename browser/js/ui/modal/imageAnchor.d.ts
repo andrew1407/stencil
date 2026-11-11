@@ -31,3 +31,6 @@ export declare const openImageConfirmAnchors: (opensImage?: (answer: unknown) =>
 };
 /** Re-aims the open dropdown lists whose trigger sits in `strip` at the top edge above it, for their close. */
 export declare const aimListsUp: (strip: Element | null | undefined) => void;
+/** Over another window (`stacked`) none, so the question grows from the press; else openImageConfirmAnchors. */
+export declare const openImageConfirmAnchorsOver: (stacked: boolean, opensImage?: (answer: unknown) => boolean) =>
+  { openAnchor?: unknown; closeAnchor?: (answer: unknown) => unknown };

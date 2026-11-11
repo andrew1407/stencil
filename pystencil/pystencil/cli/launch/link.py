@@ -10,6 +10,7 @@ import argparse
 import json
 from urllib.parse import urlsplit
 
+from ..._net import _fetch as __fetch_url
 from ...server import normalize_url
 from .uri import Query, parse, project_origin
 
@@ -23,76 +24,88 @@ _LLM_WORDS = (("provider", "provider"), ("url", "baseUrl"), ("model", "model"),
        ("server", "serverUrl"), ("key", "apiKey"))
 
 
-def _connect_arg(url: str, token: str) -> str:
+def __connect_arg(url: str, token: str) -> str:
   return url + (" token=%s" % token if token else "")
 
 
-def _token_for(q: Query, origin: str) -> str:
+def __token_for(q: Query, origin: str) -> str:
   return next((c["token"] for c in q["connect"] if c["url"].lower() == origin.lower()), "")
 
 
-def _layout_arg(layout: dict) -> str:
+def __layout_arg(layout: dict) -> str:
   """What ``/apply`` and ``--layout`` take: the URL, or the inline object as compact JSON."""
   return layout.get("url") or json.dumps(layout["data"], separators=(",", ":"))
 
 
-def _fetch(repl, q: Query, origin: str, ref: str) -> None:
+def __fetch(repl, q: Query, origin: str, ref: str) -> None:
   """``/fetch <ref> <base>`` once connected to ``origin`` (dialled with the link's token when not yet)."""
   base = normalize_url(origin)
-  if not repl._manager.has(base): repl._cmd_connect(_connect_arg(origin, _token_for(q, origin)))
+  if not repl._manager.has(base): repl._cmd_connect(__connect_arg(origin, __token_for(q, origin)))
   if not repl._manager.has(base):
     repl._err("launch link: not connected to %s — the picture was left out" % base)
     return
   repl._cmd_fetch("%s %s" % (ref, base))
 
 
-def _open_source(repl, q: Query, p: dict) -> None:
-  frame = p["frame"]
-  repl._editor.load(p["url"], frame=int(frame) if frame is not None and frame >= 0 else None)
-  repl._image_replaced()
-  repl._add_attachment(p["url"])
+def __say_loaded(repl) -> None:
   w, h = repl._editor.image_size
   repl._say('loaded "%s" (%dx%d)' % (repl._editor.name, w, h))
 
 
-def _open_blank(repl, q: Query, p: dict) -> None:
+def __open_source(repl, q: Query, p: dict) -> None:
+  frame = p["frame"]
+  repl._editor.load(p["url"], frame=int(frame) if frame is not None and frame >= 0 else None)
+  repl._image_replaced()
+  repl._add_attachment(p["url"])
+  __say_loaded(repl)
+
+
+def __open_blank(repl, q: Query, p: dict) -> None:
   both = p["width"] is not None and p["height"] is not None
   repl._cmd_blank("%d %d %s" % (p["width"], p["height"], p["color"]) if both else p["color"])
 
 
-def _open_server(repl, q: Query, p: dict) -> None:
-  _fetch(repl, q, p["url"], p["id"])
+def __open_server(repl, q: Query, p: dict) -> None:
+  __fetch(repl, q, p["url"], p["id"])
 
 
-def _open_project_ref(repl, q: Query, p: dict) -> None:
+def __open_project_ref(repl, q: Query, p: dict) -> None:
   origin = project_origin(q, p["server"])
   if origin is None:
     repl._err("launch link: project '%s' names no server, and this console keeps no local projects — left out" % p["ref"])
   else:
-    _fetch(repl, q, origin, p["ref"])
+    __fetch(repl, q, origin, p["ref"])
+
+
+def __open_project_file(repl, q: Query, p: dict) -> None:
+  """``project=<url>.stencil``: fetched through the guard, then opened as ``/upload x.stencil`` opens a file."""
+  repl._editor.open_project(__fetch_url(p["url"]))
+  repl._image_replaced()
+  __say_loaded(repl)
 
 
 # Each picture kind lands on the command a typed line would reach.
-_OPENERS = dict(source=_open_source, blank=_open_blank, server=_open_server, project=_open_project_ref)
+_OPENERS = dict(source=__open_source, blank=__open_blank, server=__open_server, project=__open_project_ref,
+                projectFile=__open_project_file)
 
 
-def _open_picture(repl, q: Query) -> None:
+def __open_picture(repl, q: Query) -> None:
   p = q["picture"]
   if p: _OPENERS[p["kind"]](repl, q, p)
 
 
-def _origin(url: str) -> tuple:
+def __origin(url: str) -> tuple:
   parts = urlsplit(url or "")
   return parts.scheme.lower(), parts.netloc.lower()
 
 
-def _apply_llm(repl, llm: dict) -> None:
+def __apply_llm(repl, llm: dict) -> None:
   """A key belongs to the base URL it was given for (launch-uri.md §2): a link that moves that
   origin drops it unless the link brings its own."""
   was = repl._llm.base_url
   for word, field in _LLM_WORDS:
     if llm.get(field): repl._cmd_llm("%s %s" % (word, llm[field]))
-  if not llm.get("apiKey") and repl._llm.api_key and _origin(was) != _origin(repl._llm.base_url):
+  if not llm.get("apiKey") and repl._llm.api_key and __origin(was) != __origin(repl._llm.base_url):
     repl._llm.api_key = ""
     repl._note("launch link: the assistant now points at %s — the API key held for the old endpoint was dropped"
                % repl._llm.base_url)
@@ -108,14 +121,14 @@ def open_link(repl, url: str) -> bool:
   if q["script"]: repl._note(_LEFT_OUT % "the script")
   if q["name"]: repl._note(_LEFT_OUT % "the name")
   if any(q["project"].values()): repl._note(_LEFT_OUT % "the project fields")
-  for c in q["connect"]: repl._cmd_connect(_connect_arg(c["url"], c["token"]))
-  _apply_llm(repl, q["llm"])
-  _open_picture(repl, q)
+  for c in q["connect"]: repl._cmd_connect(__connect_arg(c["url"], c["token"]))
+  __apply_llm(repl, q["llm"])
+  __open_picture(repl, q)
   if q["layout"]:
     if not repl._editor.has_image():
       repl._note(_LEFT_OUT % "the layout (no picture to put it on)")
     else:
-      repl._cmd_apply(_layout_arg(q["layout"]))
+      repl._cmd_apply(__layout_arg(q["layout"]))
   return True
 
 
@@ -136,5 +149,5 @@ def expand_args(args: argparse.Namespace) -> None:
       args.input = None
       both = p["width"] is not None and p["height"] is not None
       args.blank = ([str(int(p["width"])), str(int(p["height"]))] if both else []) + [p["color"]]
-    if q["layout"]: args.layout = _layout_arg(q["layout"])
+    if q["layout"]: args.layout = __layout_arg(q["layout"])
     return

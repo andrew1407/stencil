@@ -5,11 +5,13 @@
 /** The keys honoured only from the fragment carrier; in the query they are dropped with a warning. */
 export declare const LAUNCH_QUERY_SECRET_KEYS: readonly ['token', 'llm-api-key'];
 
-/** server+id beats project beats source beats blank; `frame` is seconds into a video, null when not given. */
+/** server+id beats project (a `.stencil` URL first, then the locator) beats source beats blank; `frame` is seconds into a video, null when not given. */
 export type LaunchPicture =
   | { kind: 'server'; url: string; id: string; version: number }
   /** `host[:port]/projects/<ref>` or a bare `<ref>` (id or name); `server` null = the launch's server, else a local project. */
   | { kind: 'project'; server: string | null; ref: string }
+  /** `project=` given an http(s) URL ending `.stencil`: a project file, fetched and opened. */
+  | { kind: 'projectFile'; url: string }
   | { kind: 'source'; url: string; frame: number | null }
   | { kind: 'blank'; color: string; width: number | null; height: number | null };
 
@@ -51,5 +53,7 @@ export declare const emptyLaunchQuery: () => LaunchQuery;
 export declare const parseLaunchQuery: (search?: string, hash?: string) => LaunchQuery | null;
 /** A picture, connection, layout, look, assistant or chat key: a picture URL with grammar-looking parameters is not a link. */
 export declare const isActionableLaunch: (q: LaunchQuery | null) => boolean;
+/** The URL parts minus their `token` / `llm-api-key` pairs; null when they carry none. */
+export declare const withoutLaunchSecrets: (search?: string, hash?: string) => { search: string; hash: string } | null;
 /** A whole `http(s)://…?query#fragment` or `stencil://open?…` typed somewhere; null unless actionable. */
 export declare const parseLaunchUrl: (url: string) => LaunchQuery | null;

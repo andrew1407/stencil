@@ -38,17 +38,17 @@ _LLM_FIELDS = (("llm-provider", "provider"), ("llm-model", "model"), ("llm-base-
         ("llm-server-url", "serverUrl"), ("llm-api-key", "apiKey"))
 
 
-def _kebab(key: str) -> str:
+def __kebab(key: str) -> str:
   """``mainColor``, ``main_color`` and ``main-color`` are one key."""
   t = re.sub(r"([a-z0-9])([A-Z])", r"\1-\2", key.strip().replace("_", "-"))
   return t.lower().strip("-")
 
 
-def _camel(key: str) -> str:
+def __camel(key: str) -> str:
   return re.sub(r"-([a-z0-9])", lambda m: m.group(1).upper(), key)
 
 
-def _flag(value: str) -> bool:
+def __flag(value: str) -> bool:
   """A bare flag, a 1 or a true word is on."""
   s = value.strip().lower()
   return s in ("", "1") or s in _TRUE_WORDS
@@ -64,14 +64,14 @@ def coerce(value: str) -> (bool | int | float | str):
   return value
 
 
-def _text(value: (str | NoneType)) -> (str | NoneType):
+def __text(value: (str | NoneType)) -> (str | NoneType):
   t = (value or "").strip()
   return t or None
 
 
-def _number_or(value: (str | NoneType), fallback: (float | NoneType)) -> (float | NoneType):
+def __number_or(value: (str | NoneType), fallback: (float | NoneType)) -> (float | NoneType):
   """JS ``Number(v)``: a finite number, else ``fallback``."""
-  t = _text(value)
+  t = __text(value)
   if t is None: return fallback
   try:
     n = float(t)
@@ -80,12 +80,12 @@ def _number_or(value: (str | NoneType), fallback: (float | NoneType)) -> (float 
   return n if math.isfinite(n) else fallback
 
 
-def _size_or(value: (str | NoneType)) -> (float | NoneType):
-  n = _number_or(value, None)
+def __size_or(value: (str | NoneType)) -> (float | NoneType):
+  n = __number_or(value, None)
   return n if n is not None and n > 0 else None
 
 
-def _json_object(text: str) -> (dict | NoneType):
+def __json_object(text: str) -> (dict | NoneType):
   try:
     data = json.loads(text)
   except ValueError:
@@ -99,12 +99,14 @@ def is_launch_query_hash(hash_: str) -> bool:
   return h.startswith("#") and "=" in h and not h.startswith("#stencil=") and not h.startswith("#stencil-desktop=")
 
 
-def _pairs(raw: str) -> list[Pair]:
-  return [(_kebab(k), v) for k, v in urllib.parse.parse_qsl(raw, keep_blank_values=True, errors="replace")]
+def __pairs(raw: str) -> list[Pair]:
+  return [(__kebab(k), v) for k, v in urllib.parse.parse_qsl(raw, keep_blank_values=True, errors="replace")]
 
 
-def _project_locator(value: str, server_key: (str | NoneType)) -> (dict | NoneType):
-  """``host[:port]/projects/<ref>`` names the server too; ``server=`` supplies a missing one."""
+def __project_locator(value: str, server_key: (str | NoneType)) -> (dict | NoneType):
+  """``host[:port]/projects/<ref>`` names the server too; ``server=`` supplies a missing one. An
+  http(s) URL ending ``.stencil`` is a project file to fetch instead."""
+  if _HTTP.match(value) and value.lower().endswith(".stencil"): return {"kind": "projectFile", "url": value}
   at = value.find("/projects/")
   origin = None if at < 0 else value[:at].rstrip("/")
   ref = (value if at < 0 else value[at + len("/projects/"):]).rstrip("/")
@@ -124,10 +126,10 @@ def empty_query() -> Query:
 
 def parse_parts(search: str = "", hash_: str = "") -> (Query | NoneType):
   """None when neither carrier has a pair of this grammar; a bare ``?open=<id>`` is not one."""
-  pairs = _pairs(search[1:] if search.startswith("?") else search)
+  pairs = __pairs(search[1:] if search.startswith("?") else search)
   from_hash = is_launch_query_hash(hash_)
   query_len = len(pairs)
-  if from_hash: pairs += _pairs(hash_[1:])
+  if from_hash: pairs += __pairs(hash_[1:])
   if not any(k != "open" for k, _ in pairs): return None
 
   q = empty_query()
@@ -141,7 +143,7 @@ def parse_parts(search: str = "", hash_: str = "") -> (Query | NoneType):
   for i, (key, value) in enumerate(pairs):
     canonical = _CANONICAL.get(key)
     if canonical is None:
-      camel = _camel(key)
+      camel = __camel(key)
       if camel and camel not in _UNSAFE_KEYS and camel not in q["settings"]: q["settings"][camel] = coerce(value)
       continue
     if canonical in SECRET_KEYS and i < query_len:
@@ -149,36 +151,36 @@ def parse_parts(search: str = "", hash_: str = "") -> (Query | NoneType):
       continue
     kept.append((canonical, value))
 
-  server, ident, source = _text(first("server")), _text(first("id")), _text(first("source"))
+  server, ident, source = __text(first("server")), __text(first("id")), __text(first("source"))
   if server and ident:
-    q["picture"] = {"kind": "server", "url": server, "id": ident, "version": _number_or(first("version"), 0)}
-  elif _text(first("project")):
-    q["picture"] = _project_locator(_text(first("project")), server)
+    q["picture"] = {"kind": "server", "url": server, "id": ident, "version": __number_or(first("version"), 0)}
+  elif __text(first("project")):
+    q["picture"] = __project_locator(__text(first("project")), server)
     if q["picture"] is None: warn("bad-value", "project")
   elif source:
     if _HTTP.match(source) or source.lower().startswith("data:"):
-      q["picture"] = {"kind": "source", "url": source, "frame": _number_or(first("frame"), None)}
+      q["picture"] = {"kind": "source", "url": source, "frame": __number_or(first("frame"), None)}
     else:
       warn("bad-value", "source")
   elif has("blank"):
-    q["picture"] = {"kind": "blank", "color": _text(first("blank")) or "#ffffff",
-            "width": _size_or(first("width")), "height": _size_or(first("height"))}
-  q["name"] = _text(first("name"))
+    q["picture"] = {"kind": "blank", "color": __text(first("blank")) or "#ffffff",
+            "width": __size_or(first("width")), "height": __size_or(first("height"))}
+  q["name"] = __text(first("name"))
 
-  raw, layout = _text(first("layout-raw")), _text(first("layout"))
+  raw, layout = __text(first("layout-raw")), __text(first("layout"))
   if raw:
-    data = _json_object(raw)
+    data = __json_object(raw)
     if data is not None: q["layout"] = {"data": data}
     else: warn("bad-json", "layout-raw")
   elif layout:
     if layout.startswith("{"):
-      data = _json_object(layout)
+      data = __json_object(layout)
       if data is not None: q["layout"] = {"data": data}
       else: warn("bad-json", "layout")
     elif _HTTP.match(layout): q["layout"] = {"url": layout}
     else: warn("bad-value", "layout")
 
-  q["incognito"] = has("incognito") and _flag(first("incognito"))
+  q["incognito"] = has("incognito") and __flag(first("incognito"))
   script = first("script") or ""
   if len(script) > SCRIPT_MAX_CHARS: warn("bad-value", "script")
   else: q["script"] = script
@@ -186,19 +188,19 @@ def parse_parts(search: str = "", hash_: str = "") -> (Query | NoneType):
     mode = _THEME_WORDS.get(first("theme").strip().lower())
     if mode: q["theme"] = mode
     else: warn("bad-value", "theme")
-  if _text(first("main-color")): q["settings"]["mainTheme"] = _text(first("main-color"))
+  if __text(first("main-color")): q["settings"]["mainTheme"] = __text(first("main-color"))
   for key, field in _PROJECT_FIELDS:
-    if _text(first(key)): q["project"][field] = _text(first(key))
+    if __text(first(key)): q["project"][field] = __text(first(key))
   for key, field in _LLM_FIELDS:
-    if _text(first(key)): q["llm"][field] = _text(first(key))
-  if has("chat"): q["chat"]["open"] = _flag(first("chat")) or first("chat").strip().lower() == "open"
+    if __text(first(key)): q["llm"][field] = __text(first(key))
+  if has("chat"): q["chat"]["open"] = __flag(first("chat")) or first("chat").strip().lower() == "open"
   if has("chat-dock"):
     dock = first("chat-dock").strip().lower()
     if dock in _CHAT_DOCKS: q["chat"]["dock"] = dock
     else: warn("bad-value", "chat-dock")
   tokens = [v for k, v in kept if k == "token"]
   for n, url in enumerate(v for k, v in kept if k == "connect"):
-    if _text(url): q["connect"].append({"url": _text(url), "token": tokens[n] if n < len(tokens) else ""})
+    if __text(url): q["connect"].append({"url": __text(url), "token": tokens[n] if n < len(tokens) else ""})
   q["opensSession"] = bool(q["picture"]) or q["incognito"] or bool(q["script"])
   return q
 

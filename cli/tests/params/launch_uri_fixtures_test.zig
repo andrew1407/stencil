@@ -68,6 +68,7 @@ fn checkPicture(w: *fx.Walk, name: []const u8, got: ?uri.Picture, want: Value) v
             sameStr(s.id, str(want.object.get("id"))) and sameNum(s.version, num(want.object.get("version"))),
         .project => |pr| std.mem.eql(u8, kind, "project") and sameStr(pr.server, str(want.object.get("server"))) and
             sameStr(pr.ref, str(want.object.get("ref"))),
+        .project_file => |url| std.mem.eql(u8, kind, "projectFile") and sameStr(url, str(want.object.get("url"))),
         .source => |s| std.mem.eql(u8, kind, "source") and sameStr(s.url, str(want.object.get("url"))) and
             sameNum(s.frame, num(want.object.get("frame"))),
         .blank => |b| std.mem.eql(u8, kind, "blank") and sameStr(b.color, str(want.object.get("color"))) and

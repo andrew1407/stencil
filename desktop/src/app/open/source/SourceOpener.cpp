@@ -63,12 +63,16 @@ namespace stencil::gui {
     if (!w.pop.dialogAnchor && !w.pop.dialogAnchorRect.isValid())
       w.pop.dialogAnchorRect = canvasAnchorRect(&w);
     QPointer<MainWindow> self(&w);
-    w.pop.dialogCloseRect = [self](bool opened) {   // an accept always opened an image
-      return opened ? openImageAnchorRect(self.data()) : QRect();
-    };
+    // Over another window the toolbar lies under it: the close goes back to what raised it (user report).
+    if (!over)
+      w.pop.dialogCloseRect = [self](bool opened) {   // an accept always opened an image
+        return opened ? openImageAnchorRect(self.data()) : QRect();
+      };
+    // Asked over this dialog, which stays up when it is declined (browser create-blank; user report).
+    dlg.setBlankGate([this, &dlg, over] { return !w.canvas->hasImage() || confirmReplaceWithBlank(&dlg, over); });
     if (w.execMaybePopover(dlg) != QDialog::Accepted) return;
     if (dlg.getOutcome() == OpenImageDialog::Outcome::BLANK) {
-      createBlankImageFromDialog(dlg.blankColor(), dlg.blankWidth(), dlg.blankHeight());
+      createBlankImage(dlg.blankColor(), dlg.blankWidth(), dlg.blankHeight());
       return;
     }
     const QString src = dlg.source();

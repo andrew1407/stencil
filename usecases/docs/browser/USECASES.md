@@ -180,7 +180,7 @@ Let go back on the icon, or press Escape, and nothing changes.
 
 An icon that opens a window — Projects, Servers, Crop, Script, Visuals & Settings and the rest —
 opens it with its corner on the release point; a window already open moves there. The chat icon
-raises the dock zones: drop in one to dock the chat on that side, anywhere else to float it there.
+raises the dock zones: drop in one to dock the chat of that side, anywhere else to float it there.
 
 ![the Projects icon dragged out, opening its window where it lands](img/drag-icon-window.gif)
 
@@ -305,7 +305,7 @@ longer; one kept forever says **never expires**.
 
 ![the projects window](img/projects-modal.png)
 
-A row's **⋯** menu opens, renames, colours, describes and expires it, and has **Make a copy ›**
+A row's **⋯** menu opens, renames, colours, describes and expires it, and has **Copy project ›**
 beside **Open in another app**; the toolbar's Image section has the same list behind its copy
 button. Pick **Image only**, **Image and layout** or **Whole project**, and a short question
 names the copy — `Kitchen plan-copy`, then `Kitchen plan-copy(1)`, and so on. **Just copy** adds it
@@ -314,9 +314,14 @@ opens it beside this one. Tick **Open in incognito** to open a copy that is neve
 project that lives on a server, **Make a local copy** chooses between a copy in this browser and
 one on that server.
 
+Above it, **Copy entries ›** puts the project's name, a link that opens it, its layout or the whole
+`.stencil` on the clipboard, and **Copy image ›** its picture — **Current**, **No lines** or
+**Original** — without opening the project. The copy button beside the open project's name copies
+that name; right-click it for the same links.
+
 | The row menu | The toolbar | The question |
 |---|---|---|
-| ![a project row's Make a copy submenu](img/projects-row-copy.png) | ![the toolbar's copy list](img/copy-toolbar-menu.png) | ![the copy question](img/copy-modal.png) |
+| ![a project row's Copy project submenu](img/projects-row-copy.png) | ![the toolbar's copy list](img/copy-toolbar-menu.png) | ![the copy question](img/copy-modal.png) |
 
 Drag a row **out of the list** and the window behind it turns into three drop targets: **Open
 here** on the left, **Open in a new tab** on the right, and **Remove** across the bottom. The one

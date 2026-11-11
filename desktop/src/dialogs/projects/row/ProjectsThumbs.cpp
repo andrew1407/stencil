@@ -36,16 +36,16 @@ namespace stencil::gui {
   }  // namespace
 
   void ProjectsDialog::refreshRemote() {
-    if (!connections || remoteBusy) return;
-    remoteBusy = true;
+    if (!connections || listing.remoteBusy) return;
+    listing.remoteBusy = true;
     // Async cross-connection list (no nested event loop): the dialog stays responsive while the
     // server(s) respond; the rows populate when the merged listing resolves.
     QPointer<ProjectsDialog> self(this);
     connections->sharedProjectsAsync([this, self](QVector<stencil::net::ServerProject> ps) {
       if (!self) return;
       remote = ps;
-      remoteBusy = false;
-      remoteLoaded = true;  // first listing resolved → drop the loading placeholder
+      listing.remoteBusy = false;
+      listing.remoteLoaded = true;  // first listing resolved → drop the loading placeholder
       refresh();
     });
   }
@@ -53,7 +53,7 @@ namespace stencil::gui {
   QPixmap ProjectsDialog::remoteThumb(const stencil::net::ServerProject& sp) {
     if (!connections) return {};
     const QString key = QString("%1|%2|%3").arg(sp.serverUrl, sp.id).arg(sp.version);
-    if (const QPixmap* cached = remoteThumbs.find(key)) return *cached;
+    if (const QPixmap* cached = listing.remoteThumbs.find(key)) return *cached;
     // Not cached — fetch asynchronously (result → original → source URL) so the dialog never
     // blocks on the network; the placeholder shows now and the icon swaps in on arrival.
     fetchServerThumbAsync(key, sp);
@@ -64,13 +64,13 @@ namespace stencil::gui {
   // to the connection's network manager, which outlives this dialog, so a QPointer guards callbacks.
   void ProjectsDialog::fetchServerThumbAsync(const QString& key,
                                              const stencil::net::ServerProject& sp) {
-    if (thumbInFlight.contains(key)) return;  // already downloading this version
+    if (listing.thumbInFlight.contains(key)) return;  // already downloading this version
     stencil::net::ServerClient* c = connections ? connections->find(sp.serverUrl) : nullptr;
     if (!c) {
       fetchSourceThumbAsync(key, sp);  // no live client — try the source URL directly
       return;
     }
-    thumbInFlight.insert(key);
+    listing.thumbInFlight.insert(key);
     const QString id = sp.id;
     const QString serverUrl = sp.serverUrl;
     const stencil::net::ServerProject spCopy = sp;
@@ -81,13 +81,13 @@ namespace stencil::gui {
                                                                                     QByteArray bytes) {
         if (!self) return;
         auto source = [this, key, spCopy] {
-          thumbInFlight.remove(key);
+          listing.thumbInFlight.remove(key);
           fetchSourceThumbAsync(key, spCopy);
         };
         if (!ok || bytes.isEmpty()) return source();
         decodeThumb(this, bytes, [this, key, id, serverUrl, source](QImage img) {
           if (img.isNull()) return source();
-          thumbInFlight.remove(key);
+          listing.thumbInFlight.remove(key);
           applyRemoteThumb(key, id, serverUrl, img);
         });
       });
@@ -98,7 +98,7 @@ namespace stencil::gui {
       if (!ok || bytes.isEmpty()) return original();
       decodeThumb(this, bytes, [this, key, id, serverUrl, original](QImage img) {
         if (img.isNull()) return original();
-        thumbInFlight.remove(key);
+        listing.thumbInFlight.remove(key);
         applyRemoteThumb(key, id, serverUrl, img);
       });
     });
@@ -108,11 +108,11 @@ namespace stencil::gui {
                                              const stencil::net::ServerProject& sp) {
     const QUrl u(sp.source);
     if (!u.isValid() || !fetchGuard::isWebScheme(u)) {
-      remoteThumbs.insert(key, QPixmap());  // nothing to fetch — cache the miss
+      listing.remoteThumbs.insert(key, QPixmap());  // nothing to fetch — cache the miss
       return;
     }
-    if (thumbInFlight.contains(key)) return;  // already downloading this version
-    thumbInFlight.insert(key);
+    if (listing.thumbInFlight.contains(key)) return;  // already downloading this version
+    listing.thumbInFlight.insert(key);
     const QString id = sp.id;
     const QString serverUrl = sp.serverUrl;
     // This URL rides in on a SHARED project record, so it is untrusted: the STRICT guard, a capped
@@ -120,7 +120,7 @@ namespace stencil::gui {
     fetchGuard::get(this, u, /*strict=*/true,
                     [this, key, id, serverUrl](const QByteArray& bytes, const QString&) {
                       decodeThumb(this, bytes, [this, key, id, serverUrl](QImage img) {
-                        thumbInFlight.remove(key);
+                        listing.thumbInFlight.remove(key);
                         applyRemoteThumb(key, id, serverUrl, img);
                       });
                     });
@@ -131,7 +131,7 @@ namespace stencil::gui {
     QPixmap pm;
     if (!img.isNull())
       pm = QPixmap::fromImage(img.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-    remoteThumbs.insert(key, pm);  // cache even a miss so we don't refetch every tick
+    listing.remoteThumbs.insert(key, pm);  // cache even a miss so we don't refetch every tick
     if (pm.isNull()) return;
     // Swap the placeholder for the picture on the live row (found by id+server, so a list rebuild
     // between request and response can't target a stale item).

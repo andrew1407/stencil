@@ -36,6 +36,20 @@ pub fn sizeOr(v: ?[]const u8) ?f64 {
 pub fn isHttp(s: []const u8) bool {
     return std.ascii.startsWithIgnoreCase(s, "http://") or std.ascii.startsWithIgnoreCase(s, "https://");
 }
+/// A `project=` value naming a project file: an http(s) URL ending `.stencil`, any case.
+pub fn projectFileUrl(v: ?[]const u8) ?[]const u8 {
+    const s = text(v) orelse return null;
+    return if (isHttp(s) and std.ascii.endsWithIgnoreCase(s, ".stencil")) s else null;
+}
+/// `host[:port]/projects/<ref>` or a bare `<ref>` (id or name); a null server is the launch's, else local.
+pub const Project = struct { server: ?[]const u8, ref: []const u8 };
+/// The locator names the server too; `server` supplies a missing one. Null without a ref.
+pub fn projectLocator(locator: []const u8, server: ?[]const u8) ?Project {
+    const at = std.mem.indexOf(u8, locator, "/projects/");
+    const origin = if (at) |i| std.mem.trimEnd(u8, locator[0..i], "/") else "";
+    const ref = std.mem.trimEnd(u8, if (at) |i| locator[i + "/projects/".len ..] else locator, "/");
+    return if (ref.len == 0) null else .{ .server = if (origin.len > 0) origin else server, .ref = ref };
+}
 /// A bare flag, a 1 or a true word is on.
 pub fn flag(a: std.mem.Allocator, v: []const u8) !bool {
     const s = try lower(a, v);

@@ -70,9 +70,9 @@ namespace stencil::gui {
       spec.confirmIcon = QStringLiteral("image");      // browser: confirmIcon 'image'
       spec.altLabel = QObject::tr("New window");
       spec.altIcon = QStringLiteral("external");       // …opened in another window
-      // A drop lands anywhere, so the question is not the drop point's to own.
-      spec.flight = openImageConfirmFlight(parent);
-      const ConfirmChoice pick = confirmModalChoice(parent, spec);
+      // A drop lands anywhere, so the question is not the drop point's to own; over a window, the press's.
+      QWidget* asker = openImageAsker(parent, spec.flight);
+      const ConfirmChoice pick = confirmModalChoice(asker, spec);
       if (pick == ConfirmChoice::CONFIRM) return DropTarget::HERE;
       return pick == ConfirmChoice::ALT ? DropTarget::NEW_WINDOW : DropTarget::CANCEL;
     }

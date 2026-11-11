@@ -24,6 +24,9 @@ namespace stencil::gui {
     // --project <name> (case-insensitive); wins over --src.
     QString project;
 
+    // A launch URI's `project=<url>.stencil`: fetched strict, then opened as a project file.
+    QString projectFileUrl;
+
     // --src <path|url>: local path, remote image URL, or a video frame.
     QString src;
 
@@ -73,7 +76,7 @@ namespace stencil::gui {
 
     // A plain launch: applyLaunchOptions does nothing and the session restore stands.
     bool empty() const {
-      return !hasTheme && project.isEmpty() && src.isEmpty() && layout.isEmpty() &&
+      return !hasTheme && project.isEmpty() && projectFileUrl.isEmpty() && src.isEmpty() && layout.isEmpty() &&
              !projects && !incognito && file.isEmpty() && serverUrl.isEmpty() &&
              serverProjectId.isEmpty() && layoutJson.isEmpty() && script.isEmpty() && !scriptDropped &&
              connect.empty();

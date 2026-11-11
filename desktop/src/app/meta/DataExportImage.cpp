@@ -61,7 +61,7 @@ namespace stencil::gui {
 
   // Native share sheet (browser export/service.js shareImage()). The picker needs a FILE and reads it asynchronously,
   // so it goes into one session-lifetime QTemporaryDir.
-  void DataExportController::shareImage(QWidget* anchor) {
+  void DataExportController::shareImage(QWidget* anchor, const QString& variant) {
     if (!canvas->hasImage()) {
       notify->error("Load an image first");
       return;
@@ -72,8 +72,10 @@ namespace stencil::gui {
       return;
     }
     const QString baseName = projectBaseName();
-    const QString path = shareDir.filePath(baseName + "-drawing.png");
-    if (!canvas->renderToImage(true).save(path, "PNG")) {
+    const bool plain = variant.isEmpty() || variant == QLatin1String("current");
+    const QString path = shareDir.filePath(baseName + "-drawing" + (plain ? QString() : "-" + variant) + ".png");
+    const QImage img = variant.isEmpty() ? canvas->renderToImage(true) : canvas->renderToImage(variant);
+    if (!img.save(path, "PNG")) {
       notify->error("Image encode failed");
       return;
     }

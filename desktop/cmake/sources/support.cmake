@@ -34,6 +34,10 @@ set(STENCIL_MODALCHROME_SOURCES
 
 # Motion and widget support split out of their headers: each group is several TUs
 # defining one header's members, so every target that uses the header needs the group.
+set(STENCIL_MODALREVEAL_SOURCES
+  src/support/modal/modalReveal.cpp
+  src/support/modal/modalDismiss.cpp
+  src/support/modal/ModalBackdrop.cpp)
 set(STENCIL_APPTOOLTIP_SOURCES
   src/support/tip/AppTooltip.cpp
   src/support/tip/AppTooltipShow.cpp
@@ -151,7 +155,7 @@ list(APPEND STENCIL_GUI_SOURCES
   src/support/cursor/pointerCursor.cpp
   src/support/menu/menuReveal.cpp
   src/support/menu/popupSlide.cpp
-  src/support/modal/modalReveal.cpp
+  ${STENCIL_MODALREVEAL_SOURCES}
   src/support/genie/GenieGhost.cpp
   src/support/genie/stripPaint.cpp
   src/support/genie/ghostLabel.cpp
@@ -189,4 +193,5 @@ list(APPEND STENCIL_GUI_SOURCES
   src/support/drag/colorDrag.cpp
   src/support/drag/colorDragCells.cpp
   src/support/share/exportPreview.cpp
+  src/support/share/menuDoubleClick.cpp
   resources/app.qrc)

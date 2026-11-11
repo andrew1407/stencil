@@ -3,7 +3,8 @@ import { extractDraggedImageUrls, mediaFilesFromData, fetchFirstDraggedMediaFile
 import { showDropOverlay, hideDropOverlay, setDropKind } from '../canvas/dropOverlay.js';
 import { dropKindOfDrag, dropKindOfFile } from '../../core/pointer/dropKind.js';
 import { loadScriptFile } from '../script/modal.js';
-import { openImageConfirmAnchors } from '../modal/imageAnchor.js';
+import { openImageConfirmAnchorsOver } from '../modal/imageAnchor.js';
+import { anyWindowOpen } from '../modal/registry.js';
 import { loadImageFromFile } from '../../core/image/loadFlow.js';
 import { openImageHere } from '../../core/launch/openFlow.js';
 export function wireDropPaste(app) {
@@ -29,8 +30,8 @@ export function wireDropPaste(app) {
         title: 'Open dropped image',
         confirmLabel: 'Open in the current page', confirmIcon: 'image',
         altLabel: 'Open in a new page', altIcon: 'external',
-        // A drop lands anywhere, so the question is not the drop point's to own.
-        ...openImageConfirmAnchors(),
+        // A drop lands anywhere, so the question is not the drop point's to own; over a window, the press's.
+        ...openImageConfirmAnchorsOver(anyWindowOpen()),
       });
       if (!where) return;                                                    // Cancel / Escape
       if (where === 'alt') { app.openImageNewTab(file, incognito); return; }
@@ -143,7 +144,7 @@ export function wireDropPaste(app) {
       e.preventDefault();
       const file = mediaFilesFromData(cd).find((f) => f.type.startsWith('image/'));
       if (app.image && !(await app.confirm('Replace current image with pasted image?',
-        { title: 'Replace image', confirmIcon: 'paste', ...openImageConfirmAnchors() }))) {
+        { title: 'Replace image', confirmIcon: 'paste', ...openImageConfirmAnchorsOver(anyWindowOpen()) }))) {
         notify('Image paste canceled', 'info');   // a declined confirm is a notice, not a failure
         return;
       }

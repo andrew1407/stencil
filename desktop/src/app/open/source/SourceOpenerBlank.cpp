@@ -57,17 +57,16 @@ namespace stencil::gui {
     win->applyLaunchOptions(opts);
   }
 
-  void SourceOpener::createBlankImageFromDialog(const QColor& color, int width, int height) {
-    if (w.canvas->hasImage()) {
-      ConfirmSpec spec;
-      spec.title = MainWindow::tr("Replace image");
-      spec.message = MainWindow::tr("Replace the current image with a new blank image?");
-      spec.confirmLabel = MainWindow::tr("Replace");
-      spec.confirmIcon = QStringLiteral("refresh");
-      spec.flight = openImageConfirmFlight(&w);
-      if (!confirmModal(&w, spec)) return;
-    }
-    createBlankImage(color, width, height);
+  // The Replace question over the Open dialog still up: out of the canvas when that dialog stands on the
+  // editor, out of the press when it was raised over another window (Projects' Blank image).
+  bool SourceOpener::confirmReplaceWithBlank(QWidget* dialog, bool overWindow) {
+    ConfirmSpec spec;
+    spec.title = MainWindow::tr("Replace image");
+    spec.message = MainWindow::tr("Replace the current image with a new blank image?");
+    spec.confirmLabel = MainWindow::tr("Replace");
+    spec.confirmIcon = QStringLiteral("refresh");
+    if (!overWindow) spec.flight = openImageConfirmFlight(&w);
+    return confirmModal(dialog, spec);
   }
 
   // No confirmation: a modal is something an op-plan cannot answer.

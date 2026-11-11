@@ -29,11 +29,11 @@ namespace stencil::gui {
 
   void ProjectCopy::openSaved(CopyOpen open, const QString& server, const QString& id,
                               std::function<void()> then) {
-    if (open == COPY_OPEN_NEW_WINDOW) {
+    if (open == CopyOpen::NEW_WINDOW) {
       if (server.isEmpty()) host.flows.openProjectInNewWindow(id);
       else freshWindow()->projects().flows.openServerLaunch(server, id, /*incognito=*/false);
     }
-    if (open != COPY_OPEN_HERE) return then();
+    if (open != CopyOpen::HERE) return then();
     leaveCurrent();
     if (!server.isEmpty()) {
       host.flows.openServerProject(server, id);
@@ -47,7 +47,7 @@ namespace stencil::gui {
     if (img.isNull()) img = src.bytes.isEmpty() ? decodeCappedFile(src.imagePath) : decodeCapped(src.bytes);
     const Project scoped = scopedCopy(src, what, std::string(), QString(), 0);
     const QJsonObject layout = layoutOf(src, what, img.width(), img.height());
-    if (open == COPY_OPEN_NEW_WINDOW) return freshWindow()->projects().copy.enterIncognito(img, layout, scoped.meta);
+    if (open == CopyOpen::NEW_WINDOW) return freshWindow()->projects().copy.enterIncognito(img, layout, scoped.meta);
     leaveCurrent();
     enterIncognito(img, layout, scoped.meta);
   }

@@ -90,8 +90,14 @@ class MainWindowGuiTest : public QObject {
     qApp->installEventFilter(&trace);
     const auto removeTrace = qScopeGuard([&] { qApp->removeEventFilter(&trace); });
 
-    // The logo is not an outside target any more (the block above), so the lifecycle is
-    // traced on the canvas and a toolbar icon.
+    // The logo is no outside target any more (the block above): traced on the canvas and a toolbar icon,
+    // whose press also opens that icon's own window (browser parity), closed as it comes.
+    QTimer follow;
+    QObject::connect(&follow, &QTimer::timeout, &win, [&] {
+      auto* d = qobject_cast<QDialog*>(QApplication::activeModalWidget());
+      if (d && d != win.pop.active.data() && d->objectName() != QLatin1String("accentPopover")) d->reject();
+    });
+    follow.start(40);
     for (QWidget* target : {static_cast<QWidget*>(win.canvas), static_cast<QWidget*>(other)}) {
       trace.seq.clear();
       trace.dialogs.clear();

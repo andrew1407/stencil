@@ -38,6 +38,7 @@ namespace stencil::gui {
         if (o.serverUrl.isEmpty()) o.project = p.ref;
         else o.serverProjectId = p.ref;
       }
+      void operator()(const launchUri::ProjectFilePicture& p) const { o.projectFileUrl = p.url; }
       void operator()(const launchUri::SourcePicture& p) const {
         o.src = p.url;
         o.srcFromLink = true;
@@ -117,6 +118,7 @@ namespace stencil::gui {
     o.serverProjectId = link.serverProjectId;
     o.serverVersion = link.serverVersion;
     if (!link.project.isEmpty()) o.project = link.project;
+    if (!link.projectFileUrl.isEmpty()) o.projectFileUrl = link.projectFileUrl;
     if (!link.src.isEmpty()) {
       o.src = link.src;
       o.srcFromLink = link.srcFromLink;

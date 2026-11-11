@@ -5,6 +5,7 @@
 #include "modalChrome.hpp"
 
 #include <QAction>
+#include <QApplication>
 #include <QLayout>
 #include <QPoint>
 #include <QPointer>
@@ -102,6 +103,14 @@ namespace stencil::gui {
       return opened ? openImageAnchorRect(owner.data()) : canvasAnchorRect(owner.data());
     };
     return flight;
+  }
+
+  // Who asks it (browser openImageConfirmAnchorsOver): a window up over the editor (Projects) — the canvas and
+  // toolbar lie under it, so the question grows from the press — else `host`, with `flight` out of the canvas.
+  inline QWidget* openImageAsker(QWidget* host, FlightAnchors& flight) {
+    if (QWidget* over = QApplication::activeModalWidget()) return over;
+    flight = openImageConfirmFlight(host);
+    return host;
   }
 
   // Set on a tool row from the moment it starts to fold away (fullscreen's strip hiding, EditorView::animateBarsHeight).

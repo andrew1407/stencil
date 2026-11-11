@@ -23,11 +23,6 @@
 namespace stencil::gui {
 
   namespace {
-    struct Upload {
-      QByteArray bytes;
-      QString ext;
-      QSize size;
-    };
     // What a reader makes of the bytes: their format (the file's extension) and their size.
     std::pair<QString, QSize> probe(const QByteArray& bytes) {
       QByteArray copy = bytes;
@@ -38,18 +33,6 @@ namespace stencil::gui {
       return {f.isEmpty() ? QStringLiteral("png") : (f == QLatin1String("jpeg") ? QStringLiteral("jpg") : f),
               reader.size()};
     }
-    Upload uploadOf(const CopySource& src) {
-      Upload up;
-      up.bytes = src.bytes;
-      if (up.bytes.isEmpty() && !src.imagePath.isEmpty()) {
-        QFile f(src.imagePath);
-        if (f.open(QIODevice::ReadOnly)) up.bytes = f.readAll();
-      }
-      if (up.bytes.isEmpty() && !src.image.isNull()) up.bytes = pngBytes(src.image);
-      std::tie(up.ext, up.size) = probe(up.bytes);
-      return up;
-    }
-
     using Step = std::function<void(qint64 version, std::function<void(qint64)> next)>;
     // Guarded PUTs in order, each on the version the last one left.
     void runSteps(std::shared_ptr<const std::vector<Step>> steps, std::size_t i, qint64 version,
@@ -83,6 +66,18 @@ namespace stencil::gui {
     }
   }  // namespace
 
+  CopyUpload uploadOf(const CopySource& src) {
+    CopyUpload up;
+    up.bytes = src.bytes;
+    if (up.bytes.isEmpty() && !src.imagePath.isEmpty()) {
+      QFile f(src.imagePath);
+      if (f.open(QIODevice::ReadOnly)) up.bytes = f.readAll();
+    }
+    if (up.bytes.isEmpty() && !src.image.isNull()) up.bytes = pngBytes(src.image);
+    std::tie(up.ext, up.size) = probe(up.bytes);
+    return up;
+  }
+
   QString ProjectCopy::createLocal(const CopySource& src, support::CopyScope what, const QString& name) {
     const std::string id = host.projectsStore.createId(nowMs(), makeSalt());
     Project pr = scopedCopy(src, what, id, name, nowMs());
@@ -115,7 +110,7 @@ namespace stencil::gui {
   }
 
   QJsonObject ProjectCopy::layoutOf(const CopySource& src, support::CopyScope what, int width, int height) const {
-    if (what == support::COPY_IMAGE)
+    if (what == support::CopyScope::IMAGE)
       return fileStore::buildLayoutJson(width, height, {}, QStringLiteral("none"), w.settings.filterColor, {}, 0,
                                         w.currentLayoutMeta());
     if (!src.layout.isEmpty()) return src.layout;
@@ -126,7 +121,7 @@ namespace stencil::gui {
   void ProjectCopy::createOnServer(const CopySource& src, support::CopyScope what, const QString& name,
                                    std::function<void(bool, QString)> done) {
     stencil::net::ServerClient* c = w.remote.conns() ? w.remote.conns()->find(src.server) : nullptr;
-    const Upload up = uploadOf(src);
+    const CopyUpload up = uploadOf(src);
     if (!c || up.bytes.isEmpty()) {
       w.notify->error(c ? QStringLiteral("Could not read the copy's image") : QStringLiteral("Not connected to %1").arg(src.server));
       return done(false, QString());
@@ -139,19 +134,19 @@ namespace stencil::gui {
     };
     QJsonObject extra;   // the browser's createRemoteProject sends these only when set
     if (pr.meta.blank && !pr.meta.blankColor.empty()) extra.insert("blankColor", QString::fromStdString(pr.meta.blankColor));
-    if (what == support::COPY_PROJECT && pr.meta.expiresAt > 0) extra.insert("expiresAt", static_cast<double>(pr.meta.expiresAt));
+    if (what == support::CopyScope::PROJECT && pr.meta.expiresAt > 0) extra.insert("expiresAt", static_cast<double>(pr.meta.expiresAt));
     c->createProjectAsync(name, QString::fromStdString(pr.meta.source), QString::fromStdString(pr.meta.resource), true,
                           up.size.width(), up.size.height(), [=](bool ok, QString id, qint64) {
       if (!ok) return fail(QStringLiteral("Could not create the copy on the server"));
       c->uploadFileAsync(id, QStringLiteral("original"), up.bytes, up.ext, up.size.width(), up.size.height(), [=](bool uok) {
         if (!uok) return fail(QStringLiteral("Created, but the image upload failed"));
-        if (what == support::COPY_IMAGE) return done(true, id);
+        if (what == support::CopyScope::IMAGE) return done(true, id);
         // The upload bumped the version, and the layout PUT is guarded: send the one it left.
         c->getProjectAsync(id, [=](bool gok, stencil::net::ServerProject meta, QJsonObject) {
           if (!gok) return fail(QStringLiteral("Created, but the layout was not saved"));
           c->updateProjectAsync(id, name, layout, meta.version, [=](bool pok, qint64 version, bool) {
             if (!pok) return fail(QStringLiteral("Created, but the layout was not saved"));
-            if (what != support::COPY_PROJECT) return done(true, id);
+            if (what != support::CopyScope::PROJECT) return done(true, id);
             pushOwnMeta(c, id, version, pr, [done, id] { done(true, id); });
           });
         });

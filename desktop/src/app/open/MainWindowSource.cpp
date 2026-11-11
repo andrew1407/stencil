@@ -70,13 +70,15 @@ namespace stencil::gui {
 
     // Taken before any load starts, so a linked script can tell when that picture has landed.
     const qint64 pictureBefore = canvas->getOriginalImage().cacheKey();
-    const bool picture = !opts.project.isEmpty() || !opts.serverProjectId.isEmpty() || !opts.src.isEmpty() ||
-                         !opts.file.isEmpty();
+    const bool picture = !opts.project.isEmpty() || !opts.projectFileUrl.isEmpty() ||
+                         !opts.serverProjectId.isEmpty() || !opts.src.isEmpty() || !opts.file.isEmpty();
 
-    // Priority: --project > stencil:// server reference > --src > positional file.
+    // Priority: --project > a link's .stencil URL > stencil:// server reference > --src > positional file.
     if (!opts.project.isEmpty()) {
       if (!projectHost.flows.openProjectByName(opts.project))
         notify->error(QString("No project named \"%1\"").arg(opts.project));
+    } else if (!opts.projectFileUrl.isEmpty()) {
+      parts.sourceOpener.openProjectUrl(opts.projectFileUrl, opts.incognito);
     } else if (!opts.serverUrl.isEmpty() && !opts.serverProjectId.isEmpty()) {
       // Queued so the connect + download run after show().
       const QString url = opts.serverUrl, id = opts.serverProjectId;

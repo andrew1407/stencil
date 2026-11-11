@@ -1,5 +1,6 @@
 #pragma once
 #include "fileStore.hpp"
+#include <QByteArray>
 #include <QString>
 #include <QStringList>
 #include <functional>
@@ -19,7 +20,8 @@ namespace stencil::gui {
     explicit SourceOpener(MainWindow& w) : w(w) {}
 
     void openImageDialog(bool startBlank);
-    void createBlankImageFromDialog(const QColor& color, int width, int height);
+    // The Open dialog's Create blank over a picture: true = replace it. `overWindow`: raised over another window.
+    bool confirmReplaceWithBlank(QWidget* dialog, bool overWindow);
     void createBlankImage(const QColor& color, int width, int height);
     void openImageHere(const QString& path, bool incognito);
     void openImageInNewWindow(const QString& path, bool incognito);
@@ -62,10 +64,13 @@ namespace stencil::gui {
     void pasteImage();
     void openProjectFile(const QString& path, std::function<void(bool)> done = {},
                          bool incognito = false);
+    void openProjectUrl(const QString& url, bool incognito);
     // A dropped .stencil: a fresh editor in the half's mode, as a dropped image gets.
     void openProjectFileHere(const QString& path, bool incognito);
 
    private:
+    void openProjectData(const QString& path, const QByteArray& fetched,
+                         std::function<void(bool)> done, bool incognito);
     void freshEditorIn(bool incognito);
     MainWindow& w;
   };

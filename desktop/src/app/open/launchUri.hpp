@@ -16,10 +16,11 @@ namespace stencil::gui::launchUri {
   struct ServerPicture { QString url, id; double version = 0; };
   // `host[:port]/projects/<ref>` or a bare `<ref>` (id or name); no server = the launch's, else local.
   struct ProjectPicture { std::optional<QString> server; QString ref; };
+  struct ProjectFilePicture { QString url; };   // `project=` an http(s) URL ending `.stencil`
   struct SourcePicture { QString url; std::optional<double> frame; };   // frame: seconds into a video
   struct BlankPicture { QString color; std::optional<double> width, height; };   // px
-  // server+id beats project beats source beats blank.
-  using Picture = std::variant<ServerPicture, ProjectPicture, SourcePicture, BlankPicture>;
+  // server+id beats project (a `.stencil` URL before the locator) beats source beats blank.
+  using Picture = std::variant<ServerPicture, ProjectPicture, ProjectFilePicture, SourcePicture, BlankPicture>;
 
   // Fetched from `url`, or inline JSON (`layout-raw`, or a `layout` starting with `{`).
   struct Layout {

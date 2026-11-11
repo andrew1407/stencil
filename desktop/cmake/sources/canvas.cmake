@@ -6,6 +6,7 @@
 # that draws a canvas needs the whole set, so they travel together under one name.
 set(STENCIL_CANVAS_SOURCES
   src/support/genie/canvasSlide.cpp
+  src/support/modal/ModalBackdrop.cpp   # canvasSlide's followFor
   src/canvas/scene/CanvasScene.cpp
   src/canvas/scene/sceneDocument.cpp
   src/canvas/scene/scenePaint.cpp

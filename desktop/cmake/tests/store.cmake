@@ -79,7 +79,7 @@ stencil_headless_test(stencil_projecttransfer_headless
     ${STENCIL_SERVERCLIENT_SOURCES} ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
     ${STENCIL_THEME_SOURCES} ${STENCIL_NOTIFY_SOURCES} src/support/icon/iconSet.cpp
     src/support/logo/logoStageRules.cpp src/support/logo/logoStageConfig.cpp
-    src/support/modal/modalReveal.cpp   # notifications' toast dust needs motionReduced()
+    ${STENCIL_MODALREVEAL_SOURCES}   # notifications' toast dust needs motionReduced()
     ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg ${STENCIL_NOTIFY_LIBS})
 
@@ -87,7 +87,7 @@ stencil_headless_test(stencil_projecttransfer_headless
 # the bot) and the browser-fragment builder's percent-encoding.
 stencil_headless_test(stencil_deeplink_headless
   SOURCES tests/io/deepLink.headless.cpp src/io/deepLink.cpp src/app/open/launchOptions.cpp
-    src/app/open/launchUri.cpp src/app/open/launchUriJson.cpp ${STENCIL_SERVERCLIENT_SOURCES} resources/app.qrc
+    src/app/open/launchUri.cpp src/app/open/launchUriGrammar.cpp src/app/open/launchUriJson.cpp ${STENCIL_SERVERCLIENT_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Network)
 
 # The live push feed (net/liveFeed) against a mock QTcpServer speaking the NDJSON events.

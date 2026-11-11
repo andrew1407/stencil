@@ -2,6 +2,7 @@ import { notify } from '../../../utils.js';
 import { wireExportOptionsMenu } from '../../export/optionsMenu.js';
 import { wireBlankColorButton } from './blankColorButton.js';
 import { wireProjectColorButton } from './projectColorButton.js';
+import { wireProjectNameCopy } from './projectNameCopy.js';
 import { wireProjectNameField } from './projectNameField.js';
 import { setupHoldZoom } from '../viewport/holdZoom.js';
 import { wireToolbarDrags } from './toolbarDrags.js';
@@ -11,6 +12,7 @@ import { canToggleIncognito } from '../../../core/launch/incognitoFlow.js';
 export function wireToolbarButtons(app) {
   wireProjectNameField(app);
   wireProjectColorButton(app);
+  wireProjectNameCopy(app, document);
   wireBlankColorButton(app);
   // One button, both directions — the same branch the context menu's draw toggle uses.
   document.getElementById('draw-toggle').addEventListener('click', () => {

@@ -6,8 +6,10 @@
 #include <QString>
 #include <QWidget>
 
+#include "modalDismiss.hpp"
 #include "motionPrefs.hpp"   // motionReduced() / isDustAllowed() / isDustMotionOk()
 
+class QCoreApplication;
 class QDialog;
 class QWidget;
 
@@ -95,19 +97,9 @@ namespace stencil::support {
   // Every parented dialog window lands with its frame on its host's client centre. Idempotent.
   void installDialogCentring();
 
-  // Click-outside dismissal (browser ui/base.js). Qt hands a modal's blocked windows
-  // nothing, so this watches the press before QApplication drops it. Idempotent.
-  void installModalDismiss();
+  // The watcher gestureAnchorRect reads — whether a key, a press or an action icon came last.
+  void installGestureClock(QCoreApplication* app);
 
-  // On macOS a blocked window gets no QEvent at all, so modalDismissMac.mm reads the native press.
-  void installModalDismissNative();
-
-  // Written to the file named by STENCIL_MODAL_LOG; stderr is unreadable under LaunchServices.
-  // The variable is read once; a caller asks modalDismissLogOn() before it formats a line.
-  bool modalDismissLogOn();
-  void modalDismissLog(const QString& line);
-
-  inline constexpr const char* NO_OUTSIDE_DISMISS_PROPERTY = "stencilNoOutsideDismiss";
   // A dialog that plays video blocks only its own window: under macOS's application-modal
   // session Qt's video output delivers no frame.
   inline constexpr const char* PLAYS_VIDEO_PROPERTY = "stencilPlaysVideo";

@@ -179,7 +179,11 @@ namespace stencil::gui {
       spec.confirmIcon = QStringLiteral("trash");
       spec.danger = true;
       if (!confirmModal(this, spec)) return;
-      scatterRows();
+      // Only the local rows leave; a server row stays put (user report: it scattered, then re-arrived).
+      QSet<QString> local;
+      for (int i = 0; i < list->count(); ++i)
+        if (const QString key = rowKeyAt(i); key.startsWith(QLatin1Char('|'))) local.insert(key);
+      if (!local.isEmpty()) scatterRows(local);
       emit clearAllRequested();
     });
 

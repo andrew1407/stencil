@@ -9,6 +9,17 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
+  // Before any press or key (a launch link's connect question) there is no anchor: it falls from above and rises
+  // back there, not into wherever the cursor rests (user report). First, so no case before it has pressed.
+  void nothingPressedYetFallsFromAbove() {
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(1200, 800);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY2(!stencil::support::gestureAnchorRect().isValid(),
+             "with nothing pressed yet the flight must fall from above, not from the resting cursor");
+  }
+
   void aShortcutsDialogGrowsFromItsIcon() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1200, 800);

@@ -16,6 +16,7 @@ namespace stencil::gui {
     QToolButton* accept = nullptr;
     QToolButton* cancel = nullptr;
     QToolButton* colorBtn = nullptr;
+    QToolButton* copyBtn = nullptr;   // copies the name; a right-click lists its stencil:// links
     QToolButton* blankColorBtn = nullptr;   // recolour a blank project's background (blanks only)
     // QToolBar::addWidget wraps each button in a QWidgetAction; show/hide must toggle these
     // actions, or the toolbar ignores it.

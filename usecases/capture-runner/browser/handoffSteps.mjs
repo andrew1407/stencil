@@ -50,7 +50,7 @@ export function makeHandoffSteps({ config, runner, pages }) {
       const page = await withLines(ctx, theme);
       await openModal(page, 'projects', 'projects-modal-overlay');
       await page.locator('.project-row[data-id] .project-more').first().click();
-      await page.locator('.project-menu-item.has-sub').hover();
+      await page.locator('.project-menu-item.has-sub', { hasText: 'Copy project' }).hover();
       await page.locator('.project-submenu').waitFor();
       await waitForAnimations(page, '.project-submenu');
       await runner.shot(page, 'projects-row-copy');
