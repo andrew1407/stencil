@@ -177,19 +177,25 @@ const attempt = async (problems, label, run) => {
   try { await run(); } catch (err) { problems.push(`${label} — ${err?.message || err}`); }
 };
 
-// app.launchQuery (its link stays in the URL, minus `token` / `llm-api-key`) or a `query` typed at the
+// app.launchQuery (its link left in the URL minus `token` / `llm-api-key`) or a `query` typed at the
 // console (no URL touched), applied in order: look, assistant, servers, picture, layout, project, chat.
 export const applyLaunchQuery = async ({ app, stencil, query = null }) => {
   let q = query ?? app.launchQuery;
   if (!q) return;
   if (!query) {
     app.launchQuery = null;
+    app.launchApplying = true;
     const kept = withoutLaunchSecrets(location.search, location.hash);
     if (kept) history.replaceState(null, '', location.pathname + kept.search + kept.hash);
   }
+  try { await applyQuery({ app, stencil }, q, !query); } finally {
+    if (!query) { app.launchApplying = false; app.updateProjectTitle?.(); }
+  }
+};
 
+const applyQuery = async ({ app, stencil }, q, fromUrl) => {
   const problems = q.warnings.map((w) => WARNING_TEXT[w.code](w.key));
-  if (!query && framed()) q = framedOnly(q, problems);
+  if (fromUrl && framed()) q = framedOnly(q, problems);
   if (q.theme) await attempt(problems, 'theme', () => app.accents.setThemeMode(q.theme));
   applySettings(stencil, q.settings, problems);
   if (Object.keys(q.llm).length) await attempt(problems, 'assistant', () => applyAssistant({ app, stencil }, q.llm));

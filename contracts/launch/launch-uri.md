@@ -79,9 +79,13 @@ A **flag** is on for an empty value (`?incognito`), `1`, `true`, `yes` or `on`.
 - **Inside a frame only the picture and the look apply** (the browser): a host page could dress the
   confirms up as its own, so `connect`, `token`, `llm-*`, a server picture and the project fields
   are left out with one notice.
-- **A link stays in the address bar.** The browser applies it once per page load and leaves the
-  pairs in its URL, so a reload or a bookmark reopens the same link; only the credentials (`token`,
-  `llm-api-key`) are removed from it at once, so none stays in history.
+- **The address bar names the open project.** The browser applies a link once per page load. Once
+  a project is open, the pairs it used up — the picture, its layout and project fields, a script,
+  `open` and `incognito` — leave the URL, and `project=<name>` takes their place (a server-only
+  project: `project=<server>/projects/<id>`), rewritten on a rename or an open and dropped on a
+  close, so a reload or a bookmark reopens that project. The look, settings, assistant, chat and
+  connection pairs stay. Incognito, a framed editor and a link not yet applied leave the URL as it
+  is. The credentials (`token`, `llm-api-key`) are removed at once, so none stays in history.
 
 ## 3. Editor settings
 

@@ -1,18 +1,23 @@
 // The launch query (contracts/launch/launch-uri.md) on the real app: the page URL's `?key=value`
 // pairs open a blank or a served picture, set the look and the editor settings, keep a URL source
-// as the project's source, and stay in the address bar minus the credentials; an incognito launch
-// saves nothing, and a credential is taken from the fragment, never from the query.
+// as the project's source, and give way in the address bar to `project=<name>` with the look pairs
+// kept; an incognito launch saves nothing and keeps its URL, and a credential is taken from the
+// fragment, never from the query.
 import { test, expect } from '@playwright/test';
 import { gotoApp, SITE_URL } from '../../helpers/boot.js';
 
 // Ready once the launch has landed a picture and no credential is left in the address bar.
+// The address bar names a saved launch's project once it opens.
+const named = (page, name) => page.waitForFunction(
+  (n) => new URLSearchParams(location.search).get('project') === n, name, { timeout: 15_000 });
 const launched = (page) => page.waitForFunction(
   () => !!(window.stencil && window.stencil.imageSize) && !/token=|llm-api-key=/.test(location.href),
   null, { timeout: 15_000 });
 
-test('a blank launch sets colour, size, name, theme, accent and a setting, and keeps the link', async ({ page }) => {
+test('a blank launch sets colour, size, name, theme, accent and a setting, and the URL names its project', async ({ page }) => {
   await gotoApp(page, { search: '?blank=%23336699&width=400&height=300&name=Sketch&theme=dark&main-color=yellow&thickness=7' });
   await launched(page);
+  await named(page, 'Sketch');
   const state = await page.evaluate(() => ({
     size: window.stencil.imageSize,
     name: window.stencil.current && window.stencil.current.name,
@@ -23,7 +28,7 @@ test('a blank launch sets colour, size, name, theme, accent and a setting, and k
     incognito: window.stencil.incognito,
     search: location.search,
   }));
-  expect(state.search).toContain('blank=%23336699');
+  expect(state.search).toBe('?theme=dark&main-color=yellow&thickness=7&project=Sketch');
   expect(state.size.width).toBeGreaterThan(0);
   expect(state.name).toBe('Sketch');
   expect(state.blankColor).toBe('#336699');
@@ -37,7 +42,9 @@ test('a source launch fetches the served picture and keeps its URL as the projec
   const src = `${SITE_URL}common/samples/sample.png`;
   await gotoApp(page, { search: `?source=${encodeURIComponent(src)}&name=Sample` });
   await launched(page);
+  await named(page, 'Sample');
   const state = await page.evaluate(() => ({
+    search: location.search,
     size: window.stencil.imageSize,
     source: window.stencil.current && window.stencil.current.source,
     name: window.stencil.current && window.stencil.current.name,
@@ -45,6 +52,7 @@ test('a source launch fetches the served picture and keeps its URL as the projec
   }));
   expect(state.size.width).toBeGreaterThan(0);
   expect(state.source).toBe(src);
+  expect(state.search).toBe('?project=Sample');
   expect(state.name).toBe('Sample');
   expect(state.saved).toBe(1);
 });
@@ -68,6 +76,8 @@ test('an incognito launch saves no project, and a credential rides the fragment 
   }));
   expect(state.href).toContain('llm-provider=anthropic');
   expect(state.href).not.toContain('llm-api-key');
+  expect(state.href).toContain('?blank=red&incognito');
+  expect(state.href).not.toContain('project=');
   expect(state.incognito).toBe(true);
   expect(state.saved).toBe(0);
   expect(state.provider).toBe('anthropic');

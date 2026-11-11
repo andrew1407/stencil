@@ -281,6 +281,13 @@ classDiagram
   turns each problem into one notice. A credential
   (`token`, `llm-api-key`) is honoured from the fragment only. The console's `/open <link>` applies
   the same query without touching the URL.
+- **The address bar names the open project.** Every title refresh (`updateProjectTitle`) runs
+  `syncProjectUrl` (`ui/projects/window/projectUrl.js`), which writes `withOpenProject`'s parts
+  (`core/launch/query.js`) with `history.replaceState`: the launch pairs a project used up leave
+  the query and a pairs fragment, and `project=` names the open one — a saved project by name, a
+  server-only one by `<server>/projects/<id>` — or is gone once none is open. It writes nothing in
+  incognito, in a frame, before the constructor reads the URL (`launchQuery` undefined), while a
+  read query waits to be applied, or while a `#stencil…` hand-off waits to be read.
 - **A logo show.** Every trigger reaches `activateShow` (`ui/logo/stageTrigger.js`), which runs
   the stage (`ui/logo/stage.js`) resolved from `config/logoStage.json`; a skin show toggles its
   session skin, one at a time, turning the other off first. A skin is a `SkinSpec` of painters

@@ -2,6 +2,7 @@
 import { icon } from '../../icons.js';
 import { revealControls } from '../../motion/control/revealControls.js';
 import { activeIsBlank } from '../../../core/image/blankImage.js';
+import { syncProjectUrl } from './projectUrl.js';
 
 // The project-colour picker's colour on trial: painted only while the project and its stored
 // colour are the ones it was tried on, so a commit or any other write ends it.
@@ -26,6 +27,7 @@ export const updateProjectTitle = (app, force = false) => {
     name = app.imageBaseName || 'Untitled';
   }
   document.title = name ? `${name} — Stencil` : 'Stencil';
+  syncProjectUrl(app);
   const input = document.getElementById('project-name-input');
   const editBtn = document.getElementById('project-name-edit');
   if (input && (force || document.activeElement !== input)) {

@@ -148,8 +148,10 @@ plain HTTP/1.1 every module waits its turn on six connections.
   `connect=<server>` connects first (a server no saved connection knows asks before connecting),
   `llm-provider=ollama&llm-model=llava` sets the assistant, `chat=open&chat-dock=left` the chat
   panel. A credential (`token`, `llm-api-key`) is honoured only after `#`; in the query it is
-  dropped with a notice. The link stays in the address bar, so a reload reopens it; only a
-  credential is removed from it. The same
+  dropped with a notice. Once a project is open the address bar names it, `?project=<name>`: a
+  paste, an open or a rename rewrites it and a close drops it, so a reload reopens the project. The
+  look and settings pairs stay, a credential is removed at once, and incognito leaves the URL as
+  it is. The same
   link pastes into the console as `/open <link>`, and the desktop app and the CLI read it too
   (`contracts/launch/launch-uri.md`).
 

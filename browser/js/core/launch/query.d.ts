@@ -55,5 +55,7 @@ export declare const parseLaunchQuery: (search?: string, hash?: string) => Launc
 export declare const isActionableLaunch: (q: LaunchQuery | null) => boolean;
 /** The URL parts minus their `token` / `llm-api-key` pairs; null when they carry none. */
 export declare const withoutLaunchSecrets: (search?: string, hash?: string) => { search: string; hash: string } | null;
+/** The URL parts naming the open project (`ref`, null = none): the picture, layout, project, script, `open` and incognito pairs leave both carriers, `project=<ref>` joins the query; null when nothing changes. */
+export declare const withOpenProject: (search?: string, hash?: string, ref?: string | null) => { search: string; hash: string } | null;
 /** A whole `http(s)://…?query#fragment` or `stencil://open?…` typed somewhere; null unless actionable. */
 export declare const parseLaunchUrl: (url: string) => LaunchQuery | null;

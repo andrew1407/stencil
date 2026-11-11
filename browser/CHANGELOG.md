@@ -30,6 +30,8 @@ Shipped in Stencil 1.0.0, the first release. The editor as a vanilla ES-module w
   that turns the whole page into the terminal.
 - A dockable or floating assistant chat with image and video attachments and variant cards,
   and opt-in saving of chats with projects.
+- The address bar names the open project (`?project=<name>`): a paste, an open or a rename
+  rewrites it and a close drops it, so a reload reopens the project; incognito leaves it alone.
 - Copy and share menus, project and launch links, and "Open in…" the desktop app or the
   Telegram bot.
 - The chainable `window.stencil` console API, typed in `js/console/stencilApi.d.ts`.

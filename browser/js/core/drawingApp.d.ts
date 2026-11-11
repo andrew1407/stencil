@@ -130,6 +130,8 @@ export declare class DrawingApp {
   pendingLaunchScript: string;
   /** The URL's launch query until console/launchQuery.js consumes it. */
   launchQuery: LaunchQuery | null;
+  /** True while console/launchQuery.js applies the URL's query; the address bar waits for it. */
+  launchApplying?: boolean;
   hasExternalLaunch: boolean;
   openInConfig: { desktopScheme: string; telegramBotUsername: string };
 

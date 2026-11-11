@@ -166,8 +166,8 @@ export const parseLaunchQuery = (search = '', hash = '') => {
   return q;
 };
 
-// The URL parts minus their credentials, null when there are none: the link stays in the
-// address bar (a reload reopens it), a `token` or `llm-api-key` never stays in history.
+// The URL parts minus their credentials, null when there are none: the rest of the link stays in
+// the address bar until the project it opens names it, a `token` or `llm-api-key` never stays in history.
 export const withoutLaunchSecrets = (search = '', hash = '') => {
   const strip = (raw) => {
     const pairs = [...new URLSearchParams(raw)];
@@ -178,6 +178,24 @@ export const withoutLaunchSecrets = (search = '', hash = '') => {
   const h = isLaunchQueryHash(hash) ? strip(String(hash).slice(1)) : null;
   if (s == null && h == null) return null;
   return { search: s == null ? search : (s ? `?${s}` : ''), hash: h == null ? hash : (h ? `#${h}` : '') };
+};
+
+// What an open project has used up: its picture, layout and fields, a script, `open` and the
+// incognito flag. The look, settings, assistant, chat and connection keys stay.
+const PROJECT_SPENT = new Set(['server', 'id', 'version', 'project', 'source', 'frame', 'blank', 'width',
+  'height', 'layout', 'layout-raw', 'incognito', 'script', 'script-mode', 'name', 'description', 'keywords',
+  'project-color', 'expire', 'open']);
+
+// The URL parts naming the open project by `ref` (null = none open), or null when they already do:
+// the spent pairs leave the query and a pairs fragment, and `project=<ref>` joins the query.
+export const withOpenProject = (search = '', hash = '', ref = null) => {
+  const kept = (raw) => [...new URLSearchParams(raw)].filter(([k]) => !PROJECT_SPENT.has(CANONICAL.get(kebab(k))));
+  const query = new URLSearchParams(kept(String(search ?? '').replace(/^\?/, '')));
+  if (ref) query.set('project', String(ref));
+  const s = query.toString();
+  const h = isLaunchQueryHash(hash) ? new URLSearchParams(kept(String(hash).slice(1))).toString() : null;
+  const next = { search: s ? `?${s}` : '', hash: h == null ? String(hash ?? '') : (h ? `#${h}` : '') };
+  return next.search === String(search ?? '') && next.hash === String(hash ?? '') ? null : next;
 };
 
 // What a surface can act on: a picture URL carrying grammar-looking parameters is not a link.
