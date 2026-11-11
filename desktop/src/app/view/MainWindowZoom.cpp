@@ -7,7 +7,9 @@
 #include <QComboBox>
 #include <QLabel>
 #include <QScrollArea>
+#include <QTimer>
 #include <algorithm>
+#include <cmath>
 
 // Zoom, fit and the cursor-anchored zoom; the page size and units the pointer readout converts
 // with, and the readout's idle line.
@@ -32,6 +34,14 @@ namespace stencil::gui {
   void MainWindow::fitToWindow() {
     if (!canvas->hasImage()) return;
     setZoom(parts.view.fitScale());
+    // A first picture reflows the toolbar after its load fits it (browser zoom/pan.js fitToWindow):
+    // the room is read again once that lands, and the fit follows it while nothing else moved the zoom.
+    const double applied = canvas->getScale();
+    QTimer::singleShot(0, this, [this, applied] {
+      if (!canvas->hasImage() || canvas->getScale() != applied) return;
+      const double fit = core::clampScale(parts.view.fitScale());
+      if (std::abs(fit - applied) > 1e-6) setZoom(fit);
+    });
   }
 
   // Keeps the image pixel under the cursor fixed; mirrors zoom/pan.js zoomToward via

@@ -129,6 +129,7 @@ namespace stencil::gui {
       }
       w.projectHost.activeProjectId.clear();  // pasted image is a fresh editor (a new project)
       w.canvas->loadFromImage(img);
+      w.fitToWindow();   // a small picture magnified to the frame, as the browser's settle fits it
       w.playImageArrival();
       w.projectHost.docSource.setBytes({}, {});  // clipboard pixels have no encoded source → re-encode on bundle
       w.projectHost.docSource.currentSource.clear();

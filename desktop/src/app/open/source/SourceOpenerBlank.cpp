@@ -36,6 +36,7 @@ namespace stencil::gui {
     freshEditorIn(incognito);
     loadLocalImageReset(path, [this](bool ok) {
       if (!ok) return;
+      w.fitToWindow();   // before the arrival measures it, as a blank's is
       w.playImageArrival();
       w.projectHost.adoptCanvasAsLocalProject();
     });

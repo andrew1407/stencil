@@ -130,6 +130,41 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(readsLive, "the read-only half opens the chooser too, so it must read as live");
   }
 
+  // A picture smaller than the viewport is magnified to fit it, as the browser's fitScale is, however
+  // it arrives (user report: a pasted 42×60 picture sat at 100% in a corner of the canvas).
+  void aSmallPictureIsFittedUpWhicheverWayItArrives() {
+    QImage small(42, 60, QImage::Format_RGB32);
+    small.fill(QColor("#7a5230"));
+    const QString path = QDir::temp().filePath(QStringLiteral("stencil_e2e_small.png"));
+    QVERIFY(small.save(path, "PNG"));
+    const auto fitted = [](MainWindow& win, const QString& how) {
+      // A file opens cropped to the page aspect, so the picture's own size is the canvas's.
+      const QSize vp = win.scroll->viewport()->size();
+      const double s = win.canvas->getScale();
+      const int iw = win.canvas->imageWidth(), ih = win.canvas->imageHeight();
+      QVERIFY2(s > 2.0, qPrintable(QString("%1: the picture stayed at %2x").arg(how).arg(s)));
+      QVERIFY2(s * iw <= vp.width() + 1 && s * ih <= vp.height() + 1,
+               qPrintable(QString("%1: %2x of %3x%4 overflows the %5x%6 viewport")
+                              .arg(how).arg(s).arg(iw).arg(ih).arg(vp.width()).arg(vp.height())));
+    };
+    for (const bool pasted : {true, false}) {
+      MainWindow win(nullptr, false);
+      win.resize(1200, 820);
+      win.show();
+      QVERIFY(QTest::qWaitForWindowExposed(&win));
+      settleLayout(&win, 150);
+      if (pasted) {
+        QGuiApplication::clipboard()->setImage(small);
+        win.parts.sourceOpener.pasteImage();
+      } else {
+        win.parts.sourceOpener.openImageHere(path, false);
+      }
+      QTRY_VERIFY_WITH_TIMEOUT(win.canvas->hasImage() && win.canvas->getScale() > 1.0, 5000);
+      fitted(win, pasted ? QStringLiteral("pasted") : QStringLiteral("dropped file"));
+    }
+    QFile::remove(path);
+  }
+
 };
 
 QTEST_MAIN(MainWindowGuiTest)
