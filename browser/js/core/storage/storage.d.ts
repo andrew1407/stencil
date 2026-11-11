@@ -34,7 +34,8 @@ export declare class Storage {
   restore(): void;
   loadProject(id: string): boolean;
   loadPayloadIntoApp(payload: ProjectPayload | null | undefined, opts?: { landing?: boolean }): void;
-  newTemporary(opts?: { keepChat?: boolean }): void;
+  /** `incognito` keeps the emptied editor incognito. */
+  newTemporary(opts?: { keepChat?: boolean; incognito?: boolean }): void;
   /** A temp editor got its first image: allocate an id; the caller then save()s. */
   promoteTemporaryToProject(): string;
 }

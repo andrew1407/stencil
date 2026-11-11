@@ -44,9 +44,9 @@ export function wireToolbarButtons(app) {
   const emptiedAnchor = (yes) => (yes ? emptiedControlRect('clear-storage') : null);
   document.getElementById('clear-storage').addEventListener('click', async () => {
     if (app.storage.temporary || app.activeProjectId == null) {
-      // Temporary editor → just clear the editor back to blank.
+      // Temporary editor → just clear the editor back to blank; an incognito one stays incognito.
       if (await app.confirm('Clear this editor (image + lines)?', { title: 'Clear editor', danger: true, confirmIcon: 'trash', closeAnchor: emptiedAnchor })) {
-        app.storage.newTemporary();
+        app.storage.newTemporary({ incognito: app.storage.incognito });
         app.tabs.reportActive(null);
         // The clear worked, so it reads as a success — a red ✕ said the opposite.
         // Wording matches the desktop's two branches (MainWindow.cpp clearProject).

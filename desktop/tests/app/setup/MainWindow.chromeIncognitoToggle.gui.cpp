@@ -105,6 +105,42 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
+  // Clearing the picture out of an incognito editor keeps it incognito, as the browser's trash does:
+  // the next picture is still unsaved, and the toggle and the tag say so.
+  void clearingAnIncognitoEditorKeepsIncognito() {
+    MainWindow win(nullptr, false);
+    win.resize(1200, 820);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.acts.incognito->setChecked(true);
+    QVERIFY(win.projectHost.incognito);
+    QImage pic(120, 80, QImage::Format_RGB32);
+    pic.fill(QColor("#2a6f97"));
+    win.canvas->loadFromImage(pic);
+    QTRY_VERIFY(win.canvas->hasImage());
+    win.refreshActions();
+    QVERIFY(win.acts.clearProject->isEnabled());
+
+    bool asked = false;
+    QTimer::singleShot(0, &win, [&] {
+      for (int i = 0; i < 400; ++i) {
+        if (auto* dlg = qobject_cast<QDialog*>(QApplication::activeModalWidget())) {
+          asked = true;
+          dlg->accept();
+          return;
+        }
+        QTest::qWait(5);
+      }
+    });
+    win.projectHost.flows.clearCurrentProject();
+    QVERIFY2(asked, "the clear never asked — the case proves nothing");
+    QTRY_VERIFY(!win.canvas->hasImage());
+    QVERIFY2(win.projectHost.incognito, "clearing the picture left incognito");
+    QVERIFY(win.acts.incognito->isChecked());
+    QTRY_VERIFY_WITH_TIMEOUT(win.tools.incognitoTag->isVisible(), 1000);
+    beat();
+  }
+
   // …and the size text itself may not move a pixel, at rest OR mid-flight: the badge rode the
   // same label as rich text once, and the plain-to-rich swap lifted the line (user report).
   void incognitoBadgeNeverMovesTheSizeText() {

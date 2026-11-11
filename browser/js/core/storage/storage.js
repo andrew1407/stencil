@@ -187,15 +187,15 @@ export class Storage {
     }
   }
 
-  // `keepChat` is for the assistant resetting the editor MID-TURN: swapping the chat scope
-  // would wipe the exchange that asked for the reset.
-  newTemporary({ keepChat = false } = {}) {
+  // `keepChat`: the assistant resetting MID-TURN keeps the exchange that asked for it.
+  // `incognito`: an emptied incognito editor stays incognito.
+  newTemporary({ keepChat = false, incognito = false } = {}) {
     this.app.remoteSync?.flushResult?.();
     this.app.remoteSync?.detach?.();
     this.saveSoon.flush(); this.thumbs.flush();
     this.activeId = null;
     this.temporary = true;
-    this.incognito = false;
+    this.incognito = !!incognito;
     this.app.activeProjectId = null;
     // Chat persistence (§12): no project to file a chat under → a fresh scope.
     if (!keepChat) this.app.chatPersistence?.projectOpened(null);

@@ -66,6 +66,17 @@ test('newTemporary({ keepChat }) is what protects the live conversation', (t) =>
   assert.deepEqual(chatScopes, [null], 'keepChat leaves the live conversation where it is');
 });
 
+test('clearing an incognito editor keeps it incognito; a plain reset ends it', (t) => {
+  const { storage } = mountStorage(t, { image: false });
+  storage.incognito = true;
+  storage.newTemporary({ incognito: storage.incognito });
+  assert.deepEqual([storage.incognito, storage.temporary, storage.activeId], [true, true, null]);
+  storage.newTemporary();
+  assert.equal(storage.incognito, false, 'a new editor is no longer incognito');
+  assert.match(src('../../../js/ui/bindings/controls/toolbarButtons.js'),
+    /newTemporary\(\{ incognito: app\.storage\.incognito \}\)/, 'the trash button clears without leaving incognito');
+});
+
 test('adoptIncognitoHere over a real Storage keeps the conversation and ends incognito', (t) => {
   const { app, chatScopes } = mountStorage(t, { image: false });
   adoptIncognitoHere(app);
