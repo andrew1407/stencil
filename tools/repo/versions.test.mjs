@@ -6,7 +6,7 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } f
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { APPS, CHANGELOG, files, run } from './versions.mjs';
+import { APPS, CHANGELOG, files, run, versionOf } from './versions.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -87,4 +87,15 @@ test('a missing badge or manifest version is reported, never guessed', () => inS
     'bot/README.md: no bot badge',
     'server/cmd/stencil-server/main.go: no server version',
   ]);
+}));
+
+test('--get reads one version where it is declared, and names no version it cannot find', () => inScratch((dir) => {
+  edit(dir, 'server/cmd/stencil-server/main.go', 'const version = "1.0.0"', 'const version = "2.4.6"');
+  edit(dir, CHANGELOG, '## [1.0.0]', '## [1.1.0]\n\n## [1.0.0]');
+  assert.equal(versionOf('server', dir), '2.4.6');
+  assert.equal(versionOf('stencil', dir), '1.1.0');
+  assert.equal(versionOf('cli', dir), '1.0.0');
+  assert.equal(versionOf('desktop-app', dir), null);
+  edit(dir, 'bot/src/Stencil.TelegramBot.Bot/Stencil.TelegramBot.Bot.csproj', '<Version>', '<FileVersion>');
+  assert.equal(versionOf('bot', dir), null);
 }));

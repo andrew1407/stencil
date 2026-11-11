@@ -113,9 +113,9 @@ configure time; the CLI shells out to a system `ffmpeg` for video input only).
 | VS Code extension | [vscode-extension/README.md](vscode-extension/README.md) | package the `.vsix`, install & test |
 | E2E harness | [e2e/README.md](e2e/README.md) | run the cross-surface smoke suite |
 
-**Docker.** Five subprojects ship a multi-stage `Dockerfile`. The first four compile
-`core/`, so **build them from the repo root** with `-f`; the server image builds from its
-own `./server` context:
+**Docker.** Five subprojects ship a multi-stage `Dockerfile`, each its own image. **Build
+them from the repo root** with `-f`: the first four compile `core/`, and all five embed
+`common/`:
 
 ```bash
 docker build -f browser/Dockerfile -t stencil-browser . && docker run --rm -p 8080:80 stencil-browser

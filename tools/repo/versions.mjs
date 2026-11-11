@@ -2,6 +2,7 @@
 // CHANGELOG.md. Lockfiles and README badges follow them; changelog entries are checked, never written.
 //   node tools/repo/versions.mjs --check   (report drift, exit 1)
 //   node tools/repo/versions.mjs --write   (rewrite the lockfiles and badges that drifted)
+//   node tools/repo/versions.mjs --get <app|stencil>   (print one version, for a release job)
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -98,10 +99,25 @@ export const run = ({ root = ROOT, write = false } = {}) => {
   return { problems, written: [...written] };
 };
 
+// The version `name` declares: an app folder from APPS, or 'stencil'; null when it has none.
+export const versionOf = (name, root = ROOT) => {
+  const source = name === 'stencil' ? groups()[0].source : APPS[name] && groups()[Object.keys(APPS).indexOf(name) + 1].source;
+  if (!source) return null;
+  let text;
+  try { text = readFileSync(path.join(root, source.file), 'utf8'); } catch { return null; }
+  return new RegExp(source.re, 'm').exec(text)?.[1] ?? null;
+};
+
 const main = () => {
   const args = process.argv.slice(2);
+  if (args[0] === '--get' && args.length === 2) {
+    const v = versionOf(args[1]);
+    if (!v) { console.error(`versions: no version for ${args[1]}`); return 1; }
+    console.log(v);
+    return 0;
+  }
   if (args.length !== 1 || !['--check', '--write'].includes(args[0])) {
-    console.error('usage: node tools/repo/versions.mjs --check | --write');
+    console.error('usage: node tools/repo/versions.mjs --check | --write | --get <app|stencil>');
     return 2;
   }
   const { problems, written } = run({ write: args[0] === '--write' });

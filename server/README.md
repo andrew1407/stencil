@@ -27,6 +27,17 @@ against that database. Redis is optional (`REDIS_URL`) — without it the server
 and is single-instance. Run `go mod vendor` once after cloning (or changing `go.mod`); builds
 use the gitignored `server/vendor/` copy.
 
+### Docker
+
+The multi-stage [`Dockerfile`](Dockerfile) builds a static binary into a distroless image that
+listens on `8090` (REST/WS) and `8091` (TCP) and keeps its file store in the `/data` volume.
+Build **from the repo root** (it embeds `common/config/`); the repo-root
+[`docker-compose.yml`](../docker-compose.yml) runs it beside Postgres and Redis:
+
+```bash
+docker build -f server/Dockerfile -t stencil-server .
+```
+
 ### Configuration
 
 All keys are documented in [`.env.example`](.env.example):

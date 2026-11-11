@@ -212,6 +212,7 @@ The CLI's `core_sources` / `core_include_dirs` and pystencil's `STENCIL_CORE_SOU
 ```sh
 node tools/repo/versions.mjs --check   # report only; exits 1 on drift
 node tools/repo/versions.mjs --write   # rewrite the lockfiles and badges that drifted
+node tools/repo/versions.mjs --get cli # print one app's version ('stencil' for the release's)
 ```
 
 An app's version is the one its own manifest declares (`package.json`, `Cargo.toml`,
@@ -222,7 +223,7 @@ and the badge under each app README's title, and `--write` rewrites those. A cha
 by hand: the newest heading of an app's own `CHANGELOG.md` and its row in the root one are
 reported when they lag, never rewritten. It prints a line per site out of step (`… is 1.0.0,
 cli/build.zig.zon says 1.1.0`, or `no … badge` for a site that is gone), then
-`versions: N out of step`.
+`versions: N out of step`. `--get` is what the Docker Hub release job tags each image with.
 
 ## `repo/cssInventory.mjs` — the stylesheet pins' scanner
 
