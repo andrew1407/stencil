@@ -1,6 +1,6 @@
 // The webcore word over the real wire: typed into the bare page it stamps the skin, keeps the
-// theme, stills the motion for the session without touching the store, gives an empty editor its
-// picture, its word and its name; typed again it lifts; a reload wears the user's own look.
+// theme, stores its still motion as the user's own, gives an empty editor its picture, its word and
+// its name; typed again it lifts and gives the stored motion back; a reload wears the user's own look.
 import { test, expect } from '@playwright/test';
 import { gotoApp } from '../../helpers/boot.js';
 
@@ -32,7 +32,7 @@ test('the word dresses the page, fills the empty editor, and lifts again', async
     lineArt: document.querySelectorAll('svg.ic[viewBox="0 0 24 24"]').length,
   }));
   expect(state.theme).toBe('dark');
-  expect(state.motion).toBe('water');
+  expect(state.motion).toBe('none');
   expect(state.name).toBe('webcore');
   // Loaded like any picture, so the page aspect crops it: the width is the picture's own.
   expect(state.size.width).toBe(1024);
@@ -45,6 +45,7 @@ test('the word dresses the page, fills the empty editor, and lifts again', async
   await expect(root(page)).not.toHaveAttribute('data-skin', /./);
   await expect(root(page)).toHaveAttribute('data-theme', 'dark');
   await expect(root(page)).toHaveAttribute('data-motion', 'water');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('drawingApp_motion')).mode)).toBe('water');
   expect(await page.evaluate(() => document.querySelectorAll('svg.ic[viewBox="0 0 16 16"]').length)).toBe(0);
   expect(await page.evaluate(() => window.stencil.lines.length)).toBe(7);
 
