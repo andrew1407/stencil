@@ -167,9 +167,9 @@ namespace stencil::guitest {
   // from ending the shared QApplication with it.
   inline void prepareGuiTestCase() {
     qApp->setQuitOnLastWindowClosed(false);
-    // Write the defaults out before any case runs: a state dir that has never been written leaves every
-    // unset key at whatever the loader defaults to THIS run, so two runs of the binary differ.
+    // Defaults written and no skin left on before any case runs, or two runs of the binary differ.
     stencil::gui::fileStore::saveSettings(stencil::gui::fileStore::loadSettings());
+    stencil::gui::fileStore::saveSkin({});
     QImage img(240, 160, QImage::Format_RGB32);
     img.fill(Qt::white);
     // Beside this test's own state: ctest runs the areas side by side, and a picture another area

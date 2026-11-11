@@ -1,6 +1,6 @@
-// The aqua skin's session Blue (src/lib/aqua/skin.js, browser js/ui/aqua/toggle.js wearBlue /
-// giveBack): the page wears the preset while the skin is on, never through the store, and gets
-// its own accent back after unless the user picked one meanwhile.
+// The aqua skin's accent (src/lib/aqua/skin.js): the skin paints its gel in the accent on screen and
+// never changes it; Blue is a stored setting its word writes (lib/prefs/shellPrefs.js, browser adopt.js),
+// so a page re-dressed from the stored skin wears whatever the user has.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { gelTokens } from '../../../src/lib/aqua/rules.js';
@@ -16,36 +16,19 @@ const picked = (p, key) => {
   p.fire();
 };
 
-test('session Blue: a preset page wears Blue under the skin and gets its own back after', () => {
+test('the skin never changes the accent: a page re-dressed from the stored skin wears the user\'s', () => {
   const p = fakePage('aqua', { accent: 'red' });
   try {
     installSkins(p.doc, p.win);
     assert.equal(AQUA_ACCENT, 'blue');
-    assert.equal(p.root.getAttribute('data-accent'), 'blue');
-    assert.equal(p.root.getAttribute('data-accent-light'), null, 'Blue takes the light ink');
-    assert.deepEqual(p.root.style.props, gelTokens(HEX.blue), 'the gel is Blue\'s');
-    assert.match(p.logo.innerHTML, new RegExp(gelTokens(HEX.blue)['--aq-gel-top']));
-    assert.match(decodeURIComponent(p.link.href), new RegExp(gelTokens(HEX.blue)['--aq-gel-edge']));
-    skinOff(p);
-    assert.equal(p.root.getAttribute('data-accent'), 'red', 'the page\'s own preset is back');
-    assert.equal(p.link.href, `data:image/svg+xml,${encodeURIComponent('<svg plain="#dc2626"/>')}`);
-  } finally { p.restore(); }
-});
-
-test('session Blue: a page-only custom accent is set aside and put back', () => {
-  const p = fakePage('aqua', { accent: 'red', custom: '#ff8800' });
-  try {
-    installSkins(p.doc, p.win);
-    assert.equal(p.root.style.getPropertyValue('--accent'), '', 'Blue paints over no custom hex');
-    assert.equal(p.root.getAttribute('data-accent'), 'blue');
-    skinOff(p);
-    assert.equal(p.root.style.getPropertyValue('--accent'), '#ff8800');
     assert.equal(p.root.getAttribute('data-accent'), 'red');
-    assert.equal(p.root.getAttribute('data-accent-light'), '', 'the orange keeps its dark ink');
+    assert.deepEqual(p.root.style.props, gelTokens(HEX.red), 'the gel wears the accent on screen');
+    skinOff(p);
+    assert.equal(p.root.getAttribute('data-accent'), 'red');
   } finally { p.restore(); }
 });
 
-test('session Blue: the user\'s own pick while the skin is on stands when it goes', () => {
+test('a pick while the skin is on repaints the gel and stands when it goes', () => {
   const p = fakePage('aqua', { accent: 'red' });
   try {
     installSkins(p.doc, p.win);
@@ -56,27 +39,7 @@ test('session Blue: the user\'s own pick while the skin is on stands when it goe
   } finally { p.restore(); }
 });
 
-test('session Blue: a pick in another page (the storage event) stands too; a preview does not', () => {
-  const p = fakePage('aqua', { accent: 'red' });
-  try {
-    installSkins(p.doc, p.win);
-    p.root.setAttribute('data-accent', 'green');   // a hover preview: no announce, no store
-    p.fire();
-    p.root.setAttribute('data-accent', 'blue');
-    p.fire();
-    skinOff(p);
-    assert.equal(p.root.getAttribute('data-accent'), 'red', 'a preview drops nothing');
-    p.root.setAttribute('data-skin', 'aqua');
-    p.fire();
-    p.win.fire('storage', { key: 'stencil_accent' });
-    p.root.setAttribute('data-accent', 'green');
-    p.fire();
-    skinOff(p);
-    assert.equal(p.root.getAttribute('data-accent'), 'green');
-  } finally { p.restore(); }
-});
-
-test('session Blue: a page already in Blue is left alone both ways', () => {
+test('a page in Blue is left alone both ways', () => {
   const p = fakePage('aqua');
   try {
     let writes = 0;
@@ -89,7 +52,7 @@ test('session Blue: a page already in Blue is left alone both ways', () => {
   } finally { p.restore(); }
 });
 
-test('the hold reads the session Blue on screen while aqua is on, so it turns the skin off', () => {
+test('the hold reads the Blue on screen while aqua is on, so it turns the skin off', () => {
   const root = { style: { getPropertyValue: () => '' },
     getAttribute: (k) => ({ 'data-accent': 'blue', 'data-theme': 'light' })[k] ?? null };
   const win = { StencilAccent: { get: () => 'red' }, StencilMotion: { get: () => 'slide' }, document: { documentElement: root },

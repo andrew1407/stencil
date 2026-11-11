@@ -35,6 +35,8 @@ namespace stencil::support {
   }  // namespace detail
 
   inline Skin skin() { return detail::skinState(); }
+  // Set once the process's first window has re-worn the skin stored at the last quit.
+  inline bool& skinRestored() { static bool done = false; return done; }
   inline bool isWebcore() { return skin() == Skin::WEBCORE; }
   inline bool isAqua() { return skin() == Skin::AQUA; }
   // Bumped on every change, so a cache keyed on it forgets the other skin's art.

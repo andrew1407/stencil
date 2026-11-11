@@ -3,6 +3,7 @@
 import { notify } from '../../utils.js';
 import { webcoreSkin } from '../webcore/toggle.js';
 import { aquaSkin } from '../aqua/toggle.js';
+import { storedSkin } from '../skin/stored.js';
 import { closeOpenModal } from '../modal/registry.js';
 import { PRESS_SLOP_PX } from '../tip/popover.js';
 import { storedMotionMode } from '../motion/motionPrefs.js';
@@ -41,6 +42,12 @@ const toggleSkin = async (effect, app, { scene = true, toast = true } = {}) => {
   const on = await skin.toggle(app, undefined, { scene });
   if (toast) notify(on ? TOAST_TEXT : skin.offToast, 'ok', { shine: true });
   return on;
+};
+
+// The skin on at the last close, back at boot in the user's own motion and accent: no scene, no toast.
+export const restoreSkin = (app) => {
+  const name = storedSkin();
+  return name && !SKIN[name].active() ? SKIN[name].toggle(app, undefined, { scene: false, entered: false }) : Promise.resolve(false);
 };
 
 // Pink counts as on while its tint is the page's filter; webcore while the skin is stamped.

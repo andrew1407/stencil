@@ -6,7 +6,6 @@
 #include "iconSet.hpp"
 #include "../../support/skinPrefs.hpp"
 #include "../../support/skin/SkinLookStrategy.hpp"
-#include "../../support/aqua/look.hpp"
 #include "theme.hpp"
 
 #include <QPushButton>
@@ -94,7 +93,6 @@ namespace stencil::gui {
 
   void ThemePainter::commitAccent(const QString& key) {
     accentPreviewActive = false;   // a pick commits; no close or leave may revert it
-    support::setAsideAccent().reset();   // and stands when a session skin goes
     auto next = w.settings;
     next.accentColor = key;
     w.applySettings(next, true);   // the click-cycle's apply + persist path; re-marks the ✓ via applyTheme

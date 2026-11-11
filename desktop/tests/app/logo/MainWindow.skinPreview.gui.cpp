@@ -66,6 +66,7 @@ class MainWindowGuiTest : public QObject {
     seed(win);
     win.parts.theme.toggleWebcore();
     QVERIFY(support::isWebcore());
+    seed(win);   // the word set Gray; the preview is measured from Blue
     previewFollows(win, [](const QString& a) { return support::buildWebcoreStylesheet(false, a); });
   }
 };

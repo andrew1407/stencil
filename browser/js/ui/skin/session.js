@@ -1,13 +1,14 @@
-// A session skin's life over the page (ui/logo/stageTrigger.js dispatches here): the <html data-skin>
-// stamp, the motion it holds, the accent and theme watches that re-dress it, its favicon art and the
-// scene an empty editor gets; a skin supplies only its painters. Desktop twin: ThemePainter::toggleSkin.
+// A skin's life over the page (ui/logo/stageTrigger.js dispatches here): the <html data-skin> stamp,
+// the look its cheat code makes the user's own, the accent and theme watches that re-dress it, its
+// favicon art and the scene an empty editor gets. Desktop twin: ThemePainter::toggleSkin.
 import { accentHex, normalizeHex, setFaviconArt } from '../../core/settings/accents.js';
 import { applyAccentFavicon, applyFaviconHex } from '../accent/favicon.js';
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';
-import { setMotionOverride } from '../motion/motionPrefs.js';
 import { watchShownAccent } from '../accent/shownAccent.js';
 import { whileIdleHeld } from '../control/state.js';
 import { settleSkinScene } from './scene.js';
+import { storeSkin } from './stored.js';
+import { adoptLook } from './adopt.js';
 
 export const SKIN_ATTR = 'data-skin';
 
@@ -34,10 +35,8 @@ const paintFavicon = (app) => {
   if (app.customAccent) applyFaviconHex(app.customAccent); else applyAccentFavicon(app.accent);
 };
 
-// `skin`: { name, motion, offToast, favicon(hex), scene, wear(app, doc, look) → the hex it painted,
-// repaint(doc, look), onTheme?(doc, look), onPick?(detail), shed(app, doc) }; `look` = { hex, dark }.
 export const createSkinSession = (skin) => {
-  let unwatch = [];
+  let unwatch = [], giveBack = null;
   const active = (doc = document) => activeSkin(doc) === skin.name;
   const off = (app, doc) => {
     doc.documentElement.removeAttribute(SKIN_ATTR);
@@ -46,18 +45,21 @@ export const createSkinSession = (skin) => {
     unwatch = [];
     setFaviconArt(null);
     skin.shed(app, doc);
+    giveBack?.();
+    giveBack = null;
     paintFavicon(app);
-    setMotionOverride(null);   // the stored switches are back in force
+    storeSkin(null);
     return false;
   };
-  const on = async (app, doc, openScene) => {
+  const on = async (app, doc, openScene, entered) => {
     doc.documentElement.setAttribute(SKIN_ATTR, skin.name);
-    setMotionOverride(skin.motion);
+    storeSkin(skin.name);
+    giveBack = entered ? adoptLook(app, skin.look) : null;
     let painted = currentHex(app);
     const look = () => ({ hex: painted, dark: isDark(doc) });
-    painted = skin.wear(app, doc, look()) ?? painted;
+    skin.wear(app, doc, look());
     unwatch = [
-      subscribe(EVENTS.accentChanged, (e) => { skin.onPick?.(e.detail); painted = markHex(e.detail); skin.repaint(doc, look()); }),
+      subscribe(EVENTS.accentChanged, (e) => { painted = markHex(e.detail); skin.repaint(doc, look()); }),
       subscribe(EVENTS.themeChanged, () => { (skin.onTheme ?? skin.repaint)(doc, look()); paintFavicon(app); }),
       // A row the accent menu previews re-dresses the skin and the tab's mark too, as it floods the default face.
       watchShownAccent(doc, (hex) => {
@@ -72,7 +74,9 @@ export const createSkinSession = (skin) => {
     if (openScene && !app.image) await whileIdleHeld(() => settleSkinScene(app, skin.scene), doc);
     return true;
   };
-  // Resolves to the state the skin is left in; `scene: false` never opens the skin's page.
-  const toggle = (app, doc = document, { scene = true } = {}) => (active(doc) ? Promise.resolve(off(app, doc)) : on(app, doc, scene));
+  // Resolves to the state the skin is left in; `scene: false` never opens the skin's page, and
+  // `entered: false` wears the skin over the stored settings, adopting nothing (a relaunch).
+  const toggle = (app, doc = document, { scene = true, entered = true } = {}) =>
+    (active(doc) ? Promise.resolve(off(app, doc)) : on(app, doc, scene, entered));
   return { name: skin.name, offToast: skin.offToast, active, toggle };
 };

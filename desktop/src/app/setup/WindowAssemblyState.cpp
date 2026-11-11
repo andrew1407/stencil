@@ -122,6 +122,7 @@ namespace stencil::gui {
     w.settings.filterColor = Settings{}.filterColor;
     w.applySettings(w.settings, false);
     if (restoreLast) w.parts.persistence.restoreSession();  // skipped for a blank incognito editor
+    w.parts.theme.restoreSkin();
     // isHidden(), not isVisible(): the window is not shown yet, so isVisible() is false for every
     // child. The panel reopens at the browser's default width, deferred - resizeDocks needs layout.
     {

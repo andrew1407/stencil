@@ -22,6 +22,7 @@ import { publishReady } from './eventBus/appBus.js';
 import { applyExternalLaunch } from './core/launch/controller.js';
 import { applyLaunchQuery } from './console/launchQuery.js';
 import { flushPendingWrites, installUnloadFlush } from './ui/shell/unloadFlush.js';
+import { restoreSkin } from './ui/logo/stageTrigger.js';
 // Application entrypoint, loaded LAST (importing layout registers every custom element): DOM → app
 // → wire order, then `stencil:ready`. Failed wasm leaves consumers on their JS fallback.
 // A handed-over script lands HERE because the layer order forbids core/ importing console/. It
@@ -110,6 +111,7 @@ const boot = () => {
   hotkeys.updateHotkeyTitles();
   initTooltips();
   watchControlLabels();
+  restoreSkin(app);   // still under the veil, so the first frame shown already wears it
   applyExternalLaunch(app)
     .then(() => applyLaunchQuery({ app, stencil }))
     .then(() => openLaunchScript(app, stencil));

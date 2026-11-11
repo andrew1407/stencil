@@ -168,24 +168,29 @@ test('a held press on blue + slide flips the aqua skin, never webcore', () => {
   }
 });
 
-test('StencilSkin.aqua: stored, stamped, slides, and swaps with webcore', () => {
-  const page = loadAccent({ stored: { stencil_motion: 'water' } });
+test('StencilSkin.aqua: stores Sliding and Blue as the user\'s, swaps with webcore, and a reopen keeps them', () => {
+  const page = loadAccent({ stored: { stencil_motion: 'water', stencil_accent: 'violet' } });
   assert.equal(page.skin.aqua.set(true), true);
   assert.equal(page.dataSkin(), 'aqua');
   assert.equal(page.store.get('stencil_skin'), 'aqua');
   assert.equal(page.motion.get(), 'slide', 'aqua slides');
-  assert.equal(page.motion.stored(), 'water', 'the choice is held, not lost');
+  assert.equal(page.store.get('stencil_accent'), 'blue', 'in Blue');
   assert.equal(page.skin.set(true), true, 'webcore takes the page');
   assert.equal(page.dataSkin(), 'webcore');
   assert.equal(page.skin.aqua.get(), false);
   assert.equal(page.motion.get(), 'none');
+  assert.equal(page.store.get('stencil_accent'), 'grey');
   page.skin.aqua.set(true);
   assert.equal(page.dataSkin(), 'aqua');
   assert.equal(page.motion.get(), 'slide', 'aqua slides again');
   page.skin.set(false);
   assert.equal(page.dataSkin(), 'aqua', 'turning off webcore leaves aqua alone');
+  const reopened = loadAccent({ stored: Object.fromEntries(page.store) });
+  assert.equal(reopened.dataSkin(), 'aqua', 'a reopen comes back in the skin');
+  assert.equal(reopened.motion.get(), 'slide', 'sliding');
+  assert.equal(reopened.dataAccent(), 'blue', 'in Blue');
   page.skin.aqua.set(false);
   assert.equal(page.dataSkin(), null);
-  assert.equal(page.motion.get(), 'water', 'the user\'s mode is back');
-  assert.equal(loadAccent({ stored: { stencil_skin: 'aqua' } }).dataSkin(), 'aqua', 'stamped before paint');
+  assert.equal(page.motion.get(), 'water', 'off on the same page: the user\'s mode is back');
+  assert.equal(page.store.get('stencil_accent'), 'violet', 'and their accent');
 });

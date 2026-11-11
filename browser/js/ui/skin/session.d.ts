@@ -1,30 +1,28 @@
-// A session skin's life over the page: the stamp, the held motion, the watches and the scene.
+// A skin's life over the page: the stamp, the look its cheat code stores, the watches and the scene.
 import type { DrawingApp } from '../../core/drawingApp.js';
-import type { MotionPrefs } from '../motion/motionPrefs.js';
+import type { SkinLookSettings } from './adopt.js';
 import type { SkinScene } from './scene.js';
 
 /** The attribute a skin stamps on `<html>`. */
 export declare const SKIN_ATTR: string;
 /** The accent hex a skin paints in and the face it is drawn for. */
 export interface SkinLook { hex: string | null; dark: boolean }
-/** What a skin supplies to its session: its painters, its motion, its favicon and its scene. */
+/** What a skin supplies to its session: its painters, its look, its favicon and its scene. */
 export interface SkinSpec {
   name: string;
-  /** The session override laid over the stored motion while the skin is on. */
-  motion: Partial<MotionPrefs>;
+  /** The motion and accent its cheat code stores as the user's own. */
+  look: SkinLookSettings;
   /** The notice the word shows when it takes the skin off. */
   offToast: string;
   /** The favicon art in `hex` while the skin is on. */
   favicon: (hex: string) => string;
   scene: SkinScene;
-  /** Everything the skin paints; returns the hex it painted when that is not `look.hex` (aqua's Blue). */
-  wear: (app: DrawingApp, doc: Document, look: SkinLook) => string | null | undefined | void;
+  /** Everything the skin paints. */
+  wear: (app: DrawingApp, doc: Document, look: SkinLook) => void;
   /** The accent moved: the parts that follow it. */
   repaint: (doc: Document, look: SkinLook) => void;
   /** The face moved; `repaint` when absent. */
   onTheme?: (doc: Document, look: SkinLook) => void;
-  /** An accent the user picked (not a preview) while the skin is on. */
-  onPick?: (detail: unknown) => void;
   /** Everything put back as it was. */
   shed: (app: DrawingApp, doc: Document) => void;
 }
@@ -34,7 +32,7 @@ export interface SkinSession {
   /** True while this skin is stamped (or lifted under the CLI stage). */
   active: (doc?: Document) => boolean;
   /** Flip the skin; resolves to the state it is left in. `scene: false` never opens the skin's page. */
-  toggle: (app: DrawingApp, doc?: Document, opts?: { scene?: boolean }) => Promise<boolean>;
+  toggle: (app: DrawingApp, doc?: Document, opts?: { scene?: boolean; entered?: boolean }) => Promise<boolean>;
 }
 export declare const createSkinSession: (skin: SkinSpec) => SkinSession;
 /** The skin on the page ('webcore' | 'aqua' | …), a held one included, or null. */

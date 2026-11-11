@@ -270,9 +270,10 @@ classDiagram
   icons, its sheet and its `SkinTraits` — the yes-or-no table a hover slide, a keycap shake, a
   squared corner or a shouted caption reads instead of asking which skin is on. The aqua gel, its
   header mark and its drop glow are the chosen accent through `support::gelTokens`
-  (`common/config/aqua.json` `tint`). Aqua wears the Blue preset for the session, the user's own
-  accent set aside (`support::setAsideAccent`) and the one `SharedState::saveSettings` writes until
-  they pick another; `support/aqua/still.hpp` takes the hover selectors out of its sheets.
+  (`common/config/aqua.json` `tint`). A skin's word stores its look as the user's own settings
+  (webcore still and Gray, aqua Sliding and Blue), an off in the same process gives back each part
+  the user left alone, and the skin on at the quit (`fileStore::loadSkin`) is worn again by the next
+  process's first window over the stored settings; `support/aqua/still.hpp` takes the hover selectors out of its sheets.
 - **The console.** The Data section's first button, **Data ▸ Console…** and its chord open
   `ConsoleWindow` through `ConsoleHost::openConsole`: a `Qt::Tool` window on the modal shell,
   non-modal, revealed from its icon (`veilForReveal` before it maps, `revealWindow`,
@@ -429,7 +430,7 @@ in-flight layout push and then for the co-edit result, each up to `RESULT_CLOSE_
    `browser/js/ui/dust/cloud.js` value for value: sprite blits, stepped once per display refresh on
    the one app clock, `support/vsync/FramePulse.hpp` (cocoa's display link, else a refresh-rate
    timer), which `support/vsync/AnimationDriver.hpp` also puts Qt's own animations on. A widget hidden under its dust wears `veilBehindDust`, never a bare opacity
-   effect. A skin (`support/skinPrefs.hpp`) overrides motion and theme for the session only.
+   effect. A skin (`support/skinPrefs.hpp`) overrides the theme for the session only.
    The *Animation speed* (`motion.json` `speed`) scales every interface animation where it is
    played — a duration through `motionMs`, a self-driven clock through `motionScale` — and is
    exactly 1 at its default, so the tuned clocks themselves never change.

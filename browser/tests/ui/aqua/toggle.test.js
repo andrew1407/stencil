@@ -1,5 +1,5 @@
-// The aqua toggle (js/ui/aqua/toggle.js + scene.js) and its trigger: on, the page is stamped,
-// slides and wears its gel in the accent with no store write, and the empty editor gets its scene;
+// The aqua toggle (js/ui/aqua/toggle.js + scene.js) and its trigger: on, the page is stamped, Blue
+// and Sliding are stored as the user's own, the gel wears the accent, and the empty editor gets its scene;
 // the trigger keeps one skin at a time, and the mark's hold opens it only blue, sliding, light.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
@@ -30,10 +30,11 @@ beforeEach(() => {
 const { toggleAqua, aquaActive } = await import('../../../js/ui/aqua/toggle.js');
 const { webcoreActive } = await import('../../../js/ui/webcore/toggle.js');
 const { motionPrefs, setMotionPrefs, reloadMotionPrefs, MOTION_STORAGE_KEY } = await import('../../../js/ui/motion/motionPrefs.js');
-const { activateShow, heldShow, setShow, showActive } = await import('../../../js/ui/logo/stageTrigger.js');
+const { activateShow, heldShow, setShow, showActive, restoreSkin } = await import('../../../js/ui/logo/stageTrigger.js');
 const { AQUA, gelTokens } = await import('../../../js/ui/aqua/rules.js');
 const { publish: emit, EVENTS } = await import('../../../js/eventBus/appBus.js');
 const { WEBCORE } = await import('../../../js/ui/webcore/rules.js');
+const { SKIN_STORAGE_KEY } = await import('../../../js/ui/skin/stored.js');
 
 const makeApp = (over = {}) => {
   const app = {
@@ -43,15 +44,17 @@ const makeApp = (over = {}) => {
     export: { installLayout: (data, opts) => { app.calls.push(['layout', data, opts]); return true; } },
     settings: { setImageFilter: (v) => app.calls.push(['filter', v]) },
     accents: {
-      setAccent: (key, from, opts) => { app.calls.push(['accent', key, opts]); emit(EVENTS.accentChanged, key); },
-      setCustomAccent: (hex) => { app.calls.push(['custom', hex]); emit(EVENTS.accentChanged, hex); },
+      setAccent: (key, from, opts) => {
+        app.calls.push(['accent', key, opts]); app.accent = key; app.customAccent = null; emit(EVENTS.accentChanged, key);
+      },
+      setCustomAccent: (hex) => { app.calls.push(['custom', hex]); app.customAccent = hex; emit(EVENTS.accentChanged, hex); },
     },
     ...over,
   };
   return app;
 };
 
-test('on: stamped, sliding, the gel in the accent, the gel mark, nothing written; off undoes it', async () => {
+test('on: stamped, Blue and sliding stored as the user\'s, the gel and the mark; off gives back what they replaced', async () => {
   reloadMotionPrefs();
   const app = makeApp({ accent: 'violet' });
   const logo = createStubElement('svg');
@@ -60,30 +63,33 @@ test('on: stamped, sliding, the gel in the accent, the gel mark, nothing written
   assert.equal(await toggleAqua(app), true);
   assert.equal(aquaActive(), true);
   assert.equal(doc.documentElement.getAttribute('data-skin'), 'aqua');
-  assert.deepEqual(app.calls.shift(), ['accent', 'blue', { persist: false }], 'the word opens in Blue, never stored');
-  assert.equal(doc.documentElement.style.getPropertyValue('--aq-gel-bottom'), '#2563eb', 'the gel is the session Blue');
+  assert.deepEqual(app.calls.shift(), ['accent', 'blue', undefined], 'the word sets Blue, stored as any pick is');
+  assert.equal(doc.documentElement.style.getPropertyValue('--aq-gel-bottom'), '#2563eb', 'the gel is Blue');
   assert.equal(doc.documentElement.style.getPropertyValue('--aq-focus'), gelTokens('#2563eb')['--aq-focus']);
-  assert.equal(motionPrefs().mode, 'slide', 'the interface slides for the session');
+  assert.equal(motionPrefs().mode, 'slide', 'the interface slides');
+  assert.equal(JSON.parse(store.get(MOTION_STORAGE_KEY)).mode, 'slide', 'and a relaunch keeps it');
   assert.match(logo.innerHTML, /stencilAquaGel/, 'the header mark wears the gel art');
   assert.match(logo.innerHTML, /#2563eb/, 'in the accent');
   emit(EVENTS.accentChanged, '#ff8800');
   assert.equal(doc.documentElement.style.getPropertyValue('--aq-gel-bottom'), '#ff8800', 'an accent change repaints the gel');
   assert.match(logo.innerHTML, /#ff8800/, 'and the mark');
-  assert.equal(store.size, 0, 'nothing is stored');
-  assert.equal(app.calls.length, 0, 'an editor with a picture keeps it, and the user\'s pick stands at the end');
+  assert.equal(store.get(SKIN_STORAGE_KEY), 'aqua', 'the skin is stored for the next launch');
+  assert.equal(app.calls.length, 0, 'an editor with a picture keeps it');
   assert.equal(await toggleAqua(app), false);
   assert.equal(doc.documentElement.hasAttribute('data-skin'), false);
   assert.equal(doc.documentElement.style.getPropertyValue('--aq-focus'), '');
   assert.equal(doc.documentElement.style.getPropertyValue('--aq-gel-bottom'), '');
-  assert.equal(motionPrefs().mode, 'particles', 'the stored motion is back');
+  assert.equal(motionPrefs().mode, 'particles', 'the motion it replaced is back');
+  assert.deepEqual(app.calls, [['accent', 'violet', undefined]], 'and the accent');
+  assert.equal(store.has(SKIN_STORAGE_KEY), false);
   assert.equal(logo.innerHTML, '<rect/>', 'and the app\'s own mark');
 });
 
-test('an untouched session gives the user\'s own accent back, unstored; a Blue user is left alone', async () => {
+test('off in the same session gives the user\'s own accent back; a Blue user is left alone; their own pick stands', async () => {
   const app = makeApp({ accent: 'violet' });
   await toggleAqua(app);
   await toggleAqua(app);
-  assert.deepEqual(app.calls, [['accent', 'blue', { persist: false }], ['accent', 'violet', { persist: false }]]);
+  assert.deepEqual(app.calls, [['accent', 'blue', undefined], ['accent', 'violet', undefined]]);
   const blue = makeApp({ accent: 'blue' });
   await toggleAqua(blue);
   await toggleAqua(blue);
@@ -92,7 +98,12 @@ test('an untouched session gives the user\'s own accent back, unstored; a Blue u
   await toggleAqua(custom);
   await toggleAqua(custom);
   assert.deepEqual(custom.calls.at(-1), ['custom', '#123456']);
-  assert.equal(store.size, 0);
+  const own = makeApp({ accent: 'violet' });
+  await toggleAqua(own);
+  own.accents.setAccent('grass');
+  await toggleAqua(own);
+  assert.deepEqual(own.calls.at(-1), ['accent', 'grass', undefined], 'a pick made under the skin stays');
+  assert.equal(store.has(SKIN_STORAGE_KEY), false, 'off forgets the skin');
 });
 
 test('an empty editor reopens the local somefruitcompany project rather than mint another', async () => {
@@ -164,4 +175,19 @@ test('the hold opens it only for blue, sliding, on the light face', () => {
   setMotionPrefs({ mode: 'slide' });
   assert.equal(heldShow({ ...app, accent: 'sky' }), null, 'only the Blue preset');
   assert.ok(store.has(MOTION_STORAGE_KEY));
+});
+
+test('a relaunch re-wears the stored aqua in the user\'s own accent and motion: no Blue, no slide, no scene', async () => {
+  reloadMotionPrefs();
+  store.set(SKIN_STORAGE_KEY, 'aqua');
+  const app = makeApp({ accent: 'violet', image: null });
+  assert.equal(await restoreSkin(app), true);
+  assert.equal(aquaActive(), true);
+  assert.deepEqual(app.calls, [], 'no Blue is worn, and the empty editor gets no scene');
+  assert.equal(motionPrefs().mode, 'particles', 'the user\'s own motion');
+  assert.equal(doc.documentElement.style.getPropertyValue('--aq-gel-bottom'), '#7c3aed', 'the gel in the user\'s accent');
+  assert.equal(toasts.length, 0);
+  assert.equal(await toggleAqua(app), false);
+  assert.deepEqual(app.calls, [], 'off gives nothing back that was never set aside');
+  assert.equal(await restoreSkin(app), false, 'off stays off');
 });

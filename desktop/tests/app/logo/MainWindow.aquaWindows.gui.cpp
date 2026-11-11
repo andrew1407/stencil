@@ -40,10 +40,9 @@ class MainWindowGuiTest : public QObject {
     if (support::isAqua()) { support::setSkin(support::Skin::DEFAULT); support::applyAquaLook(false); }
     support::clearMotionOverride();
     support::clearForcedDark();
-    support::setAsideAccent().reset();
   }
 
-  void everyWindowWearsTheSessionBlueAndGivesItBack() {
+  void everyWindowWearsTheStoredBlueAndGivesItBack() {
     MainWindow a(nullptr, /*restoreLast=*/false);
     MainWindow b(nullptr, /*restoreLast=*/false);
     QVERIFY(shown(a) && shown(b));
@@ -59,8 +58,8 @@ class MainWindowGuiTest : public QObject {
       QCOMPARE(c.settings.accentColor, QString("blue"));   // a window opened meanwhile wears it
     }
     b.applySettings(b.settings, /*persist=*/true);
-    QCOMPARE(a.settings.accentColor, QString("blue"));   // a sibling's write keeps the session Blue
-    QVERIFY2(settingsBytes().contains("\"violet\""), "…and the file keeps the user's own");
+    QCOMPARE(a.settings.accentColor, QString("blue"));   // a sibling's write keeps Blue
+    QVERIFY2(settingsBytes().contains("\"blue\""), "…which the file holds as the user's own");
     b.parts.theme.toggleAqua();   // off from the other window
     QVERIFY(!support::isAqua());
     QCOMPARE(a.settings.accentColor, QString("violet"));

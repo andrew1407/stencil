@@ -1,13 +1,15 @@
-// The session skins' words (browser js/ui/skin/session.js + scene.js): one skin at a time, on and off,
-// and the picture an empty editor gets with its word. webcore stills the interface, aqua slides it and
-// wears the Blue preset; a SkinShow is what one skin differs in.
+// The skins' words (browser js/ui/skin/session.js + adopt.js + scene.js): one skin at a time, on and off,
+// and the picture an empty editor gets with its word. The word stores its look as the user's own (webcore:
+// still and Gray, aqua: Sliding and Blue); a SkinShow is what one skin differs in.
 #include "MainWindow.hpp"
 #include "ThemePainter.hpp"
 #include "ToolbarBuilder.hpp"
 #include "CanvasWidget.hpp"
 #include "ChatPlanTarget.hpp"
 #include "ConnectDialog.hpp"
+#include "fileStore.hpp"
 #include "SiblingWindows.hpp"
+#include "SharedState.hpp"
 #include "../../support/aqua/look.hpp"
 #include "../../support/motionPrefs.hpp"
 #include "../../support/skin/skinAppliers.hpp"
@@ -20,12 +22,16 @@
 #include <QApplication>
 #include <QLabel>
 #include <QToolButton>
+#include <utility>
 
 namespace stencil::gui {
 
   struct SkinShow {
     support::Skin skin;
-    support::MotionSwitches (*motion)();   // the session switches laid over the stored ones
+    QLatin1String name;         // the key fileStore::saveSkin keeps
+    QLatin1String motionMode;   // the look the word stores: motion key, drawing switch (unset = left alone), preset
+    std::optional<bool> drawing;
+    QLatin1String accent;
     void (*applyLook)(bool isOn);
     QString (*projectName)();
     QImage (*paint)();
@@ -45,54 +51,68 @@ namespace stencil::gui {
 
     // The show on now, so the next one can shed it without a restyle of its own.
     const SkinShow*& wornShow() { static const SkinShow* show = nullptr; return show; }
+    // What the word's look replaced, given back by an off in the same process (browser adopt.js).
+    struct Replaced { const SkinShow* show; QString motionMode; bool drawing; QString accent; };
+    std::optional<Replaced>& replaced() { static std::optional<Replaced> r; return r; }
   }  // namespace
 
   void ThemePainter::wearWebcore(bool isOn) { holdAutoRaise(&w, isOn); }
-  void ThemePainter::wearAqua(bool isOn) { wearSessionAccent(isOn); }
 
-  bool ThemePainter::toggleWebcore() {
-    static const SkinShow show{support::Skin::WEBCORE,
-                               [] { return support::MotionSwitches{support::MotionMode::NONE, false}; },
+  bool ThemePainter::toggleWebcore(bool entered) {
+    static const SkinShow show{support::Skin::WEBCORE, QLatin1String("webcore"), QLatin1String("none"), false,
+                               QLatin1String("grey"),
                                &support::applyWebcoreLook,
                                [] { return support::webcoreConfig().projectName; },
                                &support::paintWebcoreImage, &support::wordLines, &ThemePainter::wearWebcore};
-    return toggleSkin(show);
+    return toggleSkin(show, entered);
   }
 
-  bool ThemePainter::toggleAqua() {
-    static const SkinShow show{support::Skin::AQUA,
-                               [] { return support::MotionSwitches{support::MotionMode::SLIDE, support::drawingAnimations()}; },
+  bool ThemePainter::toggleAqua(bool entered) {
+    static const SkinShow show{support::Skin::AQUA, QLatin1String("aqua"), QLatin1String("slide"), std::nullopt,
+                               QLatin1String(support::AQUA_ACCENT),
                                &support::applyAquaLook,
                                [] { return support::aquaConfig().projectName; },
-                               &support::paintAquaImage, &support::aquaWordLines, &ThemePainter::wearAqua};
-    return toggleSkin(show);
+                               &support::paintAquaImage, &support::aquaWordLines, nullptr};
+    return toggleSkin(show, entered);
+  }
+
+  void ThemePainter::restoreSkin() {
+    if (std::exchange(support::skinRestored(), true)) return;   // a later window follows the process's skin
+    const QString name = fileStore::loadSkin();
+    if (name == QLatin1String("webcore")) toggleWebcore(/*entered=*/false);
+    else if (name == QLatin1String("aqua")) toggleAqua(/*entered=*/false);
   }
 
   // One skin at a time: the one on is shed without a restyle of its own, the new look's covers both.
-  bool ThemePainter::toggleSkin(const SkinShow& show) {
+  // `entered` (the word) stores the skin's look as the user's and opens the scene; a relaunch wears what is stored.
+  bool ThemePainter::toggleSkin(const SkinShow& show, bool entered) {
     const bool isOn = support::skin() != show.skin;
     if (!isOn) shedSkin(show);
     else {
       if (wornShow() && support::skin() == wornShow()->skin) shedSkin(*wornShow());
       support::setSkin(show.skin);
-      support::setMotionOverride(show.motion());
       show.applyLook(true);
-      (this->*show.wear)(true);
+      if (show.wear) (this->*show.wear)(true);
       wornShow() = &show;
+      if (entered) adoptSkinLook(show);
+      else replaced().reset();   // a relaunch has nothing to give back
     }
     dressWindows(isOn);
-    if (!isOn || w.canvas->hasImage()) return isOn;
+    fileStore::saveSkin(isOn ? QString(show.name) : QString());
+    if (!isOn || !entered || w.canvas->hasImage()) return isOn;
     if (!openSkinProject(show.projectName())) skinScene(show);
     return isOn;
   }
 
-  // The stored switches back in force, the look and the window's own share undone; no restyle.
+  // The stored switches back in force, the look and the window's own share undone, what the word's
+  // look replaced given back; no restyle.
   void ThemePainter::shedSkin(const SkinShow& show) {
     support::setSkin(support::Skin::DEFAULT);
     support::clearMotionOverride();
     show.applyLook(false);
-    (this->*show.wear)(false);
+    if (show.wear) (this->*show.wear)(false);
     wornShow() = nullptr;
+    giveBackSkinLook(show);
   }
 
   // The skin is the process's: every open window dresses, this one last, as the app sheet ends on it.
@@ -121,21 +141,26 @@ namespace stencil::gui {
       if (b) { b->setMinimumWidth(0); b->setMaximumWidth(QWIDGETSIZE_MAX); }
   }
 
-  // On, the Blue preset for the session in every window and the user's own set aside; off, theirs
-  // back unless they picked one meanwhile. Neither writes: the file holds their own (browser wearBlue/giveBack).
-  void ThemePainter::wearSessionAccent(bool isOn) {
-    std::optional<QString>& aside = support::setAsideAccent();
-    static const QString BLUE = QString::fromLatin1(support::AQUA_ACCENT);
-    QList<MainWindow*> all = SiblingWindows::windows();
-    if (!all.contains(&w)) all << &w;
-    if (!isOn) {
-      if (aside) for (MainWindow* m : all) m->settings.accentColor = *aside;
-      aside.reset();
-      return;
-    }
-    aside.reset();
-    if (w.settings.accentColor != BLUE) aside = w.settings.accentColor;
-    for (MainWindow* m : all) m->settings.accentColor = BLUE;
+  // The word's look made the user's settings, saved as any pick is; what it replaced is kept for an off.
+  void ThemePainter::adoptSkinLook(const SkinShow& show) {
+    Settings next = w.settings;
+    replaced() = Replaced{&show, next.motionMode, next.drawingAnimations, next.accentColor};
+    next.motionMode = show.motionMode;
+    if (show.drawing) next.drawingAnimations = *show.drawing;
+    next.accentColor = show.accent;
+    w.applySettings(next, /*persist=*/true);
+  }
+
+  // Each part of the look the user left alone goes back to what it replaced; a pick of theirs stands.
+  void ThemePainter::giveBackSkinLook(const SkinShow& show) {
+    std::optional<Replaced> was = std::exchange(replaced(), std::nullopt);
+    if (!was || was->show != &show) return;
+    Settings next = w.settings;
+    if (next.motionMode == show.motionMode) next.motionMode = was->motionMode;
+    if (show.drawing && next.drawingAnimations == *show.drawing) next.drawingAnimations = was->drawing;
+    if (next.accentColor == show.accent) next.accentColor = was->accent;
+    w.settings = next;
+    if (!w.projectHost.incognito) SharedState::instance().saveSettings(next, &w);
   }
 
   // The connections window's rows are built from the palette when it opens, outside applyTheme.

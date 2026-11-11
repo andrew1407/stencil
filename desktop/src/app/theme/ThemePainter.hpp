@@ -23,9 +23,12 @@ namespace stencil::gui {
    public:
     explicit ThemePainter(MainWindow& w) : w(w) {}
 
-    // The session skins' words (ThemePainterSkins.cpp): the state the skin is left in.
-    bool toggleWebcore();
-    bool toggleAqua();
+    // The skins' words (ThemePainterSkins.cpp): the state the skin is left in. `entered` false wears
+    // the skin over the stored settings, adopting nothing and opening no picture (a relaunch).
+    bool toggleWebcore(bool entered = true);
+    bool toggleAqua(bool entered = true);
+    // The skin on at the last quit, back on the process's first window.
+    void restoreSkin();
     void syncImageInfoDockHeight();
     QPixmap makeLogoPixmap(int size) const;
     void openAccentPicker();
@@ -65,13 +68,13 @@ namespace stencil::gui {
     QPixmap otherThemeShot();
 
    private:
-    bool toggleSkin(const SkinShow& show);
+    bool toggleSkin(const SkinShow& show, bool entered);
     void shedSkin(const SkinShow& show);
     void dressWindows(bool on);
     void dressWindow(bool on);
     void wearWebcore(bool on);
-    void wearAqua(bool on);
-    void wearSessionAccent(bool on);
+    void adoptSkinLook(const SkinShow& show);
+    void giveBackSkinLook(const SkinShow& show);
     void restyleConnectionRows();
     void unpinFaceWidths();
     bool openSkinProject(const QString& name);

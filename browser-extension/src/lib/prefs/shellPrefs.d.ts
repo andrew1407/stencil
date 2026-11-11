@@ -31,6 +31,7 @@ export interface StencilMotion {
   onChange(fn: (mode: string) => void): void;
 }
 
+/** The skins: the one on is stored; turning one on stores its motion and accent as the user's. */
 export interface StencilSkin {
   storageKey: string;
   /** True while the webcore skin is on. */

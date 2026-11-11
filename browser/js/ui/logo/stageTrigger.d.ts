@@ -13,6 +13,8 @@ export declare const activateShow: (name: string, app: DrawingApp, origin?: Stag
   opts?: { replace?: boolean; scene?: boolean }) => boolean | Promise<boolean>;
 /** The `<name>Mode` switch: on activates (the skin alone for webcore), off closes; idempotent. */
 export declare const setShow: (name: string, app: DrawingApp, on: boolean) => void;
+/** Re-wears the skin stored at the last close in the user's own motion and accent; whether one went on. */
+export declare const restoreSkin: (app: DrawingApp) => Promise<boolean>;
 /** The show the mark's hold opens right now, or null. */
 export declare const heldShow: (app: DrawingApp | null) => string | null;
 /** The mark's hold, as a drag of the mark sees it. */

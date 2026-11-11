@@ -38,10 +38,12 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(win.parts.theme.toggleAqua() == false);
     QVERIFY2(aqua == plain, "aqua leaves the terminal as the plain theme paints it");
 
+    stencil::gui::ChatPlanTarget(win).setAccent(QStringLiteral("grey"));   // the Gray webcore's word sets
+    const QImage plainGrey = stageHead(win);
     QVERIFY(win.parts.theme.toggleWebcore());
     const QImage webcore = stageHead(win);
     QVERIFY(!win.parts.theme.toggleWebcore());
-    QVERIFY2(webcore == plain, "…and so does webcore");
+    QVERIFY2(webcore == plainGrey, "…and so does webcore");
   }
 };
 

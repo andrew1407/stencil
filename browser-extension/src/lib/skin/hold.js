@@ -6,8 +6,8 @@ import { wirePressHold } from '../logo/hold.js';
 import { pageFace } from '../logo/accents.js';
 import { toggleSkin } from './switch.js';
 
-// The stored accent, or under aqua its session Blue on screen (so the hold turns the skin off); the
-// user's own motion mode, a skin's hold set aside. null without the pre-paint facades.
+// The stored accent, or under aqua the accent on screen (so the hold turns the skin off); the
+// user's own motion mode. null without the pre-paint facades.
 export const heldShow = (win = globalThis) => {
   const accent = win.StencilAccent, motion = win.StencilMotion;
   if (!accent || !motion || !win.StencilSkin) return null;

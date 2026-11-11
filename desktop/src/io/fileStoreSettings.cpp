@@ -24,6 +24,15 @@ namespace stencil::gui {
     writeJson(secretsPath(), QJsonDocument(o), /*ownerOnly=*/true);
   }
 
+  // Browser twin: ui/skin/stored.js drawingApp_skin.
+  QString fileStore::loadSkin() {
+    const QString name = readJson(stateDir() + "/skin.json").object().value("skin").toString();
+    return name == QLatin1String("webcore") || name == QLatin1String("aqua") ? name : QString();
+  }
+  void fileStore::saveSkin(const QString& name) {
+    writeJson(stateDir() + "/skin.json", QJsonDocument(QJsonObject{{"skin", name}}));
+  }
+
   Settings fileStore::loadSettings() {
     Settings s;
     // Seed the locale-based default before reading the file, so a brand-new user or an older config

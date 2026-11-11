@@ -285,8 +285,9 @@ classDiagram
   the stage (`ui/logo/stage.js`) resolved from `config/logoStage.json`; a skin show toggles its
   session skin, one at a time, turning the other off first. A skin is a `SkinSpec` of painters
   (`ui/webcore/toggle.js`, `ui/aqua/toggle.js`) that `ui/skin/session.js` runs: the stamp, the
-  motion held, the accent and theme watches, the favicon art and the scene (`ui/skin/scene.js`)
-  are the session's, the art alone the skin's. A row may name a `theme` as well as a motion mode:
+  look its word stores as the user's (`ui/skin/adopt.js`, given back by an off in the same session),
+  the accent and theme watches, the favicon art and the scene (`ui/skin/scene.js`) are the session's,
+  the art alone the skin's; the skin on at the last close (`ui/skin/stored.js`) is re-worn at boot. A row may name a `theme` as well as a motion mode:
   the aqua hold needs the light face.
 - **A console command.** The Data section's console icon (`EVENTS.consoleToggle`) opens the
   console window (`ui/console/modal.js`) beside whatever is up; a typed line goes to the

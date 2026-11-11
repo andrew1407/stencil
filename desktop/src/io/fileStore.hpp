@@ -137,6 +137,9 @@ namespace stencil::gui {
 
     Settings loadSettings();
     void saveSettings(const Settings& s);
+    // The skin on at the last quit ("" | "webcore" | "aqua"), apart from settings.json, which a skin never writes.
+    QString loadSkin();
+    void saveSkin(const QString& name);
 
     // Exposed so the round-trip is unit-testable without disk; `base` supplies defaults for absent keys.
     QJsonObject settingsToJson(const Settings& s);

@@ -11,12 +11,15 @@ import { paintWebcoreImage } from './image.js';
 // the skin points --accent at its own navy.
 const paintAccent = (doc, hex) => doc.documentElement.style.setProperty('--wc-focus', hex);
 
+// The preset the word sets, as aqua sets Blue.
+export const WEBCORE_ACCENT = 'grey';
+
 let skinDark = false;
 
 export const webcoreSkin = createSkinSession({
   name: SKIN_NAME,
-  // Still lines and a still interface for the session, never in the store (desktop toggleSkin).
-  motion: { mode: 'none', drawing: false },
+  // Still lines, a still interface and Gray: the user's own once the word is typed (desktop toggleSkin).
+  look: { motion: { mode: 'none', drawing: false }, accent: WEBCORE_ACCENT },
   offToast: OFF_TOAST,
   favicon: (hex) => pixelIconSvg('logo', 16, hex, skinDark),
   scene: { imageName: IMAGE_NAME, projectName: PROJECT_NAME, image: WEBCORE.image, wordLines,

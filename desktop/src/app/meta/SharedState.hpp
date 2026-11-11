@@ -16,7 +16,6 @@ namespace stencil::gui {
     // Reads both files; the first window of a process calls it, a sibling never does.
     void load();
     std::vector<Project>& getProjects() { return projects; }
-    // As the windows wear them: the session Blue in place of the accent it set aside.
     Settings getSettings() const;
 
     // The registry as it is now; `source` is the window that changed it, which skips its own echo.

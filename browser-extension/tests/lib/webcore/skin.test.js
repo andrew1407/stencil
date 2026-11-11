@@ -64,18 +64,33 @@ test('pixel art: the mark\'s ring wears the accent, the dark face re-inks the in
   assert.match(pixelIconSvg('logo', {}, 16), /^<svg [^>]*viewBox="0 0 16 16" width="16"/);
 });
 
-test('StencilSkin: stamped before paint, stored, and followed across pages', () => {
-  const off = loadAccent();
-  assert.equal(off.dataSkin(), null);
-  assert.equal(off.skin.get(), false);
-  off.skin.set(true);
-  assert.equal(off.dataSkin(), 'webcore');
-  assert.equal(off.store.get('stencil_skin'), 'webcore');
-  const on = loadAccent({ stored: { stencil_skin: 'webcore' } });
-  assert.equal(on.dataSkin(), 'webcore');
-  on.store.set('stencil_skin', '');
-  on.fireStorage('stencil_skin');
-  assert.equal(on.dataSkin(), null, 'another page turned it off');
+test('StencilSkin: the word stores still and Gray as the user\'s own; a reopen keeps the skin and them', () => {
+  const page = loadAccent({ stored: { stencil_motion: 'water', stencil_accent: 'violet' } });
+  assert.equal(page.dataSkin(), null);
+  page.skin.set(true);
+  assert.equal(page.dataSkin(), 'webcore');
+  assert.equal(page.store.get('stencil_skin'), 'webcore');
+  assert.equal(page.store.get('stencil_motion'), 'none');
+  assert.equal(page.store.get('stencil_accent'), 'grey');
+  const reopened = loadAccent({ stored: Object.fromEntries(page.store) });
+  assert.equal(reopened.dataSkin(), 'webcore', 'stamped before paint');
+  assert.equal(reopened.motion.get(), 'none', 'still after the reopen');
+  assert.equal(reopened.dataMotion(), 'none');
+  assert.equal(reopened.dataAccent(), 'grey', 'and Gray');
+  reopened.skin.set(false);
+  assert.equal(reopened.motion.get(), 'none', 'off on another launch keeps them: they are the user\'s');
+  reopened.store.set('stencil_skin', 'webcore');
+  reopened.fireStorage('stencil_skin');
+  assert.equal(reopened.dataSkin(), 'webcore', 'another page turned it on');
+});
+
+test('a mode an earlier build parked under the skin is the user\'s again on open', () => {
+  const page = loadAccent({ stored: { stencil_skin: 'webcore', stencil_motion: 'none', stencil_motion_held: 'fire' } });
+  assert.equal(page.dataSkin(), 'webcore');
+  assert.equal(page.motion.get(), 'fire');
+  assert.equal(page.dataMotion(), 'fire');
+  assert.equal(page.store.get('stencil_motion'), 'fire');
+  assert.equal(page.store.get('stencil_motion_held'), '');
 });
 
 // Just enough of an element for the hold: listeners by type, fired by hand.
@@ -126,16 +141,15 @@ test('a still press held for HOLD_MS flips the skin and eats the release\'s clic
   }
 });
 
-test('the skin stills the interface and hands the user\'s mode back when it goes', () => {
-  const page = loadAccent({ stored: { stencil_motion: 'water' } });
+test('off on the same page gives back what the word replaced', () => {
+  const page = loadAccent({ stored: { stencil_motion: 'water', stencil_accent: 'violet' } });
   page.skin.set(true);
   assert.equal(page.motion.get(), 'none');
   assert.equal(page.dataMotion(), 'none');
-  assert.equal(page.motion.stored(), 'water', 'the choice is held, not lost');
   page.skin.set(false);
   assert.equal(page.motion.get(), 'water');
   assert.equal(page.dataMotion(), 'water');
-  assert.equal(page.store.get('stencil_motion_held'), '');
+  assert.equal(page.store.get('stencil_accent'), 'violet');
 });
 
 test('a mode already None stays None, and a pick under the skin is kept', () => {
@@ -144,18 +158,13 @@ test('a mode already None stays None, and a pick under the skin is kept', () => 
   still.skin.set(false);
   assert.equal(still.motion.get(), 'none');
 
-  const picked = loadAccent({ stored: { stencil_motion: 'fire' } });
+  const picked = loadAccent({ stored: { stencil_motion: 'fire', stencil_accent: 'violet' } });
   picked.skin.set(true);
   picked.motion.set('slide');
-  assert.equal(picked.motion.stored(), 'slide');
+  picked.accent.set('grass');
   picked.skin.set(false);
-  assert.equal(picked.motion.get(), 'slide', 'the user\'s own pick ends the hold');
-
-  const backToNone = loadAccent({ stored: { stencil_motion: 'fire' } });
-  backToNone.skin.set(true);
-  backToNone.motion.set('none');
-  backToNone.skin.set(false);
-  assert.equal(backToNone.motion.get(), 'none', 'None picked on purpose stays None');
+  assert.equal(picked.motion.get(), 'slide', 'the user\'s own pick stands');
+  assert.equal(picked.store.get('stencil_accent'), 'grass');
 });
 
 // StencilAccent.previewAccent writes only data-accent (lib/accent/accent.js): the ring, the mark and

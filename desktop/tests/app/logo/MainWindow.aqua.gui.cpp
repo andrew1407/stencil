@@ -71,10 +71,9 @@ class MainWindowGuiTest : public QObject {
     if (support::isWebcore()) { support::setSkin(support::Skin::DEFAULT); support::applyWebcoreLook(false); }
     support::clearMotionOverride();
     support::clearForcedDark();
-    support::setAsideAccent().reset();
   }
 
-  void typingTheWordOnABlankEditorDressesTheWindowSlidingInSessionBlue() {
+  void typingTheWordOnABlankEditorDressesTheWindowAndStoresSlidingBlue() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     QVERIFY(shown(win));
     win.settings.themeMode = QStringLiteral("light");
@@ -86,28 +85,25 @@ class MainWindowGuiTest : public QObject {
     type(win, QStringLiteral("somefruitcompany"));
     QVERIFY2(support::isAqua(), "the word turns the skin on");
     QVERIFY(!stageOf(win)->isOpen());
-    QCOMPARE(win.settings.accentColor, QString("blue"));   // the session wears Blue…
+    QCOMPARE(win.settings.accentColor, QString("blue"));   // the word sets Blue…
     QCOMPARE(qApp->styleSheet(), support::buildAquaStylesheet(false, QStringLiteral("blue")));
     QCOMPARE(stencil::gui::themePalette(false).accent.name(), QString("#2563eb"));
-    QCOMPARE(support::motionMode(), support::MotionMode::SLIDE);   // the session slides…
-    QVERIFY(support::motionOverridden());                          // …over a store that still says water
+    QCOMPARE(support::motionMode(), support::MotionMode::SLIDE);   // …and Sliding,
+    QVERIFY2(settingsBytes().contains("\"slide\""), "stored as the user's own, so a relaunch keeps them");
     QVERIFY2(support::installedStyleKey() != QString("Windows"), "the gel rides the app's own style");
-    QCOMPARE(settingsBytes(), stored);   // …over a store that still says violet
-    win.applySettings(win.settings, /*persist=*/true);
-    QVERIFY2(settingsBytes().contains("\"violet\""), "a write while the skin is on keeps the user's own accent");
+    QVERIFY(settingsBytes().contains("\"blue\""));
     QCOMPARE(win.canvas->getOriginalImage().size(), QSize(1024, 768));
     QCOMPARE(int(win.canvas->getLines().size()), 7);
     const auto* pr = win.projectHost.findProject(win.projectHost.activeProjectId.toStdString());
     QVERIFY(pr);
     QCOMPARE(QString::fromStdString(pr->meta.name), QString("somefruitcompany"));
 
-    const QByteArray during = settingsBytes();
     type(win, QStringLiteral("somefruitcompany"));
     QVERIFY(!support::isAqua());
-    QCOMPARE(win.settings.accentColor, QString("violet"));   // an untouched session gives it back
+    QCOMPARE(win.settings.accentColor, QString("violet"));   // an off in the same process gives it back
     QCOMPARE(qApp->styleSheet(), stencil::gui::buildStylesheet(false, QStringLiteral("violet")));
     QCOMPARE(support::motionMode(), support::MotionMode::WATER);
-    QCOMPARE(settingsBytes(), during);
+    QCOMPARE(settingsBytes(), stored);   // written back exactly as the word found it
   }
 
   void aBlueUserKeepsBlueAndTheWordOpensBlueWhateverIsStored() {
@@ -117,7 +113,6 @@ class MainWindowGuiTest : public QObject {
     const QByteArray stored = settingsBytes();
     win.parts.theme.toggleAqua();
     QCOMPARE(win.settings.accentColor, QString("blue"));
-    QVERIFY(!support::setAsideAccent());
     win.parts.theme.toggleAqua();
     QCOMPARE(win.settings.accentColor, QString("blue"));
     QCOMPARE(settingsBytes(), stored);

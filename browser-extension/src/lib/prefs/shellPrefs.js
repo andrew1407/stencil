@@ -59,28 +59,24 @@
     },
   };
 
+  // An earlier build parked the user's own mode under a skin's: the mode goes back.
+  const HKEY = 'stencil_motion_held', parked = readPref(HKEY, isMotion, '');
+  if (parked) { writePref(MKEY, parked); writePref(HKEY, ''); }
   applyMotion(readMotion());
-  // The mode a skin replaced (browser setMotionOverride); a user's own choice drops it.
-  const HKEY = 'stencil_motion_held';
-  const readHeld = function () { return readPref(HKEY, isMotion, ''); };
-  const writeMotion = function (mode) {
-    writePref(MKEY, mode);
-    applyMotion(mode);
-    try { window.dispatchEvent(new CustomEvent('stencil:motion-changed', { detail: mode })); } catch (e) { /* no DOM */ }
-  };
   window.StencilMotion = {
     modes: MOTION_MODES,
     labels: MOTION_LABELS,
     storageKey: MKEY,
     get: readMotion,
-    // No wipe: a motion change repaints nothing.
+    // No wipe: a motion change repaints nothing. The user's pick ends a skin's session mode.
     set: function (mode) {
       const next = isMotion(mode) ? mode : MOTION_DEFAULT;
-      writePref(HKEY, '');
-      writeMotion(next);
+      writePref(MKEY, next);
+      applyMotion(next);
+      try { window.dispatchEvent(new CustomEvent('stencil:motion-changed', { detail: next })); } catch (e) { /* no DOM */ }
       return next;
     },
-    stored: function () { return readHeld() || readMotion(); },
+    stored: readMotion,
     // The gates lib/motion.js asks (browser prefs.js motionReduced / dustEnabled / particleStyle).
     reduced: motionReduced,
     particles: function () { return particleStyle() !== null; },
@@ -104,22 +100,52 @@
     },
   };
 
-  // The session skins (browser css/webcore/, css/aqua/), stored because a popup lives only while it
-  // is open; one at a time, read off <html data-skin> by lib/skin/.
+  // The `storage` event fires in every OTHER same-origin extension document, never in the
+  // writer — so a change in the options page reaches an open side panel without an echo.
+  try {
+    window.addEventListener('storage', function (e) {
+      // Animated here too: a silent palette jump reads as a glitch.
+      if (e.key === KEY || e.key === null) swap(function () { apply(read()); }, 'theme-toggle', true);   // an accent: from the top   // key===null on localStorage.clear()
+      if (e.key === TKEY || e.key === null) swap(function () { applyTheme(readTheme()); }, 'theme-toggle');
+      if (e.key === MKEY || e.key === null) applyMotion(readMotion());   // the CSS half; motion.js reads live
+    });
+  } catch (e) { /* no window — not a page context */ }
+})();
+
+// The skins (browser css/webcore/, css/aqua/): the one on is stored and stamped on every page. Its word
+// stores its look as the user's own (webcore: still and Gray, aqua: Sliding and Blue); an off on the same
+// page gives back what the look replaced, unless the user picked their own. Browser twin: ui/skin/adopt.js.
+(function () {
+  const readPref = window.StencilKit.readPref, writePref = window.StencilKit.writePref;
+  const readMotion = function () { return window.StencilMotion.get(); };
   const SKEY = 'stencil_skin', SKIN = 'webcore', AQUA = 'aqua';
+  const LOOK = Object.freeze({ webcore: { motion: 'none', accent: 'grey' }, aqua: { motion: 'slide', accent: 'blue' } });
   const readName = function () { return readPref(SKEY, function (v) { return v === SKIN || v === AQUA; }, ''); };
   const applySkin = function (name) {
     if (name) document.documentElement.setAttribute('data-skin', name);
     else document.documentElement.removeAttribute('data-skin');
   };
-  const MODE_OF = Object.freeze({ webcore: 'none', aqua: 'slide' });   // the motion a skin holds, giving the user's back
+  const accentNow = function () { return window.StencilAccent ? window.StencilAccent.get() : ''; };
+  let replaced = null;   // { name, motion, accent } the word's look replaced on this page
+  const wearLook = function (motion, accent) {
+    if (readMotion() !== motion) window.StencilMotion.set(motion);
+    if (window.StencilAccent && accentNow() !== accent) window.StencilAccent.set(accent);
+  };
+  // Each half of the look the user left alone goes back to what it replaced.
+  const giveBack = function () {
+    const was = replaced, look = was && LOOK[was.name];
+    replaced = null;
+    if (!look) return;
+    wearLook(readMotion() === look.motion ? was.motion : readMotion(), accentNow() === look.accent ? was.accent : accentNow());
+  };
   const setName = function (name) {
-    const was = readName(), held = readHeld();
-    if (was && was !== name && held) { writePref(HKEY, ''); if (readMotion() === MODE_OF[was]) writeMotion(held); }
-    if (name && name !== was && readMotion() !== MODE_OF[name]) { writePref(HKEY, readHeld() || readMotion()); writeMotion(MODE_OF[name]); }
-    writePref(SKEY, name);
-    applySkin(name);
-    return name;
+    const was = readName();
+    if (was && was !== name) giveBack();
+    if (name && name !== was) {
+      replaced = { name: name, motion: readMotion(), accent: accentNow() };
+      wearLook(LOOK[name].motion, LOOK[name].accent);
+    }
+    writePref(SKEY, name); applySkin(name); return name;
   };
   // One skin's switch: on stamps it; off clears it only while it is the one stamped.
   const switchFor = function (skin) {
@@ -131,16 +157,9 @@
   applySkin(readName());
   const webcore = switchFor(SKIN);
   window.StencilSkin = { storageKey: SKEY, get: webcore.get, set: webcore.set, name: readName, aqua: switchFor(AQUA) };
-
-  // The `storage` event fires in every OTHER same-origin extension document, never in the
-  // writer — so a change in the options page reaches an open side panel without an echo.
   try {
-    window.addEventListener('storage', function (e) {
+    window.addEventListener('storage', function (e) {   // another page turned a skin on or off
       if (e.key === SKEY || e.key === null) applySkin(readName());
-      // Animated here too: a silent palette jump reads as a glitch.
-      if (e.key === KEY || e.key === null) swap(function () { apply(read()); }, 'theme-toggle', true);   // an accent: from the top   // key===null on localStorage.clear()
-      if (e.key === TKEY || e.key === null) swap(function () { applyTheme(readTheme()); }, 'theme-toggle');
-      if (e.key === MKEY || e.key === null) applyMotion(readMotion());   // the CSS half; motion.js reads live
     });
   } catch (e) { /* no window — not a page context */ }
 })();

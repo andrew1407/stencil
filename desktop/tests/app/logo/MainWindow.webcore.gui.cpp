@@ -1,6 +1,6 @@
 // MainWindow GUI e2e — The webcore word: typed into the bare window it dresses the whole app in
-// the session skin, still and light, writes nothing, gives an empty editor its picture and its
-// word, and typed again puts the stored look back. Shared ground is in MainWindow.gui.hpp.
+// the skin, stores still and Gray as the user's own, gives an empty editor its picture and its
+// word, and typed again writes back what it replaced. Shared ground is in MainWindow.gui.hpp.
 #include "../../MainWindow.gui.hpp"
 #include "LogoStage.hpp"
 #include "SettingsDialog.hpp"
@@ -85,13 +85,13 @@ class MainWindowGuiTest : public QObject {
     type(win, QStringLiteral("webcore"));
     QVERIFY2(support::isWebcore(), "the word turns the skin on");
     QVERIFY(!stageOf(win)->isOpen());
-    QCOMPARE(qApp->styleSheet(), support::buildWebcoreStylesheet(true, QStringLiteral("violet")));
+    QCOMPARE(qApp->styleSheet(), support::buildWebcoreStylesheet(true, QStringLiteral("grey")));
     QCOMPARE(support::motionMode(), support::MotionMode::NONE);   // a still interface…
     QVERIFY(!support::drawingAnimations());                         // …and still lines
     QVERIFY2(win.painted.dark, "the theme already chosen stands");
     QCOMPARE(win.settings.themeMode, QString("dark"));
     QCOMPARE(support::installedStyleKey(), QString("Windows"));
-    QCOMPARE(settingsBytes(), stored);
+    QVERIFY2(settingsBytes().contains("\"grey\"") && settingsBytes().contains("\"none\""), "stored: a relaunch keeps them");
     // The empty editor got the picture, the word and the name.
     QCOMPARE(win.canvas->getOriginalImage().size(), QSize(1024, 768));
     QCOMPARE(int(win.canvas->getLines().size()), 7);
@@ -103,7 +103,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(pr);
     QCOMPARE(QString::fromStdString(pr->meta.name), QString("webcore"));
 
-    // Typed again: the stored look, the base style, the picture kept.
+    // Typed again: what the word replaced, written back; the base style, the picture kept.
     type(win, QStringLiteral("webcore"));
     QVERIFY(!support::isWebcore());
     QCOMPARE(qApp->styleSheet(), stencil::gui::buildStylesheet(true, QStringLiteral("violet")));
@@ -141,33 +141,33 @@ class MainWindowGuiTest : public QObject {
     win.parts.theme.toggleTheme();
     QVERIFY2(!win.painted.dark, "the toggle flips relative to what is painted");
     QVERIFY(support::isWebcore());
-    QCOMPARE(qApp->styleSheet(), support::buildWebcoreStylesheet(false, QStringLiteral("violet")));
+    QCOMPARE(qApp->styleSheet(), support::buildWebcoreStylesheet(false, QStringLiteral("grey")));
     QCOMPARE(stencil::gui::fileStore::loadSettings().themeMode, QString("light"));
     QCOMPARE(int(canvas->getLines().size()), lines);   // an editor with a picture keeps it
     type(win, QStringLiteral("webcore"));
     QCOMPARE(qApp->styleSheet(), stencil::gui::buildStylesheet(false, QStringLiteral("violet")));
   }
 
-  // The skin stills the session (browser toggle.js): the rows show what is in force, the store
-  // keeps what was chosen, and moving a row hands the user's choice back.
+  // The word's stillness is the user's setting (browser adopt.js): the rows show it, the store holds
+  // it, and an off writes back what it replaced.
   void theSettingsRowsShowTheStillnessUnderTheSkin() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     QVERIFY(shown(win));
     seed(win);   // stored: water, drawing on, backdrop on
     const QByteArray stored = settingsBytes();
     type(win, QStringLiteral("webcore"));
-    QVERIFY(support::motionOverridden());
+    QVERIFY(!support::motionOverridden());
     QCOMPARE(support::motionMode(), support::MotionMode::NONE);
     {
       stencil::gui::SettingsDialog dlg(win.settings, &win);
       QCOMPARE(dlg.findChild<QComboBox*>("motionModeCombo")->currentData().toString(), QString("none"));
       const stencil::gui::Settings out = dlg.result();
-      QCOMPARE(out.motionMode, QString("water"));   // untouched rows write back what is stored
-      QVERIFY(out.drawingAnimations);
+      QCOMPARE(out.motionMode, QString("none"));   // untouched rows write back what is stored
+      QVERIFY(!out.drawingAnimations);
     }
-    QCOMPARE(settingsBytes(), stored);
     type(win, QStringLiteral("webcore"));
     QCOMPARE(support::motionMode(), support::MotionMode::WATER);
+    QCOMPARE(settingsBytes(), stored);
   }
 
   // Grey is the one colour two rows share, and the interface animation alone tells them apart:
