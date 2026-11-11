@@ -134,6 +134,32 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(hovered.count() >= 1, "the scroll re-hovered at the resting cursor");
   }
 
+  // A zoom the user did not make — the fit following a toolbar reflow — re-lays the canvas out but
+  // shows no scrollbars: a theme switch's re-fit flashed them over the lens's photograph.
+  void aZoomTheUserDidNotMakeShowsNoScrollbars() {
+    MainWindow win;
+    win.resize(600, 500);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QImage img(800, 4000, QImage::Format_RGB32);
+    img.fill(Qt::white);
+    win.loadImageWithLayout(img, QJsonObject());
+    win.refreshActions();
+    win.setZoom(1.0);
+    QTimer* fade = win.parts.view.scrollbarHideTimer;
+    QVERIFY(fade && fade->isActive());
+    fade->start(0);
+    QTRY_COMPARE(win.parts.view.vScrollOpacity->opacity(), 0.0);
+
+    win.setZoom(0.5, true, /*reveal=*/false);
+    QCoreApplication::processEvents();
+    QCOMPARE(win.canvas->getScale(), 0.5);
+    QCOMPARE(win.parts.view.vScrollOpacity->opacity(), 0.0);
+    QVERIFY2(!fade->isActive(), "a zoom nobody made must not arm the scrollbar fade");
+    // …and the canvas still took the new zoom's size (the picture opens cropped to the page aspect).
+    QCOMPARE(win.canvas->size(), QSize(qRound(win.canvas->imageWidth() * 0.5), qRound(win.canvas->imageHeight() * 0.5)));
+  }
+
 };
 
 QTEST_MAIN(MainWindowGuiTest)
