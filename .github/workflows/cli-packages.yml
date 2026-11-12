@@ -10,14 +10,15 @@ on:
     branches: [main]
     tags: ['v*']
     # A package is the CLI over the core plus the shared JSON build.zig embeds — nothing
-    # else changes a byte of it. (GitHub does not apply path filters to tag pushes: a
-    # release always builds.)
+    # else changes a byte of it; the Dockerfile is CI's docker-images job's. (GitHub does not
+    # apply path filters to tag pushes: a release always builds.)
     paths:
       - 'cli/**'
       - 'core/**'
       - 'common/config/**'
       - '.github/workflows/cli-packages.yml'
       - '!**/*.md'
+      - '!cli/Dockerfile'
   pull_request:
     branches: [main]
     paths:
@@ -26,6 +27,7 @@ on:
       - 'common/config/**'
       - '.github/workflows/cli-packages.yml'
       - '!**/*.md'
+      - '!cli/Dockerfile'
   workflow_dispatch:
 
 permissions:
