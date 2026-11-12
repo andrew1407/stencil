@@ -1,0 +1,47 @@
+name: Docker Hub descriptions
+
+# Publishes each image's Docker Hub page — its one-line description and the README in
+# .github/dockerhub/<app>.md — whenever those change on main, or on demand; no image is rebuilt.
+# Needs the repo variable DOCKERHUB_USERNAME and the secret DOCKERHUB_TOKEN (Read, Write, Delete).
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/dockerhub/**'
+      - '.github/workflows/dockerhub-descriptions.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  describe:
+    name: Describe stencil-${{ matrix.app }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Docker Hub caps the short description at 100 characters.
+        include:
+          - app: browser
+            summary: The Stencil image editor as a static web app — draw, measure, script and share. nginx, port 80.
+          - app: cli
+            summary: Headless Stencil image editing — crop, rotate, filter, draw layouts, run .stc scripts.
+          - app: mcp
+            summary: MCP server giving Claude and other AI clients Stencil's image editing tools, over stdio.
+          - app: server
+            summary: Stencil collaboration server — shared projects over REST with a live WebSocket/TCP feed.
+          - app: bot
+            summary: Telegram bot that edits pictures with Stencil — crop, filter, draw, scripts and an assistant.
+    steps:
+      - uses: actions/checkout@v7
+      - uses: peter-evans/dockerhub-description@v5
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ vars.DOCKERHUB_USERNAME }}/stencil-${{ matrix.app }}
+          short-description: ${{ matrix.summary }}
+          readme-filepath: .github/dockerhub/${{ matrix.app }}.md

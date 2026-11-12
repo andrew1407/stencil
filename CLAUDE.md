@@ -73,7 +73,9 @@ CMake + Doctest; each other surface uses its platform's default.
   app keeps its own `<app>/CHANGELOG.md`. A bump edits the manifest and adds the changelog
   sections, then `node tools/repo/versions.mjs --write` refreshes the lockfiles and README badges
   (`--check` only reports). A `v*` tag also publishes the service images to Docker Hub as
-  `stencil-<app>`, each tagged with its app's version (`.github/workflows/docker-images.yml`).
+  `stencil-<app>`, each tagged with its app's version (`.github/workflows/docker-images.yml`); each
+  image's Docker Hub page is `.github/dockerhub/<app>.md`, published when it changes
+  (`.github/workflows/dockerhub-descriptions.yml`).
 - The CLI builds with Zig 0.17 (`cli/build.zig.zon` `minimum_zig_version`); its C ABI
   bindings are the hand-written `cli/src/core/cApi.zig`, pinned to `core/cliApi.h` by a drift test.
 
