@@ -6,8 +6,9 @@
 #   docker build -f bot/Dockerfile -t stencil-bot .
 #   docker run --rm -e TELEGRAM_BOT_TOKEN=123456:ABC stencil-bot
 #
-# Provide TELEGRAM_BOT_TOKEN at runtime — never bake it into the image. ffmpeg is included
-# for /frame video input. Optional runtime env: REDIS_URL (shared sessions),
+# Provide TELEGRAM_BOT_TOKEN at runtime — never bake it into the image. A minimal static
+# ffmpeg (common/docker/buildFfmpeg.sh) serves /frame video input and the assistant's image
+# downscale; the runtime is .NET on Alpine. Optional runtime env: REDIS_URL (shared sessions),
 # STENCIL_TLS_INSECURE, STENCIL_BOT_DATA_DIR (defaults to /data; mount a volume to persist).
 # The Zig arch auto-detects from the build platform (amd64/arm64), so this builds on an
 # x86_64 CI runner and an Apple-Silicon Mac unchanged. Override --build-arg ZIG_VERSION=...
@@ -38,15 +39,17 @@ RUN set -eux; \
     fi; \
     url="${ZIG_URL:-https://ziglang.org/download/${ZIG_VERSION}/zig-${arch}-linux-${ZIG_VERSION}.tar.xz}"; \
     curl -fsSL "$url" | tar -xJ -C /opt; \
-    ln -s /opt/zig-*/zig /usr/local/bin/zig
+    ln -s /opt/zig-*/zig /usr/local/bin/zig; \
+    echo "$arch" > /zig-arch
 WORKDIR /src
 COPY core/ ./core/
 COPY cli/ ./cli/
 # cli/build.zig embeds the shared JSON in common/config (accents, colour names, constants,
 # and the LLM prompt/registry/providers), so those files must be in the build context too.
 COPY common/config/ ./common/config/
-# Zig fetches the pinned stb_image dependency on demand (needs network).
-RUN cd cli && zig build -Doptimize=ReleaseFast
+# Zig fetches the pinned stb_image dependency on demand (needs network). A musl target links
+# statically, as the release archives do.
+RUN cd cli && zig build -Doptimize=ReleaseFast -Dstrip=true -Dtarget="$(cat /zig-arch)-linux-musl"
 
 # ---- Stage 2: build the .NET bot -------------------------------------------
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
@@ -61,11 +64,17 @@ COPY common/config/ /src/common/config/
 # is ever dropped.
 RUN dotnet publish src/Stencil.TelegramBot.Bot/Stencil.TelegramBot.Bot.csproj -c Release -o /app --packages packages
 
-# ---- Stage 3: runtime ------------------------------------------------------
-FROM mcr.microsoft.com/dotnet/runtime:10.0
-RUN apt-get update \
- && apt-get install -y --no-install-recommends ffmpeg ca-certificates \
- && rm -rf /var/lib/apt/lists/*
+# ---- Stage 3: a static ffmpeg + ffprobe holding only what the bot asks of them ----
+FROM alpine:3.24 AS ffmpeg
+COPY common/docker/buildFfmpeg.sh /buildFfmpeg.sh
+RUN sh /buildFfmpeg.sh
+
+# ---- Stage 4: runtime ------------------------------------------------------
+# The published bot is framework-dependent and portable, so the Alpine runtime runs it as is.
+FROM mcr.microsoft.com/dotnet/runtime:10.0-alpine
+COPY --from=ffmpeg /opt/ffmpeg/bin/ /usr/local/bin/
+# FFmpeg's and dav1d's licences, sources and build flags (LGPL terms), beside the binaries.
+COPY --from=ffmpeg /opt/ffmpeg/share/licenses/ /usr/share/licenses/
 COPY --from=cli /src/cli/zig-out/bin/stencil /usr/local/bin/stencil
 COPY --from=build /app /app
 # Tell the bot where the CLI lives (it also auto-discovers it on PATH).

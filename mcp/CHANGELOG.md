@@ -24,4 +24,4 @@ Shipped in Stencil 1.0.0, the first release. A Rust Model Context Protocol serve
   cancellation.
 - Confinement: writes land only inside the client's roots, only operator-allowed servers are
   reachable, tokens never appear as tool parameters, and CLI runs are timed and capped.
-- A Docker image with the CLI and `ffmpeg` pre-wired.
+- A small Alpine Docker image with the static CLI and a minimal static FFmpeg pre-wired.

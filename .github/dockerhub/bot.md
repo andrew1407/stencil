@@ -61,6 +61,14 @@ every command costs the operator a fetch, a CLI run or a model call.
 Every option is in the
 [bot guide](https://github.com/andrew1407/stencil/blob/main/bot/README.md#configuration).
 
+## Third-party software
+
+Video frames come from a minimal static build of [FFmpeg](https://ffmpeg.org) 9.0.2
+(LGPL-2.1-or-later), with [dav1d](https://code.videolan.org/videolan/dav1d) 1.5.4 (BSD-2-Clause) for
+AV1, holding only the formats Stencil reads. Their licences, the exact unmodified sources and the build
+flags are in the image under `/usr/share/licenses`; the build script is
+[`common/docker/buildFfmpeg.sh`](https://github.com/andrew1407/stencil/blob/main/common/docker/buildFfmpeg.sh).
+
 ## Tags
 
 | Tag | |

@@ -29,4 +29,5 @@ Shipped in Stencil 1.0.0, the first release. A Zig command-line tool that recomp
   with a live-linked `.stencil` file.
 - A full-screen TUI (`--console-full-screen`) with a pinned logo, scrollback, mouse
   selection and accent themes.
-- Release binaries for Linux (static musl), macOS and Windows, and a Docker image.
+- Release binaries for Linux (static musl), macOS and Windows, and a small Alpine Docker image
+  with a minimal static FFmpeg for video frames.

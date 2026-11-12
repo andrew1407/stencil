@@ -95,9 +95,10 @@ jobs:
           # image,dockerfile,context; every image builds from the repo root.
           images=()
           hit "^browser/|^core/|$cfg|^\.dockerignore$"   && images+=("stencil-browser,browser/Dockerfile,.")
-          hit "^cli/|^core/|$cfg|^\.dockerignore$"       && images+=("stencil-cli,cli/Dockerfile,.")
-          hit "^mcp/|^cli/|^core/|$cfg|^\.dockerignore$" && images+=("stencil-mcp,mcp/Dockerfile,.")
-          hit "^bot/|^cli/|^core/|$cfg|^\.dockerignore$" && images+=("stencil-bot,bot/Dockerfile,.")
+          # The three images that run ffmpeg build it with common/docker/buildFfmpeg.sh.
+          hit "^cli/|^core/|^common/docker/|$cfg|^\.dockerignore$"       && images+=("stencil-cli,cli/Dockerfile,.")
+          hit "^mcp/|^cli/|^core/|^common/docker/|$cfg|^\.dockerignore$" && images+=("stencil-mcp,mcp/Dockerfile,.")
+          hit "^bot/|^cli/|^core/|^common/docker/|$cfg|^\.dockerignore$" && images+=("stencil-bot,bot/Dockerfile,.")
           hit "^server/|$cfg|^\.dockerignore$"          && images+=("stencil-server,server/Dockerfile,.")
           json=$(jq -cn '[$ARGS.positional[] | split(",") | {image: .[0], dockerfile: .[1], context: .[2]}]' --args ${images[@]+"${images[@]}"})
           echo "images=$json" >> "$GITHUB_OUTPUT"; echo "images: $json"

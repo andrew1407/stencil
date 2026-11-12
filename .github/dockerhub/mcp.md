@@ -72,6 +72,14 @@ Pass with `-e NAME=value` in the `docker run` arguments.
 The `desktop` and `browser` delivery surfaces need those apps beside the server, so in a container
 the results are files (the `cli` surface).
 
+## Third-party software
+
+Video frames come from a minimal static build of [FFmpeg](https://ffmpeg.org) 9.0.2
+(LGPL-2.1-or-later), with [dav1d](https://code.videolan.org/videolan/dav1d) 1.5.4 (BSD-2-Clause) for
+AV1, holding only the formats Stencil reads. Their licences, the exact unmodified sources and the build
+flags are in the image under `/usr/share/licenses`; the build script is
+[`common/docker/buildFfmpeg.sh`](https://github.com/andrew1407/stencil/blob/main/common/docker/buildFfmpeg.sh).
+
 ## Tags
 
 | Tag | |

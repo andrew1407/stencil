@@ -25,4 +25,4 @@ Shipped in Stencil 1.0.0, the first release. A .NET bot that drives the CLI and 
   to the desktop app.
 - A per-user allowlist that fails closed, bounded update queues, and session state in
   memory or Redis.
-- A Docker image with the CLI and `ffmpeg`.
+- A Docker image on .NET's Alpine runtime, with the static CLI and a minimal static FFmpeg.
