@@ -30,7 +30,8 @@ RUN node browser/tools/swStamp.js --write
 
 # ---- Stage 3: serve the static app -----------------------------------------
 # The app at the root, with the shared tables and brand art its ../common imports land on at /common/.
-FROM nginx:alpine
+# -slim: nginx.conf asks only for the core, so the dynamic modules (njs, xslt, geoip, …) stay out.
+FROM nginx:1.31.8-alpine-slim
 # What the page loads, and nothing else: no tests, tools, node_modules or .d.ts shapes.
 COPY browser/launch.html browser/manifest.webmanifest /usr/share/nginx/html/
 COPY --from=stamp /src/browser/index.html /src/browser/sw.js /usr/share/nginx/html/
