@@ -131,6 +131,7 @@ wires it together; it also backs the full-stack [`e2e/`](e2e/) suite:
 
 ```bash
 docker compose up --build server   # collab server on :8090 (REST/WS) + :8091 (TCP), with its db/redis
+docker compose up -d --pull always # the released images instead of a build (STENCIL_TAG=<version> pins one)
 ```
 
 ## Scripts (`.stc`)

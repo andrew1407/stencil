@@ -4,6 +4,8 @@
 #   docker compose up --build            # db + redis + collab server + browser app
 #   docker compose up --build server     # just the collab server (+ its db/redis deps)
 #   docker compose --profile mcp run --rm mcp   # one-off MCP server over stdio
+#   docker compose up -d --pull always           # the released images instead: no build
+#   (each image's newest release; STENCIL_TAG=<version> pins one)
 #
 # Build contexts differ per image (see each Dockerfile's header):
 #   - every image builds from the repo root (.): browser/mcp compile core/, and all of
@@ -62,6 +64,9 @@ services:
     build:
       context: .
       dockerfile: server/Dockerfile
+    # Built from source by default; `up --pull always` pulls this released image instead.
+    image: andrew1407/stencil-server:${STENCIL_TAG:-latest}
+    pull_policy: build
     depends_on:
       db:
         condition: service_healthy
@@ -98,6 +103,8 @@ services:
       # Repo root: the browser image compiles core/ -> wasm before serving.
       context: .
       dockerfile: browser/Dockerfile
+    image: andrew1407/stencil-browser:${STENCIL_TAG:-latest}
+    pull_policy: build
     ports:
       - "8080:80"
 
@@ -109,6 +116,8 @@ services:
     build:
       context: .
       dockerfile: mcp/Dockerfile
+    image: andrew1407/stencil-mcp:${STENCIL_TAG:-latest}
+    pull_policy: build
     stdin_open: true
     tty: false
 
