@@ -59,18 +59,18 @@ optional `f(x,y)` formula transforms, and save your work.
 
 Stencil ships as **one shared logic core with a family of front-ends and services**:
 
-| App | Path | Stack | Docs | Use cases |
-|---|---|---|---|---|
-| **Core** | [`core/`](core/) | C++17, STL-only, GUI-free shared library | [core/README.md](core/README.md) | — |
-| **Browser** | [`browser/`](browser/) | Vanilla ES-module JS, no build step (optional single-file bundle) | [browser/README.md](browser/README.md) | [browser](usecases/docs/browser/USECASES.md) |
-| **Chrome extension** | [`browser-extension/`](browser-extension/) | Chrome MV3, plain ES modules, no dependencies; lists a page's pictures and hands them to the browser editor | [browser-extension/README.md](browser-extension/README.md) | [browser-extension](usecases/docs/browser-extension/USECASES.md) |
-| **Desktop** | [`desktop/`](desktop/) | C++17 + Qt 6, CMake build | [desktop/README.md](desktop/README.md) | [desktop](usecases/docs/desktop/USECASES.md) |
-| **CLI** | [`cli/`](cli/) | Zig, wraps the C++ core | [cli/README.md](cli/README.md) | [cli](usecases/docs/cli/USECASES.md) |
-| **Python** | [`pystencil/`](pystencil/) | Stdlib-only Python, drives the C++ core via ctypes | [pystencil/README.md](pystencil/README.md) | [pystencil](usecases/docs/pystencil/USECASES.md) |
-| **VS Code extension** | [`vscode-extension/`](vscode-extension/) | Plain ES modules on the VS Code API; edits `.stc`, `.stcjs` and `.pystc`, runs them through the CLI and Python | [vscode-extension/README.md](vscode-extension/README.md) | [vscode-extension](usecases/docs/vscode-extension/USECASES.md) |
-| **MCP server** | [`mcp/`](mcp/) | Rust, exposes the CLI's pipeline as MCP tools | [mcp/README.md](mcp/README.md) | — |
-| **Collaboration server** | [`server/`](server/) | Go, stores/shares projects and announces their changes on a live feed | [server/README.md](server/README.md) | — |
-| **Telegram bot** | [`bot/`](bot/) | .NET (C#), chat-driven editing over the CLI + server REST | [bot/README.md](bot/README.md) | [bot](usecases/docs/bot/USECASES.md) |
+| App | Path | Stack | Docs | Use cases | Docker |
+|---|---|---|---|---|---|
+| **Core** | [`core/`](core/) | C++17, STL-only, GUI-free shared library | [core/README.md](core/README.md) | — | — |
+| **Browser** | [`browser/`](browser/) | Vanilla ES-module JS, no build step (optional single-file bundle) | [browser/README.md](browser/README.md) | [browser](usecases/docs/browser/USECASES.md) | [stencil-browser](https://hub.docker.com/r/andrew1407/stencil-browser) |
+| **Chrome extension** | [`browser-extension/`](browser-extension/) | Chrome MV3, plain ES modules, no dependencies; lists a page's pictures and hands them to the browser editor | [browser-extension/README.md](browser-extension/README.md) | [browser-extension](usecases/docs/browser-extension/USECASES.md) | — |
+| **Desktop** | [`desktop/`](desktop/) | C++17 + Qt 6, CMake build | [desktop/README.md](desktop/README.md) | [desktop](usecases/docs/desktop/USECASES.md) | — |
+| **CLI** | [`cli/`](cli/) | Zig, wraps the C++ core | [cli/README.md](cli/README.md) | [cli](usecases/docs/cli/USECASES.md) | [stencil-cli](https://hub.docker.com/r/andrew1407/stencil-cli) |
+| **Python** | [`pystencil/`](pystencil/) | Stdlib-only Python, drives the C++ core via ctypes | [pystencil/README.md](pystencil/README.md) | [pystencil](usecases/docs/pystencil/USECASES.md) | — |
+| **VS Code extension** | [`vscode-extension/`](vscode-extension/) | Plain ES modules on the VS Code API; edits `.stc`, `.stcjs` and `.pystc`, runs them through the CLI and Python | [vscode-extension/README.md](vscode-extension/README.md) | [vscode-extension](usecases/docs/vscode-extension/USECASES.md) | — |
+| **MCP server** | [`mcp/`](mcp/) | Rust, exposes the CLI's pipeline as MCP tools | [mcp/README.md](mcp/README.md) | — | [stencil-mcp](https://hub.docker.com/r/andrew1407/stencil-mcp) |
+| **Collaboration server** | [`server/`](server/) | Go, stores/shares projects and announces their changes on a live feed | [server/README.md](server/README.md) | — | [stencil-server](https://hub.docker.com/r/andrew1407/stencil-server) |
+| **Telegram bot** | [`bot/`](bot/) | .NET (C#), chat-driven editing over the CLI + server REST | [bot/README.md](bot/README.md) | [bot](usecases/docs/bot/USECASES.md) | [stencil-bot](https://hub.docker.com/r/andrew1407/stencil-bot) |
 
 A companion **Chrome extension** ([`browser-extension/`](browser-extension/)) feeds the browser editor: it
 lists, searches and filters every image on any web page and opens a chosen image in the
